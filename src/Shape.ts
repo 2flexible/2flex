@@ -1,19 +1,18 @@
-interface ShapeInterface {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    resize: boolean;
-}
+import { Block, BlockInterface } from "./Block";
 
-class Shape implements ShapeInterface {
-    x: number;
-    y: number;
+class Shape extends Block implements BlockInterface {
     width: number;
     height: number;
     resize: boolean;
 
-    constructor({ x, y, width, height, resize = true }: Shape) {
+    constructor(
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        resize: boolean = true
+    ) {
+        super(x, y, resize);
         this.x = x;
         this.y = y;
         this.width = width;
