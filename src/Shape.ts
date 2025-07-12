@@ -1,24 +1,11 @@
-import { Block, BlockInterface } from "./Block";
+import { Block } from "./Block";
 
-class Shape extends Block implements BlockInterface {
+export class Shape {
     width: number;
     height: number;
-    resize: boolean;
 
-    constructor(
-        x: number,
-        y: number,
-        width: number,
-        height: number,
-        resize: boolean = true
-    ) {
-        super(x, y, resize);
-        this.x = x;
-        this.y = y;
+    constructor(width: number, height: number) {
         this.width = width;
         this.height = height;
-        this.resize = resize;
     }
 }
-
-export { Shape, ShapeInterface };

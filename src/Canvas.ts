@@ -1,15 +1,19 @@
-// import { createCanvas } from "canvas";
-
 import { createCanvas } from "canvas";
-import Page from "./Layer";
+import Layer from "./Layer";
+import { Tree } from "./Tree";
 // const canvas = createCanvas(200, 200)
 // const ctx = canvas.getContext("2d")
 
+interface CanvasInterface {
+    width: number;
+    heihgt: number;
+}
+
 class Canvas {
-    // default height, width
-    width = 200;
-    height = 200;
-    pages: Page[] = [];
+    width: number;
+    height: number;
+
+    // layers: Layer[] = [];
 
     constructor(width: number, height: number) {
         this.width = width;
@@ -22,16 +26,8 @@ class Canvas {
         return ctx;
     }
 
-    add(page: Page) {
-        this.pages.push(page);
+    add(layer: Layer) {
+        this.layers.push(layer);
     }
-
-    #node() {
-        const node_list = [];
-        for (let layer of this.pages) {
-        }
-    }
-
-    #tree() {}
 }
 export default Canvas;

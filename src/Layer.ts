@@ -1,10 +1,20 @@
-import Block from "./Block";
-class Page {
+// Layer spesical type of block whcih defines group of blocks
+import { Block } from "./Block";
+
+class Layer extends Block {
     width = 200;
     height = 200;
     blocks: Block[] = [];
+    _type = "layer";
 
-    constructor(width: number, height: number) {
+    constructor(
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        resize: boolean
+    ) {
+        super(x, y, resize);
         this.width = width;
         this.height = height;
     }
@@ -14,4 +24,4 @@ class Page {
     }
 }
 
-export default Page;
+export default Layer;
