@@ -1,19 +1,14 @@
 import { createCanvas } from "canvas";
-import Layer from "./Layer";
 import { Tree } from "./Tree";
-// const canvas = createCanvas(200, 200)
-// const ctx = canvas.getContext("2d")
+import { BlockElements } from "./types";
+import { Block } from ".";
 
-interface CanvasInterface {
-    width: number;
-    heihgt: number;
-}
-
-class Canvas {
+// @Todo canvas can be from DOM, rather than node canvas
+export class Canvas {
     width: number;
     height: number;
 
-    // layers: Layer[] = [];
+    #tree = new Tree();
 
     constructor(width: number, height: number) {
         this.width = width;
@@ -26,8 +21,14 @@ class Canvas {
         return ctx;
     }
 
-    add(layer: Layer) {
-        this.layers.push(layer);
+    add(...block: BlockElements[]) {
+        const context = this.getCanvas();
+
+        // Traversal alghorithm for all Nodes
+        block.forEach((element) => {
+            element.context = context;
+        });
+
+        this.#tree.addNode(...block);
     }
 }
-export default Canvas;

@@ -1,2 +1,4 @@
-import Rect from "./Rect";
-export { Rect };
+import { Rect } from "./Rect";
+import { Star } from "./Star";
+
+export { Rect, Star };

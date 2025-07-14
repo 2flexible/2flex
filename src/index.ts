@@ -1,5 +1,5 @@
-import Canvas from "./Canvas";
+import { Canvas } from "./Canvas";
 import { Block } from "./Block";
-import Page from "./Layer";
+import { Layer } from "./Layer";
 
-export { Canvas, Block, Page };
+export { Canvas, Block, Layer };

@@ -1,11 +1,9 @@
 import { Block } from "./Block";
+import { BlockOptions, BlockElements } from "./types";
 
-export class Shape {
-    width: number;
-    height: number;
-
-    constructor(width: number, height: number) {
-        this.width = width;
-        this.height = height;
+// each shape extends form common shape
+export class Shape extends Block<BlockElements> {
+    constructor(options: BlockOptions) {
+        super(options);
     }
 }
