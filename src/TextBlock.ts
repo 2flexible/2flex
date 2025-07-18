@@ -28,12 +28,11 @@ interface IText {
 
 export class TextBlock extends Block<IText> {
     text: string;
-    _type: string = "TextBlock";
 
     constructor(text: string, options: IBlock<IText>) {
         super(options);
         this.text = text;
-        this.#handle_changes();
+        this.#initSet();
     }
 
     #initSet() {
@@ -63,7 +62,7 @@ export class TextBlock extends Block<IText> {
         return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
     }
 
-    #stroke() {
+    private stroke() {
         this.__context.strokeStyle = this.options.stroke!;
         this.__context.strokeText(
             this.text,
@@ -73,13 +72,13 @@ export class TextBlock extends Block<IText> {
         );
     }
 
-    #direction() {
+    private direction() {
         this.__context.direction = this.options.direction!;
     }
-    #align() {
+    private align() {
         this.__context.textAlign = this.options.textAlign!;
     }
-    #baseline() {
+    private baseline() {
         this.__context.textBaseline = this.options.textBaseline!;
     }
 
@@ -87,20 +86,20 @@ export class TextBlock extends Block<IText> {
         return this.__context.measureText(this.text);
     }
 
-    #handle_changes() {
-        this.#initSet();
-        const { stroke, textBaseline, textAlign, direction } = this.options;
-        switch (false) {
-            case !stroke:
-                this.#stroke();
-            case !textBaseline:
-                this.#baseline();
-            case !textAlign:
-                this.#align();
-            case !direction:
-                this.#direction();
-        }
-    }
+    // #handle_changes() {
+    //     this.#initSet();
+    //     const { stroke, textBaseline, textAlign, direction } = this.options;
+    //     switch (false) {
+    //         case !stroke:
+    //             this.stroke();
+    //         case !textBaseline:
+    //             this.#baseline();
+    //         case !textAlign:
+    //             this.#align();
+    //         case !direction:
+    //             this.#direction();
+    //     }
+    // }
 }
 
 /* 

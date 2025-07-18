@@ -28,8 +28,17 @@ export class Canvas {
         // Traversal alghorithm for all Nodes
         block.forEach((element) => {
             element.__context = context;
+            this.__handleChanges(element);
         });
 
         this.#tree.addNode(...block);
+    }
+
+    __handleChanges(block: BlockElements): void {
+        for (const option in block.options) {
+            const proto = Object.getPrototypeOf(block);
+            const obj = Object.getOwnPropertyDescriptor(proto, option);
+            obj?.value.call(block);
+        }
     }
 }
