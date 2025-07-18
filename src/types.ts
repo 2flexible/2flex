@@ -13,6 +13,8 @@ export interface BlockOptions {
     height?: number;
     backgroundColor?: string;
     color?: string;
+    stroke?: string;
+    lineWidth?: number;
 }
 
 export type BlockElements = Block<BlockOptions> | Shape | TextBlock;

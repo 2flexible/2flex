@@ -6,4 +6,7 @@ export class Shape extends Block<BlockElements> {
     constructor(options: BlockOptions) {
         super(options);
     }
+    lineWidth() {
+        this.__context.lineWidth = this.options.lineWidth!;
+    }
 }
