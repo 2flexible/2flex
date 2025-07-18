@@ -15,6 +15,8 @@ export interface BlockOptions {
     color?: string;
     stroke?: string;
     lineWidth?: number;
+    padding?: string;
+    margin?: string;
 }
 
 export type BlockElements = Block<BlockOptions> | Shape | TextBlock;
@@ -22,3 +24,6 @@ export type BlockElements = Block<BlockOptions> | Shape | TextBlock;
 export type IBlock<T> = T extends BlockOptions
     ? BlockOptions
     : BlockOptions & T;
+type CanvasContext<T> = T extends CanvasRenderingContext2D
+    ? CanvasRenderingContext2D
+    : CanvasRenderingContext2D | null;

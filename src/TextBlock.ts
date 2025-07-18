@@ -36,9 +36,16 @@ export class TextBlock extends Block<IText> {
     }
 
     #initSet() {
-        this.__context.font = this.#format_font();
-        this.__context.fillStyle = this.options?.color || "black";
-        this.__context.fillText(
+        const text_measure = this.measureText();
+        this.options.height =
+            text_measure.actualBoundingBoxAscent +
+            text_measure.actualBoundingBoxDescent;
+
+        this.options.width = text_measure.width;
+
+        this._context.font = this.#format_font();
+        this._context.fillStyle = this.options?.color || "black";
+        this._context.fillText(
             this.text,
             this.x,
             this.y,
@@ -63,8 +70,8 @@ export class TextBlock extends Block<IText> {
     }
 
     private stroke() {
-        this.__context.strokeStyle = this.options.stroke!;
-        this.__context.strokeText(
+        this._context.strokeStyle = this.options.stroke!;
+        this._context.strokeText(
             this.text,
             this.x,
             this.y,
@@ -73,33 +80,19 @@ export class TextBlock extends Block<IText> {
     }
 
     private direction() {
-        this.__context.direction = this.options.direction!;
+        this._context.direction = this.options.direction!;
     }
     private align() {
-        this.__context.textAlign = this.options.textAlign!;
+        this._context.textAlign = this.options.textAlign!;
     }
     private baseline() {
-        this.__context.textBaseline = this.options.textBaseline!;
+        this._context.textBaseline = this.options.textBaseline!;
     }
 
+    // returns text width in pixels
     measureText() {
-        return this.__context.measureText(this.text);
+        return this._context.measureText(this.text);
     }
-
-    // #handle_changes() {
-    //     this.#initSet();
-    //     const { stroke, textBaseline, textAlign, direction } = this.options;
-    //     switch (false) {
-    //         case !stroke:
-    //             this.stroke();
-    //         case !textBaseline:
-    //             this.#baseline();
-    //         case !textAlign:
-    //             this.#align();
-    //         case !direction:
-    //             this.#direction();
-    //     }
-    // }
 }
 
 /* 
@@ -121,6 +114,8 @@ const text_b = new TextBlock("Hey", {
     lineWidth: 10,
 });
 
+text_b.click(function () {});
+
 const canvas = new Canvas(200, 200);
 canvas.add(text_b);
-console.log(text_b.__context.strokeStyle);
+console.log(text_b._context.strokeStyle);
