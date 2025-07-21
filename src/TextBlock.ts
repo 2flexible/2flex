@@ -89,6 +89,10 @@ export class TextBlock extends Block<IText> {
         this._context.textBaseline = this.options.textBaseline!;
     }
 
+    set(options: IBlock<IText>) {
+        super.set(options);
+    }
+
     // returns text width in pixels
     measureText() {
         return this._context.measureText(this.text);
@@ -105,7 +109,7 @@ Todo - in css
 */
 // const box1 = new Block({ x: 0, y: 0 });
 
-const text_b = new TextBlock("Hey", {
+const text_a = new TextBlock("First Text", {
     x: 0,
     y: 0,
     color: "red",
@@ -114,7 +118,19 @@ const text_b = new TextBlock("Hey", {
     lineWidth: 10,
 });
 
-text_b.click(function () {});
+const text_b = new TextBlock("Second Text", {
+    x: 0,
+    y: 50,
+    color: "red",
+    fontFamily: "KulminoituvaRegular",
+});
+
+text_b.click((e) => {
+    text_a.options.color = "black";
+    text_a.set({ color: "black" });
+});
+
+// text_b.addEvent("click", (e) => {console.log(e)});
 
 const canvas = new Canvas(200, 200);
 canvas.add(text_b);

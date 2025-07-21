@@ -7,8 +7,9 @@ import { Block } from ".";
 export type ShapeElements = Rect | Star;
 
 export interface BlockOptions {
-    x: number;
-    y: number;
+    [key: string]: any;
+    x?: number;
+    y?: number;
     width?: number;
     height?: number;
     backgroundColor?: string;
@@ -24,6 +25,19 @@ export type BlockElements = Block<BlockOptions> | Shape | TextBlock;
 export type IBlock<T> = T extends BlockOptions
     ? BlockOptions
     : BlockOptions & T;
+
 type CanvasContext<T> = T extends CanvasRenderingContext2D
     ? CanvasRenderingContext2D
     : CanvasRenderingContext2D | null;
+
+export interface CursorPos {
+    x: number;
+    y: number;
+}
+
+type Events = "click" | "mousedown";
+
+export interface ICustomEvents {
+    eventType: Events;
+    method: (event: MouseEvent, cursor: CursorPos) => void;
+}

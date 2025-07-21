@@ -1,9 +1,7 @@
 import { Tree } from "./Tree";
-import { BlockElements } from "./types";
-import { Block } from ".";
-import { TextBlock } from "./TextBlock";
+import { BlockElements, CursorPos } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
-// @Todo canvas can be from DOM, rather than node canvas
+
 export class Canvas {
     width: number;
     height: number;
@@ -30,23 +28,35 @@ export class Canvas {
         // Traversal alghorithm for all Nodes
         block.forEach((element) => {
             element._context = context;
-            element._canvas = this.canvas;
-
-            this.#handleChanges(element);
+            this.#handleStyleChanges(element);
+            this.#handleEvents(element);
         });
 
         this.#tree.addNode(...block);
     }
 
-    
+    getCursorPosition(event: { clientX: number; clientY: number }) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const cursor: CursorPos = { x, y };
+        return cursor;
+    }
 
-    #handleChanges(block: BlockElements): void {
+    #handleEvents(element: BlockElements) {
+        element.events.forEach((elem: any) => {
+            this.canvas.addEventListener(elem.type, (event) => {
+                const cursor = this.getCursorPosition(event);
+                elem.method(event, cursor);
+            });
+        });
+    }
+
+    #handleStyleChanges(block: BlockElements): void {
         for (const option in block.options) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, option);
             obj?.value.call(block);
         }
     }
-
-    #handleEvents(block: BlockElements) {}
 }
