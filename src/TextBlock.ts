@@ -1,6 +1,5 @@
-import { Canvas } from "./Canvas";
-import { Block } from ".";
-import { BlockOptions, IBlock } from "./types";
+import { Block } from "./Block";
+import { IBlock } from "./types";
 
 type TextAlign = "start" | "end" | "center" | "left" | "right";
 
@@ -26,17 +25,18 @@ interface IText {
     maxWidth?: number;
 }
 
-export class TextBlock extends Block<IText> {
+export class TextBlock extends Block {
     text: string;
 
-    constructor(text: string, options: IBlock<IText>) {
+    constructor(text: string, options: IBlock<IText> | undefined) {
         super(options);
         this.text = text;
-        this.#initSet();
+        // this.#initSet();
     }
 
-    #initSet() {
+    initSet() {
         const text_measure = this.measureText();
+
         this.options.height =
             text_measure.actualBoundingBoxAscent +
             text_measure.actualBoundingBoxDescent;
@@ -47,9 +47,9 @@ export class TextBlock extends Block<IText> {
         this._context.fillStyle = this.options?.color || "black";
         this._context.fillText(
             this.text,
-            this.x,
-            this.y,
-            this.options.maxWidth
+            this.options.x,
+            this.options.y,
+            this.options?.maxWidth
         );
     }
 
@@ -69,23 +69,23 @@ export class TextBlock extends Block<IText> {
         return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
     }
 
-    private stroke() {
+    private __stroke() {
         this._context.strokeStyle = this.options.stroke!;
         this._context.strokeText(
             this.text,
-            this.x,
-            this.y,
+            this.options.x,
+            this.options.y,
             this.options?.maxWidth
         );
     }
 
-    private direction() {
+    private __direction() {
         this._context.direction = this.options.direction!;
     }
-    private align() {
+    private __align() {
         this._context.textAlign = this.options.textAlign!;
     }
-    private baseline() {
+    private __baseline() {
         this._context.textBaseline = this.options.textBaseline!;
     }
 
@@ -93,7 +93,7 @@ export class TextBlock extends Block<IText> {
         super.set(options);
     }
 
-    // returns text width in pixels
+    // returns: text width in pixels
     measureText() {
         return this._context.measureText(this.text);
     }
@@ -107,7 +107,11 @@ Todo - in css
     src: url('http://www.miketaylr.com/f/kulminoituva.ttf');
 }
 */
-// const box1 = new Block({ x: 0, y: 0 });
+import { Canvas } from "./Canvas";
+
+const canvas = new Canvas(200, 200);
+
+const box1 = new Block({ x: 0, y: 0 });
 
 const text_a = new TextBlock("First Text", {
     x: 0,
@@ -130,8 +134,5 @@ text_b.click((e) => {
     text_a.set({ color: "black" });
 });
 
-// text_b.addEvent("click", (e) => {console.log(e)});
-
-const canvas = new Canvas(200, 200);
 canvas.add(text_b);
 console.log(text_b._context.strokeStyle);

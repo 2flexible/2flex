@@ -1,79 +1,57 @@
-import { Block } from ".";
-import { Rect } from "./shapes/Rect";
-import { BlockElements } from "./types";
-
 interface NodeProps {
     child_nodes: Node[];
     next: Node | undefined;
-    addChild(node: Node): void;
+    addChild(node: Node[]): void;
 }
 
 export class Node implements NodeProps {
     child_nodes: Node[];
     next: undefined | Node;
-
     constructor() {
         this.child_nodes = [];
         this.next = undefined;
     }
 
-    addChild(...node: Node[]) {
+    addChild(node: Node[]) {
+        this.next = node.shift();
         this.child_nodes.push(...node);
-        this.next = this.child_nodes.pop();
     }
 }
 
 export class Tree {
     #nodes: Node[];
-    #head: Node | undefined;
+    #head: Node;
+
     constructor() {
         this.#nodes = [];
-        this.#head = undefined;
+        this.#head = new Node();
     }
 
-    addNode(...node: Node[]) {
-        if (this.#head === undefined) {
-            this.#head == node;
+    addNodes(node: Node[]) {
+        if (this.#head.next === undefined) {
+            this.#head.addChild(node);
         }
         this.#nodes.push(...node);
     }
 
-    traversal() {
-        const depth = this.#nodes.length;
-        let i = 0;
-        while (i < depth) {
-            let node = this.#nodes[i];
-            if (node.next !== undefined) {
-                console.log(node);
+    pre_order_traversal(_func: (element: any) => void) {
+        const Q = [];
+        Q.push(this.#head);
+        // const S = [];
+
+        while (Q.length > 0) {
+            let current: Node | undefined = Q.shift();
+            _func(current);
+            // S.push(current);
+
+            if (current?.child_nodes) {
+                Q.unshift(...current.child_nodes);
             }
-            i++;
+
+            if (current?.next) {
+                Q.unshift(current.next);
+            }
         }
+        // return S;
     }
 }
-
-// const rect = new Rect({200, 400});
-// const block1 = new Block(rect);
-// const node1 = new Node(block1);
-
-// const block2 = new Block("Shape");
-
-// const block9 = new Block("Differnet Kind");
-
-// const node2 = new Node(block2);
-// const node3 = new Node(block2);
-// const node4 = new Node(block9);
-
-// const node5 = new Node(block2);
-
-// const tree = new Tree();
-
-// node1.add(node2);
-// node1.add(node3);
-// node1.add(node4);
-
-// node5.add(node2);
-
-// tree.add(node1);
-// tree.add(node5);
-
-// tree.traversal();

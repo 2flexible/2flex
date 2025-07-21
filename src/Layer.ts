@@ -2,7 +2,7 @@
 import { Block } from "./Block";
 import { BlockOptions } from "./types";
 
-export class Layer extends Block<BlockOptions> {
+export class Layer extends Block {
     constructor(options: BlockOptions) {
         super(options);
     }

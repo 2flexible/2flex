@@ -1,37 +1,56 @@
 // Each element in the canvas is block
 import { Node } from "./Tree";
-import { BlockElements, IBlock, CursorPos, ICustomEvents } from "./types";
+import {
+    BlockElements,
+    IBlock,
+    CursorPos,
+    ICustomEvents,
+    BlockOptions,
+} from "./types";
+
+const defaultOpt = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+};
+
+export interface defaultBlockOptions {
+    [key: string]: any;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
 
 // each Block is Node
-export class Block<T> extends Node {
-    options: IBlock<T>;
+export class Block extends Node {
+    options: defaultBlockOptions;
     _context: any;
     events: ICustomEvents[] = [];
-    x: number = 0;
-    y: number = 0;
 
-    constructor(options: IBlock<T>) {
+    constructor(options: IBlock<BlockOptions> | undefined) {
         super();
-        this.options = options;
-        this.x = options.x ? options.x : this.x;
-        this.y = options.y ? options.y : this.y;
+        this.options = { ...defaultOpt, ...options };
     }
 
+    initSet() {}
+
     add(...block: BlockElements[]): void {
-        this.addChild(...block);
+        this.addChild(block);
     }
 
     checkInBound(_event: MouseEvent, cursor: CursorPos): boolean {
-        const width = this.options.width || 0;
-        const height = this.options.height || 0;
+        const width = this.options.width;
+        const height = this.options.height;
 
         const { x, y } = cursor;
 
         if (
-            x > this.x &&
-            x < this.x + width &&
-            y > this.y &&
-            x < this.y + height
+            x > this.options.x &&
+            x < this.options.x + width &&
+            y > this.options.y &&
+            x < this.options.y + height
         )
             return true;
 
@@ -49,21 +68,15 @@ export class Block<T> extends Node {
         });
     }
 
-    set(options: IBlock<T>) {
+    set(options: IBlock<BlockOptions>) {
         for (const [key, value] of Object.entries(options)) {
-            if (key in Object.keys(this.options)) {
+            if (key in Object.keys(this.options!)) {
             } else {
                 return;
             }
         }
         this.options = { ...this.options, ...options };
     }
-
-    // addEvent(_type: Events, _func: (_event: MouseEvent) => void) {
-    //     if (this.checkInBound(_event)) {
-    //         this.events.push({ type: _type, method: _func(_event) });
-    //     }
-    // }
 
     #resizeBox(width: number, height: number, x: number, y: number) {}
 }

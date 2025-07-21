@@ -15,5 +15,11 @@ export class CanvasDOMManager {
     createCanvas() {
         const canvas = document.createElement("canvas") as HTMLCanvasElement;
         canvas.id = "canvas";
+        const body = document.querySelector("body") as HTMLElement;
+        body.appendChild(canvas);
+    }
+
+    changeStyle() {
+        this.canvas.style;
     }
 }

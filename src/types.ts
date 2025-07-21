@@ -1,8 +1,8 @@
 import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
-import { Rect, Star } from "./shapes";
+import { Rect, Star } from "./shapes/index";
 import { Node } from "./Tree";
-import { Block } from ".";
+import { Block } from "./Block";
 
 export type ShapeElements = Rect | Star;
 
@@ -20,7 +20,7 @@ export interface BlockOptions {
     margin?: string;
 }
 
-export type BlockElements = Block<BlockOptions> | Shape | TextBlock;
+export type BlockElements = Block | Shape | TextBlock;
 
 export type IBlock<T> = T extends BlockOptions
     ? BlockOptions
