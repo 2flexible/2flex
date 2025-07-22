@@ -12,6 +12,7 @@ export class CanvasDOMManager {
         }
         return canvas;
     }
+
     createCanvas() {
         const canvas = document.createElement("canvas") as HTMLCanvasElement;
         canvas.id = "canvas";
@@ -21,5 +22,9 @@ export class CanvasDOMManager {
 
     changeStyle() {
         this.canvas.style;
+    }
+
+    addEventListener(_type: string, _func: (event: any) => void) {
+        this.canvas.addEventListener(_type, (event: any) => _func(event));
     }
 }

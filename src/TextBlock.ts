@@ -27,28 +27,32 @@ interface IText {
 
 export class TextBlock extends Block {
     text: string;
+    fontY: number = 0;
 
-    constructor(text: string, options: IBlock<IText> | undefined) {
+    constructor(text: string, options: IBlock<IText> | undefined = undefined) {
         super(options);
         this.text = text;
         // this.#initSet();
     }
-
-    initSet() {
+    #measureText() {
         const text_measure = this.measureText();
-
         this.options.height =
             text_measure.actualBoundingBoxAscent +
             text_measure.actualBoundingBoxDescent;
 
         this.options.width = text_measure.width;
-
+        this.fontY = this.options.height + this.options.y;
+    }
+    __initSet() {
         this._context.font = this.#format_font();
         this._context.fillStyle = this.options?.color || "black";
+
+        this.#measureText();
+
         this._context.fillText(
             this.text,
             this.options.x,
-            this.options.y,
+            this.fontY,
             this.options?.maxWidth
         );
     }
@@ -74,7 +78,7 @@ export class TextBlock extends Block {
         this._context.strokeText(
             this.text,
             this.options.x,
-            this.options.y,
+            this.fontY,
             this.options?.maxWidth
         );
     }
@@ -107,32 +111,32 @@ Todo - in css
     src: url('http://www.miketaylr.com/f/kulminoituva.ttf');
 }
 */
-import { Canvas } from "./Canvas";
+// import { Canvas } from "./Canvas";
 
-const canvas = new Canvas(200, 200);
+// const canvas = new Canvas(200, 200);
 
-const box1 = new Block({ x: 0, y: 0 });
+// const box1 = new Block({ x: 0, y: 0 });
 
-const text_a = new TextBlock("First Text", {
-    x: 0,
-    y: 0,
-    color: "red",
-    fontFamily: "KulminoituvaRegular",
-    stroke: "red",
-    lineWidth: 10,
-});
+// const text_a = new TextBlock("First Text", {
+//     x: 0,
+//     y: 0,
+//     color: "red",
+//     fontFamily: "KulminoituvaRegular",
+//     stroke: "red",
+//     lineWidth: 10,
+// });
 
-const text_b = new TextBlock("Second Text", {
-    x: 0,
-    y: 50,
-    color: "red",
-    fontFamily: "KulminoituvaRegular",
-});
+// const text_b = new TextBlock("Second Text", {
+//     x: 0,
+//     y: 50,
+//     color: "red",
+//     fontFamily: "KulminoituvaRegular",
+// });
 
-text_b.click((e) => {
-    text_a.options.color = "black";
-    text_a.set({ color: "black" });
-});
+// text_b.click((e) => {
+//     text_a.options.color = "black";
+//     text_a.set({ color: "black" });
+// });
 
-canvas.add(text_b);
-console.log(text_b._context.strokeStyle);
+// canvas.add(text_b);
+// console.log(text_b._context.strokeStyle);

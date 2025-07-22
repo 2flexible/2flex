@@ -1,5 +1,5 @@
 import { Tree } from "./Tree";
-import { BlockElements, CursorPos } from "./types";
+import { BlockElements, CursorPos, ICustomEvents } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
 
 export interface CanvasOptions {
@@ -15,8 +15,6 @@ export interface CanvasOptions {
 const defaultCanvasOpt = {
     x: 0,
     y: 0,
-    width: 200,
-    heigth: 200,
     color: "#FFFFFF",
 };
 
@@ -32,8 +30,8 @@ export class Canvas {
         height: number,
         options: CanvasOptions | undefined = undefined
     ) {
-        this.width = width;
-        this.height = height;
+        this.width = width || 200;
+        this.height = height || 200;
         this.options = { ...options, ...defaultCanvasOpt };
         this.domCanvas = new CanvasDOMManager();
         this.#initCanvas();
@@ -48,16 +46,17 @@ export class Canvas {
     }
 
     #initCanvas() {
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
+        this.canvas;
+        // this.canvas.width = this.width;
+        // this.canvas.height = this.height;
         // this.canvas.style.background = this.options.color;
     }
 
     add(...block: BlockElements[]) {
-        // Traversal alghorithm for all Nodes
         this.#tree.addNodes(block);
         this.#tree.pre_order_traversal((element: any) => {
             element._context = this.context;
+            element.__initSet();
             this.#handleStyleChanges(element);
             this.#handleEvents(element);
         });
@@ -72,8 +71,8 @@ export class Canvas {
     }
 
     #handleEvents(element: BlockElements) {
-        element.events?.forEach((elem: any) => {
-            this.canvas.addEventListener(elem.type, (event) => {
+        element.events?.forEach((elem: ICustomEvents) => {
+            this.domCanvas.addEventListener(elem.eventType, (event) => {
                 const cursor = this.getCursorPosition(event);
                 elem.method(event, cursor);
             });
@@ -82,9 +81,7 @@ export class Canvas {
 
     #handleStyleChanges(block: BlockElements): void {
         const proto = Object.getPrototypeOf(block);
-
         for (const option in block.options) {
-            block.initSet();
             const obj = Object.getOwnPropertyDescriptor(proto, `__${option}`);
             obj?.value.call(block);
         }

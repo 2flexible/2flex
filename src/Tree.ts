@@ -41,7 +41,9 @@ export class Tree {
 
         while (Q.length > 0) {
             let current: Node | undefined = Q.shift();
-            _func(current);
+            if (Object.getPrototypeOf(current).constructor.name !== "Node") {
+                _func(current);
+            }
             // S.push(current);
 
             if (current?.child_nodes) {

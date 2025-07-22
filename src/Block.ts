@@ -29,12 +29,12 @@ export class Block extends Node {
     _context: any;
     events: ICustomEvents[] = [];
 
-    constructor(options: IBlock<BlockOptions> | undefined) {
+    constructor(options: IBlock<BlockOptions> | undefined = undefined) {
         super();
         this.options = { ...defaultOpt, ...options };
     }
 
-    initSet() {}
+    __initSet() {}
 
     add(...block: BlockElements[]): void {
         this.addChild(block);
@@ -47,13 +47,12 @@ export class Block extends Node {
         const { x, y } = cursor;
 
         if (
-            x > this.options.x &&
-            x < this.options.x + width &&
-            y > this.options.y &&
-            x < this.options.y + height
+            x >= this.options.x &&
+            x <= this.options.x + width &&
+            y >= this.options.y &&
+            y <= this.options.y + height
         )
             return true;
-
         return false;
     }
 
