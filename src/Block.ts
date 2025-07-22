@@ -1,11 +1,13 @@
 // Each element in the canvas is block
 import { Node } from "./Tree";
+
 import {
     BlockElements,
     IBlock,
     CursorPos,
     ICustomEvents,
     BlockOptions,
+    IStyle,
 } from "./types";
 
 const defaultOpt = {
@@ -28,6 +30,7 @@ export class Block extends Node {
     options: defaultBlockOptions;
     _context: any;
     events: ICustomEvents[] = [];
+    styleChanges: IStyle[] = [];
 
     constructor(options: IBlock<BlockOptions> | undefined = undefined) {
         super();
@@ -38,6 +41,9 @@ export class Block extends Node {
 
     add(...block: BlockElements[]): void {
         this.addChild(block);
+    }
+    registerStyle(styles: IStyle[]) {
+        this.styleChanges.push(...styles);
     }
 
     checkInBound(_event: MouseEvent, cursor: CursorPos): boolean {
@@ -68,14 +74,11 @@ export class Block extends Node {
     }
 
     set(options: IBlock<BlockOptions>) {
-        for (const [key, value] of Object.entries(options)) {
-            if (key in Object.keys(this.options!)) {
-            } else {
-                return;
+        this.styleChanges.forEach((change: IStyle) => {
+            const option = options[change.styleType];
+            if (option) {
+                change.method.call(this, option);
             }
-        }
-        this.options = { ...this.options, ...options };
+        });
     }
-
-    #resizeBox(width: number, height: number, x: number, y: number) {}
 }

@@ -1,5 +1,5 @@
 import { Tree } from "./Tree";
-import { BlockElements, CursorPos, ICustomEvents } from "./types";
+import { BlockElements, CursorPos, ICustomEvents, IStyle } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
 
 export interface CanvasOptions {
@@ -80,10 +80,6 @@ export class Canvas {
     }
 
     #handleStyleChanges(block: BlockElements): void {
-        const proto = Object.getPrototypeOf(block);
-        for (const option in block.options) {
-            const obj = Object.getOwnPropertyDescriptor(proto, `__${option}`);
-            obj?.value.call(block);
-        }
+        block.set(block.options);
     }
 }

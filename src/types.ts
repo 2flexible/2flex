@@ -41,3 +41,7 @@ export interface ICustomEvents {
     eventType: Events;
     method: (event: MouseEvent, cursor: CursorPos) => void;
 }
+export interface IStyle {
+    styleType: string;
+    method: (args?: string) => void;
+}

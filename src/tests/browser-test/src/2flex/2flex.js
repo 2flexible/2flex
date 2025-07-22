@@ -125,11 +125,8 @@ class Canvas {
         });
     }
     #handleStyleChanges(block) {
-        const proto = Object.getPrototypeOf(block);
-        for (const option in block.options) {
-            const obj = Object.getOwnPropertyDescriptor(proto, `__${option}`);
-            obj?.value.call(block);
-        }
+        this.context?.clearRect(0, 0, 200, 200);
+        block.set(block.options);
     }
 }
 
@@ -145,6 +142,7 @@ class Block extends Node {
     options;
     _context;
     events = [];
+    styleChanges = [];
     constructor(options = undefined) {
         super();
         this.options = { ...defaultOpt, ...options };
@@ -152,6 +150,9 @@ class Block extends Node {
     __initSet() { }
     add(...block) {
         this.addChild(block);
+    }
+    registerStyle(styles) {
+        this.styleChanges.push(...styles);
     }
     checkInBound(_event, cursor) {
         const width = this.options.width;
@@ -175,15 +176,13 @@ class Block extends Node {
         });
     }
     set(options) {
-        for (const [key, value] of Object.entries(options)) {
-            if (key in Object.keys(this.options)) ;
-            else {
-                return;
+        this.styleChanges.forEach((change) => {
+            const option = options[change.styleType];
+            if (option) {
+                change.method.call(this, option);
             }
-        }
-        this.options = { ...this.options, ...options };
+        });
     }
-    #resizeBox(width, height, x, y) { }
 }
 
 // Layer spesical type of block whcih defines group of blocks
@@ -209,9 +208,20 @@ class TextBlock extends Block {
     constructor(text, options = undefined) {
         super(options);
         this.text = text;
+        const stylesMap = [
+            { styleType: "fontFamily", method: this.fontFamily },
+            { styleType: "fontWeight", method: this.fontWeight },
+            { styleType: "fontSize", method: this.fontSize },
+            { styleType: "fontStyle", method: this.fontStyle },
+            { styleType: "fontVariant", method: this.fontVariant },
+            { styleType: "textAlign", method: this.align },
+            { styleType: "textBaseline", method: this.baseline },
+            { styleType: "direction", method: this.direction },
+        ];
+        this.registerStyle(stylesMap);
         // this.#initSet();
     }
-    #measureText() {
+    #measureTextSize() {
         const text_measure = this.measureText();
         this.options.height =
             text_measure.actualBoundingBoxAscent +
@@ -220,33 +230,78 @@ class TextBlock extends Block {
         this.fontY = this.options.height + this.options.y;
     }
     __initSet() {
-        this._context.font = this.#format_font();
-        this._context.fillStyle = this.options?.color || "black";
-        this.#measureText();
-        this._context.fillText(this.text, this.options.x, this.fontY, this.options?.maxWidth);
+        this.setFont();
     }
     #format_font() {
-        const fontFamily = this.options.fontFamily || "sans-serif";
-        const fontSize = this.options.fontSize
-            ? this.options.fontSize + "px"
-            : "10px";
-        const fontWeight = this.options.fontWeight || 100;
-        const fontStyle = this.options.fontStyle || "normal";
-        const fontVariant = this.options.fontVariant || "normal";
+        const fontFamily = this.fontFamily();
+        const fontSize = this.fontSize();
+        const fontStyle = this.fontStyle();
+        const fontWeight = this.fontWeight();
+        const fontVariant = this.fontVariant();
         return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
     }
-    __stroke() {
-        this._context.strokeStyle = this.options.stroke;
+    // it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
+    setFont(option) {
+        this._context.font = option || this.#format_font();
+        this.color();
+        this.#measureTextSize();
+        this._context.fillText(this.text, this.options.x, this.fontY, this.options?.maxWidth);
+    }
+    fontFamily(option) {
+        if (option) {
+            this.options.fontFamily = option;
+            this.setFont();
+        }
+        return this.options.fontFamily || "sans-serif";
+    }
+    fontSize(option) {
+        if (option) {
+            this.options.fontSize = option;
+            this.setFont();
+        }
+        return this.options.fontSize ? this.options.fontSize + "px" : "10px";
+    }
+    fontWeight(option) {
+        if (option) {
+            this.options.fontWeight = option;
+            this.setFont();
+        }
+        return this.options.fontWeight || 100;
+    }
+    fontVariant(option) {
+        if (option) {
+            this.options.fontVariant = option;
+            this.setFont();
+        }
+        return this.options.fontVariant || "normal";
+    }
+    fontStyle(option) {
+        if (option) {
+            this.options.fontStyle = option;
+            this.setFont();
+        }
+        return this.options.fontStyle || "normal";
+    }
+    color(option) {
+        this._context.fillStyle = this.options.color || option || "black";
+        this.options.color = this._context.fillStyle;
+    }
+    stroke(option) {
+        this._context.strokeStyle = this.options.stroke || option;
         this._context.strokeText(this.text, this.options.x, this.fontY, this.options?.maxWidth);
+        this.options.strokeStyle = this._context.strokeStyle;
     }
-    __direction() {
-        this._context.direction = this.options.direction;
+    direction(option) {
+        this._context.direction = this.options.direction || option;
+        this.options.direction = this._context.direction;
     }
-    __align() {
-        this._context.textAlign = this.options.textAlign;
+    align(option) {
+        this._context.textAlign = this.options.textAlign || option;
+        this.options.align = this._context.align;
     }
-    __baseline() {
-        this._context.textBaseline = this.options.textBaseline;
+    baseline(option) {
+        this._context.textBaseline = this.options.textBaseline || option;
+        this.options.baseline = this._context.baseline;
     }
     set(options) {
         super.set(options);
@@ -256,36 +311,5 @@ class TextBlock extends Block {
         return this._context.measureText(this.text);
     }
 }
-/*
-Todo - in css
-
-@font-face {
-    font-family: 'KulminoituvaRegular';
-    src: url('http://www.miketaylr.com/f/kulminoituva.ttf');
-}
-*/
-// import { Canvas } from "./Canvas";
-// const canvas = new Canvas(200, 200);
-// const box1 = new Block({ x: 0, y: 0 });
-// const text_a = new TextBlock("First Text", {
-//     x: 0,
-//     y: 0,
-//     color: "red",
-//     fontFamily: "KulminoituvaRegular",
-//     stroke: "red",
-//     lineWidth: 10,
-// });
-// const text_b = new TextBlock("Second Text", {
-//     x: 0,
-//     y: 50,
-//     color: "red",
-//     fontFamily: "KulminoituvaRegular",
-// });
-// text_b.click((e) => {
-//     text_a.options.color = "black";
-//     text_a.set({ color: "black" });
-// });
-// canvas.add(text_b);
-// console.log(text_b._context.strokeStyle);
 
 export { Block, Canvas, CanvasDOMManager, Layer, Shape, TextBlock };
