@@ -104,7 +104,9 @@ class Canvas {
         this.#tree.addNodes(block);
         this.#tree.pre_order_traversal((element) => {
             element._context = this.context;
+            element.canvas = this;
             element.__initSet();
+            element.invoker = this.invokeChange;
             this.#handleStyleChanges(element);
             this.#handleEvents(element);
         });
@@ -125,12 +127,21 @@ class Canvas {
         });
     }
     #handleStyleChanges(block) {
-        this.context?.clearRect(0, 0, 200, 200);
-        block.set(block.options);
+        for (const [key, value] of Object.entries(block.options)) {
+            const proto = Object.getPrototypeOf(block);
+            const obj = Object.getOwnPropertyDescriptor(proto, key);
+            obj?.value.call(block, value);
+        }
+    }
+    invokeChange() {
+        console.log("cached");
+        this.context?.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.#tree.pre_order_traversal((element) => {
+            this.#handleStyleChanges(element);
+        });
     }
 }
 
-// Each element in the canvas is block
 const defaultOpt = {
     x: 0,
     y: 0,
@@ -141,6 +152,8 @@ const defaultOpt = {
 class Block extends Node {
     options;
     _context;
+    invoker = undefined;
+    canvas;
     events = [];
     styleChanges = [];
     constructor(options = undefined) {
@@ -176,12 +189,35 @@ class Block extends Node {
         });
     }
     set(options) {
-        this.styleChanges.forEach((change) => {
-            const option = options[change.styleType];
-            if (option) {
-                change.method.call(this, option);
+        let cached = false;
+        // this.styleChanges.forEach((change: IStyle) => {
+        //     const option = options[change.styleType];
+        //     const beforeOption = this.options[change.styleType];
+        //     if (option) {
+        //         if (option !== beforeOption) {
+        //             change.method.call(this, option);
+        //         } else {
+        //             cached = true;
+        //         }
+        //     }
+        // });
+        for (const [key, value] of Object.entries(options)) {
+            const proto = Object.getPrototypeOf(this);
+            const obj = Object.getOwnPropertyDescriptor(proto, key);
+            const beforeOption = this.options[key];
+            if (value) {
+                if (value !== beforeOption) {
+                    obj?.value.call(this, value);
+                }
+                else {
+                    cached = true;
+                }
             }
-        });
+        }
+        if (!cached) {
+            console.log(cached);
+            this.invoker?.call(this.canvas);
+        }
     }
 }
 
@@ -208,18 +244,17 @@ class TextBlock extends Block {
     constructor(text, options = undefined) {
         super(options);
         this.text = text;
-        const stylesMap = [
-            { styleType: "fontFamily", method: this.fontFamily },
-            { styleType: "fontWeight", method: this.fontWeight },
-            { styleType: "fontSize", method: this.fontSize },
-            { styleType: "fontStyle", method: this.fontStyle },
-            { styleType: "fontVariant", method: this.fontVariant },
-            { styleType: "textAlign", method: this.align },
-            { styleType: "textBaseline", method: this.baseline },
-            { styleType: "direction", method: this.direction },
-        ];
-        this.registerStyle(stylesMap);
-        // this.#initSet();
+        // const stylesMap = [
+        //     { styleType: "fontFamily", method: this.fontFamily },
+        //     { styleType: "fontWeight", method: this.fontWeight },
+        //     { styleType: "fontSize", method: this.fontSize },
+        //     { styleType: "fontStyle", method: this.fontStyle },
+        //     { styleType: "fontVariant", method: this.fontVariant },
+        //     { styleType: "textAlign", method: this.align },
+        //     { styleType: "textBaseline", method: this.baseline },
+        //     { styleType: "direction", method: this.direction },
+        // ];
+        // this.registerStyle(stylesMap);
     }
     #measureTextSize() {
         const text_measure = this.measureText();
@@ -295,20 +330,20 @@ class TextBlock extends Block {
         this._context.direction = this.options.direction || option;
         this.options.direction = this._context.direction;
     }
-    align(option) {
+    textAlign(option) {
         this._context.textAlign = this.options.textAlign || option;
         this.options.align = this._context.align;
     }
-    baseline(option) {
+    textBaseline(option) {
         this._context.textBaseline = this.options.textBaseline || option;
         this.options.baseline = this._context.baseline;
-    }
-    set(options) {
-        super.set(options);
     }
     // returns: text width in pixels
     measureText() {
         return this._context.measureText(this.text);
+    }
+    set(options) {
+        super.set(options);
     }
 }
 

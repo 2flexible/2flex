@@ -8,7 +8,7 @@ const text_a = new TextBlock("First Text", {
     color: "blue",
     fontFamily: "KulminoituvaRegular",
     stroke: "blue",
-    fontSize: 35,
+    fontSize: 20,
     lineWidth: 10,
 });
 
@@ -22,10 +22,9 @@ const text_b = new TextBlock("SecondText", {
 
 text_b.click((e) => {
     console.log("clicked");
-    text_b.set({ fontSize: 20 });
-    text_a.set({ fontSize: 12 });
+    // text_b.set({ fontSize: 20 });
+    text_a.set({ fontSize: 40 });
 });
-
 canvas.add(text_a, text_b);
 
 // text_a.set({ fontSize: 42 });

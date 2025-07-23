@@ -29,6 +29,8 @@ export interface defaultBlockOptions {
 export class Block extends Node {
     options: defaultBlockOptions;
     _context: any;
+    invoker: (() => void) | undefined = undefined;
+    canvas: any;
     events: ICustomEvents[] = [];
     styleChanges: IStyle[] = [];
 
@@ -74,11 +76,37 @@ export class Block extends Node {
     }
 
     set(options: IBlock<BlockOptions>) {
-        this.styleChanges.forEach((change: IStyle) => {
-            const option = options[change.styleType];
-            if (option) {
-                change.method.call(this, option);
+        let cached = false;
+        // this.styleChanges.forEach((change: IStyle) => {
+        //     const option = options[change.styleType];
+        //     const beforeOption = this.options[change.styleType];
+
+        //     if (option) {
+        //         if (option !== beforeOption) {
+        //             change.method.call(this, option);
+        //         } else {
+        //             cached = true;
+        //         }
+        //     }
+        // });
+
+        for (const [key, value] of Object.entries(options)) {
+            const proto = Object.getPrototypeOf(this);
+            const obj = Object.getOwnPropertyDescriptor(proto, key);
+
+            const beforeOption = this.options[key];
+
+            if (value) {
+                if (value !== beforeOption) {
+                    obj?.value.call(this, value);
+                } else {
+                    cached = true;
+                }
             }
-        });
+        }
+
+        if (!cached) {
+            this.invoker?.call(this.canvas);
+        }
     }
 }

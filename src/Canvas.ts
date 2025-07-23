@@ -47,16 +47,16 @@ export class Canvas {
 
     #initCanvas() {
         this.canvas;
-        // this.canvas.width = this.width;
-        // this.canvas.height = this.height;
-        // this.canvas.style.background = this.options.color;
     }
 
     add(...block: BlockElements[]) {
         this.#tree.addNodes(block);
+
         this.#tree.pre_order_traversal((element: any) => {
             element._context = this.context;
+            element.canvas = this;
             element.__initSet();
+            element.invoker = this.invokeChange;
             this.#handleStyleChanges(element);
             this.#handleEvents(element);
         });
@@ -80,6 +80,18 @@ export class Canvas {
     }
 
     #handleStyleChanges(block: BlockElements): void {
-        block.set(block.options);
+        for (const [key, value] of Object.entries(block.options)) {
+            const proto = Object.getPrototypeOf(block);
+            const obj = Object.getOwnPropertyDescriptor(proto, key);
+            obj?.value.call(block, value);
+        }
+    }
+
+    invokeChange() {
+        console.log("cached");
+        this.context?.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.#tree.pre_order_traversal((element: any) => {
+            this.#handleStyleChanges(element);
+        });
     }
 }

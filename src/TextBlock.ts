@@ -32,18 +32,17 @@ export class TextBlock extends Block {
     constructor(text: string, options: IBlock<IText> | undefined = undefined) {
         super(options);
         this.text = text;
-        const stylesMap = [
-            { styleType: "fontFamily", method: this.fontFamily },
-            { styleType: "fontWeight", method: this.fontWeight },
-            { styleType: "fontSize", method: this.fontSize },
-            { styleType: "fontStyle", method: this.fontStyle },
-            { styleType: "fontVariant", method: this.fontVariant },
-            { styleType: "textAlign", method: this.align },
-            { styleType: "textBaseline", method: this.baseline },
-            { styleType: "direction", method: this.direction },
-        ];
-        this.registerStyle(stylesMap);
-        // this.#initSet();
+        // const stylesMap = [
+        //     { styleType: "fontFamily", method: this.fontFamily },
+        //     { styleType: "fontWeight", method: this.fontWeight },
+        //     { styleType: "fontSize", method: this.fontSize },
+        //     { styleType: "fontStyle", method: this.fontStyle },
+        //     { styleType: "fontVariant", method: this.fontVariant },
+        //     { styleType: "textAlign", method: this.align },
+        //     { styleType: "textBaseline", method: this.baseline },
+        //     { styleType: "direction", method: this.direction },
+        // ];
+        // this.registerStyle(stylesMap);
     }
     #measureTextSize() {
         const text_measure = this.measureText();
@@ -54,6 +53,7 @@ export class TextBlock extends Block {
         this.options.width = text_measure.width;
         this.fontY = this.options.height + this.options.y;
     }
+
     __initSet() {
         this.setFont();
     }
@@ -145,21 +145,20 @@ export class TextBlock extends Block {
         this._context.direction = this.options.direction || option;
         this.options.direction = this._context.direction;
     }
-    align(option?: string) {
+    textAlign(option?: string) {
         this._context.textAlign = this.options.textAlign || option;
         this.options.align = this._context.align;
     }
-    baseline(option?: string) {
+    textBaseline(option?: string) {
         this._context.textBaseline = this.options.textBaseline || option;
         this.options.baseline = this._context.baseline;
-    }
-
-    set(options: IBlock<IText>) {
-        super.set(options);
     }
 
     // returns: text width in pixels
     measureText() {
         return this._context.measureText(this.text);
+    }
+    set(options: IBlock<IText>) {
+        super.set(options);
     }
 }
