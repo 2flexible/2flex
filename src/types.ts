@@ -18,6 +18,8 @@ export interface BlockOptions {
     lineWidth?: number;
     padding?: string;
     margin?: string;
+    selectable?: boolean;
+    draggable?: boolean;
 }
 
 export type BlockElements = Block | Shape | TextBlock;
@@ -35,12 +37,27 @@ export interface CursorPos {
     y: number;
 }
 
-type Events = "click" | "mousedown";
+type IMouseEvents =
+    | "click"
+    | "dblclick"
+    | "mousedown"
+    | "mouseup"
+    | "mousemove"
+    | "mouseenter"
+    | "mouseleave"
+    | "mouseout"
+    | "mouseover";
 
 export interface ICustomEvents {
-    eventType: Events;
+    eventType: IMouseEvents;
     method: (event: MouseEvent, cursor: CursorPos) => void;
 }
+
+export interface IRemovedEvents {
+    eventType: IMouseEvents;
+    method: (_func: (event: MouseEvent) => void) => void;
+}
+
 export interface IStyle {
     styleType: string;
     method: (args?: string) => void;

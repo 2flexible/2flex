@@ -1,5 +1,11 @@
 import { Tree } from "./Tree";
-import { BlockElements, CursorPos, ICustomEvents, IStyle } from "./types";
+import {
+    BlockElements,
+    CursorPos,
+    ICustomEvents,
+    IStyle,
+    IRemovedEvents,
+} from "./types";
 import { CanvasDOMManager } from "./DOMManager";
 
 export interface CanvasOptions {
@@ -23,6 +29,8 @@ export class Canvas {
     height: number;
     domCanvas: CanvasDOMManager;
     options: CanvasOptions;
+    canvasEvents: any[] = [];
+
     #tree = new Tree();
 
     constructor(
@@ -57,9 +65,11 @@ export class Canvas {
             element.canvas = this;
             element.__initSet();
             element.invoker = this.invokeChange;
+            // element.eventInvoker = this.invokeEventChanges;
             this.#handleStyleChanges(element);
-            this.#handleEvents(element);
+            this.canvasEvents.push(...element.events);
         });
+        this.#handleEvents();
     }
 
     getCursorPosition(event: { clientX: number; clientY: number }) {
@@ -70,11 +80,34 @@ export class Canvas {
         return cursor;
     }
 
-    #handleEvents(element: BlockElements) {
-        element.events?.forEach((elem: ICustomEvents) => {
+    #handleEvents() {
+        // created events for every same type events beacuse canvas is same, but coridanets changing
+        let uniqeEvents: any[] = [];
+
+        for (const item of this.canvasEvents) {
+            const tempUniqe = uniqeEvents?.filter(
+                (_item) => _item.eventType === item.eventType
+            );
+            if (tempUniqe[0]) {
+                const idx = uniqeEvents.indexOf(tempUniqe[0]);
+                uniqeEvents.splice(idx, 1);
+                tempUniqe[0].methods.push(item.method);
+                uniqeEvents = [...uniqeEvents, tempUniqe[0]];
+            } else {
+                uniqeEvents.push({
+                    eventType: item.eventType,
+                    methods: [item.method],
+                });
+            }
+        }
+        this.canvasEvents = uniqeEvents;
+
+        this.canvasEvents?.forEach((elem: any) => {
             this.domCanvas.addEventListener(elem.eventType, (event) => {
                 const cursor = this.getCursorPosition(event);
-                elem.method(event, cursor);
+                elem.methods?.forEach((_method: any) => {
+                    _method(event, cursor);
+                });
             });
         });
     }
@@ -88,10 +121,30 @@ export class Canvas {
     }
 
     invokeChange() {
-        console.log("cached");
         this.context?.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.#tree.pre_order_traversal((element: any) => {
             this.#handleStyleChanges(element);
+            // this.#handleEvents(element);
         });
     }
+    // invokeEventChanges(new_event: any = undefined) {
+    //     this.#tree.pre_order_traversal((element: any) => {
+    //         element.removedEvents?.forEach((elem: IRemovedEvents) => {
+    //             this.domCanvas.removeEventListener(elem.eventType, elem.method);
+    //         });
+    //         if (new_event) {
+    //             element.events?.forEach((elem: any) => {
+    //                 if (elem.eventType === new_event.eventType) {
+    //                     this.domCanvas.addEventListener(
+    //                         elem.eventType,
+    //                         (event) => {
+    //                             const cursor = this.getCursorPosition(event);
+    //                             elem.method(event, cursor);
+    //                         }
+    //                     );
+    //                 }
+    //             });
+    //         }
+    //     });
+    // }
 }

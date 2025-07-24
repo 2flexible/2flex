@@ -158,6 +158,11 @@ export class TextBlock extends Block {
     measureText() {
         return this._context.measureText(this.text);
     }
+    
+    draggable(option: boolean): void {
+        super.draggable(option);
+    }
+
     set(options: IBlock<IText>) {
         super.set(options);
     }

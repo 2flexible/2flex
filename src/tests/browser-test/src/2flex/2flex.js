@@ -68,6 +68,9 @@ class CanvasDOMManager {
     addEventListener(_type, _func) {
         this.canvas.addEventListener(_type, (event) => _func(event));
     }
+    removeEventListener(_type, _func) {
+        this.canvas.removeEventListener(_type, (event) => _func(event));
+    }
 }
 
 const defaultCanvasOpt = {
@@ -80,6 +83,7 @@ class Canvas {
     height;
     domCanvas;
     options;
+    canvasEvents = [];
     #tree = new Tree();
     constructor(width, height, options = undefined) {
         this.width = width || 200;
@@ -96,9 +100,6 @@ class Canvas {
     }
     #initCanvas() {
         this.canvas;
-        // this.canvas.width = this.width;
-        // this.canvas.height = this.height;
-        // this.canvas.style.background = this.options.color;
     }
     add(...block) {
         this.#tree.addNodes(block);
@@ -107,9 +108,11 @@ class Canvas {
             element.canvas = this;
             element.__initSet();
             element.invoker = this.invokeChange;
+            // element.eventInvoker = this.invokeEventChanges;
             this.#handleStyleChanges(element);
-            this.#handleEvents(element);
+            this.canvasEvents.push(...element.events);
         });
+        this.#handleEvents();
     }
     getCursorPosition(event) {
         const rect = this.canvas.getBoundingClientRect();
@@ -118,11 +121,31 @@ class Canvas {
         const cursor = { x, y };
         return cursor;
     }
-    #handleEvents(element) {
-        element.events?.forEach((elem) => {
+    #handleEvents() {
+        // created events for every same type events beacuse canvas is same, but coridanets changing
+        let uniqeEvents = [];
+        for (const item of this.canvasEvents) {
+            const tempUniqe = uniqeEvents?.filter((_item) => _item.eventType === item.eventType);
+            if (tempUniqe[0]) {
+                const idx = uniqeEvents.indexOf(tempUniqe[0]);
+                uniqeEvents.splice(idx, 1);
+                tempUniqe[0].methods.push(item.method);
+                uniqeEvents = [...uniqeEvents, tempUniqe[0]];
+            }
+            else {
+                uniqeEvents.push({
+                    eventType: item.eventType,
+                    methods: [item.method],
+                });
+            }
+        }
+        this.canvasEvents = uniqeEvents;
+        this.canvasEvents?.forEach((elem) => {
             this.domCanvas.addEventListener(elem.eventType, (event) => {
                 const cursor = this.getCursorPosition(event);
-                elem.method(event, cursor);
+                elem.methods?.forEach((_method) => {
+                    _method(event, cursor);
+                });
             });
         });
     }
@@ -134,14 +157,15 @@ class Canvas {
         }
     }
     invokeChange() {
-        console.log("cached");
         this.context?.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.#tree.pre_order_traversal((element) => {
             this.#handleStyleChanges(element);
+            // this.#handleEvents(element);
         });
     }
 }
 
+// Each element in the canvas is block
 const defaultOpt = {
     x: 0,
     y: 0,
@@ -153,8 +177,10 @@ class Block extends Node {
     options;
     _context;
     invoker = undefined;
+    eventInvoker = undefined;
     canvas;
     events = [];
+    removedEvents = [];
     styleChanges = [];
     constructor(options = undefined) {
         super();
@@ -188,6 +214,76 @@ class Block extends Node {
             },
         });
     }
+    mousedown(_func) {
+        this.events.push({
+            eventType: "mousedown",
+            method: (event, cursor) => {
+                if (this.checkInBound(event, cursor)) {
+                    _func(event);
+                }
+            },
+        });
+    }
+    mouseup(_func) {
+        this.events.push({
+            eventType: "mouseup",
+            method: (event, cursor) => {
+                _func(event);
+            },
+        });
+    }
+    mousemove(_func) {
+        this.events.push({
+            eventType: "mousemove",
+            method: (event, cursor) => {
+                if (this.checkInBound(event, cursor)) {
+                    _func(event);
+                }
+            },
+        });
+    }
+    select() { }
+    draggable(option = true) {
+        const duplicat = this.events.filter((elem) => elem.eventType === "mousedown");
+        if (option === false)
+            return;
+        if (duplicat.length > 1)
+            return;
+        let initX = 0;
+        let initY = 0;
+        let isMouseDown = false;
+        this.mousedown((event) => {
+            initX = event.clientX;
+            initY = event.clientX;
+            if (event.button === 0) {
+                isMouseDown = true;
+            }
+        });
+        this.mousemove((event) => {
+            if (isMouseDown) {
+                let diffX = event.clientX - initX;
+                let diffY = initY - event.clientY;
+                // console.log(initX, event.clientX, diffX);
+                if (diffX !== 0) {
+                    console.log(this.options.x - Math.abs(this.options.x - diffX));
+                    if (this.options.x > diffX) {
+                        this.options.x +=
+                            this.options.x - Math.abs(this.options.x - diffX);
+                    }
+                    this.options.x += diffX - this.options.x;
+                }
+                // if (diffY !== 0) {
+                //     this.options.y += diffY;
+                // }
+                if (diffX !== 0 || diffY !== 0) {
+                    this.invoker?.call(this.canvas);
+                }
+            }
+        });
+        this.mouseup(() => {
+            isMouseDown = false;
+        });
+    }
     set(options) {
         let cached = false;
         // this.styleChanges.forEach((change: IStyle) => {
@@ -215,7 +311,6 @@ class Block extends Node {
             }
         }
         if (!cached) {
-            console.log(cached);
             this.invoker?.call(this.canvas);
         }
     }
@@ -341,6 +436,9 @@ class TextBlock extends Block {
     // returns: text width in pixels
     measureText() {
         return this._context.measureText(this.text);
+    }
+    draggable(option) {
+        super.draggable(option);
     }
     set(options) {
         super.set(options);

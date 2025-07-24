@@ -8,6 +8,7 @@ import {
     ICustomEvents,
     BlockOptions,
     IStyle,
+    IRemovedEvents,
 } from "./types";
 
 const defaultOpt = {
@@ -30,8 +31,10 @@ export class Block extends Node {
     options: defaultBlockOptions;
     _context: any;
     invoker: (() => void) | undefined = undefined;
+    eventInvoker: ((event?: any) => void) | undefined = undefined;
     canvas: any;
     events: ICustomEvents[] = [];
+    removedEvents: any[] = [];
     styleChanges: IStyle[] = [];
 
     constructor(options: IBlock<BlockOptions> | undefined = undefined) {
@@ -72,6 +75,85 @@ export class Block extends Node {
                     _func(event);
                 }
             },
+        });
+    }
+
+    mousedown(_func: (event: MouseEvent) => void) {
+        this.events.push({
+            eventType: "mousedown",
+            method: (event: MouseEvent, cursor: CursorPos) => {
+                if (this.checkInBound(event, cursor)) {
+                    _func(event);
+                }
+            },
+        });
+    }
+
+    mouseup(_func: (event: MouseEvent) => void) {
+        this.events.push({
+            eventType: "mouseup",
+            method: (event: MouseEvent, cursor: CursorPos) => {
+                _func(event);
+            },
+        });
+    }
+
+    mousemove(_func: (event: MouseEvent) => void) {
+        this.events.push({
+            eventType: "mousemove",
+            method: (event: MouseEvent, cursor: CursorPos) => {
+                if (this.checkInBound(event, cursor)) {
+                    _func(event);
+                }
+            },
+        });
+    }
+
+    select() {}
+
+    draggable(option: boolean = true) {
+        const duplicat = this.events.filter(
+            (elem) => elem.eventType === "mousedown"
+        );
+        if (option === false) return;
+        if (duplicat.length > 1) return;
+
+        let initX = 0;
+        let initY = 0;
+        let isMouseDown = false;
+
+        this.mousedown((event) => {
+            initX = event.clientX;
+            initY = event.clientX;
+            if (event.button === 0) {
+                isMouseDown = true;
+            }
+        });
+        this.mousemove((event) => {
+            if (isMouseDown) {
+                let diffX = event.clientX - initX;
+                let diffY = initY - event.clientY;
+                // console.log(initX, event.clientX, diffX);
+                if (diffX !== 0) {
+                    console.log(
+                        this.options.x - Math.abs(this.options.x - diffX)
+                    );
+                    if (this.options.x > diffX) {
+                        this.options.x +=
+                            this.options.x - Math.abs(this.options.x - diffX);
+                    }
+                    this.options.x += diffX - this.options.x;
+                }
+                // if (diffY !== 0) {
+                //     this.options.y += diffY;
+                // }
+                if (diffX !== 0 || diffY !== 0) {
+                    this.invoker?.call(this.canvas);
+                }
+            }
+        });
+        this.mouseup(() => {
+            isMouseDown = false;
         });
     }
 

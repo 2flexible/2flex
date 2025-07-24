@@ -27,4 +27,8 @@ export class CanvasDOMManager {
     addEventListener(_type: string, _func: (event: any) => void) {
         this.canvas.addEventListener(_type, (event: any) => _func(event));
     }
+
+    removeEventListener(_type: string, _func: (event: any) => void) {
+        this.canvas.removeEventListener(_type, (event: any) => _func(event));
+    }
 }
