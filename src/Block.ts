@@ -31,12 +31,8 @@ const defaultOpt: defaultBlockOptions = {
 // each Block is Node
 export class Block extends Node {
     options: defaultBlockOptions;
-    _context: any;
-    invoker: (() => void) | undefined = undefined;
-    eventInvoker: ((event?: any) => void) | undefined = undefined;
     canvas: any;
     events: ICustomEvents[] = [];
-    removedEvents: any[] = [];
     styleChanges: IStyle[] = [];
 
     constructor(options: IBlock<BlockOptions> | undefined = undefined) {
@@ -172,7 +168,7 @@ export class Block extends Node {
                     beforeY = diffY;
                 }
                 if (diffX !== 0 || diffY !== 0) {
-                    this.invoker?.call(this.canvas);
+                    this.canvas.invokeChange?.call(this.canvas);
                 }
             }
         });
@@ -215,7 +211,7 @@ export class Block extends Node {
         }
 
         if (!cached) {
-            this.invoker?.call(this.canvas);
+            this.canvas.invokeChange?.call(this.canvas);
         }
     }
 }

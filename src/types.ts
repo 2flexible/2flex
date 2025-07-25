@@ -62,3 +62,13 @@ export interface IStyle {
     styleType: string;
     method: (args?: string) => void;
 }
+export interface CanvasOptions {
+    [key: string]: any;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    color?: string;
+    stroke?: string;
+    margin?: string;
+}

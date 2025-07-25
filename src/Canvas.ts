@@ -5,18 +5,9 @@ import {
     ICustomEvents,
     IStyle,
     IRemovedEvents,
+    CanvasOptions,
 } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
-
-export interface CanvasOptions {
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-    color?: string;
-    stroke?: string;
-    margin?: string;
-}
 
 const defaultCanvasOpt = {
     x: 0,
@@ -46,7 +37,6 @@ export class Canvas {
     }
 
     get context() {
-        this.domCanvas.changeStyle();
         return this.domCanvas.context;
     }
 
@@ -56,17 +46,17 @@ export class Canvas {
 
     #initCanvas() {
         this.canvas;
+        this.domCanvas.changeStyle(this.options);
     }
 
     add(...block: BlockElements[]) {
         this.#tree.addNodes(block);
 
         this.#tree.pre_order_traversal((element: any) => {
-            element._context = this.context;
+            // element._context = this.context;
+            // element.invoker = this.invokeChange;
             element.canvas = this;
             element.__initSet();
-            element.invoker = this.invokeChange;
-            // element.eventInvoker = this.invokeEventChanges;
             this.#handleStyleChanges(element);
             this.canvasEvents.push(...element.events);
         });
@@ -125,27 +115,6 @@ export class Canvas {
         this.context?.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.#tree.pre_order_traversal((element: any) => {
             this.#handleStyleChanges(element);
-            // this.#handleEvents(element);
         });
     }
-    // invokeEventChanges(new_event: any = undefined) {
-    //     this.#tree.pre_order_traversal((element: any) => {
-    //         element.removedEvents?.forEach((elem: IRemovedEvents) => {
-    //             this.domCanvas.removeEventListener(elem.eventType, elem.method);
-    //         });
-    //         if (new_event) {
-    //             element.events?.forEach((elem: any) => {
-    //                 if (elem.eventType === new_event.eventType) {
-    //                     this.domCanvas.addEventListener(
-    //                         elem.eventType,
-    //                         (event) => {
-    //                             const cursor = this.getCursorPosition(event);
-    //                             elem.method(event, cursor);
-    //                         }
-    //                     );
-    //                 }
-    //             });
-    //         }
-    //     });
-    // }
 }

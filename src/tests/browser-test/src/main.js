@@ -32,3 +32,5 @@ text_a.click((e) => {
     text_a.set({ fontSize: 40 });
 });
 canvas.add(text_a, text_b);
+console.log(canvas.canvas.style);
+CSSStyleDeclaration.setProperty("")

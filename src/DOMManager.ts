@@ -1,3 +1,5 @@
+import { CanvasOptions } from "./types";
+
 export class CanvasDOMManager {
     constructor() {}
 
@@ -13,6 +15,11 @@ export class CanvasDOMManager {
         return canvas;
     }
 
+    set canvas(canvas: HTMLCanvasElement) {
+        const body = document.querySelector("body") as HTMLElement;
+        body.appendChild(canvas);
+    }
+
     createCanvas() {
         const canvas = document.createElement("canvas") as HTMLCanvasElement;
         canvas.id = "canvas";
@@ -20,11 +27,10 @@ export class CanvasDOMManager {
         body.appendChild(canvas);
     }
 
-    changeStyle() {
-        this.canvas.style;
-        this.canvas.style.position = "absolute";
-        this.canvas.style.left = "150px";
-        this.canvas.style.top = "150px";
+    changeStyle(options: CanvasOptions) {
+        for (const [key, value] of Object.entries(options)) {
+            this.canvas.style.setProperty(key, value);
+        }
     }
 
     addEventListener(_type: string, _func: (event: any) => void) {
