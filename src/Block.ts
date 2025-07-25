@@ -11,20 +11,22 @@ import {
     IRemovedEvents,
 } from "./types";
 
-const defaultOpt = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-};
-
 export interface defaultBlockOptions {
     [key: string]: any;
     x: number;
     y: number;
     width: number;
     height: number;
+    selectable: boolean;
 }
+
+const defaultOpt: defaultBlockOptions = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    selectable: true,
+};
 
 // each Block is Node
 export class Block extends Node {
@@ -51,11 +53,11 @@ export class Block extends Node {
         this.styleChanges.push(...styles);
     }
 
-    checkInBound(_event: MouseEvent, cursor: CursorPos): boolean {
+    checkInBound(_event: MouseEvent): boolean {
         const width = this.options.width;
         const height = this.options.height;
 
-        const { x, y } = cursor;
+        const { x, y } = this.canvas.getCursorPosition(_event);
 
         if (
             x >= this.options.x &&
@@ -70,10 +72,8 @@ export class Block extends Node {
     click(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "click",
-            method: (event: MouseEvent, cursor: CursorPos) => {
-                if (this.checkInBound(event, cursor)) {
-                    _func(event);
-                }
+            method: (event: MouseEvent) => {
+                _func(event);
             },
         });
     }
@@ -81,10 +81,8 @@ export class Block extends Node {
     mousedown(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "mousedown",
-            method: (event: MouseEvent, cursor: CursorPos) => {
-                if (this.checkInBound(event, cursor)) {
-                    _func(event);
-                }
+            method: (event: MouseEvent) => {
+                _func(event);
             },
         });
     }
@@ -92,7 +90,7 @@ export class Block extends Node {
     mouseup(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "mouseup",
-            method: (event: MouseEvent, cursor: CursorPos) => {
+            method: (event: MouseEvent) => {
                 _func(event);
             },
         });
@@ -101,15 +99,34 @@ export class Block extends Node {
     mousemove(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "mousemove",
-            method: (event: MouseEvent, cursor: CursorPos) => {
-                if (this.checkInBound(event, cursor)) {
-                    _func(event);
-                }
+            method: (event: MouseEvent) => {
+                _func(event);
             },
         });
     }
 
-    select() {}
+    mouseover(_func: (event: MouseEvent) => void) {
+        this.events.push({
+            eventType: "mouseover",
+            method: (event: MouseEvent) => {
+                _func(event);
+            },
+        });
+    }
+
+    selectable(option?: boolean) {
+        if (option === false) return;
+
+        let old_color = this.options.color;
+
+        this.mousemove((event) => {
+            if (this.checkInBound(event)) {
+                this.set({ color: "yellow" });
+            } else {
+                this.set({ color: old_color });
+            }
+        });
+    }
 
     draggable(option: boolean = true) {
         const duplicat = this.events.filter(
@@ -118,41 +135,51 @@ export class Block extends Node {
         if (option === false) return;
         if (duplicat.length > 1) return;
 
-        let initX = 0;
-        let initY = 0;
         let isMouseDown = false;
 
+        let initX = 0;
+        let initY = 0;
+
+        let beforeX = 0;
+        let beforeY = 0;
+
         this.mousedown((event) => {
-            initX = event.clientX;
-            initY = event.clientX;
-            if (event.button === 0) {
-                isMouseDown = true;
+            if (this.checkInBound(event)) {
+                const { x, y } = this.canvas.getCursorPosition(event);
+                initX = x;
+                initY = y;
+                if (event.button === 0) {
+                    isMouseDown = true;
+                    beforeX = 0;
+                    beforeY = 0;
+                }
             }
         });
+
         this.mousemove((event) => {
             if (isMouseDown) {
-                let diffX = event.clientX - initX;
-                let diffY = initY - event.clientY;
-                // console.log(initX, event.clientX, diffX);
+                const { x, y } = this.canvas.getCursorPosition(event);
+
+                let diffX = x - initX;
+                let diffY = y - initY;
+
                 if (diffX !== 0) {
-                    console.log(
-                        this.options.x - Math.abs(this.options.x - diffX)
-                    );
-                    if (this.options.x > diffX) {
-                        this.options.x +=
-                            this.options.x - Math.abs(this.options.x - diffX);
-                    }
-                    this.options.x += diffX - this.options.x;
+                    this.options.x += diffX - beforeX;
+                    beforeX = diffX;
                 }
-                // if (diffY !== 0) {
-                //     this.options.y += diffY;
-                // }
+                if (diffY !== 0) {
+                    this.options.y += diffY - beforeY;
+                    beforeY = diffY;
+                }
                 if (diffX !== 0 || diffY !== 0) {
                     this.invoker?.call(this.canvas);
                 }
             }
         });
-        this.mouseup(() => {
+
+        this.mouseup((event) => {
+            if (this.checkInBound(event)) {
+            }
             isMouseDown = false;
         });
     }

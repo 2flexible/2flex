@@ -22,6 +22,9 @@ export class CanvasDOMManager {
 
     changeStyle() {
         this.canvas.style;
+        this.canvas.style.position = "absolute";
+        this.canvas.style.left = "150px";
+        this.canvas.style.top = "150px";
     }
 
     addEventListener(_type: string, _func: (event: any) => void) {

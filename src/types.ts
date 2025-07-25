@@ -12,13 +12,13 @@ export interface BlockOptions {
     y?: number;
     width?: number;
     height?: number;
+    selectable?: boolean;
     backgroundColor?: string;
     color?: string;
     stroke?: string;
     lineWidth?: number;
     padding?: string;
     margin?: string;
-    selectable?: boolean;
     draggable?: boolean;
 }
 

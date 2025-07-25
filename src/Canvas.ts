@@ -46,6 +46,7 @@ export class Canvas {
     }
 
     get context() {
+        this.domCanvas.changeStyle();
         return this.domCanvas.context;
     }
 
@@ -104,9 +105,9 @@ export class Canvas {
 
         this.canvasEvents?.forEach((elem: any) => {
             this.domCanvas.addEventListener(elem.eventType, (event) => {
-                const cursor = this.getCursorPosition(event);
+                // const cursor = this.getCursorPosition(event);
                 elem.methods?.forEach((_method: any) => {
-                    _method(event, cursor);
+                    _method(event);
                 });
             });
         });

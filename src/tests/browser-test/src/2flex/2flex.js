@@ -64,6 +64,9 @@ class CanvasDOMManager {
     }
     changeStyle() {
         this.canvas.style;
+        this.canvas.style.position = "absolute";
+        this.canvas.style.left = "150px";
+        this.canvas.style.top = "150px";
     }
     addEventListener(_type, _func) {
         this.canvas.addEventListener(_type, (event) => _func(event));
@@ -93,6 +96,7 @@ class Canvas {
         this.#initCanvas();
     }
     get context() {
+        this.domCanvas.changeStyle();
         return this.domCanvas.context;
     }
     get canvas() {
@@ -142,9 +146,9 @@ class Canvas {
         this.canvasEvents = uniqeEvents;
         this.canvasEvents?.forEach((elem) => {
             this.domCanvas.addEventListener(elem.eventType, (event) => {
-                const cursor = this.getCursorPosition(event);
+                // const cursor = this.getCursorPosition(event);
                 elem.methods?.forEach((_method) => {
-                    _method(event, cursor);
+                    _method(event);
                 });
             });
         });
@@ -171,6 +175,7 @@ const defaultOpt = {
     y: 0,
     width: 0,
     height: 0,
+    selectable: true,
 };
 // each Block is Node
 class Block extends Node {
@@ -193,10 +198,10 @@ class Block extends Node {
     registerStyle(styles) {
         this.styleChanges.push(...styles);
     }
-    checkInBound(_event, cursor) {
+    checkInBound(_event) {
         const width = this.options.width;
         const height = this.options.height;
-        const { x, y } = cursor;
+        const { x, y } = this.canvas.getCursorPosition(_event);
         if (x >= this.options.x &&
             x <= this.options.x + width &&
             y >= this.options.y &&
@@ -207,27 +212,23 @@ class Block extends Node {
     click(_func) {
         this.events.push({
             eventType: "click",
-            method: (event, cursor) => {
-                if (this.checkInBound(event, cursor)) {
-                    _func(event);
-                }
+            method: (event) => {
+                _func(event);
             },
         });
     }
     mousedown(_func) {
         this.events.push({
             eventType: "mousedown",
-            method: (event, cursor) => {
-                if (this.checkInBound(event, cursor)) {
-                    _func(event);
-                }
+            method: (event) => {
+                _func(event);
             },
         });
     }
     mouseup(_func) {
         this.events.push({
             eventType: "mouseup",
-            method: (event, cursor) => {
+            method: (event) => {
                 _func(event);
             },
         });
@@ -235,52 +236,75 @@ class Block extends Node {
     mousemove(_func) {
         this.events.push({
             eventType: "mousemove",
-            method: (event, cursor) => {
-                if (this.checkInBound(event, cursor)) {
-                    _func(event);
-                }
+            method: (event) => {
+                _func(event);
             },
         });
     }
-    select() { }
+    mouseover(_func) {
+        this.events.push({
+            eventType: "mouseover",
+            method: (event) => {
+                _func(event);
+            },
+        });
+    }
+    selectable(option) {
+        if (option === false)
+            return;
+        let old_color = this.options.color;
+        this.mousemove((event) => {
+            if (this.checkInBound(event)) {
+                this.set({ color: "yellow" });
+            }
+            else {
+                this.set({ color: old_color });
+            }
+        });
+    }
     draggable(option = true) {
         const duplicat = this.events.filter((elem) => elem.eventType === "mousedown");
         if (option === false)
             return;
         if (duplicat.length > 1)
             return;
+        let isMouseDown = false;
         let initX = 0;
         let initY = 0;
-        let isMouseDown = false;
+        let beforeX = 0;
+        let beforeY = 0;
         this.mousedown((event) => {
-            initX = event.clientX;
-            initY = event.clientX;
-            if (event.button === 0) {
-                isMouseDown = true;
+            if (this.checkInBound(event)) {
+                const { x, y } = this.canvas.getCursorPosition(event);
+                initX = x;
+                initY = y;
+                if (event.button === 0) {
+                    isMouseDown = true;
+                    beforeX = 0;
+                    beforeY = 0;
+                }
             }
         });
         this.mousemove((event) => {
             if (isMouseDown) {
-                let diffX = event.clientX - initX;
-                let diffY = initY - event.clientY;
-                // console.log(initX, event.clientX, diffX);
+                const { x, y } = this.canvas.getCursorPosition(event);
+                let diffX = x - initX;
+                let diffY = y - initY;
                 if (diffX !== 0) {
-                    console.log(this.options.x - Math.abs(this.options.x - diffX));
-                    if (this.options.x > diffX) {
-                        this.options.x +=
-                            this.options.x - Math.abs(this.options.x - diffX);
-                    }
-                    this.options.x += diffX - this.options.x;
+                    this.options.x += diffX - beforeX;
+                    beforeX = diffX;
                 }
-                // if (diffY !== 0) {
-                //     this.options.y += diffY;
-                // }
+                if (diffY !== 0) {
+                    this.options.y += diffY - beforeY;
+                    beforeY = diffY;
+                }
                 if (diffX !== 0 || diffY !== 0) {
                     this.invoker?.call(this.canvas);
                 }
             }
         });
-        this.mouseup(() => {
+        this.mouseup((event) => {
+            if (this.checkInBound(event)) ;
             isMouseDown = false;
         });
     }
@@ -413,7 +437,7 @@ class TextBlock extends Block {
         return this.options.fontStyle || "normal";
     }
     color(option) {
-        this._context.fillStyle = this.options.color || option || "black";
+        this._context.fillStyle = option ?? (this.options.color || "black");
         this.options.color = this._context.fillStyle;
     }
     stroke(option) {
@@ -439,6 +463,9 @@ class TextBlock extends Block {
     }
     draggable(option) {
         super.draggable(option);
+    }
+    selectable(option) {
+        super.selectable(option);
     }
     set(options) {
         super.set(options);

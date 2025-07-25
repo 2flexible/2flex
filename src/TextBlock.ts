@@ -127,7 +127,7 @@ export class TextBlock extends Block {
     }
 
     color(option?: string) {
-        this._context.fillStyle = this.options.color || option || "black";
+        this._context.fillStyle = option ?? (this.options.color || "black");
         this.options.color = this._context.fillStyle;
     }
 
@@ -158,9 +158,13 @@ export class TextBlock extends Block {
     measureText() {
         return this._context.measureText(this.text);
     }
-    
+
     draggable(option: boolean): void {
         super.draggable(option);
+    }
+
+    selectable(option: boolean): void {
+        super.selectable(option);
     }
 
     set(options: IBlock<IText>) {
