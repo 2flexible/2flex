@@ -13,7 +13,8 @@ type TextBaseline =
     | "ideographic"
     | "bottom";
 
-interface IText {
+export interface IText {
+    text?: string;
     fontFamily?: string;
     fontWeight?: number;
     fontSize?: number;
@@ -27,23 +28,13 @@ interface IText {
 
 export class TextBlock extends Block {
     text: string;
-    fontY: number = 0;
 
     constructor(text: string, options: IBlock<IText> | undefined = undefined) {
         super(options);
         this.text = text;
-        // const stylesMap = [
-        //     { styleType: "fontFamily", method: this.fontFamily },
-        //     { styleType: "fontWeight", method: this.fontWeight },
-        //     { styleType: "fontSize", method: this.fontSize },
-        //     { styleType: "fontStyle", method: this.fontStyle },
-        //     { styleType: "fontVariant", method: this.fontVariant },
-        //     { styleType: "textAlign", method: this.align },
-        //     { styleType: "textBaseline", method: this.baseline },
-        //     { styleType: "direction", method: this.direction },
-        // ];
-        // this.registerStyle(stylesMap);
+        this.options.text = text;
     }
+
     #measureTextSize() {
         const text_measure = this.measureText();
         this.options.height =
@@ -51,7 +42,7 @@ export class TextBlock extends Block {
             text_measure.actualBoundingBoxDescent;
 
         this.options.width = text_measure.width;
-        this.fontY = this.options.height + this.options.y;
+        return this.options.height + this.options.y;
     }
 
     __initSet() {
@@ -74,15 +65,16 @@ export class TextBlock extends Block {
 
     // it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
     setFont(option?: string) {
-        this._context.font = option || this.#format_font();
+        this.context.font = option || this.#format_font();
 
         this.color();
-        this.#measureTextSize();
 
-        this._context.fillText(
+        const fontY = this.#measureTextSize();
+
+        this.context.fillText(
             this.text,
             this.options.x,
-            this.fontY,
+            fontY,
             this.options?.maxWidth
         );
     }
@@ -127,36 +119,38 @@ export class TextBlock extends Block {
     }
 
     color(option?: string) {
-        this._context.fillStyle = option ?? (this.options.color || "black");
-        this.options.color = this._context.fillStyle;
+        this.context.fillStyle = option ?? (this.options.color || "black");
+        this.options.color = this.context.fillStyle;
     }
 
     stroke(option?: string) {
-        this._context.strokeStyle = this.options.stroke || option;
-        this._context.strokeText(
+        this.context.strokeStyle = this.options.stroke || option;
+
+        const fontY = this.#measureTextSize();
+        this.context.strokeText(
             this.text,
             this.options.x,
-            this.fontY,
+            fontY,
             this.options?.maxWidth
         );
-        this.options.strokeStyle = this._context.strokeStyle;
+        this.options.strokeStyle = this.context.strokeStyle;
     }
     direction(option?: string) {
-        this._context.direction = this.options.direction || option;
-        this.options.direction = this._context.direction;
+        this.context.direction = this.options.direction || option;
+        this.options.direction = this.context.direction;
     }
     textAlign(option?: string) {
-        this._context.textAlign = this.options.textAlign || option;
-        this.options.align = this._context.align;
+        this.context.textAlign = this.options.textAlign || option;
+        this.options.align = this.context.align;
     }
     textBaseline(option?: string) {
-        this._context.textBaseline = this.options.textBaseline || option;
-        this.options.baseline = this._context.baseline;
+        this.context.textBaseline = this.options.textBaseline || option;
+        this.options.baseline = this.context.baseline;
     }
 
     // returns: text width in pixels
     measureText() {
-        return this._context.measureText(this.text);
+        return this.context.measureText(this.text);
     }
 
     draggable(option: boolean): void {

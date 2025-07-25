@@ -1,21 +1,12 @@
-console.log(Object.entries({ first: "last" }));
-const arr = [
-    { type: 1, missing: "first" },
-    { type: 1, missing: "first" },
-    { type: 2, missing: "second" },
-];
+const obj = [{ options: { first: "hey" } }];
 
-let uniqeEvents = [];
-
-for (const item of arr) {
-    const tempUniqe = uniqeEvents?.filter((_item) => _item.type === item.type);
-    if (tempUniqe[0]) {
-        const idx = uniqeEvents.indexOf(tempUniqe[0]);
-        uniqeEvents.splice(idx, 1);
-        tempUniqe[0].missing.push(item.missing);
-        uniqeEvents = [...uniqeEvents, tempUniqe[0]];
-    } else {
-        uniqeEvents.push({ type: item.type, missing: [item.missing] });
+const new_obj = obj.filter((item) => {
+    if (Object.values(item.options).includes("hey")) {
+        return item;
     }
+});
+console.log(new_obj);
+
+if ("hey" === Object.values(obj[0])) {
+    console.log("exitts");
 }
-console.log(uniqeEvents);

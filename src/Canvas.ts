@@ -5,60 +5,53 @@ import {
     ICustomEvents,
     IStyle,
     IRemovedEvents,
-    CanvasOptions,
+    ICssProperties,
+    BlockOptions,
+    IBlock,
 } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
-
-const defaultCanvasOpt = {
-    x: 0,
-    y: 0,
-    color: "#FFFFFF",
-};
+import { IText } from "./TextBlock";
 
 export class Canvas {
-    width: number;
-    height: number;
-    domCanvas: CanvasDOMManager;
-    options: CanvasOptions;
-    canvasEvents: any[] = [];
+    #domCanvas: CanvasDOMManager;
+    options: ICssProperties | undefined;
+    #canvasEvents: any[] = [];
+    canvasId: string;
 
     #tree = new Tree();
 
     constructor(
-        width: number,
-        height: number,
-        options: CanvasOptions | undefined = undefined
+        canvasId: string = "canvas",
+        options: ICssProperties | undefined = undefined
     ) {
-        this.width = width || 200;
-        this.height = height || 200;
-        this.options = { ...options, ...defaultCanvasOpt };
-        this.domCanvas = new CanvasDOMManager();
+        this.canvasId = canvasId;
+        this.options = options;
+
+        this.#domCanvas = new CanvasDOMManager(canvasId);
         this.#initCanvas();
     }
 
-    get context() {
-        return this.domCanvas.context;
+    get context(): CanvasRenderingContext2D {
+        return this.#domCanvas.context;
     }
 
-    get canvas() {
-        return this.domCanvas.canvas;
+    get canvas(): HTMLCanvasElement {
+        return this.#domCanvas.canvas;
     }
 
     #initCanvas() {
         this.canvas;
-        this.domCanvas.changeStyle(this.options);
+        this.#domCanvas.changeStyle(this.options);
     }
 
     add(...block: BlockElements[]) {
         this.#tree.addNodes(block);
 
         this.#tree.pre_order_traversal((element: any) => {
-            // element._context = this.context;
-            // element.invoker = this.invokeChange;
             element.canvas = this;
             element.__initSet();
             this.#handleStyleChanges(element);
-            this.canvasEvents.push(...element.events);
+            this.#canvasEvents.push(...element.events);
         });
         this.#handleEvents();
     }
@@ -75,7 +68,7 @@ export class Canvas {
         // created events for every same type events beacuse canvas is same, but coridanets changing
         let uniqeEvents: any[] = [];
 
-        for (const item of this.canvasEvents) {
+        for (const item of this.#canvasEvents) {
             const tempUniqe = uniqeEvents?.filter(
                 (_item) => _item.eventType === item.eventType
             );
@@ -91,10 +84,10 @@ export class Canvas {
                 });
             }
         }
-        this.canvasEvents = uniqeEvents;
+        this.#canvasEvents = uniqeEvents;
 
-        this.canvasEvents?.forEach((elem: any) => {
-            this.domCanvas.addEventListener(elem.eventType, (event) => {
+        this.#canvasEvents?.forEach((elem: any) => {
+            this.#domCanvas.addEventListener(elem.eventType, (event) => {
                 // const cursor = this.getCursorPosition(event);
                 elem.methods?.forEach((_method: any) => {
                     _method(event);
@@ -112,9 +105,14 @@ export class Canvas {
     }
 
     invokeChange() {
-        this.context?.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.#tree.pre_order_traversal((element: any) => {
             this.#handleStyleChanges(element);
         });
     }
+
+    find(queries: IBlock<BlockOptions & IText>) {
+        return this.#tree.filter_nodes(queries);
+    }
 }
+// new Canvas().find({ x:  });

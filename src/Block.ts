@@ -1,4 +1,5 @@
 // Each element in the canvas is block
+import { IText } from "./TextBlock";
 import { Node } from "./Tree";
 
 import {
@@ -30,8 +31,8 @@ const defaultOpt: defaultBlockOptions = {
 
 // each Block is Node
 export class Block extends Node {
-    options: defaultBlockOptions;
     canvas: any;
+    options: defaultBlockOptions;
     events: ICustomEvents[] = [];
     styleChanges: IStyle[] = [];
 
@@ -42,9 +43,14 @@ export class Block extends Node {
 
     __initSet() {}
 
+    get context() {
+        return this.canvas.context;
+    }
+
     add(...block: BlockElements[]): void {
         this.addChild(block);
     }
+
     registerStyle(styles: IStyle[]) {
         this.styleChanges.push(...styles);
     }
@@ -95,15 +101,6 @@ export class Block extends Node {
     mousemove(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "mousemove",
-            method: (event: MouseEvent) => {
-                _func(event);
-            },
-        });
-    }
-
-    mouseover(_func: (event: MouseEvent) => void) {
-        this.events.push({
-            eventType: "mouseover",
             method: (event: MouseEvent) => {
                 _func(event);
             },
@@ -182,18 +179,6 @@ export class Block extends Node {
 
     set(options: IBlock<BlockOptions>) {
         let cached = false;
-        // this.styleChanges.forEach((change: IStyle) => {
-        //     const option = options[change.styleType];
-        //     const beforeOption = this.options[change.styleType];
-
-        //     if (option) {
-        //         if (option !== beforeOption) {
-        //             change.method.call(this, option);
-        //         } else {
-        //             cached = true;
-        //         }
-        //     }
-        // });
 
         for (const [key, value] of Object.entries(options)) {
             const proto = Object.getPrototypeOf(this);
@@ -213,5 +198,8 @@ export class Block extends Node {
         if (!cached) {
             this.canvas.invokeChange?.call(this.canvas);
         }
+    }
+    find(queries: IBlock<BlockOptions & IText>) {
+        return this.filterNodes(queries);
     }
 }

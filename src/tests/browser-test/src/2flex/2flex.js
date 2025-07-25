@@ -1,18 +1,46 @@
 class Node {
     child_nodes;
     next;
+    // listed_child_nodes: Node[];
     constructor() {
         this.child_nodes = [];
         this.next = undefined;
+        // this.listed_child_nodes = [];
     }
     addChild(node) {
-        this.next = node.shift();
         this.child_nodes.push(...node);
+        this.next = node.shift();
+    }
+    filterNodes(queries) {
+        // const listed_nodes = this.listNodes();
+        const Q = [];
+        const S = [];
+        Q.push(this);
+        while (Q.length > 0) {
+            let current = Q.shift();
+            if (current) {
+                for (const [key, query] of Object.entries(queries)) {
+                    console.log(key, query);
+                    if (current.options.hasOwnProperty(key) &&
+                        Object.values(current.options).includes(query)) {
+                        S.push(current);
+                    }
+                }
+            }
+            if (current?.child_nodes) {
+                Q.unshift(...current.child_nodes);
+            }
+            if (current?.next) {
+                Q.unshift(current.next);
+            }
+        }
+        return S;
     }
 }
 class Tree {
     #nodes;
     #head;
+    #listed_nodes = [];
     constructor() {
         this.#nodes = [];
         this.#head = new Node();
@@ -26,13 +54,14 @@ class Tree {
     pre_order_traversal(_func) {
         const Q = [];
         Q.push(this.#head);
-        // const S = [];
         while (Q.length > 0) {
             let current = Q.shift();
             if (Object.getPrototypeOf(current).constructor.name !== "Node") {
                 _func(current);
+                if (current) {
+                    this.#listed_nodes.push(current);
+                }
             }
-            // S.push(current);
             if (current?.child_nodes) {
                 Q.unshift(...current.child_nodes);
             }
@@ -40,33 +69,48 @@ class Tree {
                 Q.unshift(current.next);
             }
         }
-        // return S;
+    }
+    filter_nodes(queries) {
+        return this.#listed_nodes.filter((item) => {
+            for (const [key, query] of Object.entries(queries)) {
+                if (item.options.hasOwnProperty(key) &&
+                    Object.values(item.options).includes(query))
+                    return item;
+            }
+        });
     }
 }
 
 class CanvasDOMManager {
-    constructor() { }
+    canvasId;
+    constructor(canvasId) {
+        this.canvasId = canvasId;
+    }
     get context() {
         return this.canvas.getContext("2d");
     }
     get canvas() {
-        const canvas = document.getElementById("canvas");
+        const canvas = document.getElementById(this.canvasId);
         if (!canvas) {
             this.createCanvas();
         }
         return canvas;
     }
+    // set canvas(canvas: HTMLCanvasElement) {
+    //     const body = document.querySelector("body") as HTMLElement;
+    //     body.appendChild(canvas);
+    // }
     createCanvas() {
         const canvas = document.createElement("canvas");
-        canvas.id = "canvas";
+        canvas.id = this.canvasId;
         const body = document.querySelector("body");
         body.appendChild(canvas);
     }
-    changeStyle() {
-        this.canvas.style;
-        this.canvas.style.position = "absolute";
-        this.canvas.style.left = "150px";
-        this.canvas.style.top = "150px";
+    changeStyle(options) {
+        if (options !== undefined)
+            for (const [key, value] of Object.entries(options)) {
+                this.canvas.style.setProperty(key, `${value}`);
+            }
     }
     addEventListener(_type, _func) {
         this.canvas.addEventListener(_type, (event) => _func(event));
@@ -76,45 +120,35 @@ class CanvasDOMManager {
     }
 }
 
-const defaultCanvasOpt = {
-    x: 0,
-    y: 0,
-    color: "#FFFFFF",
-};
 class Canvas {
-    width;
-    height;
-    domCanvas;
+    #domCanvas;
     options;
-    canvasEvents = [];
+    #canvasEvents = [];
+    canvasId;
     #tree = new Tree();
-    constructor(width, height, options = undefined) {
-        this.width = width || 200;
-        this.height = height || 200;
-        this.options = { ...options, ...defaultCanvasOpt };
-        this.domCanvas = new CanvasDOMManager();
+    constructor(canvasId = "canvas", options = undefined) {
+        this.canvasId = canvasId;
+        this.options = options;
+        this.#domCanvas = new CanvasDOMManager(canvasId);
         this.#initCanvas();
     }
     get context() {
-        this.domCanvas.changeStyle();
-        return this.domCanvas.context;
+        return this.#domCanvas.context;
     }
     get canvas() {
-        return this.domCanvas.canvas;
+        return this.#domCanvas.canvas;
     }
     #initCanvas() {
         this.canvas;
+        this.#domCanvas.changeStyle(this.options);
     }
     add(...block) {
         this.#tree.addNodes(block);
         this.#tree.pre_order_traversal((element) => {
-            element._context = this.context;
             element.canvas = this;
             element.__initSet();
-            element.invoker = this.invokeChange;
-            // element.eventInvoker = this.invokeEventChanges;
             this.#handleStyleChanges(element);
-            this.canvasEvents.push(...element.events);
+            this.#canvasEvents.push(...element.events);
         });
         this.#handleEvents();
     }
@@ -128,7 +162,7 @@ class Canvas {
     #handleEvents() {
         // created events for every same type events beacuse canvas is same, but coridanets changing
         let uniqeEvents = [];
-        for (const item of this.canvasEvents) {
+        for (const item of this.#canvasEvents) {
             const tempUniqe = uniqeEvents?.filter((_item) => _item.eventType === item.eventType);
             if (tempUniqe[0]) {
                 const idx = uniqeEvents.indexOf(tempUniqe[0]);
@@ -143,9 +177,9 @@ class Canvas {
                 });
             }
         }
-        this.canvasEvents = uniqeEvents;
-        this.canvasEvents?.forEach((elem) => {
-            this.domCanvas.addEventListener(elem.eventType, (event) => {
+        this.#canvasEvents = uniqeEvents;
+        this.#canvasEvents?.forEach((elem) => {
+            this.#domCanvas.addEventListener(elem.eventType, (event) => {
                 // const cursor = this.getCursorPosition(event);
                 elem.methods?.forEach((_method) => {
                     _method(event);
@@ -161,15 +195,17 @@ class Canvas {
         }
     }
     invokeChange() {
-        this.context?.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.#tree.pre_order_traversal((element) => {
             this.#handleStyleChanges(element);
-            // this.#handleEvents(element);
         });
     }
+    find(queries) {
+        return this.#tree.filter_nodes(queries);
+    }
 }
+// new Canvas().find({ x:  });
 
-// Each element in the canvas is block
 const defaultOpt = {
     x: 0,
     y: 0,
@@ -179,19 +215,18 @@ const defaultOpt = {
 };
 // each Block is Node
 class Block extends Node {
-    options;
-    _context;
-    invoker = undefined;
-    eventInvoker = undefined;
     canvas;
+    options;
     events = [];
-    removedEvents = [];
     styleChanges = [];
     constructor(options = undefined) {
         super();
         this.options = { ...defaultOpt, ...options };
     }
     __initSet() { }
+    get context() {
+        return this.canvas.context;
+    }
     add(...block) {
         this.addChild(block);
     }
@@ -236,14 +271,6 @@ class Block extends Node {
     mousemove(_func) {
         this.events.push({
             eventType: "mousemove",
-            method: (event) => {
-                _func(event);
-            },
-        });
-    }
-    mouseover(_func) {
-        this.events.push({
-            eventType: "mouseover",
             method: (event) => {
                 _func(event);
             },
@@ -299,7 +326,7 @@ class Block extends Node {
                     beforeY = diffY;
                 }
                 if (diffX !== 0 || diffY !== 0) {
-                    this.invoker?.call(this.canvas);
+                    this.canvas.invokeChange?.call(this.canvas);
                 }
             }
         });
@@ -310,17 +337,6 @@ class Block extends Node {
     }
     set(options) {
         let cached = false;
-        // this.styleChanges.forEach((change: IStyle) => {
-        //     const option = options[change.styleType];
-        //     const beforeOption = this.options[change.styleType];
-        //     if (option) {
-        //         if (option !== beforeOption) {
-        //             change.method.call(this, option);
-        //         } else {
-        //             cached = true;
-        //         }
-        //     }
-        // });
         for (const [key, value] of Object.entries(options)) {
             const proto = Object.getPrototypeOf(this);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
@@ -335,8 +351,11 @@ class Block extends Node {
             }
         }
         if (!cached) {
-            this.invoker?.call(this.canvas);
+            this.canvas.invokeChange?.call(this.canvas);
         }
+    }
+    find(queries) {
+        return this.filterNodes(queries);
     }
 }
 
@@ -353,27 +372,16 @@ class Shape extends Block {
         super(options);
     }
     lineWidth() {
-        this._context.lineWidth = this.options.lineWidth;
+        this.context.lineWidth = this.options.lineWidth;
     }
 }
 
 class TextBlock extends Block {
     text;
-    fontY = 0;
     constructor(text, options = undefined) {
         super(options);
         this.text = text;
-        // const stylesMap = [
-        //     { styleType: "fontFamily", method: this.fontFamily },
-        //     { styleType: "fontWeight", method: this.fontWeight },
-        //     { styleType: "fontSize", method: this.fontSize },
-        //     { styleType: "fontStyle", method: this.fontStyle },
-        //     { styleType: "fontVariant", method: this.fontVariant },
-        //     { styleType: "textAlign", method: this.align },
-        //     { styleType: "textBaseline", method: this.baseline },
-        //     { styleType: "direction", method: this.direction },
-        // ];
-        // this.registerStyle(stylesMap);
+        this.options.text = text;
     }
     #measureTextSize() {
         const text_measure = this.measureText();
@@ -381,7 +389,7 @@ class TextBlock extends Block {
             text_measure.actualBoundingBoxAscent +
                 text_measure.actualBoundingBoxDescent;
         this.options.width = text_measure.width;
-        this.fontY = this.options.height + this.options.y;
+        return this.options.height + this.options.y;
     }
     __initSet() {
         this.setFont();
@@ -396,10 +404,10 @@ class TextBlock extends Block {
     }
     // it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
     setFont(option) {
-        this._context.font = option || this.#format_font();
+        this.context.font = option || this.#format_font();
         this.color();
-        this.#measureTextSize();
-        this._context.fillText(this.text, this.options.x, this.fontY, this.options?.maxWidth);
+        const fontY = this.#measureTextSize();
+        this.context.fillText(this.text, this.options.x, fontY, this.options?.maxWidth);
     }
     fontFamily(option) {
         if (option) {
@@ -437,29 +445,30 @@ class TextBlock extends Block {
         return this.options.fontStyle || "normal";
     }
     color(option) {
-        this._context.fillStyle = option ?? (this.options.color || "black");
-        this.options.color = this._context.fillStyle;
+        this.context.fillStyle = option ?? (this.options.color || "black");
+        this.options.color = this.context.fillStyle;
     }
     stroke(option) {
-        this._context.strokeStyle = this.options.stroke || option;
-        this._context.strokeText(this.text, this.options.x, this.fontY, this.options?.maxWidth);
-        this.options.strokeStyle = this._context.strokeStyle;
+        this.context.strokeStyle = this.options.stroke || option;
+        const fontY = this.#measureTextSize();
+        this.context.strokeText(this.text, this.options.x, fontY, this.options?.maxWidth);
+        this.options.strokeStyle = this.context.strokeStyle;
     }
     direction(option) {
-        this._context.direction = this.options.direction || option;
-        this.options.direction = this._context.direction;
+        this.context.direction = this.options.direction || option;
+        this.options.direction = this.context.direction;
     }
     textAlign(option) {
-        this._context.textAlign = this.options.textAlign || option;
-        this.options.align = this._context.align;
+        this.context.textAlign = this.options.textAlign || option;
+        this.options.align = this.context.align;
     }
     textBaseline(option) {
-        this._context.textBaseline = this.options.textBaseline || option;
-        this.options.baseline = this._context.baseline;
+        this.context.textBaseline = this.options.textBaseline || option;
+        this.options.baseline = this.context.baseline;
     }
     // returns: text width in pixels
     measureText() {
-        return this._context.measureText(this.text);
+        return this.context.measureText(this.text);
     }
     draggable(option) {
         super.draggable(option);

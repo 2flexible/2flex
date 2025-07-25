@@ -1,6 +1,6 @@
-import { Canvas, TextBlock } from "./2flex/2flex";
+import { Canvas, TextBlock, Block } from "./2flex/2flex";
 
-const canvas = new Canvas(200, 200, { x: 40 });
+const canvas = new Canvas();
 
 const text_a = new TextBlock("First Text", {
     x: 0,
@@ -20,6 +20,7 @@ const text_b = new TextBlock("SecondText", {
     fontSize: 35,
     draggable: true,
 });
+const block = new Block();
 
 text_b.click((e) => {
     console.log("clicked");
@@ -32,5 +33,6 @@ text_a.click((e) => {
     text_a.set({ fontSize: 40 });
 });
 canvas.add(text_a, text_b);
-console.log(canvas.canvas.style);
-CSSStyleDeclaration.setProperty("")
+
+block.add(text_a, text_b);
+console.log(block.find({ text: "First Text", x: 0 }));
