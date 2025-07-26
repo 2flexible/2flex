@@ -42,7 +42,8 @@ export class Canvas {
     #initCanvas() {
         this.canvas;
         this.#domCanvas.changeStyle(this.options);
-        this.zoomInOut();
+        this.zoom(this.#zoomInOut());
+        this.move(this.#canvasMoves());
     }
 
     add(...block: BlockElements[]) {
@@ -116,32 +117,71 @@ export class Canvas {
         return this.#tree.filter_nodes(queries);
     }
 
-    zoomInOut() {
-        this.canvas.addEventListener(
-            "wheel",
-            (event) => {
-                event.preventDefault();
-                if (event.ctrlKey) {
-                    this.context.clearRect(
-                        0,
-                        0,
-                        this.canvas.width,
-                        this.canvas.height
-                    );
-                    if (event.deltaY < 0) {
-                        this.#tree.checkNodes((element: any) => {
-                            element.options.fontSize *= 1.25;
-                            this.#handleStyleChanges(element);
-                        });
-                    } else {
-                        this.#tree.checkNodes((element: any) => {
-                            element.options.fontSize /= 1.25;
-                            this.#handleStyleChanges(element);
-                        });
-                    }
+    zoom(_func: (event: any) => void) {
+        this.#domCanvas.removeEventListener("wheel", this.#zoomInOut);
+        this.#domCanvas.addEventListener("wheel", (event) => _func(event));
+    }
+
+    #zoomInOut() {
+        return (event: WheelEvent) => {
+            if (event.ctrlKey) {
+                this.context.clearRect(
+                    0,
+                    0,
+                    this.canvas.width,
+                    this.canvas.height
+                );
+                if (event.deltaY < 0) {
+                    this.#tree.checkNodes((element: any) => {
+                        element.options.fontSize *= 1.25;
+                        this.#handleStyleChanges(element);
+                    });
+                } else {
+                    this.#tree.checkNodes((element: any) => {
+                        element.options.fontSize /= 1.25;
+                        this.#handleStyleChanges(element);
+                    });
                 }
-            },
-            { passive: false }
-        );
+            }
+        };
+    }
+
+    move(_func: (event: any) => void) {
+        this.#domCanvas.removeEventListener("wheel", this.#canvasMoves);
+        this.#domCanvas.addEventListener("wheel", (event) => _func(event));
+    }
+
+    #canvasMoves() {
+        return (event: WheelEvent) => {
+            if (event.ctrlKey) {
+                return;
+            }
+            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            if (event.shiftKey) {
+                if (event.deltaY < 0) {
+                    this.#tree.checkNodes((element: any) => {
+                        element.options.x += 10;
+                        this.#handleStyleChanges(element);
+                    });
+                } else {
+                    this.#tree.checkNodes((element: any) => {
+                        element.options.x -= 10;
+                        this.#handleStyleChanges(element);
+                    });
+                }
+            } else {
+                if (event.deltaY < 0) {
+                    this.#tree.checkNodes((element: any) => {
+                        element.options.y += 10;
+                        this.#handleStyleChanges(element);
+                    });
+                } else {
+                    this.#tree.checkNodes((element: any) => {
+                        element.options.y -= 10;
+                        this.#handleStyleChanges(element);
+                    });
+                }
+            }
+        };
     }
 }

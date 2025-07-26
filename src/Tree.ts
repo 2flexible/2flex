@@ -18,16 +18,20 @@ export class Node {
         if (this.#listed_child_nodes.length === 0) {
             this.#listNodes();
         }
-        return this.#listed_child_nodes.filter((item: any) => {
-            for (const [key, query] of Object.entries(queries)) {
-                if (
-                    item.options.hasOwnProperty(key) &&
-                    Object.values(item.options).includes(query)
-                ) {
-                    return item;
+        if (queries) {
+            this.#listed_child_nodes.filter((item: any) => {
+                for (const [key, query] of Object.entries(queries)) {
+                    if (
+                        item.options.hasOwnProperty(key) &&
+                        Object.values(item.options).includes(query)
+                    ) {
+                        return item;
+                    }
                 }
-            }
-        });
+            });
+        } else {
+            return this.#listed_child_nodes;
+        }
     }
 
     #listNodes() {

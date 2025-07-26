@@ -15,14 +15,19 @@ class Node {
         if (this.#listed_child_nodes.length === 0) {
             this.#listNodes();
         }
-        return this.#listed_child_nodes.filter((item) => {
-            for (const [key, query] of Object.entries(queries)) {
-                if (item.options.hasOwnProperty(key) &&
-                    Object.values(item.options).includes(query)) {
-                    return item;
+        if (queries) {
+            this.#listed_child_nodes.filter((item) => {
+                for (const [key, query] of Object.entries(queries)) {
+                    if (item.options.hasOwnProperty(key) &&
+                        Object.values(item.options).includes(query)) {
+                        return item;
+                    }
                 }
-            }
-        });
+            });
+        }
+        else {
+            return this.#listed_child_nodes;
+        }
     }
     #listNodes() {
         const Q = [];
@@ -125,7 +130,10 @@ class CanvasDOMManager {
             }
     }
     addEventListener(_type, _func) {
-        this.canvas.addEventListener(_type, (event) => _func(event));
+        this.canvas.addEventListener(_type, (event) => {
+            event.preventDefault();
+            _func(event);
+        }, { passive: false });
     }
     removeEventListener(_type, _func) {
         this.canvas.removeEventListener(_type, (event) => _func(event));
@@ -153,7 +161,8 @@ class Canvas {
     #initCanvas() {
         this.canvas;
         this.#domCanvas.changeStyle(this.options);
-        this.zoomInOut();
+        this.zoom(this.#zoomInOut());
+        this.move(this.#canvasMoves());
     }
     add(...block) {
         this.#tree.addNodes(block);
@@ -217,9 +226,12 @@ class Canvas {
     find(queries) {
         return this.#tree.filter_nodes(queries);
     }
-    zoomInOut() {
-        this.canvas.addEventListener("wheel", (event) => {
-            event.preventDefault();
+    zoom(_func) {
+        this.#domCanvas.removeEventListener("wheel", this.#zoomInOut);
+        this.#domCanvas.addEventListener("wheel", (event) => _func(event));
+    }
+    #zoomInOut() {
+        return (event) => {
             if (event.ctrlKey) {
                 this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 if (event.deltaY < 0) {
@@ -235,7 +247,47 @@ class Canvas {
                     });
                 }
             }
-        }, { passive: false });
+        };
+    }
+    move(_func) {
+        this.#domCanvas.removeEventListener("wheel", this.#canvasMoves);
+        this.#domCanvas.addEventListener("wheel", (event) => _func(event));
+    }
+    #canvasMoves() {
+        return (event) => {
+            if (event.ctrlKey) {
+                return;
+            }
+            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            if (event.shiftKey) {
+                if (event.deltaY < 0) {
+                    this.#tree.checkNodes((element) => {
+                        element.options.x += 10;
+                        this.#handleStyleChanges(element);
+                    });
+                }
+                else {
+                    this.#tree.checkNodes((element) => {
+                        element.options.x -= 10;
+                        this.#handleStyleChanges(element);
+                    });
+                }
+            }
+            else {
+                if (event.deltaY < 0) {
+                    this.#tree.checkNodes((element) => {
+                        element.options.y += 10;
+                        this.#handleStyleChanges(element);
+                    });
+                }
+                else {
+                    this.#tree.checkNodes((element) => {
+                        element.options.y -= 10;
+                        this.#handleStyleChanges(element);
+                    });
+                }
+            }
+        };
     }
 }
 
@@ -387,7 +439,7 @@ class Block extends Node {
             this.canvas.invokeChange?.call(this.canvas);
         }
     }
-    find(queries) {
+    find(queries = undefined) {
         return this.filterNodes(queries);
     }
 }
@@ -396,6 +448,13 @@ class Block extends Node {
 class Layer extends Block {
     constructor(options) {
         super(options);
+    }
+    __initSet() {
+        const all_childs = this.find();
+        all_childs?.forEach((item) => {
+            item.options.x = this.options.x + item.options.x;
+            item.options.y = this.options.y + item.options.y;
+        });
     }
 }
 

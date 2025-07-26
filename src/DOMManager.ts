@@ -40,7 +40,10 @@ export class CanvasDOMManager {
     }
 
     addEventListener(_type: string, _func: (event: any) => void) {
-        this.canvas.addEventListener(_type, (event: any) => _func(event));
+        this.canvas.addEventListener(_type, (event: any) => {
+            event.preventDefault();
+            _func(event);
+        }, {passive: false});
     }
 
     removeEventListener(_type: string, _func: (event: any) => void) {

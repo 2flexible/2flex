@@ -199,7 +199,7 @@ export class Block extends Node {
             this.canvas.invokeChange?.call(this.canvas);
         }
     }
-    find(queries: IBlock<BlockOptions & IText>) {
+    find(queries: IBlock<BlockOptions & IText> | undefined = undefined) {
         return this.filterNodes(queries);
     }
 }

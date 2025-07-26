@@ -1,4 +1,4 @@
-import { Canvas, TextBlock, Block } from "./2flex/2flex";
+import { Canvas, TextBlock, Block, Layer } from "./2flex/2flex";
 
 const canvas = new Canvas("canvas", { width: "800px" });
 
@@ -33,7 +33,10 @@ text_a.click((e) => {
     text_a.set({ fontSize: 40 });
 });
 
-canvas.add(text_a, text_b);
+const layer = new Layer({ x: 20 });
+layer.add(text_a, text_b);
+
+canvas.add(layer);
 block.add(text_a, text_b);
 
-console.log(block.find({ text: "First Text", x: 0, y: 0 }));
+console.log(block.find());
