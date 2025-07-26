@@ -70,6 +70,7 @@ export class Tree {
         this.#nodes.push(...node);
     }
 
+    // need a change
     pre_order_traversal(_func: (element: any) => void) {
         const Q = [];
         Q.push(this.#head);
@@ -91,6 +92,12 @@ export class Tree {
             }
         }
         console.log(this.#listed_nodes);
+    }
+
+    checkNodes(_func: (element: any) => void) {
+        this.#listed_nodes.forEach((item) => {
+            _func(item);
+        });
     }
 
     filter_nodes(queries: any) {

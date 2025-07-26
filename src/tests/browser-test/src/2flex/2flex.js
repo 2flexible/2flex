@@ -56,6 +56,7 @@ class Tree {
         }
         this.#nodes.push(...node);
     }
+    // need a change
     pre_order_traversal(_func) {
         const Q = [];
         Q.push(this.#head);
@@ -75,6 +76,11 @@ class Tree {
             }
         }
         console.log(this.#listed_nodes);
+    }
+    checkNodes(_func) {
+        this.#listed_nodes.forEach((item) => {
+            _func(item);
+        });
     }
     filter_nodes(queries) {
         return this.#listed_nodes.filter((item) => {
@@ -132,8 +138,8 @@ class Canvas {
     #canvasEvents = [];
     canvasId;
     #tree = new Tree();
-    constructor(canvasId = "canvas", options = undefined) {
-        this.canvasId = canvasId;
+    constructor(canvasId, options = undefined) {
+        this.canvasId = canvasId || "canvas";
         this.options = options;
         this.#domCanvas = new CanvasDOMManager(canvasId);
         this.#initCanvas();
@@ -147,6 +153,7 @@ class Canvas {
     #initCanvas() {
         this.canvas;
         this.#domCanvas.changeStyle(this.options);
+        this.zoomInOut();
     }
     add(...block) {
         this.#tree.addNodes(block);
@@ -202,13 +209,33 @@ class Canvas {
     }
     invokeChange() {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.#tree.pre_order_traversal((element) => {
+        this.#tree.checkNodes((element) => {
             this.#handleStyleChanges(element);
         });
     }
     // we can do this later as and || or
     find(queries) {
         return this.#tree.filter_nodes(queries);
+    }
+    zoomInOut() {
+        this.canvas.addEventListener("wheel", (event) => {
+            event.preventDefault();
+            if (event.ctrlKey) {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                if (event.deltaY < 0) {
+                    this.#tree.checkNodes((element) => {
+                        element.options.fontSize *= 1.25;
+                        this.#handleStyleChanges(element);
+                    });
+                }
+                else {
+                    this.#tree.checkNodes((element) => {
+                        element.options.fontSize /= 1.25;
+                        this.#handleStyleChanges(element);
+                    });
+                }
+            }
+        }, { passive: false });
     }
 }
 

@@ -1,6 +1,6 @@
 import { Canvas, TextBlock, Block } from "./2flex/2flex";
 
-const canvas = new Canvas();
+const canvas = new Canvas("canvas", { width: "800px" });
 
 const text_a = new TextBlock("First Text", {
     x: 0,

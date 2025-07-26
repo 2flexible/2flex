@@ -21,10 +21,10 @@ export class Canvas {
     #tree = new Tree();
 
     constructor(
-        canvasId: string = "canvas",
+        canvasId: string,
         options: ICssProperties | undefined = undefined
     ) {
-        this.canvasId = canvasId;
+        this.canvasId = canvasId || "canvas";
         this.options = options;
 
         this.#domCanvas = new CanvasDOMManager(canvasId);
@@ -42,6 +42,7 @@ export class Canvas {
     #initCanvas() {
         this.canvas;
         this.#domCanvas.changeStyle(this.options);
+        this.zoomInOut();
     }
 
     add(...block: BlockElements[]) {
@@ -106,12 +107,41 @@ export class Canvas {
 
     invokeChange() {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.#tree.pre_order_traversal((element: any) => {
+        this.#tree.checkNodes((element: any) => {
             this.#handleStyleChanges(element);
         });
     }
     // we can do this later as and || or
     find(queries: IBlock<BlockOptions & IText>) {
         return this.#tree.filter_nodes(queries);
+    }
+
+    zoomInOut() {
+        this.canvas.addEventListener(
+            "wheel",
+            (event) => {
+                event.preventDefault();
+                if (event.ctrlKey) {
+                    this.context.clearRect(
+                        0,
+                        0,
+                        this.canvas.width,
+                        this.canvas.height
+                    );
+                    if (event.deltaY < 0) {
+                        this.#tree.checkNodes((element: any) => {
+                            element.options.fontSize *= 1.25;
+                            this.#handleStyleChanges(element);
+                        });
+                    } else {
+                        this.#tree.checkNodes((element: any) => {
+                            element.options.fontSize /= 1.25;
+                            this.#handleStyleChanges(element);
+                        });
+                    }
+                }
+            },
+            { passive: false }
+        );
     }
 }
