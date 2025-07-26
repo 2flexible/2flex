@@ -32,7 +32,8 @@ text_a.click((e) => {
     console.log("second clicked");
     text_a.set({ fontSize: 40 });
 });
-canvas.add(text_a, text_b);
 
+canvas.add(text_a, text_b);
 block.add(text_a, text_b);
-console.log(block.find({ text: "First Text", x: 0 }));
+
+console.log(block.find({ text: "First Text", x: 0, y: 0 }));

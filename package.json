@@ -9,7 +9,7 @@
         "build": "",
         "test:tsc": "tsc -p ./tsconfig.json --outDir src/tests",
         "test:web": "npm run dev --prefix ./src/tests/browser-test/",
-        "rollup": "npx rollup -c ./rollup.config.mjs",
+        "rollup": "npx rollup -w -c ./rollup.config.mjs",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "keywords": [],

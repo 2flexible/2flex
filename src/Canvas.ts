@@ -110,9 +110,8 @@ export class Canvas {
             this.#handleStyleChanges(element);
         });
     }
-
+    // we can do this later as and || or
     find(queries: IBlock<BlockOptions & IText>) {
         return this.#tree.filter_nodes(queries);
     }
 }
-// new Canvas().find({ x:  });

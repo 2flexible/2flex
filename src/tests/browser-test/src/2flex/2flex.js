@@ -1,31 +1,36 @@
 class Node {
     child_nodes;
     next;
-    // listed_child_nodes: Node[];
+    #listed_child_nodes;
     constructor() {
         this.child_nodes = [];
         this.next = undefined;
-        // this.listed_child_nodes = [];
+        this.#listed_child_nodes = [];
     }
     addChild(node) {
-        this.child_nodes.push(...node);
         this.next = node.shift();
+        this.child_nodes.push(...node);
     }
     filterNodes(queries) {
-        // const listed_nodes = this.listNodes();
+        if (this.#listed_child_nodes.length === 0) {
+            this.#listNodes();
+        }
+        return this.#listed_child_nodes.filter((item) => {
+            for (const [key, query] of Object.entries(queries)) {
+                if (item.options.hasOwnProperty(key) &&
+                    Object.values(item.options).includes(query)) {
+                    return item;
+                }
+            }
+        });
+    }
+    #listNodes() {
         const Q = [];
-        const S = [];
         Q.push(this);
         while (Q.length > 0) {
             let current = Q.shift();
             if (current) {
-                for (const [key, query] of Object.entries(queries)) {
-                    console.log(key, query);
-                    if (current.options.hasOwnProperty(key) &&
-                        Object.values(current.options).includes(query)) {
-                        S.push(current);
-                    }
-                }
+                this.#listed_child_nodes.push(current);
             }
             if (current?.child_nodes) {
                 Q.unshift(...current.child_nodes);
@@ -34,7 +39,7 @@ class Node {
                 Q.unshift(current.next);
             }
         }
-        return S;
+        this.#listed_child_nodes.shift();
     }
 }
 class Tree {
@@ -57,8 +62,8 @@ class Tree {
         while (Q.length > 0) {
             let current = Q.shift();
             if (Object.getPrototypeOf(current).constructor.name !== "Node") {
-                _func(current);
                 if (current) {
+                    _func(current);
                     this.#listed_nodes.push(current);
                 }
             }
@@ -69,6 +74,7 @@ class Tree {
                 Q.unshift(current.next);
             }
         }
+        console.log(this.#listed_nodes);
     }
     filter_nodes(queries) {
         return this.#listed_nodes.filter((item) => {
@@ -200,11 +206,11 @@ class Canvas {
             this.#handleStyleChanges(element);
         });
     }
+    // we can do this later as and || or
     find(queries) {
         return this.#tree.filter_nodes(queries);
     }
 }
-// new Canvas().find({ x:  });
 
 const defaultOpt = {
     x: 0,

@@ -12,8 +12,8 @@ export default {
         },
     ],
     // external: ["fs"],
-    // watch: {
-    //     include: "src/**",
-    // },
+    watch: {
+        include: "src/**",
+    },
     plugins: [nodeResolve(), typescript()],
 };
