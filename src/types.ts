@@ -1,10 +1,10 @@
 import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
-import { Rect, Star } from "./shapes/index";
+import { Rectangle, Star } from "./shapes/index";
 import { Node } from "./Tree";
 import { Block } from "./Block";
 
-export type ShapeElements = Rect | Star;
+export type ShapeElements = Rectangle | Star;
 
 export interface BlockOptions {
     [key: string]: any;
@@ -15,8 +15,9 @@ export interface BlockOptions {
     selectable?: boolean;
     backgroundColor?: string;
     color?: string;
-    stroke?: string;
-    lineWidth?: number;
+    stroke?: number;
+    strokeColor?: string;
+    // lineWidth?: number;
     padding?: string;
     margin?: string;
     draggable?: boolean;
@@ -66,4 +67,4 @@ export type ICssProperties = {
     [key in keyof CSSStyleDeclaration]: CSSStyleDeclaration[key];
 };
 
-type Query = BlockOptions
+type Query = BlockOptions;

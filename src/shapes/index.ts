@@ -1,4 +1,4 @@
-import { Rect } from "./Rect";
+import { Rectangle } from "./Rectangle";
 import { Star } from "./Star";
 
-export { Rect, Star };
+export { Rectangle, Star };

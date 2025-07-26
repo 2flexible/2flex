@@ -1,4 +1,4 @@
-import { Canvas, TextBlock, Block, Layer } from "./2flex/2flex";
+import { Canvas, TextBlock, Block, Layer, Rectangle } from "./2flex/2flex";
 
 const canvas = new Canvas("canvas", { width: "800px" });
 
@@ -14,7 +14,7 @@ const text_a = new TextBlock("First Text", {
 
 const text_b = new TextBlock("SecondText", {
     x: 30,
-    y: 0,
+    y: 2,
     color: "red",
     fontFamily: "KulminoituvaRegular",
     fontSize: 35,
@@ -35,8 +35,10 @@ text_a.click((e) => {
 
 const layer = new Layer({ x: 20 });
 layer.add(text_a, text_b);
+const rect = new Rectangle({ width: 40, height: 120, color: "red" });
+// rect.add(text_a);
+canvas.add(text_a, text_b, rect);
 
-canvas.add(layer);
 block.add(text_a, text_b);
 
 console.log(block.find());

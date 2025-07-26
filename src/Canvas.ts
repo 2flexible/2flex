@@ -45,12 +45,20 @@ export class Canvas {
         this.zoom(this.#zoomInOut());
         this.move(this.#canvasMoves());
     }
+    getBoundingClientRect() {
+        return this.canvas.getBoundingClientRect();
+    }
 
     add(...block: BlockElements[]) {
         this.#tree.addNodes(block);
+        const rect = this.getBoundingClientRect();
 
-        this.#tree.pre_order_traversal((element: any) => {
+        this.#tree.preOrderTraversal((element: any) => {
             element.canvas = this;
+            console.log(element);
+            // element.options.x = Math.abs(rect.left - element.options.x);
+            // element.options.y = Math.abs(rect.top - element.options.y);
+            // console.log(element);
             element.__initSet();
             this.#handleStyleChanges(element);
             this.#canvasEvents.push(...element.events);
@@ -107,14 +115,14 @@ export class Canvas {
     }
 
     invokeChange() {
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.clearRect();
         this.#tree.checkNodes((element: any) => {
             this.#handleStyleChanges(element);
         });
     }
     // we can do this later as and || or
     find(queries: IBlock<BlockOptions & IText>) {
-        return this.#tree.filter_nodes(queries);
+        return this.#tree.filterNodes(queries);
     }
 
     zoom(_func: (event: any) => void) {
@@ -125,27 +133,25 @@ export class Canvas {
     #zoomInOut() {
         return (event: WheelEvent) => {
             if (event.ctrlKey) {
-                this.context.clearRect(
-                    0,
-                    0,
-                    this.canvas.width,
-                    this.canvas.height
-                );
+                this.clearRect();
                 if (event.deltaY < 0) {
                     this.#tree.checkNodes((element: any) => {
-                        element.options.fontSize *= 1.25;
+                        this.context.scale(1.02, 1.02);
                         this.#handleStyleChanges(element);
                     });
                 } else {
                     this.#tree.checkNodes((element: any) => {
-                        element.options.fontSize /= 1.25;
+                        this.context.scale(0.95, 0.95);
                         this.#handleStyleChanges(element);
                     });
                 }
             }
         };
     }
-
+    clearRect() {
+        const rect = this.canvas.getBoundingClientRect();
+        this.context.clearRect(0, 0, rect.width, rect.height);
+    }
     move(_func: (event: any) => void) {
         this.#domCanvas.removeEventListener("wheel", this.#canvasMoves);
         this.#domCanvas.addEventListener("wheel", (event) => _func(event));
@@ -156,11 +162,15 @@ export class Canvas {
             if (event.ctrlKey) {
                 return;
             }
-            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.clearRect();
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
                     this.#tree.checkNodes((element: any) => {
                         element.options.x += 10;
+                        // this.context.translate(
+                        //     element.options.x + 5,
+                        //     element.options.y
+                        // );
                         this.#handleStyleChanges(element);
                     });
                 } else {

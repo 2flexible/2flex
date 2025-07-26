@@ -62,7 +62,7 @@ class Tree {
         this.#nodes.push(...node);
     }
     // need a change
-    pre_order_traversal(_func) {
+    preOrderTraversal(_func) {
         const Q = [];
         Q.push(this.#head);
         while (Q.length > 0) {
@@ -87,7 +87,7 @@ class Tree {
             _func(item);
         });
     }
-    filter_nodes(queries) {
+    filterNodes(queries) {
         return this.#listed_nodes.filter((item) => {
             for (const [key, query] of Object.entries(queries)) {
                 if (item.options.hasOwnProperty(key) &&
@@ -164,10 +164,18 @@ class Canvas {
         this.zoom(this.#zoomInOut());
         this.move(this.#canvasMoves());
     }
+    getBoundingClientRect() {
+        return this.canvas.getBoundingClientRect();
+    }
     add(...block) {
         this.#tree.addNodes(block);
-        this.#tree.pre_order_traversal((element) => {
+        this.getBoundingClientRect();
+        this.#tree.preOrderTraversal((element) => {
             element.canvas = this;
+            console.log(element);
+            // element.options.x = Math.abs(rect.left - element.options.x);
+            // element.options.y = Math.abs(rect.top - element.options.y);
+            // console.log(element);
             element.__initSet();
             this.#handleStyleChanges(element);
             this.#canvasEvents.push(...element.events);
@@ -217,14 +225,14 @@ class Canvas {
         }
     }
     invokeChange() {
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.clearRect();
         this.#tree.checkNodes((element) => {
             this.#handleStyleChanges(element);
         });
     }
     // we can do this later as and || or
     find(queries) {
-        return this.#tree.filter_nodes(queries);
+        return this.#tree.filterNodes(queries);
     }
     zoom(_func) {
         this.#domCanvas.removeEventListener("wheel", this.#zoomInOut);
@@ -233,21 +241,25 @@ class Canvas {
     #zoomInOut() {
         return (event) => {
             if (event.ctrlKey) {
-                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.clearRect();
                 if (event.deltaY < 0) {
                     this.#tree.checkNodes((element) => {
-                        element.options.fontSize *= 1.25;
+                        this.context.scale(1.02, 1.02);
                         this.#handleStyleChanges(element);
                     });
                 }
                 else {
                     this.#tree.checkNodes((element) => {
-                        element.options.fontSize /= 1.25;
+                        this.context.scale(0.95, 0.95);
                         this.#handleStyleChanges(element);
                     });
                 }
             }
         };
+    }
+    clearRect() {
+        const rect = this.canvas.getBoundingClientRect();
+        this.context.clearRect(0, 0, rect.width, rect.height);
     }
     move(_func) {
         this.#domCanvas.removeEventListener("wheel", this.#canvasMoves);
@@ -258,11 +270,15 @@ class Canvas {
             if (event.ctrlKey) {
                 return;
             }
-            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.clearRect();
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
                     this.#tree.checkNodes((element) => {
                         element.options.x += 10;
+                        // this.context.translate(
+                        //     element.options.x + 5,
+                        //     element.options.y
+                        // );
                         this.#handleStyleChanges(element);
                     });
                 }
@@ -297,6 +313,7 @@ const defaultOpt = {
     width: 0,
     height: 0,
     selectable: true,
+    draggable: true,
 };
 // each Block is Node
 class Block extends Node {
@@ -361,12 +378,14 @@ class Block extends Node {
             },
         });
     }
+    // need to fix after rectangle created
     selectable(option) {
         if (option === false)
             return;
         let old_color = this.options.color;
         this.mousemove((event) => {
             if (this.checkInBound(event)) {
+                console.log("move");
                 this.set({ color: "yellow" });
             }
             else {
@@ -420,6 +439,23 @@ class Block extends Node {
             isMouseDown = false;
         });
     }
+    x(option) {
+        this.options.x = option || this.options.x;
+        return this.options.x;
+        // if (!option) {
+        //     return this.options.x;
+        // } else {
+        // const rect = this.canvas.getBoundingClientRect();
+        // const diffX = Math.abs(this.options.x - rect.x);
+        // if (option !== diffX) {
+        // this.options.x = Math.abs(option - rect.x);
+        // }
+        // }
+    }
+    y(option) {
+        this.options.y = option || this.options.y;
+        return this.options.y;
+    }
     set(options) {
         let cached = false;
         for (const [key, value] of Object.entries(options)) {
@@ -460,11 +496,14 @@ class Layer extends Block {
 
 // each shape extends form common shape
 class Shape extends Block {
-    constructor(options) {
+    constructor(options = undefined) {
         super(options);
     }
     lineWidth() {
         this.context.lineWidth = this.options.lineWidth;
+    }
+    stroke(option) {
+        this.context.lineWidth = this.options.stroke || option;
     }
 }
 
@@ -475,16 +514,22 @@ class TextBlock extends Block {
         this.text = text;
         this.options.text = text;
     }
+    __initSet() {
+        this.setFont();
+    }
     #measureTextSize() {
         const text_measure = this.measureText();
-        this.options.height =
-            text_measure.actualBoundingBoxAscent +
-                text_measure.actualBoundingBoxDescent;
+        this.options.height = text_measure.hangingBaseline;
+        // text_measure.actualBoundingBoxAscent +
+        // text_measure.actualBoundingBoxDescent;
         this.options.width = text_measure.width;
         return this.options.height + this.options.y;
     }
-    __initSet() {
-        this.setFont();
+    x(option) {
+        return super.x(option);
+    }
+    y(option) {
+        return super.y(option);
     }
     #format_font() {
         const fontFamily = this.fontFamily();
@@ -499,6 +544,8 @@ class TextBlock extends Block {
         this.context.font = option || this.#format_font();
         this.color();
         const fontY = this.#measureTextSize();
+        // const x = this.x();
+        // console.log(x);
         this.context.fillText(this.text, this.options.x, fontY, this.options?.maxWidth);
     }
     fontFamily(option) {
@@ -541,10 +588,14 @@ class TextBlock extends Block {
         this.options.color = this.context.fillStyle;
     }
     stroke(option) {
-        this.context.strokeStyle = this.options.stroke || option;
+        this.context.lineWidth = this.options.stroke || option;
+        this.context.strokeStyle = this.strokeColor();
         const fontY = this.#measureTextSize();
         this.context.strokeText(this.text, this.options.x, fontY, this.options?.maxWidth);
         this.options.strokeStyle = this.context.strokeStyle;
+    }
+    strokeColor(option) {
+        this.context.strokeStyle = this.options.strokeColor || option;
     }
     direction(option) {
         this.context.direction = this.options.direction || option;
@@ -573,4 +624,20 @@ class TextBlock extends Block {
     }
 }
 
-export { Block, Canvas, CanvasDOMManager, Layer, Shape, TextBlock };
+class Rectangle extends Shape {
+    constructor(options = undefined) {
+        super(options);
+    }
+    __initSet() {
+        this.drawRectangle();
+    }
+    drawRectangle() {
+        this.context.beginPath();
+        // need to chagne to defautl values write custom getter
+        this.context.fillStyle = this.options.color || "black";
+        this.context.rect(this.options.x, this.options.y, this.options.width, this.options.height);
+        this.context.fill();
+    }
+}
+
+export { Block, Canvas, CanvasDOMManager, Layer, Rectangle, Shape, TextBlock };

@@ -35,18 +35,24 @@ export class TextBlock extends Block {
         this.options.text = text;
     }
 
+    __initSet() {
+        this.setFont();
+    }
+
     #measureTextSize() {
         const text_measure = this.measureText();
-        this.options.height =
-            text_measure.actualBoundingBoxAscent +
-            text_measure.actualBoundingBoxDescent;
-
+        this.options.height = text_measure.hangingBaseline;
+        // text_measure.actualBoundingBoxAscent +
+        // text_measure.actualBoundingBoxDescent;
         this.options.width = text_measure.width;
         return this.options.height + this.options.y;
     }
 
-    __initSet() {
-        this.setFont();
+    x(option?: number) {
+        return super.x(option);
+    }
+    y(option?: number) {
+        return super.y(option);
     }
 
     #format_font() {
@@ -70,7 +76,8 @@ export class TextBlock extends Block {
         this.color();
 
         const fontY = this.#measureTextSize();
-
+        // const x = this.x();
+        // console.log(x);
         this.context.fillText(
             this.text,
             this.options.x,
@@ -123,8 +130,10 @@ export class TextBlock extends Block {
         this.options.color = this.context.fillStyle;
     }
 
-    stroke(option?: string) {
-        this.context.strokeStyle = this.options.stroke || option;
+    stroke(option?: number) {
+        this.context.lineWidth = this.options.stroke || option;
+
+        this.context.strokeStyle = this.strokeColor();
 
         const fontY = this.#measureTextSize();
         this.context.strokeText(
@@ -134,6 +143,9 @@ export class TextBlock extends Block {
             this.options?.maxWidth
         );
         this.options.strokeStyle = this.context.strokeStyle;
+    }
+    strokeColor(option?: string) {
+        this.context.strokeStyle = this.options.strokeColor || option;
     }
     direction(option?: string) {
         this.context.direction = this.options.direction || option;

@@ -75,7 +75,7 @@ export class Tree {
     }
 
     // need a change
-    pre_order_traversal(_func: (element: any) => void) {
+    preOrderTraversal(_func: (element: any) => void) {
         const Q = [];
         Q.push(this.#head);
         while (Q.length > 0) {
@@ -104,7 +104,7 @@ export class Tree {
         });
     }
 
-    filter_nodes(queries: any) {
+    filterNodes(queries: any) {
         return this.#listed_nodes.filter((item: any) => {
             for (const [key, query] of Object.entries(queries)) {
                 if (

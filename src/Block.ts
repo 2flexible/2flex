@@ -27,6 +27,7 @@ const defaultOpt: defaultBlockOptions = {
     width: 0,
     height: 0,
     selectable: true,
+    draggable: true,
 };
 
 // each Block is Node
@@ -60,7 +61,6 @@ export class Block extends Node {
         const height = this.options.height;
 
         const { x, y } = this.canvas.getCursorPosition(_event);
-
         if (
             x >= this.options.x &&
             x <= this.options.x + width &&
@@ -106,7 +106,7 @@ export class Block extends Node {
             },
         });
     }
-
+    // need to fix after rectangle created
     selectable(option?: boolean) {
         if (option === false) return;
 
@@ -114,6 +114,7 @@ export class Block extends Node {
 
         this.mousemove((event) => {
             if (this.checkInBound(event)) {
+                console.log("move");
                 this.set({ color: "yellow" });
             } else {
                 this.set({ color: old_color });
@@ -175,6 +176,25 @@ export class Block extends Node {
             }
             isMouseDown = false;
         });
+    }
+
+    x(option?: number) {
+        this.options.x = option || this.options.x;
+        return this.options.x;
+        // if (!option) {
+        //     return this.options.x;
+        // } else {
+        // const rect = this.canvas.getBoundingClientRect();
+        // const diffX = Math.abs(this.options.x - rect.x);
+        // if (option !== diffX) {
+        // this.options.x = Math.abs(option - rect.x);
+        // }
+        // }
+    }
+
+    y(option?: number) {
+        this.options.y = option || this.options.y;
+        return this.options.y;
     }
 
     set(options: IBlock<BlockOptions>) {
