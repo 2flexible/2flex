@@ -185,11 +185,8 @@ class Canvas {
     }
     add(...block) {
         this.#tree.addNodes(block);
-        this.getBoundingClientRect();
         this.#tree.preOrderTraversal((element) => {
             element.canvas = this;
-            // element.options.x = Math.abs(rect.left - element.options.x);
-            // element.options.y = Math.abs(rect.top - element.options.y);
             this.#handleStyleChanges(element);
             element.__initSet();
             this.#canvasEvents.push(...element.events);
@@ -224,7 +221,6 @@ class Canvas {
         this.#canvasEvents = uniqeEvents;
         this.#canvasEvents?.forEach((elem) => {
             this.#domCanvas.addEventListener(elem.eventType, (event) => {
-                // const cursor = this.getCursorPosition(event);
                 elem.methods?.forEach((_method) => {
                     _method(event);
                 });
@@ -238,9 +234,11 @@ class Canvas {
             obj?.value.call(block, value);
         }
     }
-    invokeChange() {
+    invokeChange(_func) {
         this.clearRect();
         this.#tree.checkNodes((element) => {
+            if (_func)
+                _func(element);
             this.#handleStyleChanges(element);
             element.__initSet();
         });
@@ -256,25 +254,25 @@ class Canvas {
     #zoomInOut() {
         return (event) => {
             if (event.ctrlKey) {
-                this.clearRect();
                 if (event.deltaY < 0) {
-                    this.#tree.checkNodes((element) => {
+                    this.invokeChange((_) => {
+                        this.width *= 1.02;
+                        this.height *= 1.02;
                         this.context.scale(1.02, 1.02);
-                        this.#handleStyleChanges(element);
                     });
                 }
                 else {
-                    this.#tree.checkNodes((element) => {
+                    this.invokeChange((_) => {
+                        this.width /= 0.95;
+                        this.height /= 0.95;
                         this.context.scale(0.95, 0.95);
-                        this.#handleStyleChanges(element);
                     });
                 }
             }
         };
     }
     clearRect() {
-        // const rect = this.canvas.getBoundingClientRect();
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.clearRect(0, 0, this.width, this.height);
     }
     move(_func) {
         this.#domCanvas.removeEventListener("wheel", this.#canvasMoves);
@@ -285,37 +283,20 @@ class Canvas {
             if (event.ctrlKey) {
                 return;
             }
-            this.clearRect();
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.#tree.checkNodes((element) => {
-                        element.options.x += 10;
-                        // this.context.translate(
-                        //     element.options.x + 5,
-                        //     element.options.y
-                        // );
-                        this.#handleStyleChanges(element);
-                    });
+                    this.invokeChange((element) => (element.options.x += 10));
                 }
                 else {
-                    this.#tree.checkNodes((element) => {
-                        element.options.x -= 10;
-                        this.#handleStyleChanges(element);
-                    });
+                    this.invokeChange((element) => (element.options.x -= 10));
                 }
             }
             else {
                 if (event.deltaY < 0) {
-                    this.#tree.checkNodes((element) => {
-                        element.options.y += 10;
-                        this.#handleStyleChanges(element);
-                    });
+                    this.invokeChange((element) => (element.options.y += 10));
                 }
                 else {
-                    this.#tree.checkNodes((element) => {
-                        element.options.y -= 10;
-                        this.#handleStyleChanges(element);
-                    });
+                    this.invokeChange((element) => (element.options.y -= 10));
                 }
             }
         };
@@ -354,15 +335,6 @@ class Block extends Node {
     x(option) {
         this.options.x = option || this.options.x;
         return this.options.x;
-        // if (!option) {
-        //     return this.options.x;
-        // } else {
-        // const rect = this.canvas.getBoundingClientRect();
-        // const diffX = Math.abs(this.options.x - rect.x);
-        // if (option !== diffX) {
-        // this.options.x = Math.abs(option - rect.x);
-        // }
-        // }
     }
     y(option) {
         this.options.y = option || this.options.y;
@@ -452,9 +424,14 @@ class Block extends Node {
             },
         });
     }
-    selectable(option = true) {
-        if (option === false)
+    selectable(option) {
+        const duplicat = this.events.filter((elem) => elem.eventType === "selectable");
+        if (!option || duplicat.length >= 1)
             return false;
+        this.events.push({
+            eventType: "selectable",
+            method: () => { },
+        });
         let old_color = this.options.color;
         this.mousemove((event) => {
             if (this.checkInBound(event)) {
@@ -464,14 +441,17 @@ class Block extends Node {
                 this.set({ color: old_color });
             }
         });
-        return option;
+        this.options.selectable = option;
+        return this.options.selectable;
     }
-    draggable(option = true) {
-        const duplicat = this.events.filter((elem) => elem.eventType === "mousedown");
-        if (option === false)
+    draggable(option) {
+        const duplicat = this.events.filter((elem) => elem.eventType === "draggable");
+        if (!option || duplicat.length >= 1 || !this.options.selectable)
             return false;
-        if (duplicat.length > 1)
-            return false;
+        this.events.push({
+            eventType: "draggable",
+            method: () => { },
+        });
         let isMouseDown = false;
         let initX = 0;
         let initY = 0;
@@ -512,7 +492,8 @@ class Block extends Node {
                 isMouseDown = false;
             }
         });
-        return option;
+        this.options.draggable = option;
+        return this.options.draggable;
     }
 }
 

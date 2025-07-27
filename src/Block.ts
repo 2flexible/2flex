@@ -9,7 +9,6 @@ import {
     ICustomEvents,
     BlockOptions,
     IStyle,
-    IRemovedEvents,
 } from "./types";
 
 export interface defaultBlockOptions {
@@ -60,15 +59,6 @@ export class Block extends Node {
     x(option?: number) {
         this.options.x = option || this.options.x;
         return this.options.x;
-        // if (!option) {
-        //     return this.options.x;
-        // } else {
-        // const rect = this.canvas.getBoundingClientRect();
-        // const diffX = Math.abs(this.options.x - rect.x);
-        // if (option !== diffX) {
-        // this.options.x = Math.abs(option - rect.x);
-        // }
-        // }
     }
 
     y(option?: number) {
@@ -176,8 +166,17 @@ export class Block extends Node {
             },
         });
     }
-    selectable(option: boolean = true): boolean {
-        if (option === false) return false;
+    selectable(option?: boolean): boolean {
+        const duplicat = this.events.filter(
+            (elem) => elem.eventType === "selectable"
+        );
+
+        if (!option || duplicat.length >= 1) return false;
+
+        this.events.push({
+            eventType: "selectable",
+            method: () => {},
+        });
 
         let old_color = this.options.color;
 
@@ -188,15 +187,22 @@ export class Block extends Node {
                 this.set({ color: old_color });
             }
         });
-        return option;
+        this.options.selectable = option;
+
+        return this.options.selectable;
     }
 
-    draggable(option: boolean = true): boolean {
+    draggable(option?: boolean): boolean {
         const duplicat = this.events.filter(
-            (elem) => elem.eventType === "mousedown"
+            (elem) => elem.eventType === "draggable"
         );
-        if (option === false) return false;
-        if (duplicat.length > 1) return false;
+        if (!option || duplicat.length >= 1 || !this.options.selectable)
+            return false;
+
+        this.events.push({
+            eventType: "draggable",
+            method: () => {},
+        });
 
         let isMouseDown = false;
 
@@ -245,6 +251,7 @@ export class Block extends Node {
                 isMouseDown = false;
             }
         });
-        return option;
+        this.options.draggable = option;
+        return this.options.draggable;
     }
 }

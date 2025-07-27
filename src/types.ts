@@ -5,7 +5,7 @@ import { Node } from "./Tree";
 import { Block } from "./Block";
 
 export type ShapeElements = Rectangle | Star;
-
+// move these inside to Block
 export interface BlockOptions {
     [key: string]: any;
     x?: number;
@@ -47,16 +47,13 @@ type IMouseEvents =
     | "mouseenter"
     | "mouseleave"
     | "mouseout"
-    | "mouseover";
+    | "mouseover"
+    | "draggable"
+    | "selectable";
 
 export interface ICustomEvents {
     eventType: IMouseEvents;
     method: (event: MouseEvent, cursor: CursorPos) => void;
-}
-
-export interface IRemovedEvents {
-    eventType: IMouseEvents;
-    method: (_func: (event: MouseEvent) => void) => void;
 }
 
 export interface IStyle {

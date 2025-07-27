@@ -4,7 +4,6 @@ import {
     CursorPos,
     ICustomEvents,
     IStyle,
-    IRemovedEvents,
     ICssProperties,
     BlockOptions,
     IBlock,
@@ -66,12 +65,9 @@ export class Canvas {
 
     add(...block: BlockElements[]) {
         this.#tree.addNodes(block);
-        const rect = this.getBoundingClientRect();
 
         this.#tree.preOrderTraversal((element: any) => {
             element.canvas = this;
-            // element.options.x = Math.abs(rect.left - element.options.x);
-            // element.options.y = Math.abs(rect.top - element.options.y);
             this.#handleStyleChanges(element);
             element.__initSet();
             this.#canvasEvents.push(...element.events);
@@ -111,7 +107,6 @@ export class Canvas {
 
         this.#canvasEvents?.forEach((elem: any) => {
             this.#domCanvas.addEventListener(elem.eventType, (event) => {
-                // const cursor = this.getCursorPosition(event);
                 elem.methods?.forEach((_method: any) => {
                     _method(event);
                 });
@@ -127,9 +122,10 @@ export class Canvas {
         }
     }
 
-    invokeChange() {
+    invokeChange(_func?: (element: any) => void) {
         this.clearRect();
         this.#tree.checkNodes((element: any) => {
+            if (_func) _func(element);
             this.#handleStyleChanges(element);
             element.__initSet();
         });
@@ -147,24 +143,24 @@ export class Canvas {
     #zoomInOut() {
         return (event: WheelEvent) => {
             if (event.ctrlKey) {
-                this.clearRect();
                 if (event.deltaY < 0) {
-                    this.#tree.checkNodes((element: any) => {
+                    this.invokeChange((_) => {
+                        this.width *= 1.02;
+                        this.height *= 1.02;
                         this.context.scale(1.02, 1.02);
-                        this.#handleStyleChanges(element);
                     });
                 } else {
-                    this.#tree.checkNodes((element: any) => {
+                    this.invokeChange((_) => {
+                        this.width /= 0.95;
+                        this.height /= 0.95;
                         this.context.scale(0.95, 0.95);
-                        this.#handleStyleChanges(element);
                     });
                 }
             }
         };
     }
     clearRect() {
-        // const rect = this.canvas.getBoundingClientRect();
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.clearRect(0, 0, this.width, this.height);
     }
 
     move(_func: (event: any) => void) {
@@ -177,34 +173,17 @@ export class Canvas {
             if (event.ctrlKey) {
                 return;
             }
-            this.clearRect();
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.#tree.checkNodes((element: any) => {
-                        element.options.x += 10;
-                        // this.context.translate(
-                        //     element.options.x + 5,
-                        //     element.options.y
-                        // );
-                        this.#handleStyleChanges(element);
-                    });
+                    this.invokeChange((element) => (element.options.x += 10));
                 } else {
-                    this.#tree.checkNodes((element: any) => {
-                        element.options.x -= 10;
-                        this.#handleStyleChanges(element);
-                    });
+                    this.invokeChange((element) => (element.options.x -= 10));
                 }
             } else {
                 if (event.deltaY < 0) {
-                    this.#tree.checkNodes((element: any) => {
-                        element.options.y += 10;
-                        this.#handleStyleChanges(element);
-                    });
+                    this.invokeChange((element) => (element.options.y += 10));
                 } else {
-                    this.#tree.checkNodes((element: any) => {
-                        element.options.y -= 10;
-                        this.#handleStyleChanges(element);
-                    });
+                    this.invokeChange((element) => (element.options.y -= 10));
                 }
             }
         };
