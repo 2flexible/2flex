@@ -34,10 +34,11 @@ const defaultOpt: defaultBlockOptions = {
 export class Block extends Node {
     canvas: any;
     options: defaultBlockOptions;
+    // too much events pushing
     events: ICustomEvents[] = [];
     styleChanges: IStyle[] = [];
 
-    constructor(options: IBlock<BlockOptions> | undefined = undefined) {
+    constructor(options?: IBlock<BlockOptions>) {
         super();
         this.options = { ...defaultOpt, ...options };
     }
@@ -54,6 +55,74 @@ export class Block extends Node {
 
     registerStyle(styles: IStyle[]) {
         this.styleChanges.push(...styles);
+    }
+
+    x(option?: number) {
+        this.options.x = option || this.options.x;
+        return this.options.x;
+        // if (!option) {
+        //     return this.options.x;
+        // } else {
+        // const rect = this.canvas.getBoundingClientRect();
+        // const diffX = Math.abs(this.options.x - rect.x);
+        // if (option !== diffX) {
+        // this.options.x = Math.abs(option - rect.x);
+        // }
+        // }
+    }
+
+    y(option?: number) {
+        this.options.y = option || this.options.y;
+        return this.options.y;
+    }
+
+    color(option?: string) {
+        this.options.color = option || this.options.color || "black";
+        this.context.fillStyle = this.options.color;
+        return this.options.color;
+    }
+
+    strokeColor(option?: string) {
+        this.options.strokeColor =
+            option || this.options.strokeColor || "black";
+        return this.options.strokeColor;
+    }
+
+    stroke(option?: number) {
+        this.options.stroke = option || this.options.stroke || 10;
+        this.context.lineWidth = this.options.stroke;
+        return this.options.stroke;
+    }
+
+    fill() {
+        this.context.fill();
+    }
+
+    set(options: IBlock<BlockOptions>) {
+        let cached = false;
+
+        for (const [key, value] of Object.entries(options)) {
+            const proto = Object.getPrototypeOf(this);
+            const obj = Object.getOwnPropertyDescriptor(proto, key);
+
+            const beforeOption = this.options[key];
+
+            if (value) {
+                if (value !== beforeOption) {
+                    obj?.value.call(this, value);
+                } else {
+                    cached = true;
+                }
+            }
+        }
+
+        if (!cached) {
+            this.canvas?.invokeChange.call(this.canvas);
+        }
+    }
+
+    find(queries: IBlock<BlockOptions & IText> | undefined = undefined) {
+        return this.filterNodes(queries);
     }
 
     checkInBound(_event: MouseEvent): boolean {
@@ -106,28 +175,27 @@ export class Block extends Node {
             },
         });
     }
-    // need to fix after rectangle created
-    selectable(option?: boolean) {
-        if (option === false) return;
+    selectable(option: boolean = true): boolean {
+        if (option === false) return false;
 
         let old_color = this.options.color;
 
         this.mousemove((event) => {
             if (this.checkInBound(event)) {
-                console.log("move");
                 this.set({ color: "yellow" });
             } else {
                 this.set({ color: old_color });
             }
         });
+        return option;
     }
 
-    draggable(option: boolean = true) {
+    draggable(option: boolean = true): boolean {
         const duplicat = this.events.filter(
             (elem) => elem.eventType === "mousedown"
         );
-        if (option === false) return;
-        if (duplicat.length > 1) return;
+        if (option === false) return false;
+        if (duplicat.length > 1) return false;
 
         let isMouseDown = false;
 
@@ -173,53 +241,9 @@ export class Block extends Node {
 
         this.mouseup((event) => {
             if (this.checkInBound(event)) {
+                isMouseDown = false;
             }
-            isMouseDown = false;
         });
-    }
-
-    x(option?: number) {
-        this.options.x = option || this.options.x;
-        return this.options.x;
-        // if (!option) {
-        //     return this.options.x;
-        // } else {
-        // const rect = this.canvas.getBoundingClientRect();
-        // const diffX = Math.abs(this.options.x - rect.x);
-        // if (option !== diffX) {
-        // this.options.x = Math.abs(option - rect.x);
-        // }
-        // }
-    }
-
-    y(option?: number) {
-        this.options.y = option || this.options.y;
-        return this.options.y;
-    }
-
-    set(options: IBlock<BlockOptions>) {
-        let cached = false;
-
-        for (const [key, value] of Object.entries(options)) {
-            const proto = Object.getPrototypeOf(this);
-            const obj = Object.getOwnPropertyDescriptor(proto, key);
-
-            const beforeOption = this.options[key];
-
-            if (value) {
-                if (value !== beforeOption) {
-                    obj?.value.call(this, value);
-                } else {
-                    cached = true;
-                }
-            }
-        }
-
-        if (!cached) {
-            this.canvas.invokeChange?.call(this.canvas);
-        }
-    }
-    find(queries: IBlock<BlockOptions & IText> | undefined = undefined) {
-        return this.filterNodes(queries);
+        return option;
     }
 }

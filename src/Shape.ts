@@ -12,4 +12,9 @@ export class Shape extends Block {
     stroke(option?: number) {
         this.context.lineWidth = this.options.stroke || option;
     }
+    fill() {}
+    color(option?: string) {
+        super.color(option);
+        super.fill();
+    }
 }

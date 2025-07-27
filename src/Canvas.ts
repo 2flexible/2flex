@@ -12,22 +12,37 @@ import {
 import { CanvasDOMManager } from "./DOMManager";
 import { IText } from "./TextBlock";
 
+/*
+@Todo
+make checkpoint for canvas to load
+export canvas model
+make import model for canvas
+*/
 export class Canvas {
     #domCanvas: CanvasDOMManager;
     options: ICssProperties | undefined;
     #canvasEvents: any[] = [];
     canvasId: string;
+    width: number;
+    height: number;
 
     #tree = new Tree();
 
     constructor(
-        canvasId: string,
+        canvasId?: string,
+        width?: number,
+        height?: number,
         options: ICssProperties | undefined = undefined
     ) {
         this.canvasId = canvasId || "canvas";
         this.options = options;
-
-        this.#domCanvas = new CanvasDOMManager(canvasId);
+        this.width = width || 300;
+        this.height = height || 300;
+        this.#domCanvas = new CanvasDOMManager(
+            this.canvasId,
+            this.width,
+            this.height
+        );
         this.#initCanvas();
     }
 
@@ -55,12 +70,10 @@ export class Canvas {
 
         this.#tree.preOrderTraversal((element: any) => {
             element.canvas = this;
-            console.log(element);
             // element.options.x = Math.abs(rect.left - element.options.x);
             // element.options.y = Math.abs(rect.top - element.options.y);
-            // console.log(element);
-            element.__initSet();
             this.#handleStyleChanges(element);
+            element.__initSet();
             this.#canvasEvents.push(...element.events);
         });
         this.#handleEvents();
@@ -118,6 +131,7 @@ export class Canvas {
         this.clearRect();
         this.#tree.checkNodes((element: any) => {
             this.#handleStyleChanges(element);
+            element.__initSet();
         });
     }
     // we can do this later as and || or
@@ -149,9 +163,10 @@ export class Canvas {
         };
     }
     clearRect() {
-        const rect = this.canvas.getBoundingClientRect();
-        this.context.clearRect(0, 0, rect.width, rect.height);
+        // const rect = this.canvas.getBoundingClientRect();
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
+
     move(_func: (event: any) => void) {
         this.#domCanvas.removeEventListener("wheel", this.#canvasMoves);
         this.#domCanvas.addEventListener("wheel", (event) => _func(event));

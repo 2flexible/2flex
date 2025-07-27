@@ -1,8 +1,9 @@
+import { Block } from "../Block";
 import { Shape } from "../Shape";
 import { BlockOptions, IBlock } from "../types";
 
-export class Rectangle extends Shape {
-    constructor(options: IBlock<BlockOptions> | undefined = undefined) {
+export class Rectangle extends Block {
+    constructor(options?: IBlock<BlockOptions>) {
         super(options);
     }
     __initSet(): void {
@@ -11,8 +12,7 @@ export class Rectangle extends Shape {
 
     drawRectangle() {
         this.context.beginPath();
-        // need to chagne to defautl values write custom getter
-        this.context.fillStyle = this.options.color || "black";
+        super.color();
 
         this.context.rect(
             this.options.x,
@@ -20,6 +20,31 @@ export class Rectangle extends Shape {
             this.options.width,
             this.options.height
         );
-        this.context.fill();
+        super.fill();
+    }
+
+    color(option?: string) {
+        super.color(option);
+        super.fill();
+    }
+
+    x(option?: number): number {
+        return super.x(option);
+    }
+
+    y(option?: number): number {
+        return super.y(option);
+    }
+    
+    draggable(option: boolean): boolean {
+        return super.draggable(option);
+    }
+
+    selectable(option?: boolean): boolean {
+        return super.selectable(option);
+    }
+
+    set(options: IBlock<BlockOptions>) {
+        super.set(options);
     }
 }

@@ -100,8 +100,12 @@ class Tree {
 
 class CanvasDOMManager {
     canvasId;
-    constructor(canvasId) {
+    width;
+    height;
+    constructor(canvasId, width, height) {
         this.canvasId = canvasId;
+        this.width = width;
+        this.height = height;
     }
     get context() {
         return this.canvas.getContext("2d");
@@ -120,6 +124,8 @@ class CanvasDOMManager {
     createCanvas() {
         const canvas = document.createElement("canvas");
         canvas.id = this.canvasId;
+        canvas.width = 800;
+        canvas.height = 400;
         const body = document.querySelector("body");
         body.appendChild(canvas);
     }
@@ -140,16 +146,26 @@ class CanvasDOMManager {
     }
 }
 
+/*
+@Todo
+make checkpoint for canvas to load
+export canvas model
+make import model for canvas
+*/
 class Canvas {
     #domCanvas;
     options;
     #canvasEvents = [];
     canvasId;
+    width;
+    height;
     #tree = new Tree();
-    constructor(canvasId, options = undefined) {
+    constructor(canvasId, width, height, options = undefined) {
         this.canvasId = canvasId || "canvas";
         this.options = options;
-        this.#domCanvas = new CanvasDOMManager(canvasId);
+        this.width = width || 300;
+        this.height = height || 300;
+        this.#domCanvas = new CanvasDOMManager(this.canvasId, this.width, this.height);
         this.#initCanvas();
     }
     get context() {
@@ -172,12 +188,10 @@ class Canvas {
         this.getBoundingClientRect();
         this.#tree.preOrderTraversal((element) => {
             element.canvas = this;
-            console.log(element);
             // element.options.x = Math.abs(rect.left - element.options.x);
             // element.options.y = Math.abs(rect.top - element.options.y);
-            // console.log(element);
-            element.__initSet();
             this.#handleStyleChanges(element);
+            element.__initSet();
             this.#canvasEvents.push(...element.events);
         });
         this.#handleEvents();
@@ -228,6 +242,7 @@ class Canvas {
         this.clearRect();
         this.#tree.checkNodes((element) => {
             this.#handleStyleChanges(element);
+            element.__initSet();
         });
     }
     // we can do this later as and || or
@@ -258,8 +273,8 @@ class Canvas {
         };
     }
     clearRect() {
-        const rect = this.canvas.getBoundingClientRect();
-        this.context.clearRect(0, 0, rect.width, rect.height);
+        // const rect = this.canvas.getBoundingClientRect();
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
     move(_func) {
         this.#domCanvas.removeEventListener("wheel", this.#canvasMoves);
@@ -319,9 +334,10 @@ const defaultOpt = {
 class Block extends Node {
     canvas;
     options;
+    // too much events pushing
     events = [];
     styleChanges = [];
-    constructor(options = undefined) {
+    constructor(options) {
         super();
         this.options = { ...defaultOpt, ...options };
     }
@@ -334,6 +350,63 @@ class Block extends Node {
     }
     registerStyle(styles) {
         this.styleChanges.push(...styles);
+    }
+    x(option) {
+        this.options.x = option || this.options.x;
+        return this.options.x;
+        // if (!option) {
+        //     return this.options.x;
+        // } else {
+        // const rect = this.canvas.getBoundingClientRect();
+        // const diffX = Math.abs(this.options.x - rect.x);
+        // if (option !== diffX) {
+        // this.options.x = Math.abs(option - rect.x);
+        // }
+        // }
+    }
+    y(option) {
+        this.options.y = option || this.options.y;
+        return this.options.y;
+    }
+    color(option) {
+        this.options.color = option || this.options.color || "black";
+        this.context.fillStyle = this.options.color;
+        return this.options.color;
+    }
+    strokeColor(option) {
+        this.options.strokeColor =
+            option || this.options.strokeColor || "black";
+        return this.options.strokeColor;
+    }
+    stroke(option) {
+        this.options.stroke = option || this.options.stroke || 10;
+        this.context.lineWidth = this.options.stroke;
+        return this.options.stroke;
+    }
+    fill() {
+        this.context.fill();
+    }
+    set(options) {
+        let cached = false;
+        for (const [key, value] of Object.entries(options)) {
+            const proto = Object.getPrototypeOf(this);
+            const obj = Object.getOwnPropertyDescriptor(proto, key);
+            const beforeOption = this.options[key];
+            if (value) {
+                if (value !== beforeOption) {
+                    obj?.value.call(this, value);
+                }
+                else {
+                    cached = true;
+                }
+            }
+        }
+        if (!cached) {
+            this.canvas?.invokeChange.call(this.canvas);
+        }
+    }
+    find(queries = undefined) {
+        return this.filterNodes(queries);
     }
     checkInBound(_event) {
         const width = this.options.width;
@@ -378,27 +451,26 @@ class Block extends Node {
             },
         });
     }
-    // need to fix after rectangle created
-    selectable(option) {
+    selectable(option = true) {
         if (option === false)
-            return;
+            return false;
         let old_color = this.options.color;
         this.mousemove((event) => {
             if (this.checkInBound(event)) {
-                console.log("move");
                 this.set({ color: "yellow" });
             }
             else {
                 this.set({ color: old_color });
             }
         });
+        return option;
     }
     draggable(option = true) {
         const duplicat = this.events.filter((elem) => elem.eventType === "mousedown");
         if (option === false)
-            return;
+            return false;
         if (duplicat.length > 1)
-            return;
+            return false;
         let isMouseDown = false;
         let initX = 0;
         let initY = 0;
@@ -435,48 +507,11 @@ class Block extends Node {
             }
         });
         this.mouseup((event) => {
-            if (this.checkInBound(event)) ;
-            isMouseDown = false;
-        });
-    }
-    x(option) {
-        this.options.x = option || this.options.x;
-        return this.options.x;
-        // if (!option) {
-        //     return this.options.x;
-        // } else {
-        // const rect = this.canvas.getBoundingClientRect();
-        // const diffX = Math.abs(this.options.x - rect.x);
-        // if (option !== diffX) {
-        // this.options.x = Math.abs(option - rect.x);
-        // }
-        // }
-    }
-    y(option) {
-        this.options.y = option || this.options.y;
-        return this.options.y;
-    }
-    set(options) {
-        let cached = false;
-        for (const [key, value] of Object.entries(options)) {
-            const proto = Object.getPrototypeOf(this);
-            const obj = Object.getOwnPropertyDescriptor(proto, key);
-            const beforeOption = this.options[key];
-            if (value) {
-                if (value !== beforeOption) {
-                    obj?.value.call(this, value);
-                }
-                else {
-                    cached = true;
-                }
+            if (this.checkInBound(event)) {
+                isMouseDown = false;
             }
-        }
-        if (!cached) {
-            this.canvas.invokeChange?.call(this.canvas);
-        }
-    }
-    find(queries = undefined) {
-        return this.filterNodes(queries);
+        });
+        return option;
     }
 }
 
@@ -505,11 +540,16 @@ class Shape extends Block {
     stroke(option) {
         this.context.lineWidth = this.options.stroke || option;
     }
+    fill() { }
+    color(option) {
+        super.color(option);
+        super.fill();
+    }
 }
 
 class TextBlock extends Block {
     text;
-    constructor(text, options = undefined) {
+    constructor(text, options) {
         super(options);
         this.text = text;
         this.options.text = text;
@@ -539,93 +579,83 @@ class TextBlock extends Block {
         const fontVariant = this.fontVariant();
         return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
     }
-    // it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
+    // option: it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
     setFont(option) {
         this.context.font = option || this.#format_font();
         this.color();
         const fontY = this.#measureTextSize();
         // const x = this.x();
         // console.log(x);
-        this.context.fillText(this.text, this.options.x, fontY, this.options?.maxWidth);
+        this.context.fillText(this.text, this.options.x, fontY, this.options.maxWidth);
     }
     fontFamily(option) {
-        if (option) {
-            this.options.fontFamily = option;
-            this.setFont();
-        }
-        return this.options.fontFamily || "sans-serif";
+        this.options.fontFamily =
+            option || this.options.fontFamily || "sans-serif";
+        return this.options.fontFamily;
     }
     fontSize(option) {
-        if (option) {
-            this.options.fontSize = option;
-            this.setFont();
-        }
-        return this.options.fontSize ? this.options.fontSize + "px" : "10px";
+        this.options.fontSize = option || this.options.fontSize || "10px";
+        return this.options.fontSize;
     }
     fontWeight(option) {
-        if (option) {
-            this.options.fontWeight = option;
-            this.setFont();
-        }
-        return this.options.fontWeight || 100;
+        this.options.fontWeight = option || this.options.fontWeight || 100;
+        return this.options.fontWeight;
     }
     fontVariant(option) {
-        if (option) {
-            this.options.fontVariant = option;
-            this.setFont();
-        }
-        return this.options.fontVariant || "normal";
+        this.options.fontVariant =
+            option || this.options.fontVariant || "normal";
+        return this.options.fontVariant;
     }
     fontStyle(option) {
-        if (option) {
-            this.options.fontStyle = option;
-            this.setFont();
-        }
-        return this.options.fontStyle || "normal";
+        this.options.fontStyle = option || this.options.fontVariant || "normal";
+        return this.options.fontStyle;
     }
     color(option) {
-        this.context.fillStyle = option ?? (this.options.color || "black");
-        this.options.color = this.context.fillStyle;
+        super.color(option);
     }
     stroke(option) {
-        this.context.lineWidth = this.options.stroke || option;
-        this.context.strokeStyle = this.strokeColor();
+        super.stroke(option);
+        this.strokeColor();
         const fontY = this.#measureTextSize();
         this.context.strokeText(this.text, this.options.x, fontY, this.options?.maxWidth);
-        this.options.strokeStyle = this.context.strokeStyle;
+        return this.options.stroke;
     }
     strokeColor(option) {
-        this.context.strokeStyle = this.options.strokeColor || option;
+        this.context.strokeStyle = super.strokeColor(option);
+        return this.options.strokeColor;
     }
     direction(option) {
-        this.context.direction = this.options.direction || option;
+        this.context.direction = option || this.options.direction;
         this.options.direction = this.context.direction;
+        return this.options.direction;
     }
     textAlign(option) {
-        this.context.textAlign = this.options.textAlign || option;
+        this.context.textAlign = option || this.options.textAlign;
         this.options.align = this.context.align;
+        return this.options.align;
     }
     textBaseline(option) {
-        this.context.textBaseline = this.options.textBaseline || option;
+        this.context.textBaseline = option || this.options.textBaseline;
         this.options.baseline = this.context.baseline;
+        return this.options.baseline;
     }
-    // returns: text width in pixels
+    // @return: text width in pixels
     measureText() {
         return this.context.measureText(this.text);
     }
     draggable(option) {
-        super.draggable(option);
+        return super.draggable(option);
     }
     selectable(option) {
-        super.selectable(option);
+        return super.selectable(option);
     }
     set(options) {
         super.set(options);
     }
 }
 
-class Rectangle extends Shape {
-    constructor(options = undefined) {
+class Rectangle extends Block {
+    constructor(options) {
         super(options);
     }
     __initSet() {
@@ -633,10 +663,28 @@ class Rectangle extends Shape {
     }
     drawRectangle() {
         this.context.beginPath();
-        // need to chagne to defautl values write custom getter
-        this.context.fillStyle = this.options.color || "black";
+        super.color();
         this.context.rect(this.options.x, this.options.y, this.options.width, this.options.height);
-        this.context.fill();
+        super.fill();
+    }
+    color(option) {
+        super.color(option);
+        super.fill();
+    }
+    x(option) {
+        return super.x(option);
+    }
+    y(option) {
+        return super.y(option);
+    }
+    draggable(option) {
+        return super.draggable(option);
+    }
+    selectable(option) {
+        return super.selectable(option);
+    }
+    set(options) {
+        super.set(options);
     }
 }
 

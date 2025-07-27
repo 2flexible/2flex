@@ -2,8 +2,13 @@ import { ICssProperties } from "./types";
 
 export class CanvasDOMManager {
     canvasId: string;
-    constructor(canvasId: string) {
+    width: number;
+    height: number;
+
+    constructor(canvasId: string, width: number, height: number) {
         this.canvasId = canvasId;
+        this.width = width;
+        this.height = height;
     }
 
     get context(): CanvasRenderingContext2D {
@@ -28,6 +33,8 @@ export class CanvasDOMManager {
     createCanvas() {
         const canvas = document.createElement("canvas") as HTMLCanvasElement;
         canvas.id = this.canvasId;
+        canvas.width = 800;
+        canvas.height = 400;
         const body = document.querySelector("body") as HTMLElement;
         body.appendChild(canvas);
     }
@@ -40,10 +47,14 @@ export class CanvasDOMManager {
     }
 
     addEventListener(_type: string, _func: (event: any) => void) {
-        this.canvas.addEventListener(_type, (event: any) => {
-            event.preventDefault();
-            _func(event);
-        }, {passive: false});
+        this.canvas.addEventListener(
+            _type,
+            (event: any) => {
+                event.preventDefault();
+                _func(event);
+            },
+            { passive: false }
+        );
     }
 
     removeEventListener(_type: string, _func: (event: any) => void) {
