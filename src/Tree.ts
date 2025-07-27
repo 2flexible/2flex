@@ -95,7 +95,7 @@ export class Tree {
                 Q.unshift(current.next);
             }
         }
-        console.log(this.#listed_nodes);
+        // console.log(this.#listed_nodes);
     }
 
     checkNodes(_func: (element: any) => void) {

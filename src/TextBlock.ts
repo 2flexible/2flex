@@ -37,6 +37,17 @@ export class TextBlock extends Block {
 
     __initSet() {
         this.setFont();
+
+        this.color();
+
+        const fontY = this.#measureTextSize();
+
+        this.context.fillText(
+            this.text,
+            this.options.x,
+            fontY,
+            this.options.maxWidth
+        );
     }
 
     #measureTextSize() {
@@ -67,23 +78,12 @@ export class TextBlock extends Block {
 
         const fontVariant = this.fontVariant();
 
-        return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
+        return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize}px ${fontFamily}`;
     }
 
     // option: it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
     setFont(option?: string) {
         this.context.font = option || this.#format_font();
-        this.color();
-
-        const fontY = this.#measureTextSize();
-        // const x = this.x();
-        // console.log(x);
-        this.context.fillText(
-            this.text,
-            this.options.x,
-            fontY,
-            this.options.maxWidth
-        );
     }
 
     fontFamily(option?: string) {
@@ -92,8 +92,8 @@ export class TextBlock extends Block {
 
         return this.options.fontFamily;
     }
-    fontSize(option?: string) {
-        this.options.fontSize = option || this.options.fontSize || "10px";
+    fontSize(option?: number) {
+        this.options.fontSize = option || this.options.fontSize || 10;
         return this.options.fontSize;
     }
     fontWeight(option?: string) {
@@ -120,12 +120,13 @@ export class TextBlock extends Block {
     }
 
     stroke(option?: number) {
-        super.stroke(option);
+        this.setFont();
 
         this.strokeColor();
+        super.stroke(option);
 
         const fontY = this.#measureTextSize();
-
+        
         this.context.strokeText(
             this.text,
             this.options.x,
@@ -137,8 +138,7 @@ export class TextBlock extends Block {
     }
 
     strokeColor(option?: string) {
-        this.context.strokeStyle = super.strokeColor(option);
-        return this.options.strokeColor;
+        return super.strokeColor(option);
     }
 
     direction(option?: string) {

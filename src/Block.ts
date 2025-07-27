@@ -85,6 +85,7 @@ export class Block extends Node {
     strokeColor(option?: string) {
         this.options.strokeColor =
             option || this.options.strokeColor || "black";
+        this.context.strokeStyle = this.options.strokeColor;
         return this.options.strokeColor;
     }
 

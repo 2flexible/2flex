@@ -80,7 +80,7 @@ class Tree {
                 Q.unshift(current.next);
             }
         }
-        console.log(this.#listed_nodes);
+        // console.log(this.#listed_nodes);
     }
     checkNodes(_func) {
         this.#listed_nodes.forEach((item) => {
@@ -376,6 +376,7 @@ class Block extends Node {
     strokeColor(option) {
         this.options.strokeColor =
             option || this.options.strokeColor || "black";
+        this.context.strokeStyle = this.options.strokeColor;
         return this.options.strokeColor;
     }
     stroke(option) {
@@ -556,6 +557,9 @@ class TextBlock extends Block {
     }
     __initSet() {
         this.setFont();
+        this.color();
+        const fontY = this.#measureTextSize();
+        this.context.fillText(this.text, this.options.x, fontY, this.options.maxWidth);
     }
     #measureTextSize() {
         const text_measure = this.measureText();
@@ -577,16 +581,11 @@ class TextBlock extends Block {
         const fontStyle = this.fontStyle();
         const fontWeight = this.fontWeight();
         const fontVariant = this.fontVariant();
-        return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
+        return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize}px ${fontFamily}`;
     }
     // option: it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
     setFont(option) {
         this.context.font = option || this.#format_font();
-        this.color();
-        const fontY = this.#measureTextSize();
-        // const x = this.x();
-        // console.log(x);
-        this.context.fillText(this.text, this.options.x, fontY, this.options.maxWidth);
     }
     fontFamily(option) {
         this.options.fontFamily =
@@ -594,7 +593,7 @@ class TextBlock extends Block {
         return this.options.fontFamily;
     }
     fontSize(option) {
-        this.options.fontSize = option || this.options.fontSize || "10px";
+        this.options.fontSize = option || this.options.fontSize || 10;
         return this.options.fontSize;
     }
     fontWeight(option) {
@@ -614,15 +613,15 @@ class TextBlock extends Block {
         super.color(option);
     }
     stroke(option) {
-        super.stroke(option);
+        this.setFont();
         this.strokeColor();
+        super.stroke(option);
         const fontY = this.#measureTextSize();
         this.context.strokeText(this.text, this.options.x, fontY, this.options?.maxWidth);
         return this.options.stroke;
     }
     strokeColor(option) {
-        this.context.strokeStyle = super.strokeColor(option);
-        return this.options.strokeColor;
+        return super.strokeColor(option);
     }
     direction(option) {
         this.context.direction = option || this.options.direction;

@@ -9,19 +9,21 @@ const text_a = new TextBlock("First Text", {
     fontFamily: "KulminoituvaRegular",
     stroke: 2,
     strokeColor: "white",
-    fontSize: 20,
+    fontSize: 40,
     // lineWidth: 10,
 });
 
 const text_b = new TextBlock("SecondText", {
-    x: 30,
+    x: 400,
     y: 2,
     color: "white",
+    // strokeColor: "red",
+    fontSize: 20,
+    // stroke: 2,
     // fontFamily: "KulminoituvaRegular",
     // fontSize: 35,
 });
 const block = new Block();
-
 // text_b.click((e) => {
 //     console.log("clicked");
 //     // text_b.set({ fontSize: 20 });
@@ -44,8 +46,8 @@ const rect = new Rectangle({
 });
 // rect.add(text_a);
 canvas.add(text_a, text_b, rect);
-rect.set({ color: "red" });
+// rect.set({ color: "red" });
 
 block.add(text_a, text_b);
 
-console.log(block.find());
+// console.log(block.find());
