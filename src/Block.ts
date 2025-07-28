@@ -135,7 +135,19 @@ export class Block extends Node {
         this.events.push({
             eventType: "click",
             method: (event: MouseEvent) => {
-                _func(event);
+                if (this.checkInBound(event)) {
+                    _func(event);
+                }
+            },
+        });
+    }
+    dbclick(_func: (event: MouseEvent) => void) {
+        this.events.push({
+            eventType: "dblclick",
+            method: (event: MouseEvent) => {
+                if (this.checkInBound(event)) {
+                    _func(event);
+                }
             },
         });
     }
@@ -144,7 +156,9 @@ export class Block extends Node {
         this.events.push({
             eventType: "mousedown",
             method: (event: MouseEvent) => {
-                _func(event);
+                if (this.checkInBound(event)) {
+                    _func(event);
+                }
             },
         });
     }
@@ -153,7 +167,9 @@ export class Block extends Node {
         this.events.push({
             eventType: "mouseup",
             method: (event: MouseEvent) => {
-                _func(event);
+                if (this.checkInBound(event)) {
+                    _func(event);
+                }
             },
         });
     }
@@ -166,6 +182,51 @@ export class Block extends Node {
             },
         });
     }
+
+    mouseenter(_func: (event: MouseEvent) => void) {
+        this.options.mouseenter = true;
+        this.mousemove((event) => {
+            if (this.checkInBound(event)) {
+                if (this.options.mouseenter) {
+                    this.options.mouseenter = false;
+                    _func(event);
+                }
+            } else {
+                this.options.mouseenter = true;
+            }
+        });
+    }
+
+    mouseleave(_func: (event: MouseEvent) => void) {
+        this.options.mouseleave = false;
+        this.mousemove((event) => {
+            if (!this.checkInBound(event)) {
+                if (this.options.mouseleave) {
+                    _func(event);
+                    this.options.mouseleave = false;
+                }
+            } else {
+                this.options.mouseleave = true;
+            }
+        });
+    }
+
+    mouseout(_func: (event: MouseEvent) => void) {
+        this.mousemove((event) => {
+            if (!this.checkInBound(event)) {
+                _func(event);
+            }
+        });
+    }
+
+    mouseover(_func: (event: MouseEvent) => void) {
+        this.mousemove((event) => {
+            if (this.checkInBound(event)) {
+                _func(event);
+            }
+        });
+    }
+
     selectable(option?: boolean): boolean {
         const duplicat = this.events.filter(
             (elem) => elem.eventType === "selectable"
@@ -213,15 +274,13 @@ export class Block extends Node {
         let beforeY = 0;
 
         this.mousedown((event) => {
-            if (this.checkInBound(event)) {
-                const { x, y } = this.canvas.getCursorPosition(event);
-                initX = x;
-                initY = y;
-                if (event.button === 0) {
-                    isMouseDown = true;
-                    beforeX = 0;
-                    beforeY = 0;
-                }
+            const { x, y } = this.canvas.getCursorPosition(event);
+            initX = x;
+            initY = y;
+            if (event.button === 0) {
+                isMouseDown = true;
+                beforeX = 0;
+                beforeY = 0;
             }
         });
 
@@ -247,9 +306,7 @@ export class Block extends Node {
         });
 
         this.mouseup((event) => {
-            if (this.checkInBound(event)) {
-                isMouseDown = false;
-            }
+            isMouseDown = false;
         });
         this.options.draggable = option;
         return this.options.draggable;

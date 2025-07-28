@@ -46,8 +46,13 @@ const rect = new Rectangle({
 // rect.add(text_a);
 // text_b.set({ selectable: true });
 // rect.set({ color: "red" });
-text_b.click((e) => {
-    console.log("clicked");
+// text_b.mouseenter((e) => {
+//     console.log("mouseenter");
+//     // text_b.set({ fontSize: 20 });
+//     // text_a.set({ fontSize: 40 });
+// });
+text_b.mouseleave((e) => {
+    console.log("mouseleave");
     // text_b.set({ fontSize: 20 });
     // text_a.set({ fontSize: 40 });
 });

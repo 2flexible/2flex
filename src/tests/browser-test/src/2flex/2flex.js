@@ -396,7 +396,19 @@ class Block extends Node {
         this.events.push({
             eventType: "click",
             method: (event) => {
-                _func(event);
+                if (this.checkInBound(event)) {
+                    _func(event);
+                }
+            },
+        });
+    }
+    dbclick(_func) {
+        this.events.push({
+            eventType: "dblclick",
+            method: (event) => {
+                if (this.checkInBound(event)) {
+                    _func(event);
+                }
             },
         });
     }
@@ -404,7 +416,9 @@ class Block extends Node {
         this.events.push({
             eventType: "mousedown",
             method: (event) => {
-                _func(event);
+                if (this.checkInBound(event)) {
+                    _func(event);
+                }
             },
         });
     }
@@ -412,7 +426,9 @@ class Block extends Node {
         this.events.push({
             eventType: "mouseup",
             method: (event) => {
-                _func(event);
+                if (this.checkInBound(event)) {
+                    _func(event);
+                }
             },
         });
     }
@@ -422,6 +438,48 @@ class Block extends Node {
             method: (event) => {
                 _func(event);
             },
+        });
+    }
+    mouseenter(_func) {
+        this.options.mouseenter = true;
+        this.mousemove((event) => {
+            if (this.checkInBound(event)) {
+                if (this.options.mouseenter) {
+                    this.options.mouseenter = false;
+                    _func(event);
+                }
+            }
+            else {
+                this.options.mouseenter = true;
+            }
+        });
+    }
+    mouseleave(_func) {
+        this.options.mouseleave = false;
+        this.mousemove((event) => {
+            if (!this.checkInBound(event)) {
+                if (this.options.mouseleave) {
+                    _func(event);
+                    this.options.mouseleave = false;
+                }
+            }
+            else {
+                this.options.mouseleave = true;
+            }
+        });
+    }
+    mouseout(_func) {
+        this.mousemove((event) => {
+            if (!this.checkInBound(event)) {
+                _func(event);
+            }
+        });
+    }
+    mouseover(_func) {
+        this.mousemove((event) => {
+            if (this.checkInBound(event)) {
+                _func(event);
+            }
         });
     }
     selectable(option) {
@@ -458,15 +516,13 @@ class Block extends Node {
         let beforeX = 0;
         let beforeY = 0;
         this.mousedown((event) => {
-            if (this.checkInBound(event)) {
-                const { x, y } = this.canvas.getCursorPosition(event);
-                initX = x;
-                initY = y;
-                if (event.button === 0) {
-                    isMouseDown = true;
-                    beforeX = 0;
-                    beforeY = 0;
-                }
+            const { x, y } = this.canvas.getCursorPosition(event);
+            initX = x;
+            initY = y;
+            if (event.button === 0) {
+                isMouseDown = true;
+                beforeX = 0;
+                beforeY = 0;
             }
         });
         this.mousemove((event) => {
@@ -488,9 +544,7 @@ class Block extends Node {
             }
         });
         this.mouseup((event) => {
-            if (this.checkInBound(event)) {
-                isMouseDown = false;
-            }
+            isMouseDown = false;
         });
         this.options.draggable = option;
         return this.options.draggable;
