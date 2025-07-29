@@ -252,9 +252,8 @@ export class Block extends Node {
         });
 
         let old_color = this.options.color;
-
         this.mousemove((event) => {
-            if (this.checkInBound(event)) {
+            if (!this.options.mousedown && this.checkInBound(event)) {
                 this.set({ color: "yellow" });
             } else {
                 this.set({ color: old_color });
@@ -293,6 +292,7 @@ export class Block extends Node {
                 isMouseDown = true;
                 beforeX = 0;
                 beforeY = 0;
+                this.options.mousedown = isMouseDown;
             }
         });
 
@@ -319,6 +319,7 @@ export class Block extends Node {
 
         this.mouseup((event) => {
             isMouseDown = false;
+            this.options.mousedown = isMouseDown;
         });
         this.options.draggable = option;
         return this.options.draggable;

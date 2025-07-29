@@ -47,9 +47,8 @@ const rect = new Rectangle({
 // text_b.set({ selectable: true });
 // rect.set({ color: "red" });
 rect.mousemove((e) => {
-    console.log(e.clientX, rect.initX, rect.options.width);
+    // console.log(e.clientX, rect.initX, rect.options.width);
     // console.log(e.clientY, rect.initY, rect.options.height);
-
     // text_b.set({ fontSize: 20 });
     // text_a.set({ fontSize: 40 });
 });

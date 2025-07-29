@@ -251,6 +251,7 @@ class Canvas {
         this.#domCanvas.removeEventListener("wheel", this.#zoomInOut);
         this.#domCanvas.addEventListener("wheel", (event) => _func(event));
     }
+    // not workign correctyly due to x and y cordinates
     #zoomInOut() {
         let scale = 1.02;
         let invScale = 0.95;
@@ -525,7 +526,7 @@ class Block extends Node {
         });
         let old_color = this.options.color;
         this.mousemove((event) => {
-            if (this.checkInBound(event)) {
+            if (!this.options.mousedown && this.checkInBound(event)) {
                 this.set({ color: "yellow" });
             }
             else {
@@ -556,6 +557,7 @@ class Block extends Node {
                 isMouseDown = true;
                 beforeX = 0;
                 beforeY = 0;
+                this.options.mousedown = isMouseDown;
             }
         });
         this.mousemove((event) => {
@@ -578,6 +580,7 @@ class Block extends Node {
         });
         this.mouseup((event) => {
             isMouseDown = false;
+            this.options.mousedown = isMouseDown;
         });
         this.options.draggable = option;
         return this.options.draggable;

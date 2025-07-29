@@ -140,6 +140,7 @@ export class Canvas {
         this.#domCanvas.addEventListener("wheel", (event) => _func(event));
     }
 
+    // not workign correctyly due to x and y cordinates
     #zoomInOut() {
         let scale = 1.02;
         let invScale = 0.95;
