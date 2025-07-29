@@ -680,6 +680,16 @@ class TextBlock extends Block {
         this.options.fontStyle = option || this.options.fontVariant || "normal";
         return this.options.fontStyle;
     }
+    fontStretch(option) {
+        this.options.fontStretch =
+            option || this.options.fontStretch || "normal";
+        return this.options.fontStretch;
+    }
+    fontKerning(option) {
+        this.options.fontKerning =
+            option || this.options.fontKerning || "auto";
+        return this.options.fontKerning;
+    }
     color(option) {
         super.color(option);
     }

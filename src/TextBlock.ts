@@ -13,15 +13,68 @@ type TextBaseline =
     | "ideographic"
     | "bottom";
 
+type FontStretch =
+    | "normal"
+    | "ultra-condensed"
+    | "extra-condensed"
+    | "condensed"
+    | "semi-condensed"
+    | "semi-expanded"
+    | "expanded"
+    | "extra-expanded"
+    | "ultra-expanded";
+
+type FontKerning = "normal" | "auto" | "none";
+
+type FontVariantCaps =
+    | "normal"
+    | "small-caps"
+    | "all-small-caps"
+    | "petite-caps"
+    | "all-petite-caps"
+    | "unicase"
+    | "titling-caps";
+
+type FontWeight =
+    | "normal"
+    | "bold"
+    | "bolder"
+    | "lighter"
+    | 100
+    | 200
+    | 300
+    | 400
+    | 500
+    | 600
+    | 700
+    | 800
+    | 900;
+
+type FontStyle = "normal" | "italic" | "oblique";
+
+type FontVariant = "normal" | "small-caps";
+
+type TextRendering =
+    | "auto"
+    | "optimizeSpeed"
+    | "optimizeLegibility"
+    | "geometricPrecision";
+
 export interface IText {
     text?: string;
     fontFamily?: string;
-    fontWeight?: number;
-    fontSize?: number;
-    fontStyle?: string;
-    fontVariant?: string;
+    fontWeight?: FontWeight;
+    fontSize?: string;
+    fontStyle?: FontStyle;
+    fontVariant?: FontVariant;
+    fontStretch?: FontStretch;
+    fontKerning?: FontKerning;
+    fontVariantCaps?: FontVariantCaps;
     textAlign?: TextAlign;
     textBaseline?: TextBaseline;
+    textRendering?: TextRendering;
+    wordSpacing?: string;
+    letterSpacing?: string;
     direction?: TextDirection;
     maxWidth?: number;
 }
@@ -78,7 +131,7 @@ export class TextBlock extends Block {
 
         const fontVariant = this.fontVariant();
 
-        return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize}px ${fontFamily}`;
+        return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
     }
 
     // option: it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
@@ -92,27 +145,57 @@ export class TextBlock extends Block {
 
         return this.options.fontFamily;
     }
-    fontSize(option?: number) {
+    fontSize(option?: string) {
         this.options.fontSize = option || this.options.fontSize || 10;
         return this.options.fontSize;
     }
-    fontWeight(option?: string) {
+    fontWeight(option?: FontWeight) {
         this.options.fontWeight = option || this.options.fontWeight || 100;
 
         return this.options.fontWeight;
     }
 
-    fontVariant(option?: string) {
+    fontVariant(option?: FontVariant) {
         this.options.fontVariant =
             option || this.options.fontVariant || "normal";
 
         return this.options.fontVariant;
     }
 
-    fontStyle(option?: string) {
+    fontStyle(option?: FontStyle) {
         this.options.fontStyle = option || this.options.fontVariant || "normal";
 
         return this.options.fontStyle;
+    }
+    fontStretch(option?: FontStretch) {
+        this.options.fontStretch =
+            option || this.options.fontStretch || "normal";
+
+        this.context.fontStretch = this.options.fontStretch;
+
+        return this.options.fontStretch;
+    }
+
+    fontKerning(option?: FontKerning) {
+        this.options.fontKerning = option || this.options.fontKerning || "auto";
+        this.context.fontKerning = this.options.fontKerning;
+        return this.options.fontKerning;
+    }
+
+    fontVariantCaps(option?: FontVariantCaps) {
+        this.options.fontVariantCaps =
+            option || this.options.fontVariantCaps || "normal";
+
+        this.context.fontVariantCaps = this.options.fontVariantCaps;
+
+        return this.options.fontVariantCaps;
+    }
+
+    wordSpacing(option?: string) {
+        this.options.wordSpacing =
+            `${option}px` || this.options.wordSpacing || "0px";
+        this.context.wordSpacing = this.options.wordSpacing;
+        return this.options.wordSpacing;
     }
 
     color(option?: string) {
@@ -126,7 +209,7 @@ export class TextBlock extends Block {
         super.stroke(option);
 
         const fontY = this.#measureTextSize();
-        
+
         this.context.strokeText(
             this.text,
             this.options.x,
@@ -141,18 +224,33 @@ export class TextBlock extends Block {
         return super.strokeColor(option);
     }
 
-    direction(option?: string) {
-        this.context.direction = option || this.options.direction;
+    direction(option?: TextDirection) {
+        this.context.direction = option || this.options.direction || "ltr";
         this.options.direction = this.context.direction;
         return this.options.direction;
     }
-    textAlign(option?: string) {
-        this.context.textAlign = option || this.options.textAlign;
+
+    letterSpacing(option?: string) {
+        this.context.letterSpacing =
+            option || this.options.letterSpacing || "0px";
+        this.options.letterSpacing = this.context.letterSpacing;
+        return this.options.letterSpacing;
+    }
+
+    textRendering(option?: TextRendering) {
+        this.context.textRendering =
+            option || this.options.textRendering || "auto";
+        this.options.textRendering = this.context.textRendering;
+        return this.options.textRendering;
+    }
+    textAlign(option?: TextAlign) {
+        this.context.textAlign = option || this.options.textAlign || "start";
         this.options.align = this.context.align;
         return this.options.align;
     }
-    textBaseline(option?: string) {
-        this.context.textBaseline = option || this.options.textBaseline;
+    textBaseline(option?: TextBaseline) {
+        this.context.textBaseline =
+            option || this.options.textBaseline || "alphabetic";
         this.options.baseline = this.context.baseline;
         return this.options.baseline;
     }
