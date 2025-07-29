@@ -201,7 +201,7 @@ class Canvas {
         return cursor;
     }
     #handleEvents() {
-        // created events for every same type events beacuse canvas is same, but coridanets changing
+        // created events for every same type events beacuse canvas is same, but events changing
         let uniqeEvents = [];
         for (const item of this.#canvasEvents) {
             const tempUniqe = uniqeEvents?.filter((_item) => _item.eventType === item.eventType);
@@ -252,20 +252,42 @@ class Canvas {
         this.#domCanvas.addEventListener("wheel", (event) => _func(event));
     }
     #zoomInOut() {
+        let scale = 1.02;
+        let invScale = 0.95;
+        let xx = undefined;
+        let yy = undefined;
         return (event) => {
             if (event.ctrlKey) {
                 if (event.deltaY < 0) {
-                    this.invokeChange((_) => {
-                        this.width *= 1.02;
-                        this.height *= 1.02;
+                    this.invokeChange((elem) => {
+                        // const diffX = elem.options.x * scale - elem.options.x;
+                        // elem.options.width += this.width * scale - this.width;
+                        elem.options.width *= scale;
+                        if (!xx) {
+                            xx = elem.options.x;
+                        }
+                        if (!yy) {
+                            yy = elem.options.y;
+                        }
+                        xx *= scale;
+                        yy *= scale;
+                        console.log("xx");
+                        console.log(xx);
+                        elem.initX = xx;
+                        elem.initY = yy;
                         this.context.scale(1.02, 1.02);
                     });
                 }
                 else {
-                    this.invokeChange((_) => {
-                        this.width /= 0.95;
-                        this.height /= 0.95;
-                        this.context.scale(0.95, 0.95);
+                    this.invokeChange((elem) => {
+                        this.width /= invScale;
+                        this.height /= invScale;
+                        elem.options.width *= invScale;
+                        elem.options.height *= invScale;
+                        elem.options.x *= invScale;
+                        elem.options.y *= invScale;
+                        // invScale *= 0.95;
+                        this.context.scale(invScale, invScale);
                     });
                 }
             }
@@ -313,6 +335,8 @@ const defaultOpt = {
 };
 // each Block is Node
 class Block extends Node {
+    initX;
+    initY;
     canvas;
     options;
     // too much events pushing
@@ -339,6 +363,14 @@ class Block extends Node {
     y(option) {
         this.options.y = option || this.options.y;
         return this.options.y;
+    }
+    width(option) {
+        this.options.width = option || this.options.width;
+        return this.options.width;
+    }
+    height(option) {
+        this.options.height = option || this.options.height;
+        return this.options.height;
     }
     color(option) {
         this.options.color = option || this.options.color || "black";
@@ -432,6 +464,7 @@ class Block extends Node {
             },
         });
     }
+    // unexcpected behavier due to not implimenting checkInbound
     mousemove(_func) {
         this.events.push({
             eventType: "mousemove",
@@ -689,6 +722,8 @@ class TextBlock extends Block {
 }
 
 class Rectangle extends Block {
+    prevX = undefined;
+    prevY = undefined;
     constructor(options) {
         super(options);
     }
@@ -698,6 +733,7 @@ class Rectangle extends Block {
     drawRectangle() {
         this.context.beginPath();
         super.color();
+        // console.log(this.prevX, this.prevY);
         this.context.rect(this.options.x, this.options.y, this.options.width, this.options.height);
         super.fill();
     }
@@ -710,6 +746,12 @@ class Rectangle extends Block {
     }
     y(option) {
         return super.y(option);
+    }
+    width(option) {
+        return super.width(option);
+    }
+    height(option) {
+        return super.height(option);
     }
     draggable(option) {
         return super.draggable(option);

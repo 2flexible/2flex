@@ -3,8 +3,8 @@ import { Canvas, TextBlock, Block, Layer, Rectangle } from "./2flex/2flex";
 const canvas = new Canvas("canvas", 800, 400, { "background-color": "black" });
 
 const text_a = new TextBlock("First Text", {
-    x: 0,
-    y: 10,
+    x: 200,
+    y: 40,
     color: "blue",
     fontFamily: "KulminoituvaRegular",
     stroke: 2,
@@ -46,16 +46,18 @@ const rect = new Rectangle({
 // rect.add(text_a);
 // text_b.set({ selectable: true });
 // rect.set({ color: "red" });
-// text_b.mouseenter((e) => {
-//     console.log("mouseenter");
-//     // text_b.set({ fontSize: 20 });
-//     // text_a.set({ fontSize: 40 });
-// });
-text_b.mouseleave((e) => {
-    console.log("mouseleave");
+rect.mousemove((e) => {
+    console.log(e.clientX, rect.initX, rect.options.width);
+    // console.log(e.clientY, rect.initY, rect.options.height);
+
     // text_b.set({ fontSize: 20 });
     // text_a.set({ fontSize: 40 });
 });
+// text_b.mouseleave((e) => {
+// console.log("mouseleave");
+// text_b.set({ fontSize: 20 });
+// text_a.set({ fontSize: 40 });
+// });
 canvas.add(rect, text_a, text_b);
 block.add(text_a, text_b);
 

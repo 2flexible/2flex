@@ -84,7 +84,7 @@ export class Canvas {
     }
 
     #handleEvents() {
-        // created events for every same type events beacuse canvas is same, but coridanets changing
+        // created events for every same type events beacuse canvas is same, but events changing
         let uniqeEvents: any[] = [];
 
         for (const item of this.#canvasEvents) {
@@ -141,19 +141,42 @@ export class Canvas {
     }
 
     #zoomInOut() {
+        let scale = 1.02;
+        let invScale = 0.95;
+        let xx: any = undefined;
+        let yy: any = undefined;
         return (event: WheelEvent) => {
             if (event.ctrlKey) {
                 if (event.deltaY < 0) {
-                    this.invokeChange((_) => {
-                        this.width *= 1.02;
-                        this.height *= 1.02;
+                    this.invokeChange((elem) => {
+                        // const diffX = elem.options.x * scale - elem.options.x;
+                        // elem.options.width += this.width * scale - this.width;
+                        elem.options.width *= scale;
+
+                        if (!xx) {
+                            xx = elem.options.x;
+                        }
+                        if (!yy) {
+                            yy = elem.options.y;
+                        }
+                        xx *= scale;
+                        yy *= scale;
+                        console.log("xx");
+                        console.log(xx);
+                        elem.initX = xx;
+                        elem.initY = yy;
                         this.context.scale(1.02, 1.02);
                     });
                 } else {
-                    this.invokeChange((_) => {
-                        this.width /= 0.95;
-                        this.height /= 0.95;
-                        this.context.scale(0.95, 0.95);
+                    this.invokeChange((elem) => {
+                        this.width /= invScale;
+                        this.height /= invScale;
+                        elem.options.width *= invScale;
+                        elem.options.height *= invScale;
+                        elem.options.x *= invScale;
+                        elem.options.y *= invScale;
+                        // invScale *= 0.95;
+                        this.context.scale(invScale, invScale);
                     });
                 }
             }

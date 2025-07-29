@@ -5,6 +5,7 @@ import { Node } from "./Tree";
 import { Block } from "./Block";
 
 export type ShapeElements = Rectangle | Star;
+
 // move these inside to Block
 export interface BlockOptions {
     [key: string]: any;
@@ -60,6 +61,7 @@ export interface IStyle {
     styleType: string;
     method: (args?: string) => void;
 }
+
 export type ICssProperties = {
     [key in keyof CSSStyleDeclaration]: CSSStyleDeclaration[key];
 };

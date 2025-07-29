@@ -31,6 +31,8 @@ const defaultOpt: defaultBlockOptions = {
 
 // each Block is Node
 export class Block extends Node {
+    initX: undefined | number;
+    initY: undefined | number;
     canvas: any;
     options: defaultBlockOptions;
     // too much events pushing
@@ -64,6 +66,16 @@ export class Block extends Node {
     y(option?: number) {
         this.options.y = option || this.options.y;
         return this.options.y;
+    }
+
+    width(option?: number) {
+        this.options.width = option || this.options.width;
+        return this.options.width;
+    }
+
+    height(option?: number) {
+        this.options.height = option || this.options.height;
+        return this.options.height;
     }
 
     color(option?: string) {
@@ -173,7 +185,7 @@ export class Block extends Node {
             },
         });
     }
-
+    // unexcpected behavier due to not implimenting checkInbound
     mousemove(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "mousemove",
