@@ -97,8 +97,9 @@ export class Block extends Node {
         return this.options.stroke;
     }
 
-    fill() {
-        this.context.fill();
+    fill(option?: boolean) {
+        if (option) this.context.fill();
+        return option;
     }
 
     set(options: IBlock<BlockOptions>) {

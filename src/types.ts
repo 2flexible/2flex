@@ -18,7 +18,8 @@ export interface BlockOptions {
     color?: string;
     stroke?: number;
     strokeColor?: string;
-    // lineWidth?: number;
+    lineWidth?: number;
+    fill?: boolean;
     padding?: string;
     margin?: string;
     draggable?: boolean;
