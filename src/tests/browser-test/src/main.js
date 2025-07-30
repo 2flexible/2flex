@@ -1,12 +1,19 @@
-import { Canvas, TextBlock, Block, Layer, Rectangle } from "./2flex/2flex";
+import {
+    Canvas,
+    TextBlock,
+    Block,
+    Layer,
+    Rectangle,
+    Triangle,
+} from "./2flex/2flex";
 
 const canvas = new Canvas("canvas", 800, 400, { "background-color": "black" });
 
 const text_a = new TextBlock("First Text", {
     x: 0,
     y: 150,
-    color: "blue",
     fontFamily: "KulminoituvaRegular",
+    color: "blue",
     strokeWidth: 2,
     strokeColor: "white",
     fontSize: "40px",
@@ -27,7 +34,7 @@ const text_b = new TextBlock("SecondText", {
     // fontSize: 35,
 });
 const block = new Block();
-
+const triangle = new Triangle({ x: 0, y: 0, color: "red", fill: true });
 // text_a.click((e) => {
 //     text_a.set({ color: "red" });
 //     console.log("second clicked");
@@ -49,7 +56,7 @@ const rect = new Rectangle({
     strokeColor: "red",
     fill: true,
 });
-rect.add(text_a, text_b);
+// rect.add();
 // text_b.set({ selectable: true });
 // rect.set({ color: "red" });
 rect.mousemove((e) => {
@@ -63,7 +70,7 @@ rect.mousemove((e) => {
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(rect);
+canvas.add(text_a, text_b);
 // block.add(text_a, text_b);
 
 // console.log(block.find());

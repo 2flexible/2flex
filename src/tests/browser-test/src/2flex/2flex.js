@@ -861,4 +861,82 @@ class Rectangle extends Block {
     }
 }
 
-export { Block, Canvas, CanvasDOMManager, Layer, Rectangle, Shape, TextBlock };
+class Triangle extends Block {
+    constructor(options) {
+        super(options);
+    }
+    __initSet() {
+        super.__initSet();
+        this.draw();
+    }
+    draw() {
+        this.context.beginPath();
+        this.color();
+        let x = 0;
+        let y = 0;
+        let bottom = 155;
+        let right = 60;
+        let left = 165;
+        y += right;
+        x += bottom;
+        right -= y;
+        bottom -= x;
+        const xDiff = Math.abs((bottom ** 2 - left ** 2 - right ** 2) / (2 * left));
+        const y1 = Math.sqrt((right ** 2 + left ** 2 + 2 * left * right ** 2 - bottom ** 2) /
+            (2 * left));
+        let x1;
+        if (bottom < left) {
+            x1 = left - xDiff;
+        }
+        else {
+            x1 = xDiff + left;
+        }
+        this.context.moveTo(x, y);
+        this.context.lineTo(x1, y1);
+        this.context.lineTo(y1, x1);
+        this.context.closePath();
+        this.fill();
+        this.stroke();
+    }
+    x(option) {
+        return super.x(option);
+    }
+    y(option) {
+        return super.y(option);
+    }
+    width(option) {
+        return super.width(option);
+    }
+    height(option) {
+        return super.height(option);
+    }
+    color(option) {
+        return super.color(option);
+    }
+    strokeWidth(option) {
+        return super.strokeWidth(option);
+    }
+    strokeColor(option) {
+        return super.strokeColor(option);
+    }
+    stroke(option) {
+        return super.stroke(option);
+    }
+    fill(option) {
+        return super.fill(option);
+    }
+    clip(option) {
+        return super.clip(option);
+    }
+    draggable(option) {
+        return super.draggable(option);
+    }
+    selectable(option) {
+        return super.selectable(option);
+    }
+    set(options) {
+        super.set(options);
+    }
+}
+
+export { Block, Canvas, CanvasDOMManager, Layer, Rectangle, Shape, TextBlock, Triangle };

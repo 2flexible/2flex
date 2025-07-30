@@ -24,6 +24,7 @@ export interface BlockOptions {
     padding?: string;
     margin?: string;
     clip?: boolean;
+    zIndex?: number;
     draggable?: boolean;
 }
 // extend margin as seperate margin top, left, bottom
