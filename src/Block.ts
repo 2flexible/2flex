@@ -130,6 +130,24 @@ export class Block extends Node {
         }
         return this.options.fill;
     }
+    clip(option?: boolean) {
+        this.options.clip = option || this.options.clip || false;
+
+        if (this.options.clip) {
+            const clipping_path = new Path2D();
+            clipping_path.roundRect(
+                this.initCords.x!,
+                this.initCords.y!,
+                this.options.width,
+                this.options.height,
+                this.options.borderRadius
+            );
+
+            this.context.reset();
+            this.context.clip(clipping_path, "nonzero");
+        }
+        return this.options.clip;
+    }
 
     set(options: IBlock<BlockOptions>) {
         let cached = false;
@@ -215,7 +233,6 @@ export class Block extends Node {
             },
         });
     }
-    // unexcpected behavier due to not implimenting checkInbound
     mousemove(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "mousemove",

@@ -55,7 +55,7 @@ export class Canvas {
 
     #initCanvas() {
         this.canvas;
-        window.onload = (event) => {
+        window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
             this.move(this.#canvasMoves());
@@ -199,7 +199,7 @@ export class Canvas {
             if (event.ctrlKey) {
                 return;
             }
-            
+
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
                     this.invokeChange((element) => (element.options.x += 10));

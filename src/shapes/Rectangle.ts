@@ -63,6 +63,9 @@ export class Rectangle extends Block {
     fill(option?: boolean) {
         return super.fill(option);
     }
+    clip(option?: boolean): boolean {
+        return super.clip(option);
+    }
 
     draggable(option: boolean): boolean {
         return super.draggable(option);

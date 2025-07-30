@@ -178,7 +178,7 @@ class Canvas {
     }
     #initCanvas() {
         this.canvas;
-        window.onload = (event) => {
+        window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
             this.move(this.#canvasMoves());
@@ -423,6 +423,16 @@ class Block extends Node {
         }
         return this.options.fill;
     }
+    clip(option) {
+        this.options.clip = option || this.options.clip || false;
+        if (this.options.clip) {
+            const clipping_path = new Path2D();
+            clipping_path.roundRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
+            this.context.reset();
+            this.context.clip(clipping_path, "nonzero");
+        }
+        return this.options.clip;
+    }
     set(options) {
         let cached = false;
         for (const [key, value] of Object.entries(options)) {
@@ -496,7 +506,6 @@ class Block extends Node {
             },
         });
     }
-    // unexcpected behavier due to not implimenting checkInbound
     mousemove(_func) {
         this.events.push({
             eventType: "mousemove",
@@ -782,6 +791,9 @@ class TextBlock extends Block {
     measureText() {
         return this.context.measureText(this.text);
     }
+    clip(option) {
+        return super.clip(option);
+    }
     draggable(option) {
         return super.draggable(option);
     }
@@ -834,6 +846,9 @@ class Rectangle extends Block {
     }
     fill(option) {
         return super.fill(option);
+    }
+    clip(option) {
+        return super.clip(option);
     }
     draggable(option) {
         return super.draggable(option);

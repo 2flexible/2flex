@@ -260,7 +260,9 @@ export class TextBlock extends Block {
     measureText() {
         return this.context.measureText(this.text);
     }
-
+    clip(option?: boolean) {
+        return super.clip(option);
+    }
     draggable(option: boolean): boolean {
         return super.draggable(option);
     }

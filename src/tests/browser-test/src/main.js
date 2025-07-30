@@ -17,7 +17,7 @@ const text_a = new TextBlock("First Text", {
 const text_b = new TextBlock("SecondText", {
     x: 0,
     y: 0,
-    color: "black",
+    color: "red",
     // strokeColor: "red",
     fontSize: "50px",
     selectable: false,
@@ -37,10 +37,11 @@ const block = new Block();
 // const layer = new Layer({ x: 20 });
 // layer.add(text_a, text_b);
 const rect = new Rectangle({
-    x: 100,
+    x: 200,
     y: 50,
     width: 200,
     height: 200,
+    clip: true,
     strokeWidth: 2,
     borderRadius: [0, 20, 20, 0],
     color: "white",

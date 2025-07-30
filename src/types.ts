@@ -23,7 +23,7 @@ export interface BlockOptions {
     stroke?: boolean;
     padding?: string;
     margin?: string;
-    overflow?: string;
+    clip?: boolean;
     draggable?: boolean;
 }
 // extend margin as seperate margin top, left, bottom
