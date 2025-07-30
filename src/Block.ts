@@ -31,12 +31,13 @@ const defaultOpt: defaultBlockOptions = {
 
 // each Block is Node
 export class Block extends Node {
-    initX: undefined | number;
-    initY: undefined | number;
     canvas: any;
     options: defaultBlockOptions;
-    // too much events pushing
     events: ICustomEvents[] = [];
+    initCords: { x: number | undefined; y: number | undefined } = {
+        x: undefined,
+        y: undefined,
+    };
     styleChanges: IStyle[] = [];
 
     constructor(options?: IBlock<BlockOptions>) {
@@ -52,6 +53,23 @@ export class Block extends Node {
 
     add(...block: BlockElements[]): void {
         this.addChild(block);
+        this.#adjustCordinates();
+    }
+
+    #adjustCordinates(): void {
+        this.initCords.x =
+            this.options.x !== this.initCords.x
+                ? this.options.x
+                : this.initCords.x;
+        this.initCords.y =
+            this.options.y !== this.initCords.y
+                ? this.options.y
+                : this.initCords.y;
+
+        this._childs?.forEach((item: any) => {
+            item.initCords.x = this.initCords.x + item.options.x;
+            item.initCords.y = this.initCords.y + item.options.y;
+        });
     }
 
     registerStyle(styles: IStyle[]) {
@@ -91,15 +109,26 @@ export class Block extends Node {
         return this.options.strokeColor;
     }
 
-    stroke(option?: number) {
-        this.options.stroke = option || this.options.stroke || 10;
-        this.context.lineWidth = this.options.stroke;
+    strokeWidth(option?: number) {
+        this.options.strokeWidth = option || this.options.strokeWidth || 10;
+        this.context.lineWidth = this.options.strokeWidth;
+        return this.options.strokeWidth;
+    }
+
+    stroke(option?: boolean) {
+        this.options.stroke = option || this.options.stroke || false;
+        if (this.options.stroke) {
+            this.context.stroke();
+        }
         return this.options.stroke;
     }
 
     fill(option?: boolean) {
-        if (option) this.context.fill();
-        return option;
+        this.options.fill = option || this.options.fill || false;
+        if (this.options.fill) {
+            this.context.fill();
+        }
+        return this.options.fill;
     }
 
     set(options: IBlock<BlockOptions>) {
@@ -306,6 +335,7 @@ export class Block extends Node {
 
                 if (diffX !== 0) {
                     this.options.x += diffX - beforeX;
+
                     beforeX = diffX;
                 }
                 if (diffY !== 0) {
@@ -313,6 +343,7 @@ export class Block extends Node {
                     beforeY = diffY;
                 }
                 if (diffX !== 0 || diffY !== 0) {
+                    this.#adjustCordinates();
                     this.canvas.invokeChange?.call(this.canvas);
                 }
             }

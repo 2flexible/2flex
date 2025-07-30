@@ -3,26 +3,26 @@ import { Canvas, TextBlock, Block, Layer, Rectangle } from "./2flex/2flex";
 const canvas = new Canvas("canvas", 800, 400, { "background-color": "black" });
 
 const text_a = new TextBlock("First Text", {
-    x: 200,
-    y: 40,
+    x: 0,
+    y: 150,
     color: "blue",
     fontFamily: "KulminoituvaRegular",
-    stroke: 2,
+    strokeWidth: 2,
     strokeColor: "white",
-    fontSize: 40,
+    fontSize: "40px",
     selectable: true,
     // lineWidth: 10,
 });
 
 const text_b = new TextBlock("SecondText", {
-    x: 400,
-    y: 2,
-    color: "white",
+    x: 0,
+    y: 0,
+    color: "black",
     // strokeColor: "red",
-    fontSize: 50,
+    fontSize: "50px",
     selectable: false,
 
-    // stroke: 2,
+    // strokeWidth: 2,
     // fontFamily: "KulminoituvaRegular",
     // fontSize: 35,
 });
@@ -37,13 +37,18 @@ const block = new Block();
 // const layer = new Layer({ x: 20 });
 // layer.add(text_a, text_b);
 const rect = new Rectangle({
-    x: 200,
+    x: 100,
     y: 50,
-    width: 40,
-    height: 120,
+    width: 200,
+    height: 200,
+    strokeWidth: 2,
+    borderRadius: [0, 20, 20, 0],
     color: "white",
+    stroke: true,
+    strokeColor: "red",
+    fill: true,
 });
-// rect.add(text_a);
+rect.add(text_a, text_b);
 // text_b.set({ selectable: true });
 // rect.set({ color: "red" });
 rect.mousemove((e) => {
@@ -57,7 +62,7 @@ rect.mousemove((e) => {
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(rect, text_a, text_b);
-block.add(text_a, text_b);
+canvas.add(rect);
+// block.add(text_a, text_b);
 
 // console.log(block.find());

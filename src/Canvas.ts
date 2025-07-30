@@ -55,9 +55,11 @@ export class Canvas {
 
     #initCanvas() {
         this.canvas;
-        this.#domCanvas.changeStyle(this.options);
-        this.zoom(this.#zoomInOut());
-        this.move(this.#canvasMoves());
+        window.onload = (event) => {
+            this.#domCanvas.changeStyle(this.options);
+            this.zoom(this.#zoomInOut());
+            this.move(this.#canvasMoves());
+        };
     }
     getBoundingClientRect() {
         return this.canvas.getBoundingClientRect();
@@ -197,6 +199,7 @@ export class Canvas {
             if (event.ctrlKey) {
                 return;
             }
+            
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
                     this.invokeChange((element) => (element.options.x += 10));

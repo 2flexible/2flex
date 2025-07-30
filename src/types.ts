@@ -16,14 +16,17 @@ export interface BlockOptions {
     selectable?: boolean;
     backgroundColor?: string;
     color?: string;
-    stroke?: number;
+    strokeWidth?: number;
     strokeColor?: string;
     lineWidth?: number;
     fill?: boolean;
+    stroke?: boolean;
     padding?: string;
     margin?: string;
+    overflow?: string;
     draggable?: boolean;
 }
+// extend margin as seperate margin top, left, bottom
 
 export type BlockElements = Block | Shape | TextBlock;
 

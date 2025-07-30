@@ -89,6 +89,7 @@ export class TextBlock extends Block {
     }
 
     __initSet() {
+        super.__initSet();
         this.setFont();
 
         this.color();
@@ -97,7 +98,7 @@ export class TextBlock extends Block {
 
         this.context.fillText(
             this.text,
-            this.options.x,
+            this.initCords.x,
             fontY,
             this.options.maxWidth
         );
@@ -109,7 +110,7 @@ export class TextBlock extends Block {
         // text_measure.actualBoundingBoxAscent +
         // text_measure.actualBoundingBoxDescent;
         this.options.width = text_measure.width;
-        return this.options.height + this.options.y;
+        return this.options.height + this.initCords.y!;
     }
 
     x(option?: number) {
@@ -146,7 +147,7 @@ export class TextBlock extends Block {
         return this.options.fontFamily;
     }
     fontSize(option?: string) {
-        this.options.fontSize = option || this.options.fontSize || 10;
+        this.options.fontSize = option || this.options.fontSize || "10px";
         return this.options.fontSize;
     }
     fontWeight(option?: FontWeight) {
@@ -202,22 +203,22 @@ export class TextBlock extends Block {
         super.color(option);
     }
 
-    stroke(option?: number) {
+    strokeWidth(option?: number) {
         this.setFont();
 
         this.strokeColor();
-        super.stroke(option);
+        super.strokeWidth(option);
 
         const fontY = this.#measureTextSize();
 
         this.context.strokeText(
             this.text,
-            this.options.x,
+            this.initCords.x,
             fontY,
             this.options?.maxWidth
         );
 
-        return this.options.stroke;
+        return this.options.strokeWidth;
     }
 
     strokeColor(option?: string) {

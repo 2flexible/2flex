@@ -2,6 +2,7 @@ export class Node {
     child_nodes: Node[];
     next: undefined | Node;
     #listed_child_nodes: Node[];
+    _childs: Node[] = [];
 
     constructor() {
         this.child_nodes = [];
@@ -10,6 +11,7 @@ export class Node {
     }
 
     addChild(node: Node[]) {
+        this._childs.push(...node);
         this.next = node.shift();
         this.child_nodes.push(...node);
     }

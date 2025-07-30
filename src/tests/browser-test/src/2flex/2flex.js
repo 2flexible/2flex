@@ -2,12 +2,14 @@ class Node {
     child_nodes;
     next;
     #listed_child_nodes;
+    _childs = [];
     constructor() {
         this.child_nodes = [];
         this.next = undefined;
         this.#listed_child_nodes = [];
     }
     addChild(node) {
+        this._childs.push(...node);
         this.next = node.shift();
         this.child_nodes.push(...node);
     }
@@ -176,9 +178,11 @@ class Canvas {
     }
     #initCanvas() {
         this.canvas;
-        this.#domCanvas.changeStyle(this.options);
-        this.zoom(this.#zoomInOut());
-        this.move(this.#canvasMoves());
+        window.onload = (event) => {
+            this.#domCanvas.changeStyle(this.options);
+            this.zoom(this.#zoomInOut());
+            this.move(this.#canvasMoves());
+        };
     }
     getBoundingClientRect() {
         return this.canvas.getBoundingClientRect();
@@ -336,12 +340,13 @@ const defaultOpt = {
 };
 // each Block is Node
 class Block extends Node {
-    initX;
-    initY;
     canvas;
     options;
-    // too much events pushing
     events = [];
+    initCords = {
+        x: undefined,
+        y: undefined,
+    };
     styleChanges = [];
     constructor(options) {
         super();
@@ -353,6 +358,21 @@ class Block extends Node {
     }
     add(...block) {
         this.addChild(block);
+        this.#adjustCordinates();
+    }
+    #adjustCordinates() {
+        this.initCords.x =
+            this.options.x !== this.initCords.x
+                ? this.options.x
+                : this.initCords.x;
+        this.initCords.y =
+            this.options.y !== this.initCords.y
+                ? this.options.y
+                : this.initCords.y;
+        this._childs?.forEach((item) => {
+            item.initCords.x = this.initCords.x + item.options.x;
+            item.initCords.y = this.initCords.y + item.options.y;
+        });
     }
     registerStyle(styles) {
         this.styleChanges.push(...styles);
@@ -384,13 +404,24 @@ class Block extends Node {
         this.context.strokeStyle = this.options.strokeColor;
         return this.options.strokeColor;
     }
+    strokeWidth(option) {
+        this.options.strokeWidth = option || this.options.strokeWidth || 10;
+        this.context.lineWidth = this.options.strokeWidth;
+        return this.options.strokeWidth;
+    }
     stroke(option) {
-        this.options.stroke = option || this.options.stroke || 10;
-        this.context.lineWidth = this.options.stroke;
+        this.options.stroke = option || this.options.stroke || false;
+        if (this.options.stroke) {
+            this.context.stroke();
+        }
         return this.options.stroke;
     }
-    fill() {
-        this.context.fill();
+    fill(option) {
+        this.options.fill = option || this.options.fill || false;
+        if (this.options.fill) {
+            this.context.fill();
+        }
+        return this.options.fill;
     }
     set(options) {
         let cached = false;
@@ -574,6 +605,7 @@ class Block extends Node {
                     beforeY = diffY;
                 }
                 if (diffX !== 0 || diffY !== 0) {
+                    this.#adjustCordinates();
                     this.canvas.invokeChange?.call(this.canvas);
                 }
             }
@@ -609,8 +641,8 @@ class Shape extends Block {
     lineWidth() {
         this.context.lineWidth = this.options.lineWidth;
     }
-    stroke(option) {
-        this.context.lineWidth = this.options.stroke || option;
+    strokeWidth(option) {
+        this.context.lineWidth = this.options.strokeWidth || option;
     }
     fill() { }
     color(option) {
@@ -627,10 +659,11 @@ class TextBlock extends Block {
         this.options.text = text;
     }
     __initSet() {
+        super.__initSet();
         this.setFont();
         this.color();
         const fontY = this.#measureTextSize();
-        this.context.fillText(this.text, this.options.x, fontY, this.options.maxWidth);
+        this.context.fillText(this.text, this.initCords.x, fontY, this.options.maxWidth);
     }
     #measureTextSize() {
         const text_measure = this.measureText();
@@ -638,7 +671,7 @@ class TextBlock extends Block {
         // text_measure.actualBoundingBoxAscent +
         // text_measure.actualBoundingBoxDescent;
         this.options.width = text_measure.width;
-        return this.options.height + this.options.y;
+        return this.options.height + this.initCords.y;
     }
     x(option) {
         return super.x(option);
@@ -652,7 +685,7 @@ class TextBlock extends Block {
         const fontStyle = this.fontStyle();
         const fontWeight = this.fontWeight();
         const fontVariant = this.fontVariant();
-        return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize}px ${fontFamily}`;
+        return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
     }
     // option: it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
     setFont(option) {
@@ -664,7 +697,7 @@ class TextBlock extends Block {
         return this.options.fontFamily;
     }
     fontSize(option) {
-        this.options.fontSize = option || this.options.fontSize || 10;
+        this.options.fontSize = option || this.options.fontSize || "10px";
         return this.options.fontSize;
     }
     fontWeight(option) {
@@ -683,39 +716,65 @@ class TextBlock extends Block {
     fontStretch(option) {
         this.options.fontStretch =
             option || this.options.fontStretch || "normal";
+        this.context.fontStretch = this.options.fontStretch;
         return this.options.fontStretch;
     }
     fontKerning(option) {
-        this.options.fontKerning =
-            option || this.options.fontKerning || "auto";
+        this.options.fontKerning = option || this.options.fontKerning || "auto";
+        this.context.fontKerning = this.options.fontKerning;
         return this.options.fontKerning;
+    }
+    fontVariantCaps(option) {
+        this.options.fontVariantCaps =
+            option || this.options.fontVariantCaps || "normal";
+        this.context.fontVariantCaps = this.options.fontVariantCaps;
+        return this.options.fontVariantCaps;
+    }
+    wordSpacing(option) {
+        this.options.wordSpacing =
+            `${option}px` || this.options.wordSpacing || "0px";
+        this.context.wordSpacing = this.options.wordSpacing;
+        return this.options.wordSpacing;
     }
     color(option) {
         super.color(option);
     }
-    stroke(option) {
+    strokeWidth(option) {
         this.setFont();
         this.strokeColor();
-        super.stroke(option);
+        super.strokeWidth(option);
         const fontY = this.#measureTextSize();
-        this.context.strokeText(this.text, this.options.x, fontY, this.options?.maxWidth);
-        return this.options.stroke;
+        this.context.strokeText(this.text, this.initCords.x, fontY, this.options?.maxWidth);
+        return this.options.strokeWidth;
     }
     strokeColor(option) {
         return super.strokeColor(option);
     }
     direction(option) {
-        this.context.direction = option || this.options.direction;
+        this.context.direction = option || this.options.direction || "ltr";
         this.options.direction = this.context.direction;
         return this.options.direction;
     }
+    letterSpacing(option) {
+        this.context.letterSpacing =
+            option || this.options.letterSpacing || "0px";
+        this.options.letterSpacing = this.context.letterSpacing;
+        return this.options.letterSpacing;
+    }
+    textRendering(option) {
+        this.context.textRendering =
+            option || this.options.textRendering || "auto";
+        this.options.textRendering = this.context.textRendering;
+        return this.options.textRendering;
+    }
     textAlign(option) {
-        this.context.textAlign = option || this.options.textAlign;
+        this.context.textAlign = option || this.options.textAlign || "start";
         this.options.align = this.context.align;
         return this.options.align;
     }
     textBaseline(option) {
-        this.context.textBaseline = option || this.options.textBaseline;
+        this.context.textBaseline =
+            option || this.options.textBaseline || "alphabetic";
         this.options.baseline = this.context.baseline;
         return this.options.baseline;
     }
@@ -735,24 +794,19 @@ class TextBlock extends Block {
 }
 
 class Rectangle extends Block {
-    prevX = undefined;
-    prevY = undefined;
     constructor(options) {
         super(options);
     }
     __initSet() {
+        super.__initSet();
         this.drawRectangle();
     }
     drawRectangle() {
         this.context.beginPath();
-        super.color();
-        // console.log(this.prevX, this.prevY);
-        this.context.rect(this.options.x, this.options.y, this.options.width, this.options.height);
-        super.fill();
-    }
-    color(option) {
-        super.color(option);
-        super.fill();
+        this.color();
+        this.context.roundRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
+        this.fill();
+        super.stroke();
     }
     x(option) {
         return super.x(option);
@@ -765,6 +819,21 @@ class Rectangle extends Block {
     }
     height(option) {
         return super.height(option);
+    }
+    color(option) {
+        return super.color(option);
+    }
+    strokeWidth(option) {
+        return super.strokeWidth(option);
+    }
+    strokeColor(option) {
+        return super.strokeColor(option);
+    }
+    stroke(option) {
+        return super.stroke(option);
+    }
+    fill(option) {
+        return super.fill(option);
     }
     draggable(option) {
         return super.draggable(option);
