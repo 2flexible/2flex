@@ -12,6 +12,7 @@ export class Triangle extends Block {
     }
 
     draw() {
+        // this.context.restore();
         this.context.beginPath();
         this.color();
 

@@ -13,11 +13,11 @@ export class Rectangle extends Block {
     }
     __initSet(): void {
         super.__initSet();
-        this.drawRectangle();
+        this.draw();
     }
 
-    drawRectangle() {
-        this.context.beginPath();
+    draw() {
+        // this.context.restore();
         this.color();
 
         this.context.roundRect(
@@ -28,7 +28,7 @@ export class Rectangle extends Block {
             this.options.borderRadius
         );
         this.fill();
-        super.stroke();
+        this.stroke();
     }
 
     x(option?: number): number {
@@ -47,6 +47,7 @@ export class Rectangle extends Block {
     }
 
     color(option?: string) {
+        this.context.beginPath();
         return super.color(option);
     }
 

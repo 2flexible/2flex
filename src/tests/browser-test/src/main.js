@@ -25,7 +25,7 @@ const text_b = new TextBlock("SecondText", {
     x: 0,
     y: 0,
     color: "red",
-    // strokeColor: "red",
+    strokeColor: "red",
     fontSize: "50px",
     selectable: false,
 
@@ -34,7 +34,13 @@ const text_b = new TextBlock("SecondText", {
     // fontSize: 35,
 });
 const block = new Block();
-const triangle = new Triangle({ x: 0, y: 0, color: "red", fill: true });
+const triangle = new Triangle({
+    x: 0,
+    y: 0,
+    color: "red",
+    fill: true,
+    stroke: true,
+});
 // text_a.click((e) => {
 //     text_a.set({ color: "red" });
 //     console.log("second clicked");
@@ -56,7 +62,7 @@ const rect = new Rectangle({
     strokeColor: "red",
     fill: true,
 });
-// rect.add();
+rect.add(text_a, text_b);
 // text_b.set({ selectable: true });
 // rect.set({ color: "red" });
 rect.mousemove((e) => {
@@ -70,7 +76,7 @@ rect.mousemove((e) => {
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(text_a, text_b);
+canvas.add(triangle, rect);
 // block.add(text_a, text_b);
 
 // console.log(block.find());

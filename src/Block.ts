@@ -45,7 +45,14 @@ export class Block extends Node {
         this.options = { ...defaultOpt, ...options };
     }
 
-    __initSet() {}
+    __initSet() {
+        if (!this.initCords.x) {
+            this.initCords.x = this.options.x;
+        }
+        if (!this.initCords.y) {
+            this.initCords.y = this.options.y;
+        }
+    }
 
     get context() {
         return this.canvas.context;
@@ -61,6 +68,7 @@ export class Block extends Node {
             this.options.x !== this.initCords.x
                 ? this.options.x
                 : this.initCords.x;
+
         this.initCords.y =
             this.options.y !== this.initCords.y
                 ? this.options.y
@@ -134,8 +142,10 @@ export class Block extends Node {
         this.options.clip = option || this.options.clip || false;
 
         if (this.options.clip) {
-            const clipping_path = new Path2D();
-            clipping_path.roundRect(
+            this.context.save();
+            // const clipping_path = new Path2D();
+            // need to change for rect, triangle and any other shapes too
+            this.context.roundRect(
                 this.initCords.x!,
                 this.initCords.y!,
                 this.options.width,
@@ -143,8 +153,9 @@ export class Block extends Node {
                 this.options.borderRadius
             );
 
-            this.context.reset();
-            this.context.clip(clipping_path, "nonzero");
+            // this.context.reset();
+            this.context.restore();
+            this.context.clip();
         }
         return this.options.clip;
     }
@@ -182,10 +193,10 @@ export class Block extends Node {
 
         const { x, y } = this.canvas.getCursorPosition(_event);
         if (
-            x >= this.options.x &&
-            x <= this.options.x + width &&
-            y >= this.options.y &&
-            y <= this.options.y + height
+            x >= this.initCords.x! &&
+            x <= this.initCords.x! + width &&
+            y >= this.initCords.y! &&
+            y <= this.initCords.y! + height
         )
             return true;
         return false;

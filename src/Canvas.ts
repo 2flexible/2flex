@@ -55,7 +55,9 @@ export class Canvas {
 
     #initCanvas() {
         this.canvas;
+
         window.onload = () => {
+            // this.context.save();
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
             this.move(this.#canvasMoves());

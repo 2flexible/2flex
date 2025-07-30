@@ -94,6 +94,7 @@ export class TextBlock extends Block {
 
         this.color();
 
+        
         const fontY = this.#measureTextSize();
 
         this.context.fillText(

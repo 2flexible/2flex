@@ -82,7 +82,7 @@ class Tree {
                 Q.unshift(current.next);
             }
         }
-        // console.log(this.#listed_nodes);
+        console.log(this.#listed_nodes);
     }
     checkNodes(_func) {
         this.#listed_nodes.forEach((item) => {
@@ -179,6 +179,7 @@ class Canvas {
     #initCanvas() {
         this.canvas;
         window.onload = () => {
+            // this.context.save();
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
             this.move(this.#canvasMoves());
@@ -352,7 +353,14 @@ class Block extends Node {
         super();
         this.options = { ...defaultOpt, ...options };
     }
-    __initSet() { }
+    __initSet() {
+        if (!this.initCords.x) {
+            this.initCords.x = this.options.x;
+        }
+        if (!this.initCords.y) {
+            this.initCords.y = this.options.y;
+        }
+    }
     get context() {
         return this.canvas.context;
     }
@@ -426,10 +434,13 @@ class Block extends Node {
     clip(option) {
         this.options.clip = option || this.options.clip || false;
         if (this.options.clip) {
-            const clipping_path = new Path2D();
-            clipping_path.roundRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
-            this.context.reset();
-            this.context.clip(clipping_path, "nonzero");
+            this.context.save();
+            // const clipping_path = new Path2D();
+            // need to change for rect, triangle and any other shapes too
+            this.context.roundRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
+            // this.context.reset();
+            this.context.restore();
+            this.context.clip();
         }
         return this.options.clip;
     }
@@ -459,10 +470,10 @@ class Block extends Node {
         const width = this.options.width;
         const height = this.options.height;
         const { x, y } = this.canvas.getCursorPosition(_event);
-        if (x >= this.options.x &&
-            x <= this.options.x + width &&
-            y >= this.options.y &&
-            y <= this.options.y + height)
+        if (x >= this.initCords.x &&
+            x <= this.initCords.x + width &&
+            y >= this.initCords.y &&
+            y <= this.initCords.y + height)
             return true;
         return false;
     }
@@ -811,14 +822,14 @@ class Rectangle extends Block {
     }
     __initSet() {
         super.__initSet();
-        this.drawRectangle();
+        this.draw();
     }
-    drawRectangle() {
-        this.context.beginPath();
+    draw() {
+        // this.context.restore();
         this.color();
         this.context.roundRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
         this.fill();
-        super.stroke();
+        this.stroke();
     }
     x(option) {
         return super.x(option);
@@ -833,6 +844,7 @@ class Rectangle extends Block {
         return super.height(option);
     }
     color(option) {
+        this.context.beginPath();
         return super.color(option);
     }
     strokeWidth(option) {
@@ -870,6 +882,7 @@ class Triangle extends Block {
         this.draw();
     }
     draw() {
+        // this.context.restore();
         this.context.beginPath();
         this.color();
         let x = 0;
