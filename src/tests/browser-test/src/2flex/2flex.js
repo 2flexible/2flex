@@ -373,6 +373,7 @@ const defaultOpt$2 = {
     selectable: true,
     draggable: true,
     clip: true,
+    zIndex: 0,
 };
 // Each element in the canvas is block
 // each Block is Node
@@ -464,6 +465,9 @@ class Block extends Node {
             this.canvas.clipping_path.addRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
         }
         return this.options.clip;
+    }
+    zIndex(option) {
+        this.options.zIndex = option || this.options.zIndex || 0;
     }
     set(options) {
         let cached = false;

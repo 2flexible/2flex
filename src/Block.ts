@@ -18,6 +18,7 @@ export interface DefaultBlockOpt {
     height: number;
     selectable: boolean;
     clip: boolean;
+    zIndex: number;
 }
 
 const defaultOpt: DefaultBlockOpt = {
@@ -28,6 +29,7 @@ const defaultOpt: DefaultBlockOpt = {
     selectable: true,
     draggable: true,
     clip: true,
+    zIndex: 0,
 };
 
 interface InitCords {
@@ -147,6 +149,10 @@ export class Block extends Node {
             );
         }
         return this.options.clip;
+    }
+
+    zIndex(option?: number) {
+        this.options.zIndex = option || this.options.zIndex || 0;
     }
 
     set(options: IBlock<BlockOptions>) {
