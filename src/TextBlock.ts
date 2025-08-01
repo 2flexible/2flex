@@ -90,11 +90,11 @@ export class TextBlock extends Block {
 
     __initSet() {
         super.__initSet();
+
         this.setFont();
 
         this.color();
 
-        
         const fontY = this.#measureTextSize();
 
         this.context.fillText(
@@ -108,8 +108,6 @@ export class TextBlock extends Block {
     #measureTextSize() {
         const text_measure = this.measureText();
         this.options.height = text_measure.hangingBaseline;
-        // text_measure.actualBoundingBoxAscent +
-        // text_measure.actualBoundingBoxDescent;
         this.options.width = text_measure.width;
         return this.options.height + this.initCords.y!;
     }

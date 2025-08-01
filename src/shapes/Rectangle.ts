@@ -1,19 +1,33 @@
 import { Block } from "../Block";
 import { Shape } from "../Shape";
-import { BlockOptions, IBlock } from "../types";
+import { BlockOptions, IBlock, IDefaultBlockOpt } from "../types";
 
-interface RectangleOptions {
-    // border-radius: [top-left, top-right, bottom-right, bottom-left]
+interface DefaultRectOpt {
     borderRadius: number[];
 }
 
-export class Rectangle extends Block {
+const defaultOpt: IDefaultBlockOpt<DefaultRectOpt> = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    selectable: true,
+    draggable: true,
+    clip: true,
+
+    // border-radius: [top-left, top-right, bottom-right, bottom-left]
+    borderRadius: [],
+};
+
+interface RectangleOptions extends DefaultRectOpt {}
+
+export class Rectangle extends Shape {
     constructor(options?: IBlock<RectangleOptions>) {
         super(options);
+        this.options = { ...defaultOpt, ...options };
     }
     __initSet(): void {
         super.__initSet();
-        this.draw();
     }
 
     draw() {
@@ -30,13 +44,13 @@ export class Rectangle extends Block {
         this.fill();
         this.stroke();
 
-        this.canvas.clipping_path.roundRect(
-            this.options.x,
-            this.options.y,
-            this.options.width,
-            this.options.height,
-            this.options.borderRadius
-        );
+        // this.canvas.clipping_path.path.roundRect(
+        //     this.options.x,
+        //     this.options.y,
+        //     this.options.width,
+        //     this.options.height,
+        //     this.options.borderRadius
+        // );
     }
 
     x(option?: number): number {
@@ -55,7 +69,6 @@ export class Rectangle extends Block {
     }
 
     color(option?: string) {
-        this.context.beginPath();
         return super.color(option);
     }
 
@@ -72,6 +85,7 @@ export class Rectangle extends Block {
     fill(option?: boolean) {
         return super.fill(option);
     }
+
     clip(option?: boolean): boolean {
         return super.clip(option);
     }

@@ -2,7 +2,7 @@ import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
 import { Rectangle, Star } from "./shapes/index";
 import { Node } from "./Tree";
-import { Block } from "./Block";
+import { Block, DefaultBlockOpt } from "./Block";
 
 export type ShapeElements = Rectangle | Star;
 
@@ -72,3 +72,7 @@ export type ICssProperties = {
 };
 
 type Query = BlockOptions;
+
+export type IDefaultBlockOpt<T> = T extends DefaultBlockOpt
+    ? DefaultBlockOpt
+    : DefaultBlockOpt & T;

@@ -148,6 +148,23 @@ class CanvasDOMManager {
     }
 }
 
+class Path extends Path2D {
+    path;
+    constructor(path) {
+        super(path);
+        this.path = new Path2D(path);
+    }
+    addBackgroundPath(width, height) {
+        this.path.rect(0, 0, width, height);
+    }
+    addRect(x, y, width, height, borderRadius) {
+        this.path.roundRect(x, y, width, height, borderRadius);
+    }
+    createPath(path) {
+        this.path = new Path2D(path);
+    }
+}
+
 /*
 @Todo
 make checkpoint for canvas to load
@@ -168,7 +185,7 @@ class Canvas {
         this.options = options;
         this.width = width || 300;
         this.height = height || 300;
-        this.clipping_path = new Path2D();
+        this.clipping_path = new Path();
         this.#domCanvas = new CanvasDOMManager(this.canvasId, this.width, this.height);
         this.#initCanvas();
     }
@@ -180,32 +197,38 @@ class Canvas {
     }
     #initCanvas() {
         this.canvas;
-        this.clipping_path.rect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.save();
+        this.clipping_path.addBackgroundPath(this.canvas.width, this.canvas.height);
         window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
             this.move(this.#canvasMoves());
         };
     }
-    getBoundingClientRect() {
-        return this.canvas.getBoundingClientRect();
+    #fillBackground() {
+        this.context.fillStyle = Object.getOwnPropertyDescriptor(this.options, "background-color")?.value;
+        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    clip() {
+        this.context.clip(this.clipping_path.path, "evenodd");
+        this.#fillBackground();
     }
     add(...block) {
         this.#tree.addNodes(block);
-        this.context.save();
         this.#tree.preOrderTraversal((element) => {
             element.canvas = this;
             this.#handleOptions(element);
             element.__initSet();
             this.#canvasEvents.push(...element.events);
         });
+        this.clip();
         this.#handleEvents();
-        this.context.clip(this.clipping_path, "evenodd");
-        this.context.fillStyle = Object.getOwnPropertyDescriptor(this.options, "background-color")?.value;
-        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    get canvasBounding() {
+        return this.canvas.getBoundingClientRect();
     }
     getCursorPosition(event) {
-        const rect = this.canvas.getBoundingClientRect();
+        const rect = this.canvasBounding;
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         const cursor = { x, y };
@@ -246,9 +269,8 @@ class Canvas {
         }
     }
     invokeChange(_func) {
-        // this.context.save();
-        this.clipping_path = new Path2D();
-        this.clipping_path.rect(0, 0, this.canvas.width, this.canvas.height);
+        this.clipping_path.createPath();
+        this.clipping_path.addBackgroundPath(this.canvas.width, this.canvas.height);
         this.context.restore();
         this.clearRect();
         this.#tree.checkNodes((element) => {
@@ -258,9 +280,7 @@ class Canvas {
             element.__initSet();
         });
         this.context.save();
-        this.context.clip(this.clipping_path, "evenodd");
-        this.context.fillStyle = Object.getOwnPropertyDescriptor(this.options, "background-color")?.value;
-        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.clip();
     }
     // we can do this later as and || or
     find(queries) {
@@ -345,14 +365,16 @@ class Canvas {
     }
 }
 
-const defaultOpt = {
+const defaultOpt$2 = {
     x: 0,
     y: 0,
     width: 0,
     height: 0,
     selectable: true,
     draggable: true,
+    clip: true,
 };
+// Each element in the canvas is block
 // each Block is Node
 class Block extends Node {
     canvas;
@@ -365,7 +387,7 @@ class Block extends Node {
     styleChanges = [];
     constructor(options) {
         super();
-        this.options = { ...defaultOpt, ...options };
+        this.options = { ...defaultOpt$2, ...options };
     }
     __initSet() {
         if (!this.initCords.x) {
@@ -394,10 +416,8 @@ class Block extends Node {
         this._childs?.forEach((item) => {
             item.initCords.x = this.initCords.x + item.options.x;
             item.initCords.y = this.initCords.y + item.options.y;
+            item.options.clip = false;
         });
-    }
-    registerStyle(styles) {
-        this.styleChanges.push(...styles);
     }
     x(option) {
         this.options.x = option || this.options.x;
@@ -438,16 +458,11 @@ class Block extends Node {
         }
         return this.options.stroke;
     }
-    fill(option) {
-        this.options.fill = option || this.options.fill || false;
-        if (this.options.fill) {
-            this.context.fill();
-        }
-        return this.options.fill;
-    }
     clip(option) {
         this.options.clip = option || this.options.clip || false;
-        if (this.options.clip) ;
+        if (this.options.clip) {
+            this.canvas.clipping_path.addRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
+        }
         return this.options.clip;
     }
     set(options) {
@@ -487,7 +502,7 @@ class Block extends Node {
         this.events.push({
             eventType: "click",
             method: (event) => {
-                if (this.checkInBound(event)) {
+                if (this.options.selectable && this.checkInBound(event)) {
                     _func(event);
                 }
             },
@@ -497,7 +512,7 @@ class Block extends Node {
         this.events.push({
             eventType: "dblclick",
             method: (event) => {
-                if (this.checkInBound(event)) {
+                if (this.options.selectable && this.checkInBound(event)) {
                     _func(event);
                 }
             },
@@ -507,7 +522,7 @@ class Block extends Node {
         this.events.push({
             eventType: "mousedown",
             method: (event) => {
-                if (this.checkInBound(event)) {
+                if (this.options.selectable && this.checkInBound(event)) {
                     _func(event);
                 }
             },
@@ -534,7 +549,7 @@ class Block extends Node {
     mouseenter(_func) {
         this.options.mouseenter = true;
         this.mousemove((event) => {
-            if (this.checkInBound(event)) {
+            if (this.options.selectable && this.checkInBound(event)) {
                 if (this.options.mouseenter) {
                     this.options.mouseenter = false;
                     _func(event);
@@ -568,7 +583,7 @@ class Block extends Node {
     }
     mouseover(_func) {
         this.mousemove((event) => {
-            if (this.checkInBound(event)) {
+            if (this.options.selectable && this.checkInBound(event)) {
                 _func(event);
             }
         });
@@ -665,19 +680,61 @@ class Layout extends Block {
 
 // each shape extends form common shape
 class Shape extends Block {
-    constructor(options = undefined) {
+    constructor(options) {
         super(options);
     }
-    lineWidth() {
-        this.context.lineWidth = this.options.lineWidth;
+    __initSet() {
+        super.__initSet();
+        this.draw();
+    }
+    draw() {
+        this.color();
+        this.fill();
+        this.stroke();
+    }
+    x(option) {
+        return super.x(option);
+    }
+    y(option) {
+        return super.y(option);
+    }
+    width(option) {
+        return super.width(option);
+    }
+    height(option) {
+        return super.height(option);
+    }
+    color(option) {
+        this.context.beginPath();
+        return super.color(option);
     }
     strokeWidth(option) {
-        this.context.lineWidth = this.options.strokeWidth || option;
+        return super.strokeWidth(option);
     }
-    fill() { }
-    color(option) {
-        super.color(option);
-        super.fill();
+    strokeColor(option) {
+        return super.strokeColor(option);
+    }
+    stroke(option) {
+        return super.stroke(option);
+    }
+    fill(option) {
+        this.options.fill = option || this.options.fill || false;
+        if (this.options.fill) {
+            this.context.fill();
+        }
+        return this.options.fill;
+    }
+    clip(option) {
+        return super.clip(option);
+    }
+    draggable(option) {
+        return super.draggable(option);
+    }
+    selectable(option) {
+        return super.selectable(option);
+    }
+    set(options) {
+        super.set(options);
     }
 }
 
@@ -698,8 +755,6 @@ class TextBlock extends Block {
     #measureTextSize() {
         const text_measure = this.measureText();
         this.options.height = text_measure.hangingBaseline;
-        // text_measure.actualBoundingBoxAscent +
-        // text_measure.actualBoundingBoxDescent;
         this.options.width = text_measure.width;
         return this.options.height + this.initCords.y;
     }
@@ -826,20 +881,37 @@ class TextBlock extends Block {
     }
 }
 
-class Rectangle extends Block {
+const defaultOpt$1 = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    selectable: true,
+    draggable: true,
+    clip: true,
+    // border-radius: [top-left, top-right, bottom-right, bottom-left]
+    borderRadius: [],
+};
+class Rectangle extends Shape {
     constructor(options) {
         super(options);
+        this.options = { ...defaultOpt$1, ...options };
     }
     __initSet() {
         super.__initSet();
-        this.draw();
     }
     draw() {
         this.color();
         this.context.roundRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
         this.fill();
         this.stroke();
-        this.canvas.clipping_path.roundRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
+        // this.canvas.clipping_path.path.roundRect(
+        //     this.options.x,
+        //     this.options.y,
+        //     this.options.width,
+        //     this.options.height,
+        //     this.options.borderRadius
+        // );
     }
     x(option) {
         return super.x(option);
@@ -854,7 +926,6 @@ class Rectangle extends Block {
         return super.height(option);
     }
     color(option) {
-        this.context.beginPath();
         return super.color(option);
     }
     strokeWidth(option) {
@@ -883,21 +954,42 @@ class Rectangle extends Block {
     }
 }
 
-class Triangle extends Block {
+const defaultOpt = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    selectable: true,
+    draggable: true,
+    clip: true,
+    left: 30,
+    right: 30,
+    bottom: 30,
+};
+class Triangle extends Shape {
     constructor(options) {
         super(options);
+        this.options = { ...defaultOpt, ...options };
     }
     __initSet() {
         super.__initSet();
-        this.draw();
     }
+    // have some problems
     draw() {
         this.color();
-        let x = 0;
-        let y = 0;
-        let bottom = 155;
-        let right = 60;
-        let left = 165;
+        let x = this.options.x;
+        let y = this.options.y;
+        let bottom;
+        let right;
+        let left;
+        if (!this.options.side) {
+            bottom = this.options.bottom;
+            right = this.options.right;
+            left = this.options.left;
+        }
+        else {
+            right = left = bottom = this.options.side;
+        }
         y += right;
         x += bottom;
         right -= y;
@@ -912,7 +1004,7 @@ class Triangle extends Block {
         else {
             x1 = xDiff + left;
         }
-        this.context.moveTo(x, y);
+        this.context.moveTo(x - this.options.x, y - this.options.y);
         this.context.lineTo(x1, y1);
         this.context.lineTo(y1, x1);
         this.context.closePath();
@@ -932,7 +1024,6 @@ class Triangle extends Block {
         return super.height(option);
     }
     color(option) {
-        this.context.beginPath();
         return super.color(option);
     }
     strokeWidth(option) {
@@ -946,6 +1037,10 @@ class Triangle extends Block {
     }
     fill(option) {
         return super.fill(option);
+    }
+    side(option) {
+        this.options.side = option || this.options.side || 10;
+        return this.options.side;
     }
     clip(option) {
         return super.clip(option);

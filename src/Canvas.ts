@@ -2,15 +2,13 @@ import { Tree } from "./Tree";
 import {
     BlockElements,
     CursorPos,
-    ICustomEvents,
-    IStyle,
     ICssProperties,
     BlockOptions,
     IBlock,
 } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
 import { IText } from "./TextBlock";
-import { Rectangle } from "./shapes/Rectangle";
+import { Path } from "./Path";
 
 /*
 @Todo
@@ -25,7 +23,7 @@ export class Canvas {
     canvasId: string;
     width: number;
     height: number;
-    clipping_path: Path2D;
+    clipping_path: Path;
     #tree = new Tree();
 
     constructor(
@@ -38,7 +36,7 @@ export class Canvas {
         this.options = options;
         this.width = width || 300;
         this.height = height || 300;
-        this.clipping_path = new Path2D();
+        this.clipping_path = new Path();
 
         this.#domCanvas = new CanvasDOMManager(
             this.canvasId,
@@ -58,7 +56,13 @@ export class Canvas {
 
     #initCanvas() {
         this.canvas;
-        this.clipping_path.rect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.context.save();
+
+        this.clipping_path.addBackgroundPath(
+            this.canvas.width,
+            this.canvas.height
+        );
 
         window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
@@ -66,27 +70,8 @@ export class Canvas {
             this.move(this.#canvasMoves());
         };
     }
-    getBoundingClientRect() {
-        return this.canvas.getBoundingClientRect();
-    }
 
-    add(...block: BlockElements[]) {
-        this.#tree.addNodes(block);
-
-        this.context.save();
-        this.#tree.preOrderTraversal((element: any) => {
-            element.canvas = this;
-
-            this.#handleOptions(element);
-            element.__initSet();
-            
-            this.#canvasEvents.push(...element.events);
-        });
-
-        this.#handleEvents();
-
-        this.context.clip(this.clipping_path, "evenodd");
-
+    #fillBackground() {
         this.context.fillStyle = Object.getOwnPropertyDescriptor(
             this.options,
             "background-color"
@@ -94,9 +79,34 @@ export class Canvas {
 
         this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
+    
+    clip() {
+        this.context.clip(this.clipping_path.path, "evenodd");
+        this.#fillBackground();
+    }
+
+    add(...block: BlockElements[]) {
+        this.#tree.addNodes(block);
+
+        this.#tree.preOrderTraversal((element: any) => {
+            element.canvas = this;
+
+            this.#handleOptions(element);
+            element.__initSet();
+
+            this.#canvasEvents.push(...element.events);
+        });
+        this.clip();
+        this.#handleEvents();
+    }
+
+    get canvasBounding() {
+        return this.canvas.getBoundingClientRect();
+    }
 
     getCursorPosition(event: { clientX: number; clientY: number }) {
-        const rect = this.canvas.getBoundingClientRect();
+        const rect = this.canvasBounding;
+
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         const cursor: CursorPos = { x, y };
@@ -143,10 +153,13 @@ export class Canvas {
     }
 
     invokeChange(_func?: (element: any) => void) {
-        // this.context.save();
+        this.clipping_path.createPath();
 
-        this.clipping_path = new Path2D();
-        this.clipping_path.rect(0, 0, this.canvas.width, this.canvas.height);
+        this.clipping_path.addBackgroundPath(
+            this.canvas.width,
+            this.canvas.height
+        );
+
         this.context.restore();
 
         this.clearRect();
@@ -157,13 +170,7 @@ export class Canvas {
         });
         this.context.save();
 
-        this.context.clip(this.clipping_path, "evenodd");
-        this.context.fillStyle = Object.getOwnPropertyDescriptor(
-            this.options,
-            "background-color"
-        )?.value;
-
-        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.clip();
     }
     // we can do this later as and || or
     find(queries: IBlock<BlockOptions & IText>) {

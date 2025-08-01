@@ -1,27 +1,57 @@
-import { Block } from "../Block";
 import { Shape } from "../Shape";
-import { BlockOptions, IBlock } from "../types";
+import { IDefaultBlockOpt, IBlock } from "../types";
 
-export class Triangle extends Block {
-    constructor(options?: IBlock<BlockOptions>) {
+interface DefaultTriangleOpt {
+    left: number;
+    right: number;
+    bottom: number;
+}
+
+const defaultOpt: IDefaultBlockOpt<DefaultTriangleOpt> = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    selectable: true,
+    draggable: true,
+    clip: true,
+
+    left: 30,
+    right: 30,
+    bottom: 30,
+};
+
+interface RectangleOptions extends DefaultTriangleOpt {
+    side?: number;
+}
+export class Triangle extends Shape {
+    constructor(options?: IBlock<RectangleOptions>) {
         super(options);
+        this.options = { ...defaultOpt, ...options };
     }
+
     __initSet(): void {
         super.__initSet();
-        this.draw();
     }
 
+    // have some problems
     draw() {
         this.color();
 
-        
-        let x = 0;
-        let y = 0;
+        let x = this.options.x;
+        let y = this.options.y;
 
-        let bottom = 155;
-        let right = 60;
-        let left = 165;
+        let bottom: number;
+        let right: number;
+        let left: number;
 
+        if (!this.options.side) {
+            bottom = this.options.bottom;
+            right = this.options.right;
+            left = this.options.left;
+        } else {
+            right = left = bottom = this.options.side;
+        }
         y += right;
         x += bottom;
         right -= y;
@@ -35,7 +65,7 @@ export class Triangle extends Block {
                 (2 * left)
         );
 
-        let x1;
+        let x1: number;
 
         if (bottom < left) {
             x1 = left - xDiff;
@@ -43,7 +73,7 @@ export class Triangle extends Block {
             x1 = xDiff + left;
         }
 
-        this.context.moveTo(x, y);
+        this.context.moveTo(x - this.options.x, y - this.options.y);
         this.context.lineTo(x1, y1);
         this.context.lineTo(y1, x1);
         this.context.closePath();
@@ -68,7 +98,6 @@ export class Triangle extends Block {
     }
 
     color(option?: string) {
-        this.context.beginPath();
         return super.color(option);
     }
 
@@ -86,6 +115,11 @@ export class Triangle extends Block {
         return super.fill(option);
     }
 
+    side(option?: number) {
+        this.options.side = option || this.options.side || 10;
+        return this.options.side;
+    }
+
     clip(option?: boolean): boolean {
         return super.clip(option);
     }
@@ -98,7 +132,7 @@ export class Triangle extends Block {
         return super.selectable(option);
     }
 
-    set(options: IBlock<BlockOptions>) {
+    set(options: IBlock<RectangleOptions>) {
         super.set(options);
     }
 }

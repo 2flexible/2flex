@@ -29,10 +29,14 @@ const text_b = new TextBlock("SecondText", {
 const block = new Block();
 const triangle = new Triangle({
     x: 0,
-    y: 0,
+    y: 50,
     color: "red",
     fill: true,
     stroke: true,
+    left: 90,
+    bottom: 90,
+    right: 45,
+    // side: 40,
     // clip: true,
 });
 // text_a.click((e) => {
@@ -44,8 +48,8 @@ const triangle = new Triangle({
 // const layer = new Layer({ x: 20 });
 // layer.add(text_a, text_b);
 const rect = new Rectangle({
-    x: 200,
-    y: 50,
+    x: 0,
+    y: 0,
     width: 200,
     height: 200,
     clip: true,
@@ -70,7 +74,7 @@ const rect1 = new Rectangle({
     strokeColor: "red",
     fill: true,
 });
-rect.add(text_a, text_b);
+rect.add(text_b);
 // text_b.set({ selectable: true });
 // rect.set({ color: "red" });
 // rect.mousemove((e) => {
@@ -84,7 +88,7 @@ rect.add(text_a, text_b);
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(rect, rect1, triangle);
+canvas.add(rect, text_a);
 // block.add(text_a, text_b);
 
 // console.log(block.find());

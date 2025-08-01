@@ -1,4 +1,3 @@
-// Each element in the canvas is block
 import { IText } from "./TextBlock";
 import { Node } from "./Tree";
 
@@ -11,30 +10,38 @@ import {
     IStyle,
 } from "./types";
 
-export interface defaultBlockOptions {
+export interface DefaultBlockOpt {
     [key: string]: any;
     x: number;
     y: number;
     width: number;
     height: number;
     selectable: boolean;
+    clip: boolean;
 }
 
-const defaultOpt: defaultBlockOptions = {
+const defaultOpt: DefaultBlockOpt = {
     x: 0,
     y: 0,
     width: 0,
     height: 0,
     selectable: true,
     draggable: true,
+    clip: true,
 };
 
+interface InitCords {
+    x: number | undefined;
+    y: number | undefined;
+}
+
+// Each element in the canvas is block
 // each Block is Node
 export class Block extends Node {
     canvas: any;
-    options: defaultBlockOptions;
+    options: DefaultBlockOpt;
     events: ICustomEvents[] = [];
-    initCords: { x: number | undefined; y: number | undefined } = {
+    initCords: InitCords = {
         x: undefined,
         y: undefined,
     };
@@ -52,7 +59,6 @@ export class Block extends Node {
         if (!this.initCords.y) {
             this.initCords.y = this.options.y;
         }
-        
     }
 
     get context() {
@@ -78,11 +84,8 @@ export class Block extends Node {
         this._childs?.forEach((item: any) => {
             item.initCords.x = this.initCords.x + item.options.x;
             item.initCords.y = this.initCords.y + item.options.y;
+            item.options.clip = false;
         });
-    }
-
-    registerStyle(styles: IStyle[]) {
-        this.styleChanges.push(...styles);
     }
 
     x(option?: number) {
@@ -132,31 +135,16 @@ export class Block extends Node {
         return this.options.stroke;
     }
 
-    fill(option?: boolean) {
-        this.options.fill = option || this.options.fill || false;
-        if (this.options.fill) {
-            this.context.fill();
-        }
-        return this.options.fill;
-    }
-    
     clip(option?: boolean) {
         this.options.clip = option || this.options.clip || false;
-
         if (this.options.clip) {
-            // const clipping_path = new Path2D();
-
-            // need to change for rect, triangle and any other shapes too
-
-            // this.canvas.clipping_path.roundRect(
-            //     this.initCords.x!,
-            //     this.initCords.y!,
-            //     this.options.width,
-            //     this.options.height,
-            //     this.options.borderRadius
-            // );
-
-            // this.context.clip(this.canvas.clipping_path, "evenodd");
+            this.canvas.clipping_path.addRect(
+                this.options.x,
+                this.options.y,
+                this.options.width,
+                this.options.height,
+                this.options.borderRadius
+            );
         }
         return this.options.clip;
     }
@@ -207,17 +195,18 @@ export class Block extends Node {
         this.events.push({
             eventType: "click",
             method: (event: MouseEvent) => {
-                if (this.checkInBound(event)) {
+                if (this.options.selectable && this.checkInBound(event)) {
                     _func(event);
                 }
             },
         });
     }
+
     dbclick(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "dblclick",
             method: (event: MouseEvent) => {
-                if (this.checkInBound(event)) {
+                if (this.options.selectable && this.checkInBound(event)) {
                     _func(event);
                 }
             },
@@ -228,7 +217,7 @@ export class Block extends Node {
         this.events.push({
             eventType: "mousedown",
             method: (event: MouseEvent) => {
-                if (this.checkInBound(event)) {
+                if (this.options.selectable && this.checkInBound(event)) {
                     _func(event);
                 }
             },
@@ -245,6 +234,7 @@ export class Block extends Node {
             },
         });
     }
+
     mousemove(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "mousemove",
@@ -257,7 +247,7 @@ export class Block extends Node {
     mouseenter(_func: (event: MouseEvent) => void) {
         this.options.mouseenter = true;
         this.mousemove((event) => {
-            if (this.checkInBound(event)) {
+            if (this.options.selectable && this.checkInBound(event)) {
                 if (this.options.mouseenter) {
                     this.options.mouseenter = false;
                     _func(event);
@@ -292,11 +282,12 @@ export class Block extends Node {
 
     mouseover(_func: (event: MouseEvent) => void) {
         this.mousemove((event) => {
-            if (this.checkInBound(event)) {
+            if (this.options.selectable && this.checkInBound(event)) {
                 _func(event);
             }
         });
     }
+
     selectableAction(_func: (event: MouseEvent) => void) {
         this.events.push({
             eventType: "mousemove",
