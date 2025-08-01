@@ -52,6 +52,7 @@ export class Block extends Node {
         if (!this.initCords.y) {
             this.initCords.y = this.options.y;
         }
+        
     }
 
     get context() {
@@ -138,24 +139,24 @@ export class Block extends Node {
         }
         return this.options.fill;
     }
+    
     clip(option?: boolean) {
         this.options.clip = option || this.options.clip || false;
 
         if (this.options.clip) {
-            this.context.save();
             // const clipping_path = new Path2D();
-            // need to change for rect, triangle and any other shapes too
-            this.context.roundRect(
-                this.initCords.x!,
-                this.initCords.y!,
-                this.options.width,
-                this.options.height,
-                this.options.borderRadius
-            );
 
-            // this.context.reset();
-            this.context.restore();
-            this.context.clip();
+            // need to change for rect, triangle and any other shapes too
+
+            // this.canvas.clipping_path.roundRect(
+            //     this.initCords.x!,
+            //     this.initCords.y!,
+            //     this.options.width,
+            //     this.options.height,
+            //     this.options.borderRadius
+            // );
+
+            // this.context.clip(this.canvas.clipping_path, "evenodd");
         }
         return this.options.clip;
     }
@@ -294,6 +295,16 @@ export class Block extends Node {
             if (this.checkInBound(event)) {
                 _func(event);
             }
+        });
+    }
+    selectableAction(_func: (event: MouseEvent) => void) {
+        this.events.push({
+            eventType: "mousemove",
+            method: (event: MouseEvent) => {
+                if (!this.options.mousedown && this.checkInBound(event)) {
+                    _func(event);
+                }
+            },
         });
     }
 

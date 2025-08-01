@@ -10,6 +10,7 @@ import {
 } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
 import { IText } from "./TextBlock";
+import { Rectangle } from "./shapes/Rectangle";
 
 /*
 @Todo
@@ -24,7 +25,7 @@ export class Canvas {
     canvasId: string;
     width: number;
     height: number;
-
+    clipping_path: Path2D;
     #tree = new Tree();
 
     constructor(
@@ -37,6 +38,8 @@ export class Canvas {
         this.options = options;
         this.width = width || 300;
         this.height = height || 300;
+        this.clipping_path = new Path2D();
+
         this.#domCanvas = new CanvasDOMManager(
             this.canvasId,
             this.width,
@@ -55,9 +58,9 @@ export class Canvas {
 
     #initCanvas() {
         this.canvas;
+        this.clipping_path.rect(0, 0, this.canvas.width, this.canvas.height);
 
         window.onload = () => {
-            // this.context.save();
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
             this.move(this.#canvasMoves());
@@ -70,13 +73,26 @@ export class Canvas {
     add(...block: BlockElements[]) {
         this.#tree.addNodes(block);
 
+        this.context.save();
         this.#tree.preOrderTraversal((element: any) => {
             element.canvas = this;
-            this.#handleStyleChanges(element);
+
+            this.#handleOptions(element);
             element.__initSet();
+            
             this.#canvasEvents.push(...element.events);
         });
+
         this.#handleEvents();
+
+        this.context.clip(this.clipping_path, "evenodd");
+
+        this.context.fillStyle = Object.getOwnPropertyDescriptor(
+            this.options,
+            "background-color"
+        )?.value;
+
+        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
     getCursorPosition(event: { clientX: number; clientY: number }) {
@@ -118,7 +134,7 @@ export class Canvas {
         });
     }
 
-    #handleStyleChanges(block: BlockElements): void {
+    #handleOptions(block: BlockElements): void {
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
@@ -127,12 +143,27 @@ export class Canvas {
     }
 
     invokeChange(_func?: (element: any) => void) {
+        // this.context.save();
+
+        this.clipping_path = new Path2D();
+        this.clipping_path.rect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.restore();
+
         this.clearRect();
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);
-            this.#handleStyleChanges(element);
+            this.#handleOptions(element);
             element.__initSet();
         });
+        this.context.save();
+
+        this.context.clip(this.clipping_path, "evenodd");
+        this.context.fillStyle = Object.getOwnPropertyDescriptor(
+            this.options,
+            "background-color"
+        )?.value;
+
+        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
     // we can do this later as and || or
     find(queries: IBlock<BlockOptions & IText>) {

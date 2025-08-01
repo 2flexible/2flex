@@ -161,12 +161,14 @@ class Canvas {
     canvasId;
     width;
     height;
+    clipping_path;
     #tree = new Tree();
     constructor(canvasId, width, height, options = undefined) {
         this.canvasId = canvasId || "canvas";
         this.options = options;
         this.width = width || 300;
         this.height = height || 300;
+        this.clipping_path = new Path2D();
         this.#domCanvas = new CanvasDOMManager(this.canvasId, this.width, this.height);
         this.#initCanvas();
     }
@@ -178,8 +180,8 @@ class Canvas {
     }
     #initCanvas() {
         this.canvas;
+        this.clipping_path.rect(0, 0, this.canvas.width, this.canvas.height);
         window.onload = () => {
-            // this.context.save();
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
             this.move(this.#canvasMoves());
@@ -190,13 +192,17 @@ class Canvas {
     }
     add(...block) {
         this.#tree.addNodes(block);
+        this.context.save();
         this.#tree.preOrderTraversal((element) => {
             element.canvas = this;
-            this.#handleStyleChanges(element);
+            this.#handleOptions(element);
             element.__initSet();
             this.#canvasEvents.push(...element.events);
         });
         this.#handleEvents();
+        this.context.clip(this.clipping_path, "evenodd");
+        this.context.fillStyle = Object.getOwnPropertyDescriptor(this.options, "background-color")?.value;
+        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
     getCursorPosition(event) {
         const rect = this.canvas.getBoundingClientRect();
@@ -232,7 +238,7 @@ class Canvas {
             });
         });
     }
-    #handleStyleChanges(block) {
+    #handleOptions(block) {
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
@@ -240,13 +246,21 @@ class Canvas {
         }
     }
     invokeChange(_func) {
+        // this.context.save();
+        this.clipping_path = new Path2D();
+        this.clipping_path.rect(0, 0, this.canvas.width, this.canvas.height);
+        this.context.restore();
         this.clearRect();
         this.#tree.checkNodes((element) => {
             if (_func)
                 _func(element);
-            this.#handleStyleChanges(element);
+            this.#handleOptions(element);
             element.__initSet();
         });
+        this.context.save();
+        this.context.clip(this.clipping_path, "evenodd");
+        this.context.fillStyle = Object.getOwnPropertyDescriptor(this.options, "background-color")?.value;
+        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
     // we can do this later as and || or
     find(queries) {
@@ -433,15 +447,7 @@ class Block extends Node {
     }
     clip(option) {
         this.options.clip = option || this.options.clip || false;
-        if (this.options.clip) {
-            this.context.save();
-            // const clipping_path = new Path2D();
-            // need to change for rect, triangle and any other shapes too
-            this.context.roundRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
-            // this.context.reset();
-            this.context.restore();
-            this.context.clip();
-        }
+        if (this.options.clip) ;
         return this.options.clip;
     }
     set(options) {
@@ -567,6 +573,16 @@ class Block extends Node {
             }
         });
     }
+    selectableAction(_func) {
+        this.events.push({
+            eventType: "mousemove",
+            method: (event) => {
+                if (!this.options.mousedown && this.checkInBound(event)) {
+                    _func(event);
+                }
+            },
+        });
+    }
     selectable(option) {
         const duplicat = this.events.filter((elem) => elem.eventType === "selectable");
         if (!option || duplicat.length >= 1)
@@ -640,17 +656,11 @@ class Block extends Node {
 }
 
 // Layer spesical type of block whcih defines group of blocks
-class Layer extends Block {
+class Layout extends Block {
     constructor(options) {
         super(options);
     }
-    __initSet() {
-        const all_childs = this.find();
-        all_childs?.forEach((item) => {
-            item.options.x = this.options.x + item.options.x;
-            item.options.y = this.options.y + item.options.y;
-        });
-    }
+    __initSet() { }
 }
 
 // each shape extends form common shape
@@ -825,11 +835,11 @@ class Rectangle extends Block {
         this.draw();
     }
     draw() {
-        // this.context.restore();
         this.color();
         this.context.roundRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
         this.fill();
         this.stroke();
+        this.canvas.clipping_path.roundRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
     }
     x(option) {
         return super.x(option);
@@ -882,8 +892,6 @@ class Triangle extends Block {
         this.draw();
     }
     draw() {
-        // this.context.restore();
-        this.context.beginPath();
         this.color();
         let x = 0;
         let y = 0;
@@ -924,6 +932,7 @@ class Triangle extends Block {
         return super.height(option);
     }
     color(option) {
+        this.context.beginPath();
         return super.color(option);
     }
     strokeWidth(option) {
@@ -952,4 +961,4 @@ class Triangle extends Block {
     }
 }
 
-export { Block, Canvas, CanvasDOMManager, Layer, Rectangle, Shape, TextBlock, Triangle };
+export { Block, Canvas, CanvasDOMManager, Layout, Rectangle, Shape, TextBlock, Triangle };

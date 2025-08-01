@@ -12,10 +12,9 @@ export class Triangle extends Block {
     }
 
     draw() {
-        // this.context.restore();
-        this.context.beginPath();
         this.color();
 
+        
         let x = 0;
         let y = 0;
 
@@ -69,6 +68,7 @@ export class Triangle extends Block {
     }
 
     color(option?: string) {
+        this.context.beginPath();
         return super.color(option);
     }
 
@@ -85,6 +85,7 @@ export class Triangle extends Block {
     fill(option?: boolean) {
         return super.fill(option);
     }
+
     clip(option?: boolean): boolean {
         return super.clip(option);
     }

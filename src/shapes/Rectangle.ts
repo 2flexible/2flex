@@ -17,7 +17,6 @@ export class Rectangle extends Block {
     }
 
     draw() {
-        // this.context.restore();
         this.color();
 
         this.context.roundRect(
@@ -27,8 +26,17 @@ export class Rectangle extends Block {
             this.options.height,
             this.options.borderRadius
         );
+
         this.fill();
         this.stroke();
+
+        this.canvas.clipping_path.roundRect(
+            this.options.x,
+            this.options.y,
+            this.options.width,
+            this.options.height,
+            this.options.borderRadius
+        );
     }
 
     x(option?: number): number {
