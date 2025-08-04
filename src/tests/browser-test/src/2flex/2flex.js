@@ -371,9 +371,9 @@ const defaultOpt$2 = {
     height: 0,
     selectable: true,
     draggable: true,
-    zIndex: 0,
     dragX: true,
     dragY: true,
+    zIndex: 0,
 };
 // Each element in the canvas is block
 // each Block is Node
@@ -462,10 +462,15 @@ class Block extends Node {
         this.options.clip = option || this.options.clip || false;
         if (this.options.clip) {
             this.canvas.clipping_path.addRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
-            // this.context.save();
-            this.context.clip(this.canvas.clipping_path.path);
+            if (!this.options.fillRule)
+                this.fillRule();
+            this.context.clip(this.canvas.clipping_path.path, this.options.fillRule);
         }
         return this.options.clip;
+    }
+    fillRule(option) {
+        this.options.fillRule = option || this.options.fillRule || "nonzero";
+        return this.options.fillRule;
     }
     zIndex(option) {
         this.options.zIndex = option || this.options.zIndex;
@@ -936,7 +941,7 @@ class Rectangle extends Shape {
     }
     draw() {
         this.color();
-        this.context.roundRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
+        this.context.roundRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
         this.fill();
         this.stroke();
     }
@@ -1032,19 +1037,19 @@ class Triangle extends Shape {
         else {
             x1 = xDiff + left;
         }
-        this.context.moveTo(x - this.options.x, y - this.options.y);
+        this.context.moveTo(x - this.initCords.x, y - this.initCords.y);
         this.context.lineTo(x1, y1);
         this.context.lineTo(y1, x1);
         this.context.closePath();
         this.fill();
         this.stroke();
     }
-    x(option) {
-        return super.x(option);
-    }
-    y(option) {
-        return super.y(option);
-    }
+    // x(option?: number): number {
+    //     return super.x(option);
+    // }
+    // y(option?: number): number {
+    //     return super.y(option);
+    // }
     width(option) {
         return super.width(option);
     }

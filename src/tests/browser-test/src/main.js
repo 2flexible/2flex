@@ -11,7 +11,6 @@ const text_a = new TextBlock("First Text", {
     strokeColor: "white",
     fontSize: "40px",
     selectable: true,
-    // lineWidth: 10,
 });
 
 const text_b = new TextBlock("SecondText", {

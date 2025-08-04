@@ -24,6 +24,7 @@ export interface BlockOptions {
     padding?: string;
     margin?: string;
     clip?: boolean;
+    fillRule?: string;
     zIndex?: number;
     draggable?: boolean;
     dragX?: boolean;

@@ -27,9 +27,9 @@ const defaultOpt: DefaultBlockOpt = {
     height: 0,
     selectable: true,
     draggable: true,
-    zIndex: 0,
     dragX: true,
     dragY: true,
+    zIndex: 0,
 };
 
 interface InitCords {
@@ -147,11 +147,20 @@ export class Block extends Node {
                 this.options.height,
                 this.options.borderRadius
             );
-            // this.context.save();
 
-            this.context.clip(this.canvas.clipping_path.path);
+            if (!this.options.fillRule) this.fillRule();
+
+            this.context.clip(
+                this.canvas.clipping_path.path,
+                this.options.fillRule
+            );
         }
         return this.options.clip;
+    }
+
+    fillRule(option?: string) {
+        this.options.fillRule = option || this.options.fillRule || "nonzero";
+        return this.options.fillRule;
     }
 
     zIndex(option?: number) {

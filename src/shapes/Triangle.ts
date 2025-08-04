@@ -73,7 +73,7 @@ export class Triangle extends Shape {
             x1 = xDiff + left;
         }
 
-        this.context.moveTo(x - this.options.x, y - this.options.y);
+        this.context.moveTo(x - this.initCords.x!, y - this.initCords.y!);
         this.context.lineTo(x1, y1);
         this.context.lineTo(y1, x1);
         this.context.closePath();
@@ -82,13 +82,13 @@ export class Triangle extends Shape {
         this.stroke();
     }
 
-    x(option?: number): number {
-        return super.x(option);
-    }
+    // x(option?: number): number {
+    //     return super.x(option);
+    // }
 
-    y(option?: number): number {
-        return super.y(option);
-    }
+    // y(option?: number): number {
+    //     return super.y(option);
+    // }
 
     width(option?: number): number {
         return super.width(option);

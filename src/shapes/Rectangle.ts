@@ -37,8 +37,8 @@ export class Rectangle extends Shape {
         this.color();
 
         this.context.roundRect(
-            this.options.x,
-            this.options.y,
+            this.initCords.x,
+            this.initCords.y,
             this.options.width,
             this.options.height,
             this.options.borderRadius
