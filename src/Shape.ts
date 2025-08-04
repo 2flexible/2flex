@@ -18,13 +18,13 @@ export class Shape extends Block {
         this.stroke();
     }
 
-    x(option?: number): number {
-        return super.x(option);
-    }
+    // x(option?: number): number {
+    //     return super.x(option);
+    // }
 
-    y(option?: number): number {
-        return super.y(option);
-    }
+    // y(option?: number): number {
+    //     return super.y(option);
+    // }
 
     width(option?: number): number {
         return super.width(option);
@@ -61,7 +61,12 @@ export class Shape extends Block {
     clip(option?: boolean): boolean {
         return super.clip(option);
     }
-
+    dragX(option?: boolean) {
+        return super.dragX(option);
+    }
+    dragY(option?: boolean) {
+        return super.dragY(option);
+    }
     draggable(option: boolean): boolean {
         return super.draggable(option);
     }

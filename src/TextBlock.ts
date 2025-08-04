@@ -95,7 +95,10 @@ export class TextBlock extends Block {
 
         this.color();
 
-        const fontY = this.#measureTextSize();
+        this.options.width = this.width();
+        this.options.height = this.height();
+
+        const fontY = this.options.height + this.initCords.y!;
 
         this.context.fillText(
             this.text,
@@ -105,19 +108,24 @@ export class TextBlock extends Block {
         );
     }
 
-    #measureTextSize() {
+    // x(option?: number) {
+    //     return super.x(option);
+    // }
+
+    // y(option?: number) {
+    //     return super.y(option);
+    // }
+
+    width(option?: number) {
         const text_measure = this.measureText();
-        this.options.height = text_measure.hangingBaseline;
-        this.options.width = text_measure.width;
-        return this.options.height + this.initCords.y!;
+        this.options.width = option || text_measure.width;
+        return this.options.width;
     }
 
-    x(option?: number) {
-        return super.x(option);
-    }
-
-    y(option?: number) {
-        return super.y(option);
+    height(option?: number) {
+        const text_measure = this.measureText();
+        this.options.height = option || text_measure.hangingBaseline;
+        return this.options.height;
     }
 
     #format_font() {
@@ -208,7 +216,7 @@ export class TextBlock extends Block {
         this.strokeColor();
         super.strokeWidth(option);
 
-        const fontY = this.#measureTextSize();
+        const fontY = this.options.height + this.initCords.y!;
 
         this.context.strokeText(
             this.text,
@@ -261,6 +269,13 @@ export class TextBlock extends Block {
     }
     clip(option?: boolean) {
         return super.clip(option);
+    }
+
+    dragX(option?: boolean) {
+        return super.dragX(option);
+    }
+    dragY(option?: boolean) {
+        return super.dragY(option);
     }
     draggable(option: boolean): boolean {
         return super.draggable(option);

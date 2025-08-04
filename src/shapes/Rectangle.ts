@@ -13,8 +13,9 @@ const defaultOpt: IDefaultBlockOpt<DefaultRectOpt> = {
     height: 0,
     selectable: true,
     draggable: true,
-    clip: true,
-
+    zIndex: 0,
+    dragX: true,
+    dragY: true,
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius: [],
 };
@@ -25,6 +26,8 @@ export class Rectangle extends Shape {
     constructor(options?: IBlock<RectangleOptions>) {
         super(options);
         this.options = { ...defaultOpt, ...options };
+        Rectangle.prototype.draggable = Shape.prototype.draggable;
+        // Object.assign(Rectangle.prototype)
     }
     __initSet(): void {
         super.__initSet();
@@ -43,30 +46,22 @@ export class Rectangle extends Shape {
 
         this.fill();
         this.stroke();
-
-        // this.canvas.clipping_path.path.roundRect(
-        //     this.options.x,
-        //     this.options.y,
-        //     this.options.width,
-        //     this.options.height,
-        //     this.options.borderRadius
-        // );
     }
 
-    x(option?: number): number {
-        return super.x(option);
-    }
+    // x(option?: number): number {
+    //     return super.x(option);
+    // }
 
-    y(option?: number): number {
-        return super.y(option);
-    }
+    // y(option?: number): number {
+    //     return super.y(option);
+    // }
 
-    width(option?: number): number {
-        return super.width(option);
-    }
-    height(option?: number): number {
-        return super.height(option);
-    }
+    // width(option?: number): number {
+    //     return super.width(option);
+    // }
+    // height(option?: number): number {
+    //     return super.height(option);
+    // }
 
     color(option?: string) {
         return super.color(option);
@@ -90,9 +85,9 @@ export class Rectangle extends Shape {
         return super.clip(option);
     }
 
-    draggable(option: boolean): boolean {
-        return super.draggable(option);
-    }
+    // draggable(option: boolean): boolean {
+    //     return super.draggable(option);
+    // }
 
     selectable(option?: boolean): boolean {
         return super.selectable(option);

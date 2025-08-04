@@ -59,11 +59,6 @@ export class Canvas {
 
         this.context.save();
 
-        this.clipping_path.addBackgroundPath(
-            this.canvas.width,
-            this.canvas.height
-        );
-
         window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
@@ -71,21 +66,9 @@ export class Canvas {
         };
     }
 
-    #fillBackground() {
-        this.context.fillStyle = Object.getOwnPropertyDescriptor(
-            this.options,
-            "background-color"
-        )?.value;
-
-        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    }
-    
-    clip() {
-        this.context.clip(this.clipping_path.path, "evenodd");
-        this.#fillBackground();
-    }
-
     add(...block: BlockElements[]) {
+        block = block.reverse();
+
         this.#tree.addNodes(block);
 
         this.#tree.preOrderTraversal((element: any) => {
@@ -96,7 +79,14 @@ export class Canvas {
 
             this.#canvasEvents.push(...element.events);
         });
-        this.clip();
+
+        let zIndex = 0;
+
+        this.#tree.checkNodes((el: any) => {
+            el.options.zIndex += zIndex;
+            zIndex += 1;
+        });
+
         this.#handleEvents();
     }
 
@@ -148,29 +138,26 @@ export class Canvas {
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
-            obj?.value.call(block, value);
+            if (obj) {
+                obj.value.call(block, value);
+            } else {
+                block.options[key] = value;
+            }
         }
     }
 
     invokeChange(_func?: (element: any) => void) {
         this.clipping_path.createPath();
-
-        this.clipping_path.addBackgroundPath(
-            this.canvas.width,
-            this.canvas.height
-        );
-
         this.context.restore();
+        this.context.save();
 
         this.clearRect();
+
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);
             this.#handleOptions(element);
             element.__initSet();
         });
-        this.context.save();
-
-        this.clip();
     }
     // we can do this later as and || or
     find(queries: IBlock<BlockOptions & IText>) {

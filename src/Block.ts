@@ -17,7 +17,6 @@ export interface DefaultBlockOpt {
     width: number;
     height: number;
     selectable: boolean;
-    clip: boolean;
     zIndex: number;
 }
 
@@ -28,8 +27,9 @@ const defaultOpt: DefaultBlockOpt = {
     height: 0,
     selectable: true,
     draggable: true,
-    clip: true,
     zIndex: 0,
+    dragX: true,
+    dragY: true,
 };
 
 interface InitCords {
@@ -86,7 +86,6 @@ export class Block extends Node {
         this._childs?.forEach((item: any) => {
             item.initCords.x = this.initCords.x + item.options.x;
             item.initCords.y = this.initCords.y + item.options.y;
-            item.options.clip = false;
         });
     }
 
@@ -139,20 +138,25 @@ export class Block extends Node {
 
     clip(option?: boolean) {
         this.options.clip = option || this.options.clip || false;
+
         if (this.options.clip) {
             this.canvas.clipping_path.addRect(
-                this.options.x,
-                this.options.y,
+                this.initCords.x,
+                this.initCords.y,
                 this.options.width,
                 this.options.height,
                 this.options.borderRadius
             );
+            // this.context.save();
+
+            this.context.clip(this.canvas.clipping_path.path);
         }
         return this.options.clip;
     }
 
     zIndex(option?: number) {
-        this.options.zIndex = option || this.options.zIndex || 0;
+        this.options.zIndex = option || this.options.zIndex;
+        return this.options.zIndex;
     }
 
     set(options: IBlock<BlockOptions>) {
@@ -187,6 +191,7 @@ export class Block extends Node {
         const height = this.options.height;
 
         const { x, y } = this.canvas.getCursorPosition(_event);
+
         if (
             x >= this.initCords.x! &&
             x <= this.initCords.x! + width &&
@@ -329,7 +334,14 @@ export class Block extends Node {
 
         return this.options.selectable;
     }
-
+    dragX(option?: boolean) {
+        this.options.dragX = option || this.options.dragX;
+        return this.options.dragX;
+    }
+    dragY(option?: boolean) {
+        this.options.dragY = option || this.options.dragY;
+        return this.options.dragY;
+    }
     draggable(option?: boolean): boolean {
         const duplicat = this.events.filter(
             (elem) => elem.eventType === "draggable"
@@ -368,20 +380,17 @@ export class Block extends Node {
 
                 let diffX = x - initX;
                 let diffY = y - initY;
-
-                if (diffX !== 0) {
+                if (diffX !== 0 && this.options.dragX) {
                     this.options.x += diffX - beforeX;
 
                     beforeX = diffX;
                 }
-                if (diffY !== 0) {
+                if (diffY !== 0 && this.options.dragY) {
                     this.options.y += diffY - beforeY;
                     beforeY = diffY;
                 }
-                if (diffX !== 0 || diffY !== 0) {
-                    this.#adjustCordinates();
-                    this.canvas.invokeChange?.call(this.canvas);
-                }
+                this.#adjustCordinates();
+                this.canvas.invokeChange?.call(this.canvas);
             }
         });
 

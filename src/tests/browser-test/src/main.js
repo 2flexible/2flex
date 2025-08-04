@@ -21,6 +21,7 @@ const text_b = new TextBlock("SecondText", {
     strokeColor: "red",
     fontSize: "50px",
     selectable: false,
+    // clip: true,
 
     // strokeWidth: 2,
     // fontFamily: "KulminoituvaRegular",
@@ -37,7 +38,6 @@ const triangle = new Triangle({
     bottom: 90,
     right: 45,
     // side: 40,
-    // clip: true,
 });
 // text_a.click((e) => {
 //     text_a.set({ color: "red" });
@@ -52,13 +52,13 @@ const rect = new Rectangle({
     y: 0,
     width: 200,
     height: 200,
-    clip: true,
     strokeWidth: 2,
     borderRadius: [0, 20, 20, 0],
     color: "white",
     stroke: true,
     strokeColor: "red",
     fill: true,
+    clip: true,
 });
 
 const rect1 = new Rectangle({
@@ -66,7 +66,6 @@ const rect1 = new Rectangle({
     y: 100,
     width: 200,
     height: 200,
-    clip: true,
     strokeWidth: 2,
     borderRadius: [0, 20, 20, 0],
     color: "white",

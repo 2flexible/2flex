@@ -15,7 +15,7 @@ const defaultOpt: IDefaultBlockOpt<DefaultTriangleOpt> = {
     selectable: true,
     draggable: true,
     clip: true,
-
+    zIndex: 0,
     left: 30,
     right: 30,
     bottom: 30,

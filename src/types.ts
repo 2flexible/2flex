@@ -26,6 +26,9 @@ export interface BlockOptions {
     clip?: boolean;
     zIndex?: number;
     draggable?: boolean;
+    dragX?: boolean;
+    dragY?: boolean;
+    visible?: boolean;
 }
 // extend margin as seperate margin top, left, bottom
 

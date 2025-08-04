@@ -198,22 +198,14 @@ class Canvas {
     #initCanvas() {
         this.canvas;
         this.context.save();
-        this.clipping_path.addBackgroundPath(this.canvas.width, this.canvas.height);
         window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
             this.move(this.#canvasMoves());
         };
     }
-    #fillBackground() {
-        this.context.fillStyle = Object.getOwnPropertyDescriptor(this.options, "background-color")?.value;
-        this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    }
-    clip() {
-        this.context.clip(this.clipping_path.path, "evenodd");
-        this.#fillBackground();
-    }
     add(...block) {
+        block = block.reverse();
         this.#tree.addNodes(block);
         this.#tree.preOrderTraversal((element) => {
             element.canvas = this;
@@ -221,7 +213,11 @@ class Canvas {
             element.__initSet();
             this.#canvasEvents.push(...element.events);
         });
-        this.clip();
+        let zIndex = 0;
+        this.#tree.checkNodes((el) => {
+            el.options.zIndex += zIndex;
+            zIndex += 1;
+        });
         this.#handleEvents();
     }
     get canvasBounding() {
@@ -265,13 +261,18 @@ class Canvas {
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
-            obj?.value.call(block, value);
+            if (obj) {
+                obj.value.call(block, value);
+            }
+            else {
+                block.options[key] = value;
+            }
         }
     }
     invokeChange(_func) {
         this.clipping_path.createPath();
-        this.clipping_path.addBackgroundPath(this.canvas.width, this.canvas.height);
         this.context.restore();
+        this.context.save();
         this.clearRect();
         this.#tree.checkNodes((element) => {
             if (_func)
@@ -279,8 +280,6 @@ class Canvas {
             this.#handleOptions(element);
             element.__initSet();
         });
-        this.context.save();
-        this.clip();
     }
     // we can do this later as and || or
     find(queries) {
@@ -372,8 +371,9 @@ const defaultOpt$2 = {
     height: 0,
     selectable: true,
     draggable: true,
-    clip: true,
     zIndex: 0,
+    dragX: true,
+    dragY: true,
 };
 // Each element in the canvas is block
 // each Block is Node
@@ -417,7 +417,6 @@ class Block extends Node {
         this._childs?.forEach((item) => {
             item.initCords.x = this.initCords.x + item.options.x;
             item.initCords.y = this.initCords.y + item.options.y;
-            item.options.clip = false;
         });
     }
     x(option) {
@@ -462,12 +461,15 @@ class Block extends Node {
     clip(option) {
         this.options.clip = option || this.options.clip || false;
         if (this.options.clip) {
-            this.canvas.clipping_path.addRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
+            this.canvas.clipping_path.addRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
+            // this.context.save();
+            this.context.clip(this.canvas.clipping_path.path);
         }
         return this.options.clip;
     }
     zIndex(option) {
-        this.options.zIndex = option || this.options.zIndex || 0;
+        this.options.zIndex = option || this.options.zIndex;
+        return this.options.zIndex;
     }
     set(options) {
         let cached = false;
@@ -622,6 +624,14 @@ class Block extends Node {
         this.options.selectable = option;
         return this.options.selectable;
     }
+    dragX(option) {
+        this.options.dragX = option || this.options.dragX;
+        return this.options.dragX;
+    }
+    dragY(option) {
+        this.options.dragY = option || this.options.dragY;
+        return this.options.dragY;
+    }
     draggable(option) {
         const duplicat = this.events.filter((elem) => elem.eventType === "draggable");
         if (!option || duplicat.length >= 1 || !this.options.selectable)
@@ -651,18 +661,16 @@ class Block extends Node {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;
-                if (diffX !== 0) {
+                if (diffX !== 0 && this.options.dragX) {
                     this.options.x += diffX - beforeX;
                     beforeX = diffX;
                 }
-                if (diffY !== 0) {
+                if (diffY !== 0 && this.options.dragY) {
                     this.options.y += diffY - beforeY;
                     beforeY = diffY;
                 }
-                if (diffX !== 0 || diffY !== 0) {
-                    this.#adjustCordinates();
-                    this.canvas.invokeChange?.call(this.canvas);
-                }
+                this.#adjustCordinates();
+                this.canvas.invokeChange?.call(this.canvas);
             }
         });
         this.mouseup((event) => {
@@ -696,12 +704,12 @@ class Shape extends Block {
         this.fill();
         this.stroke();
     }
-    x(option) {
-        return super.x(option);
-    }
-    y(option) {
-        return super.y(option);
-    }
+    // x(option?: number): number {
+    //     return super.x(option);
+    // }
+    // y(option?: number): number {
+    //     return super.y(option);
+    // }
     width(option) {
         return super.width(option);
     }
@@ -731,6 +739,12 @@ class Shape extends Block {
     clip(option) {
         return super.clip(option);
     }
+    dragX(option) {
+        return super.dragX(option);
+    }
+    dragY(option) {
+        return super.dragY(option);
+    }
     draggable(option) {
         return super.draggable(option);
     }
@@ -753,20 +767,26 @@ class TextBlock extends Block {
         super.__initSet();
         this.setFont();
         this.color();
-        const fontY = this.#measureTextSize();
+        this.options.width = this.width();
+        this.options.height = this.height();
+        const fontY = this.options.height + this.initCords.y;
         this.context.fillText(this.text, this.initCords.x, fontY, this.options.maxWidth);
     }
-    #measureTextSize() {
+    // x(option?: number) {
+    //     return super.x(option);
+    // }
+    // y(option?: number) {
+    //     return super.y(option);
+    // }
+    width(option) {
         const text_measure = this.measureText();
-        this.options.height = text_measure.hangingBaseline;
-        this.options.width = text_measure.width;
-        return this.options.height + this.initCords.y;
+        this.options.width = option || text_measure.width;
+        return this.options.width;
     }
-    x(option) {
-        return super.x(option);
-    }
-    y(option) {
-        return super.y(option);
+    height(option) {
+        const text_measure = this.measureText();
+        this.options.height = option || text_measure.hangingBaseline;
+        return this.options.height;
     }
     #format_font() {
         const fontFamily = this.fontFamily();
@@ -832,7 +852,7 @@ class TextBlock extends Block {
         this.setFont();
         this.strokeColor();
         super.strokeWidth(option);
-        const fontY = this.#measureTextSize();
+        const fontY = this.options.height + this.initCords.y;
         this.context.strokeText(this.text, this.initCords.x, fontY, this.options?.maxWidth);
         return this.options.strokeWidth;
     }
@@ -874,6 +894,12 @@ class TextBlock extends Block {
     clip(option) {
         return super.clip(option);
     }
+    dragX(option) {
+        return super.dragX(option);
+    }
+    dragY(option) {
+        return super.dragY(option);
+    }
     draggable(option) {
         return super.draggable(option);
     }
@@ -892,7 +918,9 @@ const defaultOpt$1 = {
     height: 0,
     selectable: true,
     draggable: true,
-    clip: true,
+    zIndex: 0,
+    dragX: true,
+    dragY: true,
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius: [],
 };
@@ -900,6 +928,8 @@ class Rectangle extends Shape {
     constructor(options) {
         super(options);
         this.options = { ...defaultOpt$1, ...options };
+        Rectangle.prototype.draggable = Shape.prototype.draggable;
+        // Object.assign(Rectangle.prototype)
     }
     __initSet() {
         super.__initSet();
@@ -909,26 +939,19 @@ class Rectangle extends Shape {
         this.context.roundRect(this.options.x, this.options.y, this.options.width, this.options.height, this.options.borderRadius);
         this.fill();
         this.stroke();
-        // this.canvas.clipping_path.path.roundRect(
-        //     this.options.x,
-        //     this.options.y,
-        //     this.options.width,
-        //     this.options.height,
-        //     this.options.borderRadius
-        // );
     }
-    x(option) {
-        return super.x(option);
-    }
-    y(option) {
-        return super.y(option);
-    }
-    width(option) {
-        return super.width(option);
-    }
-    height(option) {
-        return super.height(option);
-    }
+    // x(option?: number): number {
+    //     return super.x(option);
+    // }
+    // y(option?: number): number {
+    //     return super.y(option);
+    // }
+    // width(option?: number): number {
+    //     return super.width(option);
+    // }
+    // height(option?: number): number {
+    //     return super.height(option);
+    // }
     color(option) {
         return super.color(option);
     }
@@ -947,9 +970,9 @@ class Rectangle extends Shape {
     clip(option) {
         return super.clip(option);
     }
-    draggable(option) {
-        return super.draggable(option);
-    }
+    // draggable(option: boolean): boolean {
+    //     return super.draggable(option);
+    // }
     selectable(option) {
         return super.selectable(option);
     }
@@ -966,6 +989,7 @@ const defaultOpt = {
     selectable: true,
     draggable: true,
     clip: true,
+    zIndex: 0,
     left: 30,
     right: 30,
     bottom: 30,
