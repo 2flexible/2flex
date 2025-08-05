@@ -993,7 +993,6 @@ const defaultOpt = {
     height: 0,
     selectable: true,
     draggable: true,
-    clip: true,
     zIndex: 0,
     left: 30,
     right: 30,
@@ -1023,23 +1022,33 @@ class Triangle extends Shape {
         else {
             right = left = bottom = this.options.side;
         }
-        y += right;
-        x += bottom;
-        right -= y;
-        bottom -= x;
-        const xDiff = Math.abs((bottom ** 2 - left ** 2 - right ** 2) / (2 * left));
-        const y1 = Math.sqrt((right ** 2 + left ** 2 + 2 * left * right ** 2 - bottom ** 2) /
-            (2 * left));
-        let x1;
-        if (bottom < left) {
-            x1 = left - xDiff;
-        }
-        else {
-            x1 = xDiff + left;
-        }
-        this.context.moveTo(x - this.initCords.x, y - this.initCords.y);
+        // y += right;
+        // x += bottom;
+        // right -= y;
+        // bottom -= x;
+        // const xDiff = Math.abs(
+        //     (bottom ** 2 - left ** 2 - right ** 2) / (2 * left)
+        // );
+        // const y1 = Math.sqrt(
+        //     (right ** 2 + left ** 2 + 2 * left * right ** 2 - bottom ** 2) /
+        //         (2 * left)
+        // );
+        const xDiff = (left ** 2 - right ** 2 + 2 * bottom * x + bottom ** 2) /
+            (2 * bottom);
+        const y1 = Math.sqrt((right ** 2 +
+            bottom ** 2 +
+            2 * bottom * right ** 2 -
+            left ** 2) /
+            (2 * bottom)) - y;
+        let x1 = xDiff;
+        // if (bottom < left) {
+        //     x1 = left - xDiff;
+        // } else {
+        //     x1 = xDiff + left;
+        // }
+        this.context.moveTo(x, y + y1);
         this.context.lineTo(x1, y1);
-        this.context.lineTo(y1, x1);
+        this.context.lineTo(x1, y);
         this.context.closePath();
         this.fill();
         this.stroke();

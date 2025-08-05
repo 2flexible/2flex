@@ -1,6 +1,5 @@
-import { Block } from "../Block";
 import { Shape } from "../Shape";
-import { BlockOptions, IBlock, IDefaultBlockOpt } from "../types";
+import {  IBlock, IDefaultBlockOpt } from "../types";
 
 interface DefaultRectOpt {
     borderRadius: number[];
@@ -93,7 +92,7 @@ export class Rectangle extends Shape {
         return super.selectable(option);
     }
 
-    set(options: IBlock<BlockOptions>) {
+    set(options: IBlock<RectangleOptions>) {
         super.set(options);
     }
 }

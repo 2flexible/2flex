@@ -29,13 +29,13 @@ const text_b = new TextBlock("SecondText", {
 const block = new Block();
 const triangle = new Triangle({
     x: 0,
-    y: 50,
+    y: 0,
     color: "red",
     fill: true,
     stroke: true,
-    left: 90,
-    bottom: 90,
-    right: 45,
+    left: 20,
+    bottom: 20,
+    right: 20,
     // side: 40,
 });
 // text_a.click((e) => {
@@ -86,7 +86,7 @@ rect.add(text_b);
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(rect, text_a);
+canvas.add(triangle, text_a);
 // block.add(text_a, text_b);
 
 // console.log(block.find());
