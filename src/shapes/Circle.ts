@@ -31,14 +31,21 @@ export class Circle extends Shape {
         super.__initSet();
     }
 
-    draw() {
-        this.color();
+    __drawInit() {
+        super.color();
+
         const x = this.initCords.x + this.options.radius;
         const y = this.initCords.y + this.options.radius;
 
         this.context.arc(x, y, this.options.radius, 0, 2 * Math.PI);
 
-        this.fill();
-        this.stroke();
+        super.fill();
+        super.stroke();
+    }
+    strokeWidth(option?: number) {
+        return super.strokeWidth(option);
+    }
+    strokeColor(option?: string) {
+        return super.strokeColor(option);
     }
 }

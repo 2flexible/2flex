@@ -73,6 +73,7 @@ export class Block extends Node {
     }
 
     #adjustCordinates(): void {
+        // initCords is problematic
         this.initCords.x =
             this.options.x !== this.initCords.x
                 ? this.options.x
@@ -136,17 +137,21 @@ export class Block extends Node {
         return this.options.stroke;
     }
 
+    clip_path() {
+        this.canvas.clipping_path.addRect(
+            this.initCords.x,
+            this.initCords.y,
+            this.options.width,
+            this.options.height,
+            this.options.borderRadius
+        );
+    }
+
     clip(option?: boolean) {
         this.options.clip = option || this.options.clip || false;
 
         if (this.options.clip) {
-            this.canvas.clipping_path.addRect(
-                this.initCords.x,
-                this.initCords.y,
-                this.options.width,
-                this.options.height,
-                this.options.borderRadius
-            );
+            this.clip_path();
 
             if (!this.options.fillRule) this.fillRule();
 
@@ -190,8 +195,20 @@ export class Block extends Node {
             this.canvas?.invokeChange.call(this.canvas);
         }
     }
+    reset() {}
 
-    find(queries: IBlock<BlockOptions & IText> | undefined = undefined) {
+    rotate(option: number){
+        this.options.rotate = option || this.options.angle || 0
+        this.context.rotate(this.options.angle)
+        return this.options.rotate
+    }
+    // had to come first for block scaling
+    scale(x: number, y: number) {
+        this.context.scale(x, y);
+    }
+    bind(block: BlockElements[], options?: IBlock<BlockOptions>) {}
+
+    find(queries?: IBlock<BlockOptions>) {
         return this.filterNodes(queries);
     }
 

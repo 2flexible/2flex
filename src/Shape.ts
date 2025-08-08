@@ -8,29 +8,20 @@ export class Shape extends Block {
     }
     __initSet(): void {
         super.__initSet();
-        this.draw();
+        this.__drawInit();
     }
 
-    draw() {
+    __drawInit() {
         this.color();
+
+        this.draw();
 
         this.fill();
         this.stroke();
     }
 
-    // x(option?: number): number {
-    //     return super.x(option);
-    // }
-
-    // y(option?: number): number {
-    //     return super.y(option);
-    // }
-
-    width(option?: number): number {
-        return super.width(option);
-    }
-    height(option?: number): number {
-        return super.height(option);
+    draw(_func?: (context: any) => void) {
+        if (_func) _func(this.context);
     }
 
     color(option?: string) {
@@ -60,6 +51,15 @@ export class Shape extends Block {
 
     clip(option?: boolean): boolean {
         return super.clip(option);
+    }
+    // can be 2 different format, one option with optinos giving paramters, two like this
+    moveTo(x?: number, y?: number) {
+        x = x || this.initCords.x!
+        y = y || this.initCords.y!
+        this.context.moveTo(x, y);
+    }
+    setLineDash(dashes: number[]){
+        this.context.setLineDash(dashes)
     }
     dragX(option?: boolean) {
         return super.dragX(option);

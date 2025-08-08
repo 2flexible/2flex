@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import {  IBlock, IDefaultBlockOpt } from "../types";
+import { IBlock, IDefaultBlockOpt } from "../types";
 
 interface DefaultRectOpt {
     borderRadius: number[];
@@ -32,7 +32,7 @@ export class Rectangle extends Shape {
         super.__initSet();
     }
 
-    draw() {
+    __drawInit() {
         this.color();
 
         this.context.roundRect(
@@ -46,22 +46,6 @@ export class Rectangle extends Shape {
         this.fill();
         this.stroke();
     }
-
-    // x(option?: number): number {
-    //     return super.x(option);
-    // }
-
-    // y(option?: number): number {
-    //     return super.y(option);
-    // }
-
-    // width(option?: number): number {
-    //     return super.width(option);
-    // }
-    // height(option?: number): number {
-    //     return super.height(option);
-    // }
-
     color(option?: string) {
         return super.color(option);
     }

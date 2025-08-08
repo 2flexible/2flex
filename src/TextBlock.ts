@@ -1,5 +1,5 @@
 import { Block } from "./Block";
-import { IBlock } from "./types";
+import { IBlock, BlockOptions } from "./types";
 
 type TextAlign = "start" | "end" | "center" | "left" | "right";
 
@@ -262,7 +262,9 @@ export class TextBlock extends Block {
         this.options.baseline = this.context.baseline;
         return this.options.baseline;
     }
-
+    find(queries?: IBlock<IText>) {
+        return this.filterNodes(queries);
+    }
     // @return: text width in pixels
     measureText() {
         return this.context.measureText(this.text);

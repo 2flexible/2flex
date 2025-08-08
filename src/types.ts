@@ -30,6 +30,7 @@ export interface BlockOptions {
     dragX?: boolean;
     dragY?: boolean;
     visible?: boolean;
+    rotate?: number;
 }
 // extend margin as seperate margin top, left, bottom
 

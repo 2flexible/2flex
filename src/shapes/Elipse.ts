@@ -30,13 +30,12 @@ export class Elipse extends Shape {
         super(options);
         this.options = { ...defaultOpt, ...options };
         Elipse.prototype.draggable = Shape.prototype.draggable;
-        // Object.assign(Rectangle.prototype)
     }
     __initSet(): void {
         super.__initSet();
     }
 
-    draw() {
+    __drawInit() {
         this.color();
         // cordinates need to calculate related to radius x and radius y
         this.context.ellipse(

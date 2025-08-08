@@ -141,6 +141,7 @@ export class Canvas {
             if (obj) {
                 obj.value.call(block, value);
             } else {
+                console.log(key);
                 block.options[key] = value;
             }
         }
@@ -160,7 +161,7 @@ export class Canvas {
         });
     }
     // we can do this later as and || or
-    find(queries: IBlock<BlockOptions & IText>) {
+    find(queries: IBlock<BlockOptions>) {
         return this.#tree.filterNodes(queries);
     }
 
