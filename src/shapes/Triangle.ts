@@ -2,9 +2,7 @@ import { Shape } from "../Shape";
 import { IDefaultBlockOpt, IBlock } from "../types";
 
 interface DefaultTriangleOpt {
-    left: number;
-    right: number;
-    bottom: number;
+    side?: number;
 }
 
 const defaultOpt: IDefaultBlockOpt<DefaultTriangleOpt> = {
@@ -15,16 +13,12 @@ const defaultOpt: IDefaultBlockOpt<DefaultTriangleOpt> = {
     selectable: true,
     draggable: true,
     zIndex: 0,
-    left: 30,
-    right: 30,
-    bottom: 30,
+    size: 100,
 };
 
-interface RectangleOptions extends DefaultTriangleOpt {
-    side?: number;
-}
+interface TriangleOptions extends DefaultTriangleOpt {}
 export class Triangle extends Shape {
-    constructor(options?: IBlock<RectangleOptions>) {
+    constructor(options?: IBlock<TriangleOptions>) {
         super(options);
         this.options = { ...defaultOpt, ...options };
     }
@@ -33,106 +27,64 @@ export class Triangle extends Shape {
         super.__initSet();
     }
 
-    // have some problems
-    draw() {
+    __drawInit() {
         this.color();
-
-        let x = this.options.x;
-        let y = this.options.y;
-
-        let bottom: number;
-        let right: number;
-        let left: number;
-
-        if (!this.options.side) {
-            bottom = this.options.bottom;
-            right = this.options.right;
-            left = this.options.left;
-        } else {
-            right = left = bottom = this.options.side;
-        }
-
-        // y += right;
-        // x += bottom;
-
-        // right -= y;
-        // bottom -= x;
-
-        // const xDiff = Math.abs(
-        //     (bottom ** 2 - left ** 2 - right ** 2) / (2 * left)
-        // );
-        // const y1 = Math.sqrt(
-        //     (right ** 2 + left ** 2 + 2 * left * right ** 2 - bottom ** 2) /
-        //         (2 * left)
-        // );
-
-        const xDiff =
-            (left ** 2 - right ** 2 + 2 * bottom * x + bottom ** 2) /
-            (2 * bottom);
-
-        const y1 =
-            Math.sqrt(
-                (right ** 2 +
-                    bottom ** 2 +
-                    2 * bottom * right ** 2 -
-                    left ** 2) /
-                    (2 * bottom)
-            ) - y;
-        let x1 = xDiff;
-
-        // if (bottom < left) {
-        //     x1 = left - xDiff;
-        // } else {
-        //     x1 = xDiff + left;
-        // }
-
-        this.context.moveTo(x, y + y1);
+        const { x1, x2, y1 } = this.#calcTopPoint();
+        this.context.moveTo(this.initCords.x, this.initCords.y);
         this.context.lineTo(x1, y1);
-        this.context.lineTo(x1, y);
+        this.context.lineTo(x2, y1);
         this.context.closePath();
-
         this.fill();
         this.stroke();
     }
+    #calcTopPoint() {
+        let x = this.initCords.x || this.options.x;
+        let y = this.initCords.y || this.options.y;
 
-    // x(option?: number): number {
-    //     return super.x(option);
-    // }
+        let sides = this.options.sides || this.options.size;
+        let bottom = this.options.bottom || this.options.size;
+        console.log(this.options.bottom)
+        x += bottom / 2;
 
-    // y(option?: number): number {
-    //     return super.y(option);
-    // }
+        this.initCords.x = x;
 
+        const x1 = x + bottom / 2;
+        const x2 = Math.abs(bottom - x1);
+        // const y1 = ((Math.sqrt(3) * 1) / 2) * side + y;
+        const y1 = Math.sqrt(sides ** 2 - bottom ** 2 / 4) + y;
+        console.log(this.options.size)
+        return { x1, x2, y1 };
+    }
     width(option?: number): number {
-        return super.width(option);
+        this.options.bottom = super.width(option)
+        return this.options.bottom;
     }
+
     height(option?: number): number {
-        return super.height(option);
+        this.options.sides = super.height(option);
+        return this.options.sides;
     }
 
-    color(option?: string) {
-        return super.color(option);
-    }
-
-    strokeWidth(option?: number) {
-        return super.strokeWidth(option);
-    }
-    strokeColor(option?: string) {
-        return super.strokeColor(option);
-    }
-    stroke(option?: boolean) {
-        return super.stroke(option);
-    }
-
-    fill(option?: boolean) {
-        return super.fill(option);
-    }
-
-    side(option?: number) {
-        this.options.side = option || this.options.side || 10;
+    size(option?: number) {
+        this.options.side = option || this.options.side || 100;
         return this.options.side;
     }
 
+    find(queries?: IBlock<TriangleOptions>) {
+        return this.filterNodes(queries);
+    }
+    clip_path() {
+        const { x1, x2, y1 } = this.#calcTopPoint();
+        this.initCords.x = this.initCords.x || this.options.x;
+        this.initCords.y = this.initCords.y || this.options.y;
+
+        this.canvas.clipping_path.moveTo(this.initCords.x, this.initCords.y);
+        this.canvas.clipping_path.lineTo(x1, y1);
+        this.canvas.clipping_path.lineTo(x2, y1);
+        this.canvas.clipping_path.closePath();
+    }
+
+    // do not show clip
     clip(option?: boolean): boolean {
         return super.clip(option);
     }
@@ -145,7 +97,10 @@ export class Triangle extends Shape {
         return super.selectable(option);
     }
 
-    set(options: IBlock<RectangleOptions>) {
+    set(options: IBlock<TriangleOptions>) {
         super.set(options);
     }
 }
+// Triangle.prototype.draggable = Shape.prototype.draggable;
+// Triangle.prototype.selectable = Shape.prototype.draggable;
+// Triangle.prototype.set = Shape.prototype.set;
