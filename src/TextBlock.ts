@@ -95,7 +95,6 @@ export class TextBlock extends Block {
 
         this.color();
 
-        this.options.width = this.width();
         this.options.height = this.height();
 
         const fontY = this.options.height + this.initCords.y!;
@@ -211,25 +210,34 @@ export class TextBlock extends Block {
     }
 
     strokeWidth(option?: number) {
-        this.setFont();
-
-        this.strokeColor();
-        super.strokeWidth(option);
-
-        const fontY = this.options.height + this.initCords.y!;
-
-        this.context.strokeText(
-            this.text,
-            this.initCords.x,
-            fontY,
-            this.options?.maxWidth
-        );
-
-        return this.options.strokeWidth;
+        return super.strokeWidth(option);
     }
-
+    
     strokeColor(option?: string) {
         return super.strokeColor(option);
+    }
+
+    stroke(option?: boolean) {
+        this.options.stroke = option || this.options.stroke || false;
+        if (option) {
+            this.setFont();
+
+            
+            this.strokeColor();
+            this.strokeWidth();
+            
+            this.options.height = this.height();
+            const fontY = this.options.height + this.initCords.y!;
+
+            this.context.strokeText(
+                this.text,
+                this.initCords.x,
+                fontY,
+                this.options?.maxWidth
+            );
+        }
+
+        return this.options.stroke;
     }
 
     direction(option?: TextDirection) {

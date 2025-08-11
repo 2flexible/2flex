@@ -43,7 +43,7 @@ export class Triangle extends Shape {
 
         let sides = this.options.sides || this.options.size;
         let bottom = this.options.bottom || this.options.size;
-        console.log(this.options.bottom)
+        console.log(this.options.bottom);
         x += bottom / 2;
 
         this.initCords.x = x;
@@ -52,11 +52,11 @@ export class Triangle extends Shape {
         const x2 = Math.abs(bottom - x1);
         // const y1 = ((Math.sqrt(3) * 1) / 2) * side + y;
         const y1 = Math.sqrt(sides ** 2 - bottom ** 2 / 4) + y;
-        console.log(this.options.size)
+        console.log(this.options.size);
         return { x1, x2, y1 };
     }
     width(option?: number): number {
-        this.options.bottom = super.width(option)
+        this.options.bottom = super.width(option);
         return this.options.bottom;
     }
 
@@ -64,7 +64,26 @@ export class Triangle extends Shape {
         this.options.sides = super.height(option);
         return this.options.sides;
     }
+    checkInBound(_event: MouseEvent): boolean {
+        const width = this.options.width;
+        const height = this.options.height;
 
+        const { x, y } = this.canvas.getCursorPosition(_event);
+
+        if (
+            x >= this.initCords.x! &&
+            x <= this.initCords.x! + width &&
+            y >= this.initCords.y! &&
+            y <= this.initCords.y! + height
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+    // borderColor(option?: string){
+    //     return super.borderColor(option)
+    // }
     size(option?: number) {
         this.options.side = option || this.options.side || 100;
         return this.options.side;
@@ -101,6 +120,3 @@ export class Triangle extends Shape {
         super.set(options);
     }
 }
-// Triangle.prototype.draggable = Shape.prototype.draggable;
-// Triangle.prototype.selectable = Shape.prototype.draggable;
-// Triangle.prototype.set = Shape.prototype.set;

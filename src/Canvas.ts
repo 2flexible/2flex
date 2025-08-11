@@ -141,7 +141,6 @@ export class Canvas {
             if (obj) {
                 obj.value.call(block, value);
             } else {
-                console.log(key);
                 block.options[key] = value;
             }
         }
