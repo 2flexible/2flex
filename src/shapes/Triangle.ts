@@ -28,6 +28,8 @@ export class Triangle extends Shape {
     }
 
     __drawInit() {
+        this.beginPath();
+
         this.backgroundColor();
         const { x1, x2, y1 } = this.#calcTopPoint();
         this.context.moveTo(this.initCords.x, this.initCords.y);
@@ -55,13 +57,13 @@ export class Triangle extends Shape {
         console.log(this.options.size);
         return { x1, x2, y1 };
     }
-    width(option?: number): number {
-        this.options.bottom = super.width(option);
+    width(opt?: number): number {
+        this.options.bottom = super.width(opt);
         return this.options.bottom;
     }
 
-    height(option?: number): number {
-        this.options.sides = super.height(option);
+    height(opt?: number): number {
+        this.options.sides = super.height(opt);
         return this.options.sides;
     }
     checkInBound(_event: MouseEvent): boolean {
@@ -81,11 +83,11 @@ export class Triangle extends Shape {
 
         return false;
     }
-    // borderColor(option?: string){
-    //     return super.borderColor(option)
+    // borderColor(opt?: string){
+    //     return super.borderColor(opt)
     // }
-    size(option?: number) {
-        this.options.side = option || this.options.side || 100;
+    size(opt?: number) {
+        this.options.side = opt || this.options.side || 100;
         return this.options.side;
     }
 
@@ -104,16 +106,16 @@ export class Triangle extends Shape {
     }
 
     // do not show clip
-    clip(option?: boolean): boolean {
-        return super.clip(option);
+    clip(opt?: boolean): boolean {
+        return super.clip(opt);
     }
 
-    draggable(option: boolean): boolean {
-        return super.draggable(option);
+    draggable(opt: boolean): boolean {
+        return super.draggable(opt);
     }
 
-    selectable(option?: boolean): boolean {
-        return super.selectable(option);
+    selectable(opt?: boolean): boolean {
+        return super.selectable(opt);
     }
 
     set(options: IBlock<TriangleOptions>) {

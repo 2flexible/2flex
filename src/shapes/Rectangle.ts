@@ -20,7 +20,7 @@ const defaultOpt: IDefaultBlockOpt<DefaultRectOpt> = {
     borderRadius: [0],
 };
 
-interface RectangleOptions extends DefaultRectOpt {
+export interface RectangleOptions extends DefaultRectOpt {
     borderLeft?: string;
     borderTop?: string;
     borderRight?: string;
@@ -37,10 +37,12 @@ export class Rectangle extends Shape {
     }
 
     __drawInit() {
+        this.beginPath()
+
         this.backgroundColor();
 
         this.#drawRect();
-
+        
         this.fill();
         this.stroke();
     }
@@ -54,11 +56,11 @@ export class Rectangle extends Shape {
             borderRadius: this.options.borderRadius,
         });
     }
-    backgroundColor(option?: string) {
-        return super.backgroundColor(option);
+    backgroundColor(opt?: string) {
+        return super.backgroundColor(opt);
     }
-    border(option?: string) {
-        this.options.border = super.border(option);
+    border(opt?: string) {
+        this.options.border = super.border(opt);
         const { borderStyleArrWidth } = this.#borderParser(this.options.border);
 
         if (this.options.borderStyle === "dotted") {
@@ -67,22 +69,21 @@ export class Rectangle extends Shape {
         super.stroke(true);
         return this.options.border;
     }
-    borderWidth(option?: number) {
-        return super.borderWidth(option);
+    borderWidth(opt?: number) {
+        return super.borderWidth(opt);
     }
-    borderColor(option?: string) {
-        return super.borderColor(option);
+    borderColor(opt?: string) {
+        return super.borderColor(opt);
     }
 
-    borderStyle(option?: "solid" | "dotted") {
-        this.options.borderStyle =
-            option || this.options.borderStyle || "solid";
+    borderStyle(opt?: "solid" | "dotted") {
+        this.options.borderStyle = opt || this.options.borderStyle || "solid";
 
         return this.options.borderStyle;
     }
 
-    borderTop(option?: number) {
-        this.options.borderTop = option || this.options.borderTop;
+    borderTop(opt?: number) {
+        this.options.borderTop = opt || this.options.borderTop;
         let { borderStyleArrWidth } = this.#borderParser(
             this.options.borderTop
         );
@@ -107,8 +108,8 @@ export class Rectangle extends Shape {
         return this.options.borderTop;
     }
 
-    borderRight(option?: number) {
-        this.options.borderRight = option || this.options.borderRight;
+    borderRight(opt?: number) {
+        this.options.borderRight = opt || this.options.borderRight;
         const { borderStyleArrHeight } = this.#borderParser(
             this.options.borderRight
         );
@@ -133,8 +134,8 @@ export class Rectangle extends Shape {
         super.stroke(true);
         return this.options.borderRight;
     }
-    borderBottom(option?: number) {
-        this.options.borderBottom = option || this.options.borderBottom;
+    borderBottom(opt?: number) {
+        this.options.borderBottom = opt || this.options.borderBottom;
         let { borderStyleArrWidth } = this.#borderParser(
             this.options.borderBottom
         );
@@ -157,8 +158,8 @@ export class Rectangle extends Shape {
         super.stroke(true);
         return this.options.borderBottom;
     }
-    borderLeft(option?: number) {
-        this.options.borderLeft = option || this.options.borderLeft;
+    borderLeft(opt?: number) {
+        this.options.borderLeft = opt || this.options.borderLeft;
         let { borderStyleArrHeight } = this.#borderParser(
             this.options.borderLeft
         );
@@ -213,21 +214,21 @@ export class Rectangle extends Shape {
         this.borderColor(borderColor);
         return { borderStyleArrWidth, borderStyleArrHeight };
     }
-    clip(option?: boolean): boolean {
-        return super.clip(option);
+    clip(opt?: boolean): boolean {
+        return super.clip(opt);
     }
-    dragX(option?: boolean) {
-        return super.dragX(option);
+    dragX(opt?: boolean) {
+        return super.dragX(opt);
     }
-    dragY(option?: boolean) {
-        return super.dragY(option);
+    dragY(opt?: boolean) {
+        return super.dragY(opt);
     }
-    draggable(option: boolean): boolean {
-        return super.draggable(option);
+    draggable(opt: boolean): boolean {
+        return super.draggable(opt);
     }
 
-    selectable(option?: boolean): boolean {
-        return super.selectable(option);
+    selectable(opt?: boolean): boolean {
+        return super.selectable(opt);
     }
 
     set(options: IBlock<RectangleOptions>) {

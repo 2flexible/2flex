@@ -36,7 +36,8 @@ export class Elipse extends Shape {
     }
 
     __drawInit() {
-        this.color();
+        this.beginPath()
+        this.backgroundColor();
         // cordinates need to calculate related to radius x and radius y
         this.context.ellipse(
             this.initCords.x,

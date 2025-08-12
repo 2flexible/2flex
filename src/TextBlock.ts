@@ -111,15 +111,15 @@ export class TextBlock extends Block {
         );
     }
 
-    width(option?: number) {
+    width(opt?: number) {
         const text_measure = this.measureText();
-        this.options.width = option || text_measure.width;
+        this.options.width = opt || text_measure.width;
         return this.options.width;
     }
 
-    height(option?: number) {
+    height(opt?: number) {
         const text_measure = this.measureText();
-        this.options.height = option || text_measure.hangingBaseline;
+        this.options.height = opt || text_measure.hangingBaseline;
         return this.options.height;
     }
 
@@ -137,92 +137,89 @@ export class TextBlock extends Block {
         return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
     }
 
-    // option: it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
-    setFont(option?: string) {
-        this.context.font = option || this.#format_font();
+    // opt: it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
+    setFont(opt?: string) {
+        this.context.font = opt || this.#format_font();
     }
 
-    fontFamily(option?: string) {
+    fontFamily(opt?: string) {
         this.options.fontFamily =
-            option || this.options.fontFamily || "sans-serif";
+            opt || this.options.fontFamily || "sans-serif";
 
         return this.options.fontFamily;
     }
-    fontSize(option?: string) {
-        this.options.fontSize = option || this.options.fontSize || "10px";
+    fontSize(opt?: string) {
+        this.options.fontSize = opt || this.options.fontSize || "10px";
         return this.options.fontSize;
     }
-    fontWeight(option?: FontWeight) {
-        this.options.fontWeight = option || this.options.fontWeight || 100;
+    fontWeight(opt?: FontWeight) {
+        this.options.fontWeight = opt || this.options.fontWeight || 100;
 
         return this.options.fontWeight;
     }
 
-    fontVariant(option?: FontVariant) {
-        this.options.fontVariant =
-            option || this.options.fontVariant || "normal";
+    fontVariant(opt?: FontVariant) {
+        this.options.fontVariant = opt || this.options.fontVariant || "normal";
 
         return this.options.fontVariant;
     }
 
-    fontStyle(option?: FontStyle) {
-        this.options.fontStyle = option || this.options.fontVariant || "normal";
+    fontStyle(opt?: FontStyle) {
+        this.options.fontStyle = opt || this.options.fontVariant || "normal";
 
         return this.options.fontStyle;
     }
-    fontStretch(option?: FontStretch) {
-        this.options.fontStretch =
-            option || this.options.fontStretch || "normal";
+    fontStretch(opt?: FontStretch) {
+        this.options.fontStretch = opt || this.options.fontStretch || "normal";
 
         this.context.fontStretch = this.options.fontStretch;
 
         return this.options.fontStretch;
     }
 
-    fontKerning(option?: FontKerning) {
-        this.options.fontKerning = option || this.options.fontKerning || "auto";
+    fontKerning(opt?: FontKerning) {
+        this.options.fontKerning = opt || this.options.fontKerning || "auto";
         this.context.fontKerning = this.options.fontKerning;
         return this.options.fontKerning;
     }
 
-    fontVariantCaps(option?: FontVariantCaps) {
+    fontVariantCaps(opt?: FontVariantCaps) {
         this.options.fontVariantCaps =
-            option || this.options.fontVariantCaps || "normal";
+            opt || this.options.fontVariantCaps || "normal";
 
         this.context.fontVariantCaps = this.options.fontVariantCaps;
 
         return this.options.fontVariantCaps;
     }
 
-    wordSpacing(option?: string) {
+    wordSpacing(opt?: string) {
         this.options.wordSpacing =
-            `${option}px` || this.options.wordSpacing || "0px";
+            `${opt}px` || this.options.wordSpacing || "0px";
         this.context.wordSpacing = this.options.wordSpacing;
         return this.options.wordSpacing;
     }
 
-    color(option?: string) {
-        this.options.color = option || this.options.color || "black";
+    color(opt?: string) {
+        this.options.color = opt || this.options.color || "black";
         this.context.fillStyle = this.options.color;
         return this.options.color;
     }
 
-    strokeWidth(option?: number) {
-        this.options.strokeWidth = option || this.options.strokeWidth || 0;
+    strokeWidth(opt?: number) {
+        this.options.strokeWidth = opt || this.options.strokeWidth || 0;
         this.context.lineWidth = this.options.strokeWidth;
         return this.options.strokeWidth;
     }
 
-    strokeColor(option?: string) {
-        this.options.strokeColor =
-            option || this.options.strokeColor || "black";
+    strokeColor(opt?: string) {
+        this.options.strokeColor = opt || this.options.strokeColor || "black";
         this.context.strokeStyle = this.options.strokeColor;
         return this.options.strokeColor;
     }
 
-    stroke(option?: boolean) {
-        this.options.stroke = option || this.options.stroke || false;
-        if (option) {
+    stroke(opt?: boolean) {
+        this.options.stroke = opt || this.options.stroke || false;
+        if (opt) {
             this.setFont();
 
             this.strokeColor();
@@ -242,33 +239,32 @@ export class TextBlock extends Block {
         return this.options.stroke;
     }
 
-    direction(option?: TextDirection) {
-        this.context.direction = option || this.options.direction || "ltr";
+    direction(opt?: TextDirection) {
+        this.context.direction = opt || this.options.direction || "ltr";
         this.options.direction = this.context.direction;
         return this.options.direction;
     }
 
-    letterSpacing(option?: string) {
-        this.context.letterSpacing =
-            option || this.options.letterSpacing || "0px";
+    letterSpacing(opt?: string) {
+        this.context.letterSpacing = opt || this.options.letterSpacing || "0px";
         this.options.letterSpacing = this.context.letterSpacing;
         return this.options.letterSpacing;
     }
 
-    textRendering(option?: TextRendering) {
+    textRendering(opt?: TextRendering) {
         this.context.textRendering =
-            option || this.options.textRendering || "auto";
+            opt || this.options.textRendering || "auto";
         this.options.textRendering = this.context.textRendering;
         return this.options.textRendering;
     }
-    textAlign(option?: TextAlign) {
-        this.context.textAlign = option || this.options.textAlign || "start";
+    textAlign(opt?: TextAlign) {
+        this.context.textAlign = opt || this.options.textAlign || "start";
         this.options.align = this.context.align;
         return this.options.align;
     }
-    textBaseline(option?: TextBaseline) {
+    textBaseline(opt?: TextBaseline) {
         this.context.textBaseline =
-            option || this.options.textBaseline || "alphabetic";
+            opt || this.options.textBaseline || "alphabetic";
         this.options.baseline = this.context.baseline;
         return this.options.baseline;
     }
@@ -279,22 +275,22 @@ export class TextBlock extends Block {
     measureText() {
         return this.context.measureText(this.text);
     }
-    clip(option?: boolean) {
-        return super.clip(option);
+    clip(opt?: boolean) {
+        return super.clip(opt);
     }
 
-    dragX(option?: boolean) {
-        return super.dragX(option);
+    dragX(opt?: boolean) {
+        return super.dragX(opt);
     }
-    dragY(option?: boolean) {
-        return super.dragY(option);
+    dragY(opt?: boolean) {
+        return super.dragY(opt);
     }
-    draggable(option: boolean): boolean {
-        return super.draggable(option);
+    draggable(opt: boolean): boolean {
+        return super.draggable(opt);
     }
 
-    selectable(option: boolean): boolean {
-        return super.selectable(option);
+    selectable(opt: boolean): boolean {
+        return super.selectable(opt);
     }
 
     set(options: IBlock<IText>) {

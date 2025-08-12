@@ -91,23 +91,23 @@ export class Block extends Node {
         });
     }
 
-    x(option?: number) {
-        this.options.x = option || this.options.x;
+    x(opt?: number) {
+        this.options.x = opt || this.options.x;
         return this.options.x;
     }
 
-    y(option?: number) {
-        this.options.y = option || this.options.y;
+    y(opt?: number) {
+        this.options.y = opt || this.options.y;
         return this.options.y;
     }
 
-    width(option?: number) {
-        this.options.width = option || this.options.width;
+    width(opt?: number) {
+        this.options.width = opt || this.options.width;
         return this.options.width;
     }
 
-    height(option?: number) {
-        this.options.height = option || this.options.height;
+    height(opt?: number) {
+        this.options.height = opt || this.options.height;
         return this.options.height;
     }
 
@@ -121,8 +121,8 @@ export class Block extends Node {
         );
     }
 
-    clip(option?: boolean) {
-        this.options.clip = option || this.options.clip || false;
+    clip(opt?: boolean) {
+        this.options.clip = opt || this.options.clip || false;
 
         if (this.options.clip) {
             this.clip_path();
@@ -137,13 +137,13 @@ export class Block extends Node {
         return this.options.clip;
     }
 
-    fillRule(option?: string) {
-        this.options.fillRule = option || this.options.fillRule || "nonzero";
+    fillRule(opt?: string) {
+        this.options.fillRule = opt || this.options.fillRule || "nonzero";
         return this.options.fillRule;
     }
 
-    zIndex(option?: number) {
-        this.options.zIndex = option || this.options.zIndex;
+    zIndex(opt?: number) {
+        this.options.zIndex = opt || this.options.zIndex;
         return this.options.zIndex;
     }
 
@@ -171,8 +171,8 @@ export class Block extends Node {
     }
     reset() {}
 
-    rotate(option: number) {
-        this.options.rotate = option || this.options.angle || 0;
+    rotate(opt: number) {
+        this.options.rotate = opt || this.options.angle || 0;
         this.context.rotate(this.options.angle);
         return this.options.rotate;
     }
@@ -315,12 +315,12 @@ export class Block extends Node {
         });
     }
 
-    selectable(option?: boolean): boolean {
+    selectable(opt?: boolean): boolean {
         const duplicat = this.events.filter(
             (elem) => elem.eventType === "selectable"
         );
 
-        if (!option || duplicat.length >= 1) return false;
+        if (!opt || duplicat.length >= 1) return false;
 
         this.events.push({
             eventType: "selectable",
@@ -335,23 +335,23 @@ export class Block extends Node {
                 this.set({ color: old_color });
             }
         });
-        this.options.selectable = option;
+        this.options.selectable = opt;
 
         return this.options.selectable;
     }
-    dragX(option?: boolean) {
-        this.options.dragX = option || this.options.dragX;
+    dragX(opt?: boolean) {
+        this.options.dragX = opt || this.options.dragX;
         return this.options.dragX;
     }
-    dragY(option?: boolean) {
-        this.options.dragY = option || this.options.dragY;
+    dragY(opt?: boolean) {
+        this.options.dragY = opt || this.options.dragY;
         return this.options.dragY;
     }
-    draggable(option?: boolean): boolean {
+    draggable(opt?: boolean): boolean {
         const duplicat = this.events.filter(
             (elem) => elem.eventType === "draggable"
         );
-        if (!option || duplicat.length >= 1 || !this.options.selectable)
+        if (!opt || duplicat.length >= 1 || !this.options.selectable)
             return false;
 
         this.events.push({
@@ -402,7 +402,7 @@ export class Block extends Node {
             isMouseDown = false;
             this.options.mousedown = isMouseDown;
         });
-        this.options.draggable = option;
+        this.options.draggable = opt;
         return this.options.draggable;
     }
 }
