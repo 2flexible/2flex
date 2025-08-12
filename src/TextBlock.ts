@@ -1,5 +1,5 @@
 import { Block } from "./Block";
-import { IBlock, BlockOptions } from "./types";
+import { IBlock } from "./types";
 
 type TextAlign = "start" | "end" | "center" | "left" | "right";
 
@@ -62,6 +62,10 @@ type TextRendering =
 
 export interface IText {
     text?: string;
+    color?: string;
+    strokeWidth?: number;
+    strokeColor?: string;
+    stroke?: boolean;
     fontFamily?: string;
     fontWeight?: FontWeight;
     fontSize?: string;
@@ -106,14 +110,6 @@ export class TextBlock extends Block {
             this.options.maxWidth
         );
     }
-
-    // x(option?: number) {
-    //     return super.x(option);
-    // }
-
-    // y(option?: number) {
-    //     return super.y(option);
-    // }
 
     width(option?: number) {
         const text_measure = this.measureText();
@@ -206,15 +202,22 @@ export class TextBlock extends Block {
     }
 
     color(option?: string) {
-        super.color(option);
+        this.options.color = option || this.options.color || "black";
+        this.context.fillStyle = this.options.color;
+        return this.options.color;
     }
 
     strokeWidth(option?: number) {
-        return super.strokeWidth(option);
+        this.options.strokeWidth = option || this.options.strokeWidth || 0;
+        this.context.lineWidth = this.options.strokeWidth;
+        return this.options.strokeWidth;
     }
-    
+
     strokeColor(option?: string) {
-        return super.strokeColor(option);
+        this.options.strokeColor =
+            option || this.options.strokeColor || "black";
+        this.context.strokeStyle = this.options.strokeColor;
+        return this.options.strokeColor;
     }
 
     stroke(option?: boolean) {
@@ -222,10 +225,9 @@ export class TextBlock extends Block {
         if (option) {
             this.setFont();
 
-            
             this.strokeColor();
             this.strokeWidth();
-            
+
             this.options.height = this.height();
             const fontY = this.options.height + this.initCords.y!;
 

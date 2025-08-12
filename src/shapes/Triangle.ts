@@ -28,7 +28,7 @@ export class Triangle extends Shape {
     }
 
     __drawInit() {
-        this.color();
+        this.backgroundColor();
         const { x1, x2, y1 } = this.#calcTopPoint();
         this.context.moveTo(this.initCords.x, this.initCords.y);
         this.context.lineTo(x1, y1);

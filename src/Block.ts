@@ -111,35 +111,6 @@ export class Block extends Node {
         return this.options.height;
     }
 
-    color(option?: string) {
-        this.options.color = option || this.options.color || "black";
-        this.context.fillStyle = this.options.color;
-        return this.options.color;
-    }
-
-    strokeColor(option?: string) {
-        this.options.strokeColor =
-            option || this.options.strokeColor || "black";
-        this.context.strokeStyle = this.options.strokeColor;
-        return this.options.strokeColor;
-    }
-
-    strokeWidth(option?: number) {
-        this.options.strokeWidth = option || this.options.strokeWidth || 1;
-        this.context.lineWidth = this.options.strokeWidth;
-        return this.options.strokeWidth;
-    }
-    unitConverter(option: string){
-
-    }
-    stroke(option?: boolean) {
-        this.options.stroke = option || this.options.stroke || false;
-        if (this.options.stroke) {
-            this.context.stroke();
-        }
-        return this.options.stroke;
-    }
-
     clip_path() {
         this.canvas.clipping_path.addRect(
             this.initCords.x,
@@ -176,23 +147,23 @@ export class Block extends Node {
         return this.options.zIndex;
     }
 
-    set(options: IBlock<BlockOptions>) {
+    set(options?: IBlock<BlockOptions>) {
         let cached = false;
+        if (options)
+            for (const [key, value] of Object.entries(options)) {
+                const proto = Object.getPrototypeOf(this);
+                const obj = Object.getOwnPropertyDescriptor(proto, key);
 
-        for (const [key, value] of Object.entries(options)) {
-            const proto = Object.getPrototypeOf(this);
-            const obj = Object.getOwnPropertyDescriptor(proto, key);
+                const beforeOption = this.options[key];
 
-            const beforeOption = this.options[key];
-
-            if (value) {
-                if (value !== beforeOption) {
-                    obj?.value.call(this, value);
-                } else {
-                    cached = true;
+                if (value) {
+                    if (value !== beforeOption) {
+                        obj?.value.call(this, value);
+                    } else {
+                        cached = true;
+                    }
                 }
             }
-        }
 
         if (!cached) {
             this.canvas?.invokeChange.call(this.canvas);
@@ -220,14 +191,15 @@ export class Block extends Node {
         const height = this.options.height;
 
         const { x, y } = this.canvas.getCursorPosition(_event);
-        const diffX = Math.abs(this.initCords.x! - this.options.strokeWidth);
-        const diffY = Math.abs(this.initCords.y! - this.options.strokeWidth);
 
+        // include broder or stroke for dragging within them
+        const diffX = Math.abs(this.initCords.x!);
+        const diffY = Math.abs(this.initCords.y!);
         if (
             x >= diffX &&
-            x <= this.initCords.x! + width + this.options.strokeWidth &&
+            x <= this.initCords.x! + width &&
             y >= diffY &&
-            y <= this.initCords.y! + height + this.options.strokeWidth
+            y <= this.initCords.y! + height
         ) {
             return true;
         }

@@ -1,7 +1,35 @@
 import { Block } from "./Block";
-import { IBlock } from "./types";
+import { IBlock, CursorPos } from "./types";
 
-interface ShapeOptions {}
+export type borderStyle = "solid" | "dotted";
+
+export interface RectOpt extends CursorPos {
+    width: number;
+    height: number;
+}
+export interface RoundRectOpt extends RectOpt {
+    borderRadius: number[];
+}
+export interface ShapeOptions {
+    backgroundColor?: string;
+
+    border?: string;
+    // borderstyle can be extended for now just solid, dotted
+    borderStyle?: borderStyle;
+    borderColor?: string;
+    borderWidth?: number;
+
+    fill?: boolean;
+    stroke?: boolean;
+
+    lineWidth?: number;
+    setLineDash?: number[];
+
+    rect: RectOpt;
+    roundRect: RoundRectOpt;
+
+    moveTo?: CursorPos;
+}
 // each shape extends form common shape
 export class Shape extends Block {
     constructor(options?: IBlock<ShapeOptions>) {
@@ -13,7 +41,7 @@ export class Shape extends Block {
     }
 
     __drawInit() {
-        this.color();
+        this.backgroundColor();
 
         this.draw();
 
@@ -24,22 +52,29 @@ export class Shape extends Block {
     draw(_func?: (context: any) => void) {
         if (_func) _func(this.context);
     }
-
-    color(option?: string) {
+    border(option?: string) {
+        this.options.border = option || this.options.border || [];
+        return this.options.border;
+    }
+    backgroundColor(option?: string) {
         this.context.beginPath();
-        return super.color(option);
+        this.options.backgroundColor =
+            option || this.options.backgroundColor || "black";
+        this.context.fillStyle = this.options.backgroundColor;
+        return this.options.backgroundColor;
     }
 
-    strokeWidth(option?: number) {
-        return super.strokeWidth(option);
+    borderWidth(option?: number) {
+        this.options.borderWidth = option || this.options.borderWidth || 1;
+        this.context.lineWidth = this.options.borderWidth;
+        return this.options.borderWidth;
     }
 
-    strokeColor(option?: string) {
-        return super.strokeColor(option);
-    }
-
-    stroke(option?: boolean) {
-        return super.stroke(option);
+    borderColor(option?: string) {
+        this.options.strokeColor =
+            option || this.options.strokeColor || "black";
+        this.context.strokeStyle = this.options.strokeColor;
+        return this.options.borderColor;
     }
 
     fill(option?: boolean) {
@@ -50,18 +85,35 @@ export class Shape extends Block {
         return this.options.fill;
     }
 
-    clip(option?: boolean): boolean {
-        return super.clip(option);
+    stroke(option?: boolean) {
+        this.options.stroke = option || this.options.stroke || false;
+        if (this.options.stroke) {
+            this.context.stroke();
+        }
+        return this.options.stroke;
     }
-    // can be 2 different format, one option with optinos giving paramters, two like this
-    moveTo(x?: number, y?: number) {
-        x = x || this.initCords.x!;
-        y = y || this.initCords.y!;
-        this.context.moveTo(x, y);
-    }
-
     setLineDash(dashes: number[]) {
         this.context.setLineDash(dashes);
+    }
+
+    rect({ x, y, width, height }: RectOpt) {
+        return this.context.rect(x, y, width, height);
+    }
+    roundRect({ x, y, width, height, borderRadius }: RoundRectOpt) {
+        return this.context.roundRect(x, y, width, height, borderRadius);
+    }
+    strokeRect({ x, y, width, height }: RectOpt) {
+        return this.context.strokeRect(x, y, width, height);
+    }
+    // can be 2 different format, one option with optinos giving paramters, two like this
+    moveTo({ x, y }: CursorPos) {
+        x = x || this.initCords.x!;
+        y = y || this.initCords.y!;
+        return this.context.moveTo(x, y);
+    }
+
+    clip(option?: boolean): boolean {
+        return super.clip(option);
     }
     dragX(option?: boolean) {
         return super.dragX(option);
@@ -81,3 +133,7 @@ export class Shape extends Block {
         super.set(options);
     }
 }
+
+// new Shape({ width: 100, height: 100, setLineDash: [10, 10] }).draw((context) =>
+//     context.setLineDash([10, 10])
+// );

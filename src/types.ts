@@ -14,13 +14,6 @@ export interface BlockOptions {
     width?: number;
     height?: number;
     selectable?: boolean;
-    backgroundColor?: string;
-    color?: string;
-    strokeWidth?: number;
-    strokeColor?: string;
-    lineWidth?: number;
-    fill?: boolean;
-    stroke?: boolean;
     padding?: string;
     margin?: string;
     clip?: boolean;
@@ -45,8 +38,8 @@ type CanvasContext<T> = T extends CanvasRenderingContext2D
     : CanvasRenderingContext2D | null;
 
 export interface CursorPos {
-    x: number;
-    y: number;
+    x?: number;
+    y?: number;
 }
 
 type IMouseEvents =
