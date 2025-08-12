@@ -1,9 +1,10 @@
 import { Block } from "./Block";
-import { BlockOptions, IBlock } from "./types";
+import { IBlock } from "./types";
 
+interface ShapeOptions {}
 // each shape extends form common shape
 export class Shape extends Block {
-    constructor(options?: IBlock<BlockOptions>) {
+    constructor(options?: IBlock<ShapeOptions>) {
         super(options);
     }
     __initSet(): void {
@@ -54,12 +55,13 @@ export class Shape extends Block {
     }
     // can be 2 different format, one option with optinos giving paramters, two like this
     moveTo(x?: number, y?: number) {
-        x = x || this.initCords.x!
-        y = y || this.initCords.y!
+        x = x || this.initCords.x!;
+        y = y || this.initCords.y!;
         this.context.moveTo(x, y);
     }
-    setLineDash(dashes: number[]){
-        this.context.setLineDash(dashes)
+
+    setLineDash(dashes: number[]) {
+        this.context.setLineDash(dashes);
     }
     dragX(option?: boolean) {
         return super.dragX(option);
@@ -75,7 +77,7 @@ export class Shape extends Block {
         return super.selectable(option);
     }
 
-    set(options: IBlock<BlockOptions>) {
+    set(options: IBlock<ShapeOptions>) {
         super.set(options);
     }
 }

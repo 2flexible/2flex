@@ -23,13 +23,14 @@ export interface DefaultBlockOpt {
 const defaultOpt: DefaultBlockOpt = {
     x: 0,
     y: 0,
-    width: 0,
-    height: 0,
+    width: 10,
+    height: 10,
     selectable: true,
     draggable: true,
     dragX: true,
     dragY: true,
     zIndex: 0,
+    strokeWidth: 0,
 };
 
 interface InitCords {
@@ -124,11 +125,13 @@ export class Block extends Node {
     }
 
     strokeWidth(option?: number) {
-        this.options.strokeWidth = option || this.options.strokeWidth || 10;
+        this.options.strokeWidth = option || this.options.strokeWidth || 1;
         this.context.lineWidth = this.options.strokeWidth;
         return this.options.strokeWidth;
     }
+    unitConverter(option: string){
 
+    }
     stroke(option?: boolean) {
         this.options.stroke = option || this.options.stroke || false;
         if (this.options.stroke) {
@@ -197,10 +200,10 @@ export class Block extends Node {
     }
     reset() {}
 
-    rotate(option: number){
-        this.options.rotate = option || this.options.angle || 0
-        this.context.rotate(this.options.angle)
-        return this.options.rotate
+    rotate(option: number) {
+        this.options.rotate = option || this.options.angle || 0;
+        this.context.rotate(this.options.angle);
+        return this.options.rotate;
     }
     // had to come first for block scaling
     scale(x: number, y: number) {
@@ -217,14 +220,18 @@ export class Block extends Node {
         const height = this.options.height;
 
         const { x, y } = this.canvas.getCursorPosition(_event);
+        const diffX = Math.abs(this.initCords.x! - this.options.strokeWidth);
+        const diffY = Math.abs(this.initCords.y! - this.options.strokeWidth);
 
         if (
-            x >= this.initCords.x! &&
-            x <= this.initCords.x! + width &&
-            y >= this.initCords.y! &&
-            y <= this.initCords.y! + height
-        )
+            x >= diffX &&
+            x <= this.initCords.x! + width + this.options.strokeWidth &&
+            y >= diffY &&
+            y <= this.initCords.y! + height + this.options.strokeWidth
+        ) {
             return true;
+        }
+
         return false;
     }
 
@@ -403,7 +410,6 @@ export class Block extends Node {
         this.mousemove((event) => {
             if (isMouseDown) {
                 const { x, y } = this.canvas.getCursorPosition(event);
-
                 let diffX = x - initX;
                 let diffY = y - initY;
                 if (diffX !== 0 && this.options.dragX) {
