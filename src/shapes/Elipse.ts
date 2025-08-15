@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import { IBlock, IDefaultBlockOpt } from "../types";
+import { IBlock, IDefaultBlockOpt, InitialShapes } from "../types";
 
 interface DefaultElipseOpt {
     radiusX: number;
@@ -23,7 +23,7 @@ const defaultOpt: IDefaultBlockOpt<DefaultElipseOpt> = {
     rotation: 0,
 };
 
-interface ElipseOptions extends DefaultElipseOpt {}
+interface ElipseOptions extends DefaultElipseOpt, InitialShapes {}
 
 export class Elipse extends Shape {
     constructor(options?: IBlock<ElipseOptions>) {
@@ -36,7 +36,7 @@ export class Elipse extends Shape {
     }
 
     __drawInit() {
-        this.beginPath()
+        this.beginPath();
         this.backgroundColor();
         // cordinates need to calculate related to radius x and radius y
         this.context.ellipse(
@@ -50,5 +50,9 @@ export class Elipse extends Shape {
         );
         this.fill();
         this.stroke();
+    }
+    backgroundColor(opt?: string) {
+        this.options.backgroundColor = super.fillStyle(opt);
+        return this.options.backgroundColor;
     }
 }

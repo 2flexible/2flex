@@ -1,6 +1,5 @@
 import { Block } from "./Block";
 import { IBlock, CursorPos } from "./types";
-import { RectangleOptions } from "./shapes/Rectangle";
 
 export interface QuadraticCurveToOpt {
     cpx1: number;
@@ -14,8 +13,6 @@ export interface BezierCurveToOpt extends QuadraticCurveToOpt {
     cpy2: number;
 }
 
-export type borderStyle = "solid" | "dotted";
-
 export interface RectOpt extends CursorPos {
     width: number;
     height: number;
@@ -26,34 +23,29 @@ export interface RoundRectOpt extends RectOpt {
 
 export type LineCapOpt = "butt" | "round" | "square";
 
-export interface ShapeDefOptions {
-    backgroundColor?: string;
-
-    border?: string;
-    // borderstyle can be extended for now just solid, dotted
-    borderStyle?: borderStyle;
-    borderColor?: string;
-    borderWidth?: number;
-
+export interface IShapeOptions {
     fill?: boolean;
     stroke?: boolean;
 
-    lineTo: CursorPos;
+    lineTo?: CursorPos;
     lineWidth?: number;
-    setLineDash?: number[];
+    lineDash?: number[];
     lineCap?: LineCapOpt;
+
+    bezierCurve?: BezierCurveToOpt,
+    quadraticCurve?: QuadraticCurveToOpt,
 
     rect: RectOpt;
     roundRect: RoundRectOpt;
 
     beginPath: boolean;
     moveTo?: CursorPos;
-}
-export type ShapeOptions = ShapeDefOptions & RectangleOptions;
 
+
+}
 // each shape extends form common shape
 export class Shape extends Block {
-    constructor(options?: IBlock<ShapeOptions>) {
+    constructor(options?: IBlock<IShapeOptions>) {
         super(options);
     }
     __initSet(): void {
@@ -62,7 +54,7 @@ export class Shape extends Block {
     }
 
     __drawInit() {
-        this.backgroundColor();
+        this.fillStyle();
 
         this.draw();
 
@@ -73,30 +65,9 @@ export class Shape extends Block {
     draw(_func?: (context: any) => void) {
         if (_func) _func(this.context);
     }
-    border(opt?: string) {
-        this.options.border = opt || this.options.border || [];
-        return this.options.border;
-    }
-    backgroundColor(opt?: string) {
-        this.options.backgroundColor =
-            opt || this.options.backgroundColor || "black";
-        this.context.fillStyle = this.options.backgroundColor;
-        return this.options.backgroundColor;
-    }
+
     beginPath(opt: boolean = true) {
         if (opt) return this.context.beginPath();
-    }
-
-    borderWidth(opt?: number) {
-        this.options.borderWidth = opt || this.options.borderWidth || 1;
-        this.context.lineWidth = this.options.borderWidth;
-        return this.options.borderWidth;
-    }
-
-    borderColor(opt?: string) {
-        this.options.strokeColor = opt || this.options.strokeColor || "black";
-        this.context.strokeStyle = this.options.strokeColor;
-        return this.options.borderColor;
     }
 
     fill(opt?: boolean) {
@@ -106,6 +77,11 @@ export class Shape extends Block {
         }
         return this.options.fill;
     }
+    fillStyle(opt?: string) {
+        this.options.fillStyle = opt || this.options.fillStyle || "black";
+        this.context.fillStyle = this.options.fillStyle;
+        return this.options.fillStyle;
+    }
 
     stroke(opt?: boolean) {
         this.options.stroke = opt || this.options.stroke || false;
@@ -114,13 +90,27 @@ export class Shape extends Block {
         }
         return this.options.stroke;
     }
-    lineCap(opt: LineCapOpt) {
+
+    strokeStyle(opt?: string) {
+        this.options.strokeStyle = opt || this.options.strokeStyle || "black";
+        this.context.strokeStyle = this.options.strokeStyle;
+        return this.options.strokeStyle;
+    }
+    lineCap(opt?: LineCapOpt) {
         this.options.lineCap = opt || this.options.lineCap || "butt";
         this.context.lineCap = this.options.lineCap;
         return this.options.lineCap;
     }
-    setLineDash(dashes: number[]) {
-        this.context.setLineDash(dashes);
+
+    lineWidth(opt?: number) {
+        this.options.lineWidth = opt || this.options.lineWidth || 0;
+        this.context.lineWidth = this.options.lineWidth;
+        return this.options.lineWidth;
+    }
+
+    setLineDash(opt?: number[]) {
+        this.options.lineDash = opt || this.options.lineDash || [];
+        this.context.setLineDash(opt);
     }
     quadraticCurveTo({ cpx1, cpy1, endX, endY }: QuadraticCurveToOpt) {
         this.context.quadraticCurveTo(cpx1, cpy1, endX, endY);
@@ -163,7 +153,7 @@ export class Shape extends Block {
         return super.selectable(opt);
     }
 
-    set(options: IBlock<ShapeOptions>) {
+    set(options: IBlock<IShapeOptions>) {
         super.set(options);
     }
 }

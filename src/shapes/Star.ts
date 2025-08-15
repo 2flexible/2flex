@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import { BlockOptions, IBlock } from "../types";
+import { BlockOptions, IBlock, InitialShapes } from "../types";
 
 export class Star extends Shape {
     constructor(options?: IBlock<BlockOptions>) {
@@ -8,9 +8,9 @@ export class Star extends Shape {
     __initSet(): void {
         super.__initSet();
     }
-    draw() {
+    __drawInit() {
+        this.beginPath()
         /* calculcate this */
-
         // function strokeStar(x, y, r, n, inset) {
         //     ctx.save();
         //     ctx.beginPath();

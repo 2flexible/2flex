@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import { IBlock, IDefaultBlockOpt } from "../types";
+import { IBlock, IDefaultBlockOpt, InitialShapes } from "../types";
 import { Triangle } from "./Triangle";
 interface DefaultArrowOpt {
     tail: number;
@@ -20,7 +20,7 @@ const defaultOpt: IDefaultBlockOpt<DefaultArrowOpt> = {
     head: 10,
 };
 
-interface ArrowOptions extends DefaultArrowOpt {}
+interface ArrowOptions extends DefaultArrowOpt, InitialShapes {}
 
 export class Arrow extends Shape {
     constructor(options?: IBlock<ArrowOptions>) {
@@ -32,9 +32,9 @@ export class Arrow extends Shape {
     __initSet(): void {
         super.__initSet();
     }
-    // @todo: calculate bottom of the object, and end destination of lineTo 
+    // @todo: calculate bottom of the object, and end destination of lineTo
     __drawInit() {
-        this.color();
+        // this.backgroundColor();
         const trianlge = new Triangle({
             x: this.options.x,
             y: this.options.y,
@@ -45,7 +45,7 @@ export class Arrow extends Shape {
         this.context.moveTo(30, 50);
         this.context.lineTo(150, 100);
         this.context.stroke();
-        
+
         this.fill();
         this.stroke();
     }

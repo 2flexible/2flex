@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import { IBlock, IDefaultBlockOpt } from "../types";
+import { IBlock, IDefaultBlockOpt, InitialShapes } from "../types";
 
 interface DefaultCircleOpt {
     radius: number;
@@ -22,7 +22,7 @@ const defaultOpt: IDefaultBlockOpt<DefaultCircleOpt> = {
     endAngle: Math.PI * 2,
 };
 
-interface CircleOptions extends DefaultCircleOpt {}
+interface CircleOptions extends DefaultCircleOpt, InitialShapes {}
 
 export class Circle extends Shape {
     constructor(options?: IBlock<CircleOptions>) {
@@ -34,8 +34,8 @@ export class Circle extends Shape {
     }
 
     __drawInit() {
-        this.beginPath()
-        super.backgroundColor();
+        this.beginPath();
+        this.backgroundColor();
 
         const x = this.initCords.x + this.options.radius;
         const y = this.initCords.y + this.options.radius;
@@ -59,11 +59,17 @@ export class Circle extends Shape {
         this.options.radius = this.options.radius || super.height(opt);
         return this.options.radius;
     }
+    backgroundColor(opt?: string) {
+        this.options.backgroundColor = super.fillStyle(opt);
+        return this.options.backgroundColor;
+    }
     borderWidth(opt?: number) {
-        return super.borderWidth(opt);
+        this.options.borderWidth = super.lineWidth(opt);
+        return this.options.borderWidth;
     }
     borderColor(opt?: string) {
-        return super.borderColor(opt);
+        this.options.borderColor = super.strokeStyle(opt);
+        return this.options.borderColor;
     }
     dragX(opt?: boolean) {
         return super.dragX(opt);

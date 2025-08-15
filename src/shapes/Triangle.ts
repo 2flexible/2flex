@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import { IDefaultBlockOpt, IBlock } from "../types";
+import { IDefaultBlockOpt, IBlock, InitialShapes } from "../types";
 
 interface DefaultTriangleOpt {
     side?: number;
@@ -16,7 +16,7 @@ const defaultOpt: IDefaultBlockOpt<DefaultTriangleOpt> = {
     size: 100,
 };
 
-interface TriangleOptions extends DefaultTriangleOpt {}
+interface TriangleOptions extends DefaultTriangleOpt, InitialShapes {}
 export class Triangle extends Shape {
     constructor(options?: IBlock<TriangleOptions>) {
         super(options);
@@ -29,8 +29,8 @@ export class Triangle extends Shape {
 
     __drawInit() {
         this.beginPath();
-
         this.backgroundColor();
+
         const { x1, x2, y1 } = this.#calcTopPoint();
         this.context.moveTo(this.initCords.x, this.initCords.y);
         this.context.lineTo(x1, y1);
@@ -65,6 +65,10 @@ export class Triangle extends Shape {
     height(opt?: number): number {
         this.options.sides = super.height(opt);
         return this.options.sides;
+    }
+    backgroundColor(opt?: string) {
+        this.options.backgroundColor = super.fillStyle(opt);
+        return this.options.backgroundColor;
     }
     checkInBound(_event: MouseEvent): boolean {
         const width = this.options.width;

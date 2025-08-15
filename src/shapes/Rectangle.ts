@@ -1,5 +1,5 @@
-import { Shape, borderStyle } from "../Shape";
-import { IBlock, IDefaultBlockOpt } from "../types";
+import { Shape } from "../Shape";
+import { IBlock, IDefaultBlockOpt, BorderStyle, InitialShapes } from "../types";
 
 interface DefaultRectOpt {
     borderRadius: number[];
@@ -20,15 +20,12 @@ const defaultOpt: IDefaultBlockOpt<DefaultRectOpt> = {
     borderRadius: [0],
 };
 
-export interface RectangleOptions extends DefaultRectOpt {
-    borderLeft?: string;
-    borderTop?: string;
-    borderRight?: string;
-    borderBottom?: string;
+export interface IRectangleOptions extends DefaultRectOpt, InitialShapes {
+   
 }
 
 export class Rectangle extends Shape {
-    constructor(options?: IBlock<RectangleOptions>) {
+    constructor(options?: IBlock<IRectangleOptions>) {
         super(options);
         this.options = { ...defaultOpt, ...options };
     }
@@ -56,11 +53,14 @@ export class Rectangle extends Shape {
             borderRadius: this.options.borderRadius,
         });
     }
+    
     backgroundColor(opt?: string) {
-        return super.backgroundColor(opt);
+        this.options.backgroundColor = super.fillStyle(opt)
+        return this.options.backgroundColor
     }
+    
     border(opt?: string) {
-        this.options.border = super.border(opt);
+        this.options.border = opt || this.options.border || [];
         const { borderStyleArrWidth } = this.#borderParser(this.options.border);
 
         if (this.options.borderStyle === "dotted") {
@@ -70,10 +70,12 @@ export class Rectangle extends Shape {
         return this.options.border;
     }
     borderWidth(opt?: number) {
-        return super.borderWidth(opt);
+        this.options.borderWidth = super.lineWidth(opt)
+        return this.options.borderWidth
     }
     borderColor(opt?: string) {
-        return super.borderColor(opt);
+        this.options.borderColor = super.strokeStyle(opt)
+        return this.options.borderColor;
     }
 
     borderStyle(opt?: "solid" | "dotted") {
@@ -188,7 +190,7 @@ export class Rectangle extends Shape {
 
         // need to impliment css unit converter for different size, ex, px, em, rem etc.
         const borderWitdh = Number(border[0]);
-        const borderStyle = border[1] as borderStyle;
+        const borderStyle = border[1] as BorderStyle;
         const borderColor = border[2];
 
         const borderStyleArrWidth = [];
@@ -231,7 +233,7 @@ export class Rectangle extends Shape {
         return super.selectable(opt);
     }
 
-    set(options: IBlock<RectangleOptions>) {
+    set(options: IBlock<IRectangleOptions>) {
         super.set(options);
     }
 }

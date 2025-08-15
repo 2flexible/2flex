@@ -74,3 +74,17 @@ type Query = BlockOptions;
 export type IDefaultBlockOpt<T> = T extends DefaultBlockOpt
     ? DefaultBlockOpt
     : DefaultBlockOpt & T;
+
+export type BorderStyle = "solid" | "dotted";
+
+export interface InitialShapes {
+    border?: string;
+    borderLeft?: string;
+    borderTop?: string;
+    borderRight?: string;
+    borderBottom?: string;
+    // borderstyle can be extended for now just solid, dotted
+    borderStyle?: BorderStyle;
+    borderColor?: string;
+    borderWidth?: number;
+}
