@@ -1,4 +1,11 @@
-import { Canvas, TextBlock, Block, Rectangle, Triangle } from "./2flex/2flex";
+import {
+    Canvas,
+    TextBlock,
+    Block,
+    Rectangle,
+    Triangle,
+    Circle,
+} from "./2flex/2flex";
 
 const canvas = new Canvas("canvas", 800, 400, { "background-color": "black" });
 
@@ -7,8 +14,8 @@ const text_a = new TextBlock("First Text", {
     y: 150,
     fontFamily: "KulminoituvaRegular",
     color: "blue",
-    strokeWidth: 2,
-    strokeColor: "white",
+    borderWidth: 2,
+    borderColor: "white",
     fontSize: "40px",
     selectable: true,
 });
@@ -17,25 +24,27 @@ const text_b = new TextBlock("SecondText", {
     x: 0,
     y: 0,
     color: "yellow",
-    strokeColor: "red",
     fontSize: "50px",
     selectable: false,
+    // strokeWidth: 0,
+    // stroke: true,
     // clip: true,
 
-    // strokeWidth: 2,
+    // borderWidth: 2,
     // fontFamily: "KulminoituvaRegular",
     // fontSize: 35,
 });
 const block = new Block();
 const triangle = new Triangle({
-    x: 0,
-    y: 0,
-    color: "red",
+    x: 100,
+    y: 40,
+    width: 50,
+    color: "white",
     fill: true,
+    borderColor: "red",
     stroke: true,
-    left: 20,
-    bottom: 20,
-    right: 20,
+    // size: 100,
+    // clip: true,
     // side: 40,
 });
 // text_a.click((e) => {
@@ -51,11 +60,16 @@ const rect = new Rectangle({
     y: 0,
     width: 200,
     height: 200,
-    strokeWidth: 2,
-    borderRadius: [0, 20, 20, 0],
-    color: "white",
-    stroke: true,
-    strokeColor: "red",
+    borderWidth: 10,
+    // borderRadius: [0, 20, 20, 0],
+    backgroundColor: "white",
+    // borderColor: "red",
+    // border: "15 dotted red",
+    borderRight: "12 dotted blue",
+    borderBottom: "12 dotted orange",
+    // borderLeft: "32 dotted blue",
+
+    // stroke: true,
     fill: true,
     clip: true,
 });
@@ -65,12 +79,19 @@ const rect1 = new Rectangle({
     y: 100,
     width: 200,
     height: 200,
-    strokeWidth: 2,
+    borderWidth: 2,
     borderRadius: [0, 20, 20, 0],
     color: "white",
     stroke: true,
-    strokeColor: "red",
+    borderColor: "red",
     fill: true,
+});
+const circle = new Circle({
+    color: "red",
+    fill: true,
+    stroke: true,
+    borderColor: "blue",
+    borderWidth: 5,
 });
 rect.add(text_b);
 // text_b.set({ selectable: true });
@@ -86,7 +107,11 @@ rect.add(text_b);
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(triangle, text_a);
+canvas.add(rect);
 // block.add(text_a, text_b);
-
+// console.log(text_b.x(10))
+// text_b.set()
 // console.log(block.find());
+// const cc = rect.backgroundColor("yellow");
+// console.log(cc)
+// rect.set()

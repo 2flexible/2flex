@@ -62,8 +62,8 @@ export class Shape extends Block {
         this.stroke();
     }
 
-    draw(_func?: (context: any) => void) {
-        if (_func) _func(this.context);
+    draw(_func?: (context: this) => void) {
+        if (_func) _func(this);
     }
 
     beginPath(opt: boolean = true) {

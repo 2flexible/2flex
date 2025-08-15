@@ -364,16 +364,17 @@ class Canvas {
     }
 }
 
-const defaultOpt$2 = {
+const defaultOpt$6 = {
     x: 0,
     y: 0,
-    width: 0,
-    height: 0,
+    width: 10,
+    height: 10,
     selectable: true,
     draggable: true,
     dragX: true,
     dragY: true,
     zIndex: 0,
+    strokeWidth: 0,
 };
 // Each element in the canvas is block
 // each Block is Node
@@ -388,7 +389,7 @@ class Block extends Node {
     styleChanges = [];
     constructor(options) {
         super();
-        this.options = { ...defaultOpt$2, ...options };
+        this.options = { ...defaultOpt$6, ...options };
     }
     __initSet() {
         if (!this.initCords.x) {
@@ -406,6 +407,7 @@ class Block extends Node {
         this.#adjustCordinates();
     }
     #adjustCordinates() {
+        // initCords is problematic
         this.initCords.x =
             this.options.x !== this.initCords.x
                 ? this.options.x
@@ -419,94 +421,90 @@ class Block extends Node {
             item.initCords.y = this.initCords.y + item.options.y;
         });
     }
-    x(option) {
-        this.options.x = option || this.options.x;
+    x(opt) {
+        this.options.x = opt || this.options.x;
         return this.options.x;
     }
-    y(option) {
-        this.options.y = option || this.options.y;
+    y(opt) {
+        this.options.y = opt || this.options.y;
         return this.options.y;
     }
-    width(option) {
-        this.options.width = option || this.options.width;
+    width(opt) {
+        this.options.width = opt || this.options.width;
         return this.options.width;
     }
-    height(option) {
-        this.options.height = option || this.options.height;
+    height(opt) {
+        this.options.height = opt || this.options.height;
         return this.options.height;
     }
-    color(option) {
-        this.options.color = option || this.options.color || "black";
-        this.context.fillStyle = this.options.color;
-        return this.options.color;
+    clip_path() {
+        this.canvas.clipping_path.addRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
     }
-    strokeColor(option) {
-        this.options.strokeColor =
-            option || this.options.strokeColor || "black";
-        this.context.strokeStyle = this.options.strokeColor;
-        return this.options.strokeColor;
-    }
-    strokeWidth(option) {
-        this.options.strokeWidth = option || this.options.strokeWidth || 10;
-        this.context.lineWidth = this.options.strokeWidth;
-        return this.options.strokeWidth;
-    }
-    stroke(option) {
-        this.options.stroke = option || this.options.stroke || false;
-        if (this.options.stroke) {
-            this.context.stroke();
-        }
-        return this.options.stroke;
-    }
-    clip(option) {
-        this.options.clip = option || this.options.clip || false;
+    clip(opt) {
+        this.options.clip = opt || this.options.clip || false;
         if (this.options.clip) {
-            this.canvas.clipping_path.addRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
+            this.clip_path();
             if (!this.options.fillRule)
                 this.fillRule();
             this.context.clip(this.canvas.clipping_path.path, this.options.fillRule);
         }
         return this.options.clip;
     }
-    fillRule(option) {
-        this.options.fillRule = option || this.options.fillRule || "nonzero";
+    fillRule(opt) {
+        this.options.fillRule = opt || this.options.fillRule || "nonzero";
         return this.options.fillRule;
     }
-    zIndex(option) {
-        this.options.zIndex = option || this.options.zIndex;
+    zIndex(opt) {
+        this.options.zIndex = opt || this.options.zIndex;
         return this.options.zIndex;
     }
     set(options) {
         let cached = false;
-        for (const [key, value] of Object.entries(options)) {
-            const proto = Object.getPrototypeOf(this);
-            const obj = Object.getOwnPropertyDescriptor(proto, key);
-            const beforeOption = this.options[key];
-            if (value) {
-                if (value !== beforeOption) {
-                    obj?.value.call(this, value);
-                }
-                else {
-                    cached = true;
+        if (options)
+            for (const [key, value] of Object.entries(options)) {
+                const proto = Object.getPrototypeOf(this);
+                const obj = Object.getOwnPropertyDescriptor(proto, key);
+                const beforeOption = this.options[key];
+                if (value) {
+                    if (value !== beforeOption) {
+                        obj?.value.call(this, value);
+                    }
+                    else {
+                        cached = true;
+                    }
                 }
             }
-        }
         if (!cached) {
             this.canvas?.invokeChange.call(this.canvas);
         }
     }
-    find(queries = undefined) {
+    reset() { }
+    rotate(opt) {
+        this.options.rotate = opt || this.options.angle || 0;
+        this.context.rotate(this.options.angle);
+        return this.options.rotate;
+    }
+    // had to come first for block scaling
+    scale(x, y) {
+        this.context.scale(x, y);
+    }
+    bind(block, options) { }
+    find(queries) {
         return this.filterNodes(queries);
     }
     checkInBound(_event) {
         const width = this.options.width;
         const height = this.options.height;
         const { x, y } = this.canvas.getCursorPosition(_event);
-        if (x >= this.initCords.x &&
+        // include broder or stroke for dragging within them
+        const diffX = Math.abs(this.initCords.x);
+        const diffY = Math.abs(this.initCords.y);
+        if (x >= diffX &&
             x <= this.initCords.x + width &&
-            y >= this.initCords.y &&
-            y <= this.initCords.y + height)
+            y >= diffY &&
+            y <= this.initCords.y + height) {
             return true;
+        }
         return false;
     }
     click(_func) {
@@ -609,9 +607,9 @@ class Block extends Node {
             },
         });
     }
-    selectable(option) {
+    selectable(opt) {
         const duplicat = this.events.filter((elem) => elem.eventType === "selectable");
-        if (!option || duplicat.length >= 1)
+        if (!opt || duplicat.length >= 1)
             return false;
         this.events.push({
             eventType: "selectable",
@@ -626,20 +624,20 @@ class Block extends Node {
                 this.set({ color: old_color });
             }
         });
-        this.options.selectable = option;
+        this.options.selectable = opt;
         return this.options.selectable;
     }
-    dragX(option) {
-        this.options.dragX = option || this.options.dragX;
+    dragX(opt) {
+        this.options.dragX = opt || this.options.dragX;
         return this.options.dragX;
     }
-    dragY(option) {
-        this.options.dragY = option || this.options.dragY;
+    dragY(opt) {
+        this.options.dragY = opt || this.options.dragY;
         return this.options.dragY;
     }
-    draggable(option) {
+    draggable(opt) {
         const duplicat = this.events.filter((elem) => elem.eventType === "draggable");
-        if (!option || duplicat.length >= 1 || !this.options.selectable)
+        if (!opt || duplicat.length >= 1 || !this.options.selectable)
             return false;
         this.events.push({
             eventType: "draggable",
@@ -682,17 +680,91 @@ class Block extends Node {
             isMouseDown = false;
             this.options.mousedown = isMouseDown;
         });
-        this.options.draggable = option;
+        this.options.draggable = opt;
         return this.options.draggable;
     }
 }
 
+const defaultOpt$5 = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    selectable: true,
+    draggable: true,
+    zIndex: 0,
+    dragX: true,
+    dragY: true,
+};
 // Layer spesical type of block whcih defines group of blocks
 class Layout extends Block {
     constructor(options) {
         super(options);
+        this.options = { ...defaultOpt$5, ...options };
     }
-    __initSet() { }
+    __initSet() {
+        super.__initSet();
+    }
+    #layoutFlex(block) {
+        if (this.options.flexDirection === "column") {
+            this.#flexColumn(block);
+        }
+        else if (this.options.flexDirection === "row") {
+            this.#flexRow(block);
+        }
+    }
+    #flexColumn(block) {
+        let idx = 0;
+        while (block.length > idx + 1) {
+            let startX = block[idx].options.x;
+            let endX = block[idx].options.width + startX;
+            block[idx + 1].options.x = endX + this.options.gap;
+            idx++;
+        }
+    }
+    #flexRow(block) {
+        let idx = 0;
+        while (block.length > idx + 1) {
+            let startY = block[idx].options.y;
+            let endY = block[idx].options.height + startY;
+            block[idx + 1].options.x = endY + this.options.gap;
+            idx++;
+        }
+    }
+    #layoutGrid(block) {
+        let row = 0;
+        let idx = 0;
+        while (block.length > row) {
+            let startX = block[idx].options.x;
+            let endX = block[idx].options.width + startX;
+            let startY = block[idx].options.y;
+            let endY = block[idx].options.height + startY;
+            let gap = this.options.gap;
+            let gapColumn = this.options.gapColumn;
+            let gapRow = this.options.gapRow;
+            if (block.length > idx + 1) {
+                if (this.options.gridTemplateColumns % idx !== 0) ;
+                else {
+                    endX = 0;
+                    gap = 0;
+                    gapColumn = 0;
+                    gapRow = 0;
+                }
+                block[idx + 1].options.x = endX + gap + gapColumn;
+                block[idx + 1].options.y = endY + gap + gapRow;
+                idx++;
+            }
+        }
+    }
+    add(...block) {
+        super.add(...block);
+        if (this.options.layout == "grid") {
+            this.#layoutGrid(block);
+        }
+        else if (this.options.layout == "flex") {
+            this.#layoutFlex(block);
+        }
+    }
 }
 
 // each shape extends form common shape
@@ -702,64 +774,103 @@ class Shape extends Block {
     }
     __initSet() {
         super.__initSet();
-        this.draw();
+        this.__drawInit();
     }
-    draw() {
-        this.color();
+    __drawInit() {
+        this.fillStyle();
+        this.draw();
         this.fill();
         this.stroke();
     }
-    // x(option?: number): number {
-    //     return super.x(option);
-    // }
-    // y(option?: number): number {
-    //     return super.y(option);
-    // }
-    width(option) {
-        return super.width(option);
+    draw(_func) {
+        if (_func)
+            _func(this);
     }
-    height(option) {
-        return super.height(option);
+    beginPath(opt = true) {
+        if (opt)
+            return this.context.beginPath();
     }
-    color(option) {
-        this.context.beginPath();
-        return super.color(option);
-    }
-    strokeWidth(option) {
-        return super.strokeWidth(option);
-    }
-    strokeColor(option) {
-        return super.strokeColor(option);
-    }
-    stroke(option) {
-        return super.stroke(option);
-    }
-    fill(option) {
-        this.options.fill = option || this.options.fill || false;
+    fill(opt) {
+        this.options.fill = opt || this.options.fill || false;
         if (this.options.fill) {
             this.context.fill();
         }
         return this.options.fill;
     }
-    clip(option) {
-        return super.clip(option);
+    fillStyle(opt) {
+        this.options.fillStyle = opt || this.options.fillStyle || "black";
+        this.context.fillStyle = this.options.fillStyle;
+        return this.options.fillStyle;
     }
-    dragX(option) {
-        return super.dragX(option);
+    stroke(opt) {
+        this.options.stroke = opt || this.options.stroke || false;
+        if (this.options.stroke) {
+            this.context.stroke();
+        }
+        return this.options.stroke;
     }
-    dragY(option) {
-        return super.dragY(option);
+    strokeStyle(opt) {
+        this.options.strokeStyle = opt || this.options.strokeStyle || "black";
+        this.context.strokeStyle = this.options.strokeStyle;
+        return this.options.strokeStyle;
     }
-    draggable(option) {
-        return super.draggable(option);
+    lineCap(opt) {
+        this.options.lineCap = opt || this.options.lineCap || "butt";
+        this.context.lineCap = this.options.lineCap;
+        return this.options.lineCap;
     }
-    selectable(option) {
-        return super.selectable(option);
+    lineWidth(opt) {
+        this.options.lineWidth = opt || this.options.lineWidth || 0;
+        this.context.lineWidth = this.options.lineWidth;
+        return this.options.lineWidth;
+    }
+    setLineDash(opt) {
+        this.options.lineDash = opt || this.options.lineDash || [];
+        this.context.setLineDash(opt);
+    }
+    quadraticCurveTo({ cpx1, cpy1, endX, endY }) {
+        this.context.quadraticCurveTo(cpx1, cpy1, endX, endY);
+    }
+    bezierCurveTo({ cpx1, cpy1, cpx2, cpy2, endX, endY }) {
+        this.context.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
+    }
+    rect({ x, y, width, height }) {
+        this.context.rect(x, y, width, height);
+    }
+    roundRect({ x, y, width, height, borderRadius }) {
+        this.context.roundRect(x, y, width, height, borderRadius);
+    }
+    strokeRect({ x, y, width, height }) {
+        this.context.strokeRect(x, y, width, height);
+    }
+    // can be 2 different format, one opt with optinos giving paramters, two like this
+    moveTo({ x, y }) {
+        x = x || this.initCords.x;
+        y = y || this.initCords.y;
+        this.context.moveTo(x, y);
+    }
+    clip(opt) {
+        return super.clip(opt);
+    }
+    dragX(opt) {
+        return super.dragX(opt);
+    }
+    dragY(opt) {
+        return super.dragY(opt);
+    }
+    draggable(opt) {
+        return super.draggable(opt);
+    }
+    selectable(opt) {
+        return super.selectable(opt);
     }
     set(options) {
         super.set(options);
     }
 }
+// new Shape({ width: 100, height: 100, setLineDash: [10, 10] }).draw((context) =>
+//     context.setLineDash([10, 10])
+// );
 
 class TextBlock extends Block {
     text;
@@ -772,25 +883,18 @@ class TextBlock extends Block {
         super.__initSet();
         this.setFont();
         this.color();
-        this.options.width = this.width();
         this.options.height = this.height();
         const fontY = this.options.height + this.initCords.y;
         this.context.fillText(this.text, this.initCords.x, fontY, this.options.maxWidth);
     }
-    // x(option?: number) {
-    //     return super.x(option);
-    // }
-    // y(option?: number) {
-    //     return super.y(option);
-    // }
-    width(option) {
+    width(opt) {
         const text_measure = this.measureText();
-        this.options.width = option || text_measure.width;
+        this.options.width = opt || text_measure.width;
         return this.options.width;
     }
-    height(option) {
+    height(opt) {
         const text_measure = this.measureText();
-        this.options.height = option || text_measure.hangingBaseline;
+        this.options.height = opt || text_measure.hangingBaseline;
         return this.options.height;
     }
     #format_font() {
@@ -801,122 +905,136 @@ class TextBlock extends Block {
         const fontVariant = this.fontVariant();
         return `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
     }
-    // option: it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
-    setFont(option) {
-        this.context.font = option || this.#format_font();
+    // opt: it has to bee in this format: "fontStyle fontVariant fontWeight fontSize fontFamily"
+    setFont(opt) {
+        this.context.font = opt || this.#format_font();
     }
-    fontFamily(option) {
+    fontFamily(opt) {
         this.options.fontFamily =
-            option || this.options.fontFamily || "sans-serif";
+            opt || this.options.fontFamily || "sans-serif";
         return this.options.fontFamily;
     }
-    fontSize(option) {
-        this.options.fontSize = option || this.options.fontSize || "10px";
+    fontSize(opt) {
+        this.options.fontSize = opt || this.options.fontSize || "10px";
         return this.options.fontSize;
     }
-    fontWeight(option) {
-        this.options.fontWeight = option || this.options.fontWeight || 100;
+    fontWeight(opt) {
+        this.options.fontWeight = opt || this.options.fontWeight || 100;
         return this.options.fontWeight;
     }
-    fontVariant(option) {
-        this.options.fontVariant =
-            option || this.options.fontVariant || "normal";
+    fontVariant(opt) {
+        this.options.fontVariant = opt || this.options.fontVariant || "normal";
         return this.options.fontVariant;
     }
-    fontStyle(option) {
-        this.options.fontStyle = option || this.options.fontVariant || "normal";
+    fontStyle(opt) {
+        this.options.fontStyle = opt || this.options.fontVariant || "normal";
         return this.options.fontStyle;
     }
-    fontStretch(option) {
-        this.options.fontStretch =
-            option || this.options.fontStretch || "normal";
+    fontStretch(opt) {
+        this.options.fontStretch = opt || this.options.fontStretch || "normal";
         this.context.fontStretch = this.options.fontStretch;
         return this.options.fontStretch;
     }
-    fontKerning(option) {
-        this.options.fontKerning = option || this.options.fontKerning || "auto";
+    fontKerning(opt) {
+        this.options.fontKerning = opt || this.options.fontKerning || "auto";
         this.context.fontKerning = this.options.fontKerning;
         return this.options.fontKerning;
     }
-    fontVariantCaps(option) {
+    fontVariantCaps(opt) {
         this.options.fontVariantCaps =
-            option || this.options.fontVariantCaps || "normal";
+            opt || this.options.fontVariantCaps || "normal";
         this.context.fontVariantCaps = this.options.fontVariantCaps;
         return this.options.fontVariantCaps;
     }
-    wordSpacing(option) {
+    wordSpacing(opt) {
         this.options.wordSpacing =
-            `${option}px` || this.options.wordSpacing || "0px";
+            `${opt}px` || this.options.wordSpacing || "0px";
         this.context.wordSpacing = this.options.wordSpacing;
         return this.options.wordSpacing;
     }
-    color(option) {
-        super.color(option);
+    color(opt) {
+        this.options.color = opt || this.options.color || "black";
+        this.context.fillStyle = this.options.color;
+        return this.options.color;
     }
-    strokeWidth(option) {
-        this.setFont();
-        this.strokeColor();
-        super.strokeWidth(option);
-        const fontY = this.options.height + this.initCords.y;
-        this.context.strokeText(this.text, this.initCords.x, fontY, this.options?.maxWidth);
+    strokeWidth(opt) {
+        this.options.strokeWidth = opt || this.options.strokeWidth || 0;
+        this.context.lineWidth = this.options.strokeWidth;
         return this.options.strokeWidth;
     }
-    strokeColor(option) {
-        return super.strokeColor(option);
+    strokeColor(opt) {
+        this.options.strokeColor = opt || this.options.strokeColor || "black";
+        this.context.strokeStyle = this.options.strokeColor;
+        return this.options.strokeColor;
     }
-    direction(option) {
-        this.context.direction = option || this.options.direction || "ltr";
+    stroke(opt) {
+        this.options.stroke = opt || this.options.stroke || false;
+        if (opt) {
+            this.setFont();
+            this.strokeColor();
+            this.strokeWidth();
+            this.options.height = this.height();
+            const fontY = this.options.height + this.initCords.y;
+            this.context.strokeText(this.text, this.initCords.x, fontY, this.options?.maxWidth);
+        }
+        return this.options.stroke;
+    }
+    direction(opt) {
+        this.context.direction = opt || this.options.direction || "ltr";
         this.options.direction = this.context.direction;
         return this.options.direction;
     }
-    letterSpacing(option) {
-        this.context.letterSpacing =
-            option || this.options.letterSpacing || "0px";
+    letterSpacing(opt) {
+        this.context.letterSpacing = opt || this.options.letterSpacing || "0px";
         this.options.letterSpacing = this.context.letterSpacing;
         return this.options.letterSpacing;
     }
-    textRendering(option) {
+    textRendering(opt) {
         this.context.textRendering =
-            option || this.options.textRendering || "auto";
+            opt || this.options.textRendering || "auto";
         this.options.textRendering = this.context.textRendering;
         return this.options.textRendering;
     }
-    textAlign(option) {
-        this.context.textAlign = option || this.options.textAlign || "start";
+    textAlign(opt) {
+        this.context.textAlign = opt || this.options.textAlign || "start";
         this.options.align = this.context.align;
         return this.options.align;
     }
-    textBaseline(option) {
+    textBaseline(opt) {
         this.context.textBaseline =
-            option || this.options.textBaseline || "alphabetic";
+            opt || this.options.textBaseline || "alphabetic";
         this.options.baseline = this.context.baseline;
         return this.options.baseline;
+    }
+    find(queries) {
+        return this.filterNodes(queries);
     }
     // @return: text width in pixels
     measureText() {
         return this.context.measureText(this.text);
     }
-    clip(option) {
-        return super.clip(option);
+    clip(opt) {
+        return super.clip(opt);
     }
-    dragX(option) {
-        return super.dragX(option);
+    dragX(opt) {
+        return super.dragX(opt);
     }
-    dragY(option) {
-        return super.dragY(option);
+    dragY(opt) {
+        return super.dragY(opt);
     }
-    draggable(option) {
-        return super.draggable(option);
+    draggable(opt) {
+        return super.draggable(opt);
     }
-    selectable(option) {
-        return super.selectable(option);
+    selectable(opt) {
+        return super.selectable(opt);
     }
     set(options) {
         super.set(options);
     }
 }
 
-const defaultOpt$1 = {
+// borderstyle can be extended
+const defaultOpt$4 = {
     x: 0,
     y: 0,
     width: 0,
@@ -927,59 +1045,426 @@ const defaultOpt$1 = {
     dragX: true,
     dragY: true,
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    borderRadius: [],
+    borderRadius: [0],
 };
 class Rectangle extends Shape {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$1, ...options };
-        Rectangle.prototype.draggable = Shape.prototype.draggable;
-        // Object.assign(Rectangle.prototype)
+        this.options = { ...defaultOpt$4, ...options };
     }
     __initSet() {
         super.__initSet();
     }
-    draw() {
-        this.color();
-        this.context.roundRect(this.initCords.x, this.initCords.y, this.options.width, this.options.height, this.options.borderRadius);
+    __drawInit() {
+        this.beginPath();
+        this.backgroundColor();
+        this.#drawRect();
         this.fill();
         this.stroke();
     }
-    // x(option?: number): number {
-    //     return super.x(option);
+    #drawRect() {
+        this.roundRect({
+            x: this.initCords.x,
+            y: this.initCords.y,
+            width: this.options.width,
+            height: this.options.height,
+            borderRadius: this.options.borderRadius,
+        });
+    }
+    backgroundColor(opt) {
+        this.options.backgroundColor = super.fillStyle(opt);
+        return this.options.backgroundColor;
+    }
+    border(opt) {
+        this.options.border = opt || this.options.border || [];
+        const { borderStyleArrWidth } = this.#borderParser(this.options.border);
+        if (this.options.borderStyle === "dotted") {
+            this.setLineDash(borderStyleArrWidth);
+        }
+        super.stroke(true);
+        return this.options.border;
+    }
+    borderWidth(opt) {
+        this.options.borderWidth = super.lineWidth(opt);
+        return this.options.borderWidth;
+    }
+    borderColor(opt) {
+        this.options.borderColor = super.strokeStyle(opt);
+        return this.options.borderColor;
+    }
+    borderStyle(opt) {
+        this.options.borderStyle = opt || this.options.borderStyle || "solid";
+        return this.options.borderStyle;
+    }
+    borderTop(opt) {
+        this.options.borderTop = opt || this.options.borderTop;
+        let { borderStyleArrWidth } = this.#borderParser(this.options.borderTop);
+        borderStyleArrWidth.pop();
+        if (this.options.borderStyle === "dotted") {
+            this.setLineDash([
+                ...borderStyleArrWidth,
+                this.options.height * 2 + this.options.width,
+            ]);
+        }
+        else {
+            this.setLineDash([
+                this.options.width,
+                this.options.width + 2 * this.options.height,
+                0,
+                0,
+            ]);
+        }
+        this.#drawRect();
+        super.stroke(true);
+        return this.options.borderTop;
+    }
+    borderRight(opt) {
+        this.options.borderRight = opt || this.options.borderRight;
+        const { borderStyleArrHeight } = this.#borderParser(this.options.borderRight);
+        borderStyleArrHeight.pop();
+        if (this.options.borderStyle === "dotted") {
+            this.setLineDash([
+                0,
+                this.options.width,
+                ...borderStyleArrHeight,
+                this.options.width + this.options.height,
+            ]);
+        }
+        else if (this.options.borderStyle === "solid") {
+            this.setLineDash([
+                0,
+                this.options.width,
+                this.options.height,
+                this.options.width,
+            ]);
+        }
+        this.#drawRect();
+        super.stroke(true);
+        return this.options.borderRight;
+    }
+    borderBottom(opt) {
+        this.options.borderBottom = opt || this.options.borderBottom;
+        let { borderStyleArrWidth } = this.#borderParser(this.options.borderBottom);
+        if (this.options.borderStyle === "dotted") {
+            this.setLineDash([
+                0,
+                this.options.width + this.options.height,
+                ...borderStyleArrWidth,
+            ]);
+        }
+        else if (this.options.borderStyle === "solid") {
+            this.setLineDash([
+                0,
+                this.options.width + this.options.height,
+                this.options.width,
+                0,
+            ]);
+        }
+        this.#drawRect();
+        super.stroke(true);
+        return this.options.borderBottom;
+    }
+    borderLeft(opt) {
+        this.options.borderLeft = opt || this.options.borderLeft;
+        let { borderStyleArrHeight } = this.#borderParser(this.options.borderLeft);
+        if (this.options.borderStyle === "dotted") {
+            this.setLineDash([
+                0,
+                this.options.width * 2 + this.options.height,
+                ...borderStyleArrHeight,
+            ]);
+        }
+        else if (this.options.borderStyle === "solid") {
+            this.setLineDash([
+                0,
+                this.options.width * 2 + this.options.height,
+                this.options.height,
+                this.options.width,
+            ]);
+        }
+        this.#drawRect();
+        super.stroke(true);
+        return this.options.borderLeft;
+    }
+    // border size, style(required), color
+    #borderParser(obj) {
+        const border = obj?.split(" ") || [];
+        // need to impliment css unit converter for different size, ex, px, em, rem etc.
+        const borderWitdh = Number(border[0]);
+        const borderStyle = border[1];
+        const borderColor = border[2];
+        const borderStyleArrWidth = [];
+        const borderStyleArrHeight = [];
+        if (borderStyle === "dotted") {
+            let total = 0;
+            const step = this.options.width / 21;
+            while (total < this.options.width) {
+                borderStyleArrWidth.push(step, step);
+                total += step * 2;
+            }
+            total = 0;
+            const stepHeight = this.options.height / 21;
+            while (total < this.options.height) {
+                borderStyleArrHeight.push(stepHeight, stepHeight);
+                total += stepHeight * 2;
+            }
+        }
+        this.borderWidth(borderWitdh);
+        this.borderStyle(borderStyle);
+        this.borderColor(borderColor);
+        return { borderStyleArrWidth, borderStyleArrHeight };
+    }
+    clip(opt) {
+        return super.clip(opt);
+    }
+    dragX(opt) {
+        return super.dragX(opt);
+    }
+    dragY(opt) {
+        return super.dragY(opt);
+    }
+    draggable(opt) {
+        return super.draggable(opt);
+    }
+    selectable(opt) {
+        return super.selectable(opt);
+    }
+    set(options) {
+        super.set(options);
+    }
+}
+
+class Star extends Shape {
+    constructor(options) {
+        super(options);
+    }
+    __initSet() {
+        super.__initSet();
+    }
+    __drawInit() {
+        this.beginPath();
+        /* calculcate this */
+        // function strokeStar(x, y, r, n, inset) {
+        //     ctx.save();
+        //     ctx.beginPath();
+        //     ctx.translate(x, y);
+        //     ctx.moveTo(0, 0 - r);
+        //     for (var i = 0; i < n; i++) {
+        //         ctx.rotate(Math.PI / n);
+        //         ctx.lineTo(0, 0 - r * inset);
+        //         ctx.rotate(Math.PI / n);
+        //         ctx.lineTo(0, 0 - r);
+        //     }
+        //     ctx.closePath();
+        //     ctx.fill();
+        //     ctx.restore();
+        // }
+        // strokeStar(0, 50, 20, 5, 2);
+    }
+}
+
+const defaultOpt$3 = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    selectable: true,
+    draggable: true,
+    zIndex: 0,
+    size: 100,
+};
+class Triangle extends Shape {
+    constructor(options) {
+        super(options);
+        this.options = { ...defaultOpt$3, ...options };
+    }
+    __initSet() {
+        super.__initSet();
+    }
+    __drawInit() {
+        this.beginPath();
+        this.backgroundColor();
+        const { x1, x2, y1 } = this.#calcTopPoint();
+        this.context.moveTo(this.initCords.x, this.initCords.y);
+        this.context.lineTo(x1, y1);
+        this.context.lineTo(x2, y1);
+        this.context.closePath();
+        this.fill();
+        this.stroke();
+    }
+    #calcTopPoint() {
+        let x = this.initCords.x || this.options.x;
+        let y = this.initCords.y || this.options.y;
+        let sides = this.options.sides || this.options.size;
+        let bottom = this.options.bottom || this.options.size;
+        console.log(this.options.bottom);
+        x += bottom / 2;
+        this.initCords.x = x;
+        const x1 = x + bottom / 2;
+        const x2 = Math.abs(bottom - x1);
+        // const y1 = ((Math.sqrt(3) * 1) / 2) * side + y;
+        const y1 = Math.sqrt(sides ** 2 - bottom ** 2 / 4) + y;
+        console.log(this.options.size);
+        return { x1, x2, y1 };
+    }
+    width(opt) {
+        this.options.bottom = super.width(opt);
+        return this.options.bottom;
+    }
+    height(opt) {
+        this.options.sides = super.height(opt);
+        return this.options.sides;
+    }
+    backgroundColor(opt) {
+        this.options.backgroundColor = super.fillStyle(opt);
+        return this.options.backgroundColor;
+    }
+    checkInBound(_event) {
+        const width = this.options.width;
+        const height = this.options.height;
+        const { x, y } = this.canvas.getCursorPosition(_event);
+        if (x >= this.initCords.x &&
+            x <= this.initCords.x + width &&
+            y >= this.initCords.y &&
+            y <= this.initCords.y + height) {
+            return true;
+        }
+        return false;
+    }
+    // borderColor(opt?: string){
+    //     return super.borderColor(opt)
     // }
-    // y(option?: number): number {
-    //     return super.y(option);
-    // }
-    // width(option?: number): number {
-    //     return super.width(option);
-    // }
-    // height(option?: number): number {
-    //     return super.height(option);
-    // }
-    color(option) {
-        return super.color(option);
+    size(opt) {
+        this.options.side = opt || this.options.side || 100;
+        return this.options.side;
     }
-    strokeWidth(option) {
-        return super.strokeWidth(option);
+    find(queries) {
+        return this.filterNodes(queries);
     }
-    strokeColor(option) {
-        return super.strokeColor(option);
+    clip_path() {
+        const { x1, x2, y1 } = this.#calcTopPoint();
+        this.initCords.x = this.initCords.x || this.options.x;
+        this.initCords.y = this.initCords.y || this.options.y;
+        this.canvas.clipping_path.moveTo(this.initCords.x, this.initCords.y);
+        this.canvas.clipping_path.lineTo(x1, y1);
+        this.canvas.clipping_path.lineTo(x2, y1);
+        this.canvas.clipping_path.closePath();
     }
-    stroke(option) {
-        return super.stroke(option);
+    // do not show clip
+    clip(opt) {
+        return super.clip(opt);
     }
-    fill(option) {
-        return super.fill(option);
+    draggable(opt) {
+        return super.draggable(opt);
     }
-    clip(option) {
-        return super.clip(option);
+    selectable(opt) {
+        return super.selectable(opt);
     }
-    // draggable(option: boolean): boolean {
-    //     return super.draggable(option);
-    // }
-    selectable(option) {
-        return super.selectable(option);
+    set(options) {
+        super.set(options);
+    }
+}
+
+const defaultOpt$2 = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    selectable: true,
+    draggable: true,
+    zIndex: 0,
+    dragX: true,
+    dragY: true,
+    // border-radius: [top-left, top-right, bottom-right, bottom-left]
+    radiusX: 10,
+    radiusY: 10,
+    rotation: 0,
+};
+class Elipse extends Shape {
+    constructor(options) {
+        super(options);
+        this.options = { ...defaultOpt$2, ...options };
+        Elipse.prototype.draggable = Shape.prototype.draggable;
+    }
+    __initSet() {
+        super.__initSet();
+    }
+    __drawInit() {
+        this.beginPath();
+        this.backgroundColor();
+        // cordinates need to calculate related to radius x and radius y
+        this.context.ellipse(this.initCords.x, this.initCords.y, this.options.radiusX, this.options.radiusY, this.options.rotation, 0, 2 * Math.PI);
+        this.fill();
+        this.stroke();
+    }
+    backgroundColor(opt) {
+        this.options.backgroundColor = super.fillStyle(opt);
+        return this.options.backgroundColor;
+    }
+}
+
+const defaultOpt$1 = {
+    x: 0,
+    y: 0,
+    width: 10,
+    height: 10,
+    selectable: true,
+    draggable: true,
+    zIndex: 0,
+    dragX: true,
+    dragY: true,
+    radius: 10,
+    startAngle: 0,
+    endAngle: Math.PI * 2,
+};
+class Circle extends Shape {
+    constructor(options) {
+        super(options);
+        this.options = { ...defaultOpt$1, ...options };
+    }
+    __initSet() {
+        super.__initSet();
+    }
+    __drawInit() {
+        this.beginPath();
+        this.backgroundColor();
+        const x = this.initCords.x + this.options.radius;
+        const y = this.initCords.y + this.options.radius;
+        this.context.arc(x, y, this.options.radius, this.options.startAngle, this.options.endAngle);
+        super.fill();
+        super.stroke();
+    }
+    width(opt) {
+        this.options.radius = this.options.radius || super.width(opt);
+        return this.options.radius;
+    }
+    height(opt) {
+        this.options.radius = this.options.radius || super.height(opt);
+        return this.options.radius;
+    }
+    backgroundColor(opt) {
+        this.options.backgroundColor = super.fillStyle(opt);
+        return this.options.backgroundColor;
+    }
+    borderWidth(opt) {
+        this.options.borderWidth = super.lineWidth(opt);
+        return this.options.borderWidth;
+    }
+    borderColor(opt) {
+        this.options.borderColor = super.strokeStyle(opt);
+        return this.options.borderColor;
+    }
+    dragX(opt) {
+        return super.dragX(opt);
+    }
+    dragY(opt) {
+        return super.dragY(opt);
+    }
+    draggable(opt) {
+        return super.draggable(opt);
+    }
+    selectable(opt) {
+        return super.selectable(opt);
     }
     set(options) {
         super.set(options);
@@ -994,108 +1479,36 @@ const defaultOpt = {
     selectable: true,
     draggable: true,
     zIndex: 0,
-    left: 30,
-    right: 30,
-    bottom: 30,
+    dragX: true,
+    dragY: true,
+    tail: 20,
+    head: 10,
 };
-class Triangle extends Shape {
+class Arrow extends Shape {
     constructor(options) {
         super(options);
         this.options = { ...defaultOpt, ...options };
+        Arrow.prototype.draggable = Shape.prototype.draggable;
+        // Object.assign(Rectangle.prototype)
     }
     __initSet() {
         super.__initSet();
     }
-    // have some problems
-    draw() {
-        this.color();
-        let x = this.options.x;
-        let y = this.options.y;
-        let bottom;
-        let right;
-        let left;
-        if (!this.options.side) {
-            bottom = this.options.bottom;
-            right = this.options.right;
-            left = this.options.left;
-        }
-        else {
-            right = left = bottom = this.options.side;
-        }
-        // y += right;
-        // x += bottom;
-        // right -= y;
-        // bottom -= x;
-        // const xDiff = Math.abs(
-        //     (bottom ** 2 - left ** 2 - right ** 2) / (2 * left)
-        // );
-        // const y1 = Math.sqrt(
-        //     (right ** 2 + left ** 2 + 2 * left * right ** 2 - bottom ** 2) /
-        //         (2 * left)
-        // );
-        const xDiff = (left ** 2 - right ** 2 + 2 * bottom * x + bottom ** 2) /
-            (2 * bottom);
-        const y1 = Math.sqrt((right ** 2 +
-            bottom ** 2 +
-            2 * bottom * right ** 2 -
-            left ** 2) /
-            (2 * bottom)) - y;
-        let x1 = xDiff;
-        // if (bottom < left) {
-        //     x1 = left - xDiff;
-        // } else {
-        //     x1 = xDiff + left;
-        // }
-        this.context.moveTo(x, y + y1);
-        this.context.lineTo(x1, y1);
-        this.context.lineTo(x1, y);
-        this.context.closePath();
+    // @todo: calculate bottom of the object, and end destination of lineTo
+    __drawInit() {
+        // this.backgroundColor();
+        new Triangle({
+            x: this.options.x,
+            y: this.options.y,
+            size: this.options.head,
+            color: this.options.color,
+        });
+        this.context.moveTo(30, 50);
+        this.context.lineTo(150, 100);
+        this.context.stroke();
         this.fill();
         this.stroke();
     }
-    // x(option?: number): number {
-    //     return super.x(option);
-    // }
-    // y(option?: number): number {
-    //     return super.y(option);
-    // }
-    width(option) {
-        return super.width(option);
-    }
-    height(option) {
-        return super.height(option);
-    }
-    color(option) {
-        return super.color(option);
-    }
-    strokeWidth(option) {
-        return super.strokeWidth(option);
-    }
-    strokeColor(option) {
-        return super.strokeColor(option);
-    }
-    stroke(option) {
-        return super.stroke(option);
-    }
-    fill(option) {
-        return super.fill(option);
-    }
-    side(option) {
-        this.options.side = option || this.options.side || 10;
-        return this.options.side;
-    }
-    clip(option) {
-        return super.clip(option);
-    }
-    draggable(option) {
-        return super.draggable(option);
-    }
-    selectable(option) {
-        return super.selectable(option);
-    }
-    set(options) {
-        super.set(options);
-    }
 }
 
-export { Block, Canvas, CanvasDOMManager, Layout, Rectangle, Shape, TextBlock, Triangle };
+export { Arrow, Block, Canvas, CanvasDOMManager, Circle, Elipse, Layout, Rectangle, Shape, Star, TextBlock, Triangle };
