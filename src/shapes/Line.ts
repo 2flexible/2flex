@@ -1,9 +1,12 @@
-import { Shape, LineCapOpt } from "../Shape";
-import { IBlock, IDefaultBlockOpt } from "../types";
+import {
+    Shape,
+    LineCapOpt,
+    QuadraticCurveToOpt,
+    BezierCurveToOpt,
+} from "../Shape";
+import { IBlock, IDefaultBlockOpt, CursorPos } from "../types";
 
-interface DefaultLineOpt {
-    dash: number[];
-}
+interface DefaultLineOpt {}
 
 const defaultOpt: IDefaultBlockOpt<DefaultLineOpt> = {
     x: 0,
@@ -15,22 +18,19 @@ const defaultOpt: IDefaultBlockOpt<DefaultLineOpt> = {
     zIndex: 0,
     dragX: true,
     dragY: true,
-    dash: [],
 };
 
 export type LineJoinOpt = "miter" | "round" | "bevel";
 
-interface LineOptions extends DefaultLineOpt {
-    cp1x: number;
-    cp1y: number;
-    cp2x: number;
-    cp2y: number;
-    endX: number;
-    endY: number;
-
+interface LineOptions
+    extends DefaultLineOpt,
+        BezierCurveToOpt,
+        QuadraticCurveToOpt {
+    points: number[];
     lineDashOffset?: number;
     lineJoin: LineJoinOpt;
 }
+type Point = BezierCurveToOpt;
 
 export class Line extends Shape {
     joinTo: Line | undefined = undefined;
@@ -42,41 +42,44 @@ export class Line extends Shape {
     __initSet(): void {
         super.__initSet();
     }
-    // @todo: when combining two lines need to remove beginPath, can be bind or any other way
     __drawInit() {
-        if(!this.joinTo) this.beginPath() 
-        this.strokeStyle();
-
-        this.moveTo({ x: this.initCords.x, y: this.initCords.y });
-
-        if (
-            !this.options.cpx1 &&
-            !this.options.cpy1 &&
-            this.options.cpx2 &&
-            this.options.cpy2
-        ) {
-            this.quadraticCurveTo({
-                cpx1: this.options.cpx1,
-                cpy1: this.options.cpy1,
-                endX: this.options.endX,
-                endY: this.options.endY,
-            });
-        } else if (
-            this.options.cpx1 &&
-            this.options.cpy1 &&
-            this.options.cpx2 &&
-            this.options.cpy2
-        ) {
-            this.bezierCurveTo({
-                cpx1: this.options.cpx1,
-                cpy1: this.options.cpy1,
-                cpx2: this.options.cpx2,
-                cpy2: this.options.cpy2,
-                endX: this.options.endX,
-                endY: this.options.endY,
-            });
+        if (!this.joinTo) {
+            this.beginPath();
+            this.move({ x: this.initCords.x, y: this.initCords.y });
+            this.strokeStyle();
+        }
+        if (!this.options.points) {
+            if (
+                this.options.cpx1 &&
+                this.options.cpy1 &&
+                !this.options.cpx2 &&
+                !this.options.cpy2
+            ) {
+                this.quadraticCurve({
+                    cpx1: this.options.cpx1,
+                    cpy1: this.options.cpy1,
+                    endX: this.options.endX,
+                    endY: this.options.endY,
+                });
+            } else if (
+                this.options.cpx1 &&
+                this.options.cpy1 &&
+                this.options.cpx2 &&
+                this.options.cpy2
+            ) {
+                this.bezierCurve({
+                    cpx1: this.options.cpx1,
+                    cpy1: this.options.cpy1,
+                    cpx2: this.options.cpx2,
+                    cpy2: this.options.cpy2,
+                    endX: this.options.endX,
+                    endY: this.options.endY,
+                });
+            } else {
+                this.line({ x: this.options.endX, y: this.options.endY });
+            }
         } else {
-            this.context.lineTo(this.options.endX, this.options.endY);
+            this.#drawLines();
         }
 
         this.fill();
@@ -84,30 +87,63 @@ export class Line extends Shape {
     }
 
     dash(opt?: number[]) {
-        this.options.dash = super.setLineDash(opt);;
-        return this.context.getLineDash();
+        this.options.dash = super.lineDash(opt);
+        return this.options.dash;
     }
-
-    joinBorder(opt?: LineCapOpt){
-        return super.lineCap(opt)
+    points(opt?: object[]) {
+        this.options.points = opt || this.options.points || [];
+        return this.options.points;
+    }
+    #drawLines() {
+        this.options.points.forEach((point: Point) => {
+            if (
+                point.hasOwnProperty("cpx1") &&
+                point.hasOwnProperty("cpy1") &&
+                !point.hasOwnProperty("cpx2") &&
+                !point.hasOwnProperty("cpx2")
+            ) {
+                this.quadraticCurve({
+                    cpx1: point.cpx1,
+                    cpy1: point.cpy1,
+                    endX: point.endX,
+                    endY: point.endY,
+                });
+            } else if (
+                point.hasOwnProperty("cpx1") &&
+                point.hasOwnProperty("cpy1") &&
+                point.hasOwnProperty("cpx2") &&
+                point.hasOwnProperty("cpx2")
+            ) {
+                this.bezierCurve({
+                    cpx1: point.cpx1,
+                    cpy1: point.cpy1,
+                    cpx2: point.cpx2,
+                    cpy2: point.cpy2,
+                    endX: point.endX,
+                    endY: point.endY,
+                });
+            } else {
+                this.line({ x: point.endX, y: point.endY });
+            }
+        });
+    }
+    joinBorder(opt?: LineCapOpt) {
+        return super.lineCap(opt);
     }
 
     join(line: Line) {
-        this.joinTo = line;
-        this.#adjustCordinates()
+        line.joinTo = this;
     }
-
-    #adjustCordinates() {
-        if (this.joinTo) {
-            this.joinTo.initCords.x = this.options.endX;
-            this.joinTo.initCords.y = this.options.endY;
-        }
+    strokeStyle(opt?: string) {
+        super.strokeStyle(opt);
     }
-    strokeStyle(opt?: string){
-        super.strokeStyle(opt)
+    strokeWidth(opt?: number) {
+        this.options.strokeWidth = opt || this.options.strokeWidth || 1;
+        this.options.strokeWidth = super.lineWidth(this.options.strokeWidth);
+        return this.options.strokeWidth;
     }
-    fillStyle(opt?: string){
-        return super.fillStyle(opt)
+    fillStyle(opt?: string) {
+        return super.fillStyle(opt);
     }
     clip(opt?: boolean): boolean {
         return super.clip(opt);
@@ -119,7 +155,7 @@ export class Line extends Shape {
         return super.dragY(opt);
     }
     draggable(opt: boolean): boolean {
-        this.#adjustCordinates();
+        // this.#adjustCordinates();
         return super.draggable(opt);
     }
 
@@ -131,13 +167,3 @@ export class Line extends Shape {
         super.set(options);
     }
 }
-
-// const line1 = new Line({x: 0, y: 0, xend: 10, yEnd: 20})
-
-// const line2 = new Line({x: 0, y: 0, xend: 10, yEnd: 20})
-
-// const line3 = new Line({x: 0, y: 0, xend: 10, yEnd: 20})
-
-// const line4 = new Line({x: 0, y: 0, xend: 10, yEnd: 20})
-
-// line1.join(line2, line3, line4)

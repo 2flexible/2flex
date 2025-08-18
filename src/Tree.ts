@@ -100,8 +100,10 @@ export class Tree {
         console.log(this.#listed_nodes);
     }
 
-    checkNodes(_func: (element: any) => void) {
-        this.#listed_nodes.forEach((item) => {
+    checkNodes(_func: (element: any) => void, reverse?: boolean) {
+        let nodes = this.#listed_nodes;
+        if (reverse) nodes = [...this.#listed_nodes].reverse();
+        nodes.forEach((item) => {
             _func(item);
         });
     }

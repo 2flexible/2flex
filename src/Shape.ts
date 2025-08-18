@@ -25,23 +25,26 @@ export type LineCapOpt = "butt" | "round" | "square";
 
 export interface IShapeOptions {
     fill?: boolean;
-    stroke?: boolean;
+    fillStyle?: string;
 
-    lineTo?: CursorPos;
+    stroke?: boolean;
+    strokeStyle?: string;
+
+    line?: CursorPos;
     lineWidth?: number;
     lineDash?: number[];
     lineCap?: LineCapOpt;
 
-    bezierCurve?: BezierCurveToOpt,
-    quadraticCurve?: QuadraticCurveToOpt,
+    bezierCurve?: BezierCurveToOpt;
+    quadraticCurve?: QuadraticCurveToOpt;
 
     rect: RectOpt;
     roundRect: RoundRectOpt;
+    strokeRect: RectOpt;
 
-    beginPath: boolean;
-    moveTo?: CursorPos;
-
-
+    begin?: boolean;
+    close?: boolean;
+    move?: CursorPos;
 }
 // each shape extends form common shape
 export class Shape extends Block {
@@ -108,15 +111,21 @@ export class Shape extends Block {
         return this.options.lineWidth;
     }
 
-    setLineDash(opt?: number[]) {
+    lineDash(opt?: number[]) {
         this.options.lineDash = opt || this.options.lineDash || [];
         this.context.setLineDash(opt);
     }
-    quadraticCurveTo({ cpx1, cpy1, endX, endY }: QuadraticCurveToOpt) {
+    closePath(opt?: boolean) {
+        if (opt) this.context.closePath();
+    }
+    line({ x, y }: CursorPos) {
+        this.context.lineTo(x, y);
+    }
+    quadraticCurve({ cpx1, cpy1, endX, endY }: QuadraticCurveToOpt) {
         this.context.quadraticCurveTo(cpx1, cpy1, endX, endY);
     }
 
-    bezierCurveTo({ cpx1, cpy1, cpx2, cpy2, endX, endY }: BezierCurveToOpt) {
+    bezierCurve({ cpx1, cpy1, cpx2, cpy2, endX, endY }: BezierCurveToOpt) {
         this.context.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
     }
 
@@ -130,7 +139,7 @@ export class Shape extends Block {
         this.context.strokeRect(x, y, width, height);
     }
     // can be 2 different format, one opt with optinos giving paramters, two like this
-    moveTo({ x, y }: CursorPos) {
+    move({ x, y }: CursorPos) {
         x = x || this.initCords.x!;
         y = y || this.initCords.y!;
         this.context.moveTo(x, y);

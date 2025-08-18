@@ -32,10 +32,10 @@ export class Triangle extends Shape {
         this.backgroundColor();
 
         const { x1, x2, y1 } = this.#calcTopPoint();
-        this.context.moveTo(this.initCords.x, this.initCords.y);
-        this.context.lineTo(x1, y1);
-        this.context.lineTo(x2, y1);
-        this.context.closePath();
+        this.move({ x: this.initCords.x, y: this.initCords.y });
+        this.line({ x: x1, y: y1 });
+        this.line({ x: x2, y: y1 });
+        this.closePath();
         this.fill();
         this.stroke();
     }
@@ -103,9 +103,9 @@ export class Triangle extends Shape {
         this.initCords.x = this.initCords.x || this.options.x;
         this.initCords.y = this.initCords.y || this.options.y;
 
-        this.canvas.clipping_path.moveTo(this.initCords.x, this.initCords.y);
-        this.canvas.clipping_path.lineTo(x1, y1);
-        this.canvas.clipping_path.lineTo(x2, y1);
+        this.canvas.clipping_path.move(this.initCords.x, this.initCords.y);
+        this.canvas.clipping_path.line(x1, y1);
+        this.canvas.clipping_path.line(x2, y1);
         this.canvas.clipping_path.closePath();
     }
 

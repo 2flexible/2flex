@@ -20,9 +20,7 @@ const defaultOpt: IDefaultBlockOpt<DefaultRectOpt> = {
     borderRadius: [0],
 };
 
-export interface IRectangleOptions extends DefaultRectOpt, InitialShapes {
-   
-}
+export interface IRectangleOptions extends DefaultRectOpt, InitialShapes {}
 
 export class Rectangle extends Shape {
     constructor(options?: IBlock<IRectangleOptions>) {
@@ -34,12 +32,12 @@ export class Rectangle extends Shape {
     }
 
     __drawInit() {
-        this.beginPath()
+        this.beginPath();
 
         this.backgroundColor();
 
         this.#drawRect();
-        
+
         this.fill();
         this.stroke();
     }
@@ -53,28 +51,28 @@ export class Rectangle extends Shape {
             borderRadius: this.options.borderRadius,
         });
     }
-    
+
     backgroundColor(opt?: string) {
-        this.options.backgroundColor = super.fillStyle(opt)
-        return this.options.backgroundColor
+        this.options.backgroundColor = super.fillStyle(opt);
+        return this.options.backgroundColor;
     }
-    
+
     border(opt?: string) {
         this.options.border = opt || this.options.border || [];
         const { borderStyleArrWidth } = this.#borderParser(this.options.border);
 
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash(borderStyleArrWidth);
+            this.lineDash(borderStyleArrWidth);
         }
         super.stroke(true);
         return this.options.border;
     }
     borderWidth(opt?: number) {
-        this.options.borderWidth = super.lineWidth(opt)
-        return this.options.borderWidth
+        this.options.borderWidth = super.lineWidth(opt);
+        return this.options.borderWidth;
     }
     borderColor(opt?: string) {
-        this.options.borderColor = super.strokeStyle(opt)
+        this.options.borderColor = super.strokeStyle(opt);
         return this.options.borderColor;
     }
 
@@ -92,12 +90,12 @@ export class Rectangle extends Shape {
         borderStyleArrWidth.pop();
 
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash([
+            this.lineDash([
                 ...borderStyleArrWidth,
                 this.options.height * 2 + this.options.width,
             ]);
         } else {
-            this.setLineDash([
+            this.lineDash([
                 this.options.width,
                 this.options.width + 2 * this.options.height,
                 0,
@@ -118,14 +116,14 @@ export class Rectangle extends Shape {
         borderStyleArrHeight.pop();
 
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width,
                 ...borderStyleArrHeight,
                 this.options.width + this.options.height,
             ]);
         } else if (this.options.borderStyle === "solid") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width,
                 this.options.height,
@@ -142,13 +140,13 @@ export class Rectangle extends Shape {
             this.options.borderBottom
         );
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width + this.options.height,
                 ...borderStyleArrWidth,
             ]);
         } else if (this.options.borderStyle === "solid") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width + this.options.height,
                 this.options.width,
@@ -167,13 +165,13 @@ export class Rectangle extends Shape {
         );
 
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width * 2 + this.options.height,
                 ...borderStyleArrHeight,
             ]);
         } else if (this.options.borderStyle === "solid") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width * 2 + this.options.height,
                 this.options.height,

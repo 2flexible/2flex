@@ -11,7 +11,9 @@ import {
     Elipse,
     Circle,
     Arrow,
+    Line,
 } from "./shapes/index";
+
 export {
     Canvas,
     Block,
@@ -25,4 +27,5 @@ export {
     Elipse,
     Circle,
     Arrow,
+    Line,
 };

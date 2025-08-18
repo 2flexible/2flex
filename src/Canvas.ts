@@ -67,11 +67,12 @@ export class Canvas {
     }
 
     add(...block: BlockElements[]) {
-        block = block.reverse();
+        // block = block.reverse();
 
         this.#tree.addNodes(block);
 
         this.#tree.preOrderTraversal((element: any) => {
+            console.log(element)
             element.canvas = this;
 
             this.#handleOptions(element);
@@ -85,7 +86,7 @@ export class Canvas {
         this.#tree.checkNodes((el: any) => {
             el.options.zIndex += zIndex;
             zIndex += 1;
-        });
+        }, true);
 
         this.#handleEvents();
     }
