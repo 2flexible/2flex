@@ -14,17 +14,98 @@ const defaultOpt: IDefaultBlockOpt<DefaultLayoutOpt> = {
     dragX: true,
     dragY: true,
 };
+type JustifyContent =
+    | "space-evenly"
+    | "space-around"
+    | "space-between"
+    | "center"
+    | "start"
+    | "end"
+    // only applies to grid
+    | "stretch";
+
+// for grid, inline-grid systems only
+type JustifyItems =
+    | "normal"
+    | "stretch"
+    | "start"
+    | "end"
+    | "center"
+    // for ltr rtl writing mode
+    | "left"
+    | "right";
+
+type AlignContent =
+    | "space-evenly"
+    | "space-around"
+    | "space-between"
+    | "center"
+    | "start"
+    | "end"
+    // only applies to grid
+    | "stretch";
+
+// this will differ based on flexbox and grid system
+type AlignItems = "start" | "center" | "end" | "stretch";
+
+// Todo: need to impliment justify self, align-sef for each block, can be done with left, right, bottom top postiional values
+type AlignSelf = "normal" | "auto" | "center" | "start" | "end" | "stertch";
+
+type JustifySelf =
+    | "normal"
+    | "auto"
+    | "center"
+    | "start"
+    | "end"
+    | "stertch"
+    // for rtl, ltr writind mode
+    | "left"
+    | "right";
+
+type PlaceContent = AlignContent & JustifyContent;
+
+type PlaceItems = AlignItems & JustifyItems;
+
+type PlaceSelf = AlignSelf & JustifySelf;
+
 interface FlexLayout {
     flexDirection: "column" | "row";
 }
-interface GapLayout {
+// @Todo: all numbers will change to string due to unit converting
+interface GridLayout {
+    // grid-template-rows / grid-template-columns|grid-template-areas|grid-template-rows / [grid-auto-flow] grid-auto-columns|[grid-auto-flow] grid-auto-rows / grid-template-columns
+    grid: number[];
+
+    // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end
+    gridArea: number[];
+
+    // grid-column: grid-column-start / grid-column-end
+    gridColumn: number[];
+    gridColumnStart: number;
+    gridColumnEnd: number;
+
+    // grid-row: grid-row-start / grid-row-end;
+    gridRow: number[];
+    gridRowStart: number;
+    gridRowEnd: number;
+
+    // gridTemplate: grid-template-rows / grid-template-columns
+    gridTemplate: number[];
     gridTemplateColumns: number[] | number;
+    gridTemplateRows: number[] | number;
+
+    gridRowSize: number;
+    gridColumnSize: number;
+
     gap: number;
     columnGap: number;
+    rowGap: number;
+
+    gridAutoFlow: "row" | "column" | "dense" | "row dense" | "column dense";
 }
 
-interface LayoutOptions extends DefaultLayoutOpt, GapLayout, FlexLayout {
-    layout: "flex" | "grid";
+interface LayoutOptions extends DefaultLayoutOpt, GridLayout, FlexLayout {
+    layout: "flex" | "inline-flex" | "grid" | "inline-grid";
 }
 
 // Layer spesical type of block whcih defines group of blocks
@@ -54,7 +135,7 @@ export class Layout extends Block {
             idx++;
         }
     }
-    
+
     #flexRow(block: BlockElements[]) {
         let idx = 0;
         while (block.length > idx + 1) {
@@ -108,3 +189,5 @@ export class Layout extends Block {
         }
     }
 }
+
+// const layout = new Layout({x:0,y:0, layout: "flex"}).add()
