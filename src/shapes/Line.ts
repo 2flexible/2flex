@@ -4,7 +4,8 @@ import {
     QuadraticCurveToOpt,
     BezierCurveToOpt,
 } from "../Shape";
-import { IBlock, IDefaultBlockOpt, CursorPos } from "../types";
+import { IBlock, IDefaultBlockOpt } from "../types";
+import { Path } from "../Path";
 
 interface DefaultLineOpt {}
 
@@ -34,56 +35,79 @@ type Point = BezierCurveToOpt;
 
 export class Line extends Shape {
     joinTo: Line | undefined = undefined;
+    path: Path;
+    #beforeX: number;
+    #beforeY: number;
 
     constructor(options?: IBlock<LineOptions>) {
         super(options);
         this.options = { ...defaultOpt, ...options };
+        this.#beforeX = this.options.x;
+        this.#beforeY = this.options.y;
+        this.path = new Path();
     }
     __initSet(): void {
         super.__initSet();
+        // this.#beforeEndX = this.options.x;
+        // this.#beforeEndY = this.options.y;
     }
     __drawInit() {
         if (!this.joinTo) {
             this.beginPath();
-            this.move({ x: this.initCords.x, y: this.initCords.y });
+            this.path.createPath();
+            this.path.path.moveTo(this.initCords.x!, this.initCords.y!);
             this.strokeStyle();
         }
         if (!this.options.points) {
+            const { cpx1, cpy1, cpx2, cpy2, endX, endY } = this.#calcDiff(
+                this.options.cpx1,
+                this.options.cpy1,
+                this.options.cpx2,
+                this.options.cpy2,
+                this.options.endX,
+                this.options.endY
+            );
+            this.options.cpx1 = cpx1;
+            this.options.cpy1 = cpy1;
+            this.options.cpx2 = cpx2;
+            this.options.cpy2 = cpy2;
+            this.options.endX = endX;
+            this.options.endY = endY;
             if (
                 this.options.cpx1 &&
                 this.options.cpy1 &&
                 !this.options.cpx2 &&
                 !this.options.cpy2
             ) {
-                this.quadraticCurve({
-                    cpx1: this.options.cpx1,
-                    cpy1: this.options.cpy1,
-                    endX: this.options.endX,
-                    endY: this.options.endY,
-                });
+                this.path!.path.quadraticCurveTo(
+                    this.options.cpx1,
+                    this.options.cpy1,
+                    this.options.endX,
+                    this.options.endY
+                );
             } else if (
                 this.options.cpx1 &&
                 this.options.cpy1 &&
                 this.options.cpx2 &&
                 this.options.cpy2
             ) {
-                this.bezierCurve({
-                    cpx1: this.options.cpx1,
-                    cpy1: this.options.cpy1,
-                    cpx2: this.options.cpx2,
-                    cpy2: this.options.cpy2,
-                    endX: this.options.endX,
-                    endY: this.options.endY,
-                });
+                this.path!.path.bezierCurveTo(
+                    this.options.cpx1,
+                    this.options.cpy1,
+                    this.options.cpx2,
+                    this.options.cpy2,
+                    this.options.endX,
+                    this.options.endY
+                );
             } else {
-                this.line({ x: this.options.endX, y: this.options.endY });
+                this.path.lineTo(this.options.endX, this.options.endY);
             }
         } else {
             this.#drawLines();
         }
 
         this.fill();
-        this.stroke();
+        this.stroke(this.options.stroke, this.path!.path);
     }
 
     dash(opt?: number[]) {
@@ -94,36 +118,76 @@ export class Line extends Shape {
         this.options.points = opt || this.options.points || [];
         return this.options.points;
     }
+    checkInBound(_event: MouseEvent): boolean {
+        const { x, y } = this.canvas.getCursorPosition(_event);
+        return this.pointInStroke({ path: this.path!.path, x: x, y: y });
+    }
+    #calcDiff(
+        cpx1: number,
+        cpy1: number,
+        cpx2: number,
+        cpy2: number,
+        endX: number,
+        endY: number
+    ) {
+        const diffX = this.options.x - this.#beforeX;
+        if (diffX !== 0) {
+            endX += diffX;
+            if (cpx1) cpx1 += diffX;
+            if (cpx2) cpx2 += diffX;
+
+            this.#beforeX = this.options.x;
+        }
+        const diffY = this.options.y - this.#beforeY;
+        if (diffY !== 0) {
+            endY += diffY;
+            if (cpy1) cpy1 += diffY;
+            if (cpy2) cpy2 += diffY;
+
+            this.#beforeY = this.options.y;
+        }
+        return { cpx1, cpy1, cpx2, cpy2, endX, endY };
+    }
     #drawLines() {
-        this.options.points.forEach((point: Point) => {
+        const beforeX = this.#beforeX;
+        const beforeY = this.#beforeY;
+        this.options.points.forEach((point: Point, index: number, arr: []) => {
+            const { cpx1, cpy1, cpx2, cpy2, endX, endY } = this.#calcDiff(
+                point.cpx1,
+                point.cpy1,
+                point.cpx2,
+                point.cpy2,
+                point.endX,
+                point.endY
+            );
+            this.options.points[index] = { cpx1, cpy1, cpx2, cpy2, endX, endY };
             if (
-                point.hasOwnProperty("cpx1") &&
-                point.hasOwnProperty("cpy1") &&
-                !point.hasOwnProperty("cpx2") &&
-                !point.hasOwnProperty("cpx2")
+                cpx1 !== undefined &&
+                cpy1 !== undefined &&
+                cpx2 === undefined &&
+                cpy2 === undefined
             ) {
-                this.quadraticCurve({
-                    cpx1: point.cpx1,
-                    cpy1: point.cpy1,
-                    endX: point.endX,
-                    endY: point.endY,
-                });
+                this.path!.path.quadraticCurveTo(cpx1, cpy1, endX, endY);
             } else if (
-                point.hasOwnProperty("cpx1") &&
-                point.hasOwnProperty("cpy1") &&
-                point.hasOwnProperty("cpx2") &&
-                point.hasOwnProperty("cpx2")
+                cpx1 !== undefined &&
+                cpy1 !== undefined &&
+                cpx2 !== undefined &&
+                cpy2 !== undefined
             ) {
-                this.bezierCurve({
-                    cpx1: point.cpx1,
-                    cpy1: point.cpy1,
-                    cpx2: point.cpx2,
-                    cpy2: point.cpy2,
-                    endX: point.endX,
-                    endY: point.endY,
-                });
+                this.path!.path.bezierCurveTo(
+                    cpx1,
+                    cpy1,
+                    cpx2,
+                    cpy2,
+                    endX,
+                    endY
+                );
             } else {
-                this.line({ x: point.endX, y: point.endY });
+                this.path!.path.lineTo(endX, endY);
+            }
+            if (arr.length - 1 !== index) {
+                this.#beforeX = beforeX;
+                this.#beforeY = beforeY;
             }
         });
     }
@@ -133,6 +197,7 @@ export class Line extends Shape {
 
     join(line: Line) {
         line.joinTo = this;
+        line.path = this.path;
     }
     strokeStyle(opt?: string) {
         super.strokeStyle(opt);
@@ -155,7 +220,6 @@ export class Line extends Shape {
         return super.dragY(opt);
     }
     draggable(opt: boolean): boolean {
-        // this.#adjustCordinates();
         return super.draggable(opt);
     }
 

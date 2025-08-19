@@ -5,6 +5,7 @@ import {
     Rectangle,
     Triangle,
     Circle,
+    Line,
 } from "./2flex/2flex";
 
 const canvas = new Canvas("canvas", 800, 400, { "background-color": "black" });
@@ -94,6 +95,65 @@ const circle = new Circle({
     borderWidth: 5,
 });
 rect.add(text_b);
+
+const line1 = new Line({
+    x: 0,
+    y: 0,
+    strokeStyle: "white",
+    strokeWidth: 10,
+    endX: 60,
+    endY: 80,
+    stroke: true,
+});
+const line2 = new Line({
+    x: 10,
+    y: 80,
+    cpx1: 90,
+    cpy1: 80,
+    cpx2: 50,
+    cpy2: 120,
+    strokeWidth: 10,
+    strokeStyle: "red",
+    stroke: true,
+    endX: 400,
+    endY: 200,
+});
+const line3 = new Line({
+    x: 90,
+    y: 90,
+    strokeStyle: "white",
+    stroke: true,
+    endX: 90,
+    endY: 90,
+});
+const line4 = new Line({
+    x: 20,
+    y: 40,
+
+    stroke: true,
+    strokeWidth: 10,
+    endX: 40,
+    endY: 50,
+});
+const points = [
+    { endX: 0, endY: 60 },
+    { endX: 40, endY: 40 },
+    { cpx1: 90, cpy1: 89, endX: 90, endY: 40 },
+    { cpx1: 140, cpy1: 160, cpx2: 100, cpy2: 50, endX: 0, endY: 0 },
+];
+const linesOfPoint = new Line({
+    x: 20,
+    y: 80,
+    strokeStyle: "white",
+    stroke: true,
+    strokeWidth: 10,
+    points: points,
+});
+
+// line1.join(line2);
+// line2.join(line3)
+// line3.join(line4)
+
 // text_b.set({ selectable: true });
 // rect.set({ color: "red" });
 // rect.mousemove((e) => {
@@ -107,7 +167,7 @@ rect.add(text_b);
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(rect);
+canvas.add(linesOfPoint);
 // block.add(text_a, text_b);
 // console.log(text_b.x(10))
 // text_b.set()

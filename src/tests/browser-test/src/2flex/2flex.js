@@ -84,8 +84,11 @@ class Tree {
         }
         console.log(this.#listed_nodes);
     }
-    checkNodes(_func) {
-        this.#listed_nodes.forEach((item) => {
+    checkNodes(_func, reverse) {
+        let nodes = this.#listed_nodes;
+        if (reverse)
+            nodes = [...this.#listed_nodes].reverse();
+        nodes.forEach((item) => {
             _func(item);
         });
     }
@@ -160,6 +163,9 @@ class Path extends Path2D {
     addRect(x, y, width, height, borderRadius) {
         this.path.roundRect(x, y, width, height, borderRadius);
     }
+    lineTo(x, y) {
+        this.path.lineTo(x, y);
+    }
     createPath(path) {
         this.path = new Path2D(path);
     }
@@ -205,7 +211,7 @@ class Canvas {
         };
     }
     add(...block) {
-        block = block.reverse();
+        // block = block.reverse();
         this.#tree.addNodes(block);
         this.#tree.preOrderTraversal((element) => {
             element.canvas = this;
@@ -217,7 +223,7 @@ class Canvas {
         this.#tree.checkNodes((el) => {
             el.options.zIndex += zIndex;
             zIndex += 1;
-        });
+        }, true);
         this.#handleEvents();
     }
     get canvasBounding() {
@@ -270,6 +276,7 @@ class Canvas {
         }
     }
     invokeChange(_func) {
+        // need to make for invidiual change rather than creating this path
         this.clipping_path.createPath();
         this.context.restore();
         this.context.save();
@@ -364,7 +371,7 @@ class Canvas {
     }
 }
 
-const defaultOpt$6 = {
+const defaultOpt$7 = {
     x: 0,
     y: 0,
     width: 10,
@@ -389,7 +396,7 @@ class Block extends Node {
     styleChanges = [];
     constructor(options) {
         super();
-        this.options = { ...defaultOpt$6, ...options };
+        this.options = { ...defaultOpt$7, ...options };
     }
     __initSet() {
         if (!this.initCords.x) {
@@ -685,7 +692,7 @@ class Block extends Node {
     }
 }
 
-const defaultOpt$5 = {
+const defaultOpt$6 = {
     x: 0,
     y: 0,
     width: 0,
@@ -700,7 +707,7 @@ const defaultOpt$5 = {
 class Layout extends Block {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$5, ...options };
+        this.options = { ...defaultOpt$6, ...options };
     }
     __initSet() {
         super.__initSet();
@@ -790,10 +797,10 @@ class Shape extends Block {
         if (opt)
             return this.context.beginPath();
     }
-    fill(opt) {
+    fill(opt, path) {
         this.options.fill = opt || this.options.fill || false;
         if (this.options.fill) {
-            this.context.fill();
+            this.context.fill(path);
         }
         return this.options.fill;
     }
@@ -802,10 +809,13 @@ class Shape extends Block {
         this.context.fillStyle = this.options.fillStyle;
         return this.options.fillStyle;
     }
-    stroke(opt) {
+    stroke(opt, path) {
         this.options.stroke = opt || this.options.stroke || false;
         if (this.options.stroke) {
-            this.context.stroke();
+            if (path)
+                this.context.stroke(path);
+            else
+                this.context.stroke();
         }
         return this.options.stroke;
     }
@@ -824,14 +834,21 @@ class Shape extends Block {
         this.context.lineWidth = this.options.lineWidth;
         return this.options.lineWidth;
     }
-    setLineDash(opt) {
+    lineDash(opt) {
         this.options.lineDash = opt || this.options.lineDash || [];
         this.context.setLineDash(opt);
     }
-    quadraticCurveTo({ cpx1, cpy1, endX, endY }) {
+    closePath(opt) {
+        if (opt)
+            this.context.closePath();
+    }
+    line({ x, y }) {
+        this.context.lineTo(x, y);
+    }
+    quadraticCurve({ cpx1, cpy1, endX, endY }) {
         this.context.quadraticCurveTo(cpx1, cpy1, endX, endY);
     }
-    bezierCurveTo({ cpx1, cpy1, cpx2, cpy2, endX, endY }) {
+    bezierCurve({ cpx1, cpy1, cpx2, cpy2, endX, endY }) {
         this.context.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
     }
     rect({ x, y, width, height }) {
@@ -844,10 +861,27 @@ class Shape extends Block {
         this.context.strokeRect(x, y, width, height);
     }
     // can be 2 different format, one opt with optinos giving paramters, two like this
-    moveTo({ x, y }) {
+    move({ x, y }) {
         x = x || this.initCords.x;
         y = y || this.initCords.y;
         this.context.moveTo(x, y);
+    }
+    pointInPath({ path, x, y, fillRule }) {
+        x = x || this.options.x || 0;
+        y = y || this.options.y || 0;
+        fillRule = fillRule || "nonzero";
+        if (path)
+            this.context.isPointInPath(path, x, y, fillRule);
+        else
+            this.context.isPointInPath(x, y, fillRule);
+    }
+    pointInStroke({ path, x, y }) {
+        x = x || this.options.x || 0;
+        y = y || this.options.y || 0;
+        if (path)
+            return this.context.isPointInStroke(path, x, y);
+        else
+            return this.context.isPointInStroke(x, y);
     }
     clip(opt) {
         return super.clip(opt);
@@ -1034,7 +1068,7 @@ class TextBlock extends Block {
 }
 
 // borderstyle can be extended
-const defaultOpt$4 = {
+const defaultOpt$5 = {
     x: 0,
     y: 0,
     width: 0,
@@ -1050,7 +1084,7 @@ const defaultOpt$4 = {
 class Rectangle extends Shape {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$4, ...options };
+        this.options = { ...defaultOpt$5, ...options };
     }
     __initSet() {
         super.__initSet();
@@ -1079,7 +1113,7 @@ class Rectangle extends Shape {
         this.options.border = opt || this.options.border || [];
         const { borderStyleArrWidth } = this.#borderParser(this.options.border);
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash(borderStyleArrWidth);
+            this.lineDash(borderStyleArrWidth);
         }
         super.stroke(true);
         return this.options.border;
@@ -1101,13 +1135,13 @@ class Rectangle extends Shape {
         let { borderStyleArrWidth } = this.#borderParser(this.options.borderTop);
         borderStyleArrWidth.pop();
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash([
+            this.lineDash([
                 ...borderStyleArrWidth,
                 this.options.height * 2 + this.options.width,
             ]);
         }
         else {
-            this.setLineDash([
+            this.lineDash([
                 this.options.width,
                 this.options.width + 2 * this.options.height,
                 0,
@@ -1123,7 +1157,7 @@ class Rectangle extends Shape {
         const { borderStyleArrHeight } = this.#borderParser(this.options.borderRight);
         borderStyleArrHeight.pop();
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width,
                 ...borderStyleArrHeight,
@@ -1131,7 +1165,7 @@ class Rectangle extends Shape {
             ]);
         }
         else if (this.options.borderStyle === "solid") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width,
                 this.options.height,
@@ -1146,14 +1180,14 @@ class Rectangle extends Shape {
         this.options.borderBottom = opt || this.options.borderBottom;
         let { borderStyleArrWidth } = this.#borderParser(this.options.borderBottom);
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width + this.options.height,
                 ...borderStyleArrWidth,
             ]);
         }
         else if (this.options.borderStyle === "solid") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width + this.options.height,
                 this.options.width,
@@ -1168,14 +1202,14 @@ class Rectangle extends Shape {
         this.options.borderLeft = opt || this.options.borderLeft;
         let { borderStyleArrHeight } = this.#borderParser(this.options.borderLeft);
         if (this.options.borderStyle === "dotted") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width * 2 + this.options.height,
                 ...borderStyleArrHeight,
             ]);
         }
         else if (this.options.borderStyle === "solid") {
-            this.setLineDash([
+            this.lineDash([
                 0,
                 this.options.width * 2 + this.options.height,
                 this.options.height,
@@ -1248,12 +1282,12 @@ class Star extends Shape {
         //     ctx.save();
         //     ctx.beginPath();
         //     ctx.translate(x, y);
-        //     ctx.moveTo(0, 0 - r);
+        //     ctx.move(0, 0 - r);
         //     for (var i = 0; i < n; i++) {
         //         ctx.rotate(Math.PI / n);
-        //         ctx.lineTo(0, 0 - r * inset);
+        //         ctx.line(0, 0 - r * inset);
         //         ctx.rotate(Math.PI / n);
-        //         ctx.lineTo(0, 0 - r);
+        //         ctx.line(0, 0 - r);
         //     }
         //     ctx.closePath();
         //     ctx.fill();
@@ -1263,7 +1297,7 @@ class Star extends Shape {
     }
 }
 
-const defaultOpt$3 = {
+const defaultOpt$4 = {
     x: 0,
     y: 0,
     width: 0,
@@ -1276,7 +1310,7 @@ const defaultOpt$3 = {
 class Triangle extends Shape {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$3, ...options };
+        this.options = { ...defaultOpt$4, ...options };
     }
     __initSet() {
         super.__initSet();
@@ -1285,10 +1319,10 @@ class Triangle extends Shape {
         this.beginPath();
         this.backgroundColor();
         const { x1, x2, y1 } = this.#calcTopPoint();
-        this.context.moveTo(this.initCords.x, this.initCords.y);
-        this.context.lineTo(x1, y1);
-        this.context.lineTo(x2, y1);
-        this.context.closePath();
+        this.move({ x: this.initCords.x, y: this.initCords.y });
+        this.line({ x: x1, y: y1 });
+        this.line({ x: x2, y: y1 });
+        this.closePath();
         this.fill();
         this.stroke();
     }
@@ -1345,9 +1379,9 @@ class Triangle extends Shape {
         const { x1, x2, y1 } = this.#calcTopPoint();
         this.initCords.x = this.initCords.x || this.options.x;
         this.initCords.y = this.initCords.y || this.options.y;
-        this.canvas.clipping_path.moveTo(this.initCords.x, this.initCords.y);
-        this.canvas.clipping_path.lineTo(x1, y1);
-        this.canvas.clipping_path.lineTo(x2, y1);
+        this.canvas.clipping_path.move(this.initCords.x, this.initCords.y);
+        this.canvas.clipping_path.line(x1, y1);
+        this.canvas.clipping_path.line(x2, y1);
         this.canvas.clipping_path.closePath();
     }
     // do not show clip
@@ -1365,7 +1399,7 @@ class Triangle extends Shape {
     }
 }
 
-const defaultOpt$2 = {
+const defaultOpt$3 = {
     x: 0,
     y: 0,
     width: 0,
@@ -1383,7 +1417,7 @@ const defaultOpt$2 = {
 class Elipse extends Shape {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$2, ...options };
+        this.options = { ...defaultOpt$3, ...options };
         Elipse.prototype.draggable = Shape.prototype.draggable;
     }
     __initSet() {
@@ -1403,7 +1437,7 @@ class Elipse extends Shape {
     }
 }
 
-const defaultOpt$1 = {
+const defaultOpt$2 = {
     x: 0,
     y: 0,
     width: 10,
@@ -1420,7 +1454,7 @@ const defaultOpt$1 = {
 class Circle extends Shape {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$1, ...options };
+        this.options = { ...defaultOpt$2, ...options };
     }
     __initSet() {
         super.__initSet();
@@ -1471,7 +1505,7 @@ class Circle extends Shape {
     }
 }
 
-const defaultOpt = {
+const defaultOpt$1 = {
     x: 0,
     y: 0,
     width: 0,
@@ -1487,14 +1521,14 @@ const defaultOpt = {
 class Arrow extends Shape {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt, ...options };
+        this.options = { ...defaultOpt$1, ...options };
         Arrow.prototype.draggable = Shape.prototype.draggable;
         // Object.assign(Rectangle.prototype)
     }
     __initSet() {
         super.__initSet();
     }
-    // @todo: calculate bottom of the object, and end destination of lineTo
+    // @todo: calculate bottom of the object, and end destination of line
     __drawInit() {
         // this.backgroundColor();
         new Triangle({
@@ -1503,12 +1537,175 @@ class Arrow extends Shape {
             size: this.options.head,
             color: this.options.color,
         });
-        this.context.moveTo(30, 50);
-        this.context.lineTo(150, 100);
+        this.context.move(30, 50);
+        this.context.line(150, 100);
         this.context.stroke();
         this.fill();
         this.stroke();
     }
 }
 
-export { Arrow, Block, Canvas, CanvasDOMManager, Circle, Elipse, Layout, Rectangle, Shape, Star, TextBlock, Triangle };
+const defaultOpt = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    selectable: true,
+    draggable: true,
+    zIndex: 0,
+    dragX: true,
+    dragY: true,
+};
+class Line extends Shape {
+    joinTo = undefined;
+    path;
+    #beforeX;
+    #beforeY;
+    constructor(options) {
+        super(options);
+        this.options = { ...defaultOpt, ...options };
+        this.#beforeX = this.options.x;
+        this.#beforeY = this.options.y;
+        this.path = new Path();
+    }
+    __initSet() {
+        super.__initSet();
+        // this.#beforeEndX = this.options.x;
+        // this.#beforeEndY = this.options.y;
+    }
+    __drawInit() {
+        if (!this.joinTo) {
+            this.beginPath();
+            this.path.createPath();
+            this.path.path.moveTo(this.initCords.x, this.initCords.y);
+            this.strokeStyle();
+        }
+        if (!this.options.points) {
+            const { cpx1, cpy1, cpx2, cpy2, endX, endY } = this.#calcDiff(this.options.cpx1, this.options.cpy1, this.options.cpx2, this.options.cpy2, this.options.endX, this.options.endY);
+            this.options.cpx1 = cpx1;
+            this.options.cpy1 = cpy1;
+            this.options.cpx2 = cpx2;
+            this.options.cpy2 = cpy2;
+            this.options.endX = endX;
+            this.options.endY = endY;
+            if (this.options.cpx1 &&
+                this.options.cpy1 &&
+                !this.options.cpx2 &&
+                !this.options.cpy2) {
+                this.path.path.quadraticCurveTo(this.options.cpx1, this.options.cpy1, this.options.endX, this.options.endY);
+            }
+            else if (this.options.cpx1 &&
+                this.options.cpy1 &&
+                this.options.cpx2 &&
+                this.options.cpy2) {
+                this.path.path.bezierCurveTo(this.options.cpx1, this.options.cpy1, this.options.cpx2, this.options.cpy2, this.options.endX, this.options.endY);
+            }
+            else {
+                this.path.lineTo(this.options.endX, this.options.endY);
+            }
+        }
+        else {
+            this.#drawLines();
+        }
+        this.fill();
+        this.stroke(this.options.stroke, this.path.path);
+    }
+    dash(opt) {
+        this.options.dash = super.lineDash(opt);
+        return this.options.dash;
+    }
+    points(opt) {
+        this.options.points = opt || this.options.points || [];
+        return this.options.points;
+    }
+    checkInBound(_event) {
+        const { x, y } = this.canvas.getCursorPosition(_event);
+        return this.pointInStroke({ path: this.path.path, x: x, y: y });
+    }
+    #calcDiff(cpx1, cpy1, cpx2, cpy2, endX, endY) {
+        const diffX = this.options.x - this.#beforeX;
+        if (diffX !== 0) {
+            endX += diffX;
+            if (cpx1)
+                cpx1 += diffX;
+            if (cpx2)
+                cpx2 += diffX;
+            this.#beforeX = this.options.x;
+        }
+        const diffY = this.options.y - this.#beforeY;
+        if (diffY !== 0) {
+            endY += diffY;
+            if (cpy1)
+                cpy1 += diffY;
+            if (cpy2)
+                cpy2 += diffY;
+            this.#beforeY = this.options.y;
+        }
+        return { cpx1, cpy1, cpx2, cpy2, endX, endY };
+    }
+    #drawLines() {
+        const beforeX = this.#beforeX;
+        const beforeY = this.#beforeY;
+        this.options.points.forEach((point, index, arr) => {
+            const { cpx1, cpy1, cpx2, cpy2, endX, endY } = this.#calcDiff(point.cpx1, point.cpy1, point.cpx2, point.cpy2, point.endX, point.endY);
+            this.options.points[index] = { cpx1, cpy1, cpx2, cpy2, endX, endY };
+            if (cpx1 !== undefined &&
+                cpy1 !== undefined &&
+                cpx2 === undefined &&
+                cpy2 === undefined) {
+                this.path.path.quadraticCurveTo(cpx1, cpy1, endX, endY);
+            }
+            else if (cpx1 !== undefined &&
+                cpy1 !== undefined &&
+                cpx2 !== undefined &&
+                cpy2 !== undefined) {
+                this.path.path.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
+            }
+            else {
+                this.path.path.lineTo(endX, endY);
+            }
+            if (arr.length - 1 !== index) {
+                this.#beforeX = beforeX;
+                this.#beforeY = beforeY;
+            }
+        });
+    }
+    joinBorder(opt) {
+        return super.lineCap(opt);
+    }
+    join(line) {
+        line.joinTo = this;
+        line.path = this.path;
+    }
+    strokeStyle(opt) {
+        super.strokeStyle(opt);
+    }
+    strokeWidth(opt) {
+        this.options.strokeWidth = opt || this.options.strokeWidth || 1;
+        this.options.strokeWidth = super.lineWidth(this.options.strokeWidth);
+        return this.options.strokeWidth;
+    }
+    fillStyle(opt) {
+        return super.fillStyle(opt);
+    }
+    clip(opt) {
+        return super.clip(opt);
+    }
+    dragX(opt) {
+        return super.dragX(opt);
+    }
+    dragY(opt) {
+        return super.dragY(opt);
+    }
+    draggable(opt) {
+        return super.draggable(opt);
+    }
+    selectable(opt) {
+        return super.selectable(opt);
+    }
+    set(options) {
+        super.set(options);
+    }
+}
+
+export { Arrow, Block, Canvas, CanvasDOMManager, Circle, Elipse, Layout, Line, Rectangle, Shape, Star, TextBlock, Triangle };

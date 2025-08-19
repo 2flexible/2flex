@@ -72,7 +72,6 @@ export class Canvas {
         this.#tree.addNodes(block);
 
         this.#tree.preOrderTraversal((element: any) => {
-            console.log(element)
             element.canvas = this;
 
             this.#handleOptions(element);
@@ -148,6 +147,7 @@ export class Canvas {
     }
 
     invokeChange(_func?: (element: any) => void) {
+        // need to make for invidiual change rather than creating this path
         this.clipping_path.createPath();
         this.context.restore();
         this.context.save();

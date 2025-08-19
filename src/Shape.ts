@@ -1,4 +1,5 @@
 import { Block } from "./Block";
+import { Path } from "./Path";
 import { IBlock, CursorPos } from "./types";
 
 export interface QuadraticCurveToOpt {
@@ -23,6 +24,15 @@ export interface RoundRectOpt extends RectOpt {
 
 export type LineCapOpt = "butt" | "round" | "square";
 
+export type FillRule = "nonzero" | "evenodd";
+
+interface PointInPath extends CursorPos {
+    path?: Path2D;
+    fillRule?: FillRule;
+}
+interface PointInStroke extends CursorPos {
+    path?: Path2D;
+}
 export interface IShapeOptions {
     fill?: boolean;
     fillStyle?: string;
@@ -45,6 +55,9 @@ export interface IShapeOptions {
     begin?: boolean;
     close?: boolean;
     move?: CursorPos;
+
+    pointInPath?: PointInPath;
+    pointInStroke?: PointInStroke;
 }
 // each shape extends form common shape
 export class Shape extends Block {
@@ -73,10 +86,10 @@ export class Shape extends Block {
         if (opt) return this.context.beginPath();
     }
 
-    fill(opt?: boolean) {
+    fill(opt?: boolean, path?: Path) {
         this.options.fill = opt || this.options.fill || false;
         if (this.options.fill) {
-            this.context.fill();
+            this.context.fill(path);
         }
         return this.options.fill;
     }
@@ -86,10 +99,11 @@ export class Shape extends Block {
         return this.options.fillStyle;
     }
 
-    stroke(opt?: boolean) {
+    stroke(opt?: boolean, path?: Path2D) {
         this.options.stroke = opt || this.options.stroke || false;
         if (this.options.stroke) {
-            this.context.stroke();
+            if (path) this.context.stroke(path);
+            else this.context.stroke();
         }
         return this.options.stroke;
     }
@@ -144,7 +158,19 @@ export class Shape extends Block {
         y = y || this.initCords.y!;
         this.context.moveTo(x, y);
     }
-
+    pointInPath({ path, x, y, fillRule }: PointInPath) {
+        x = x || this.options.x || 0;
+        y = y || this.options.y || 0;
+        fillRule = fillRule || "nonzero";
+        if (path) this.context.isPointInPath(path, x, y, fillRule);
+        else this.context.isPointInPath(x, y, fillRule);
+    }
+    pointInStroke({ path, x, y }: PointInStroke) {
+        x = x || this.options.x || 0;
+        y = y || this.options.y || 0;
+        if (path) return this.context.isPointInStroke(path, x, y);
+        else return this.context.isPointInStroke(x, y);
+    }
     clip(opt?: boolean): boolean {
         return super.clip(opt);
     }

@@ -18,6 +18,9 @@ export class Path extends Path2D {
     ) {
         this.path.roundRect(x, y, width, height, borderRadius);
     }
+    lineTo(x: number, y: number): void {
+        this.path.lineTo(x, y);
+    }
     createPath(path?: any) {
         this.path = new Path2D(path);
     }

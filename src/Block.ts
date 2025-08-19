@@ -384,9 +384,9 @@ export class Block extends Node {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;
+
                 if (diffX !== 0 && this.options.dragX) {
                     this.options.x += diffX - beforeX;
-
                     beforeX = diffX;
                 }
                 if (diffY !== 0 && this.options.dragY) {
