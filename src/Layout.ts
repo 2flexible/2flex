@@ -68,8 +68,19 @@ type PlaceItems = AlignItems & JustifyItems;
 
 type PlaceSelf = AlignSelf & JustifySelf;
 
+type FlexDirecton = "column" | "column-reverse" | "row" | "row-reverse";
+type FlexWrap = "nowrap" | "wrap" | "wrap-reverse";
 interface FlexLayout {
-    flexDirection: "column" | "row";
+    // flex: flex-grow flex-shrink flex-basis
+    flex: number[];
+
+    flexGrow: number;
+    flexShrink: number;
+    flexBasis: string;
+
+    flexDirection: FlexDirecton;
+    flexWrap: FlexWrap;
+    flexFlow: [FlexDirecton, FlexWrap];
 }
 // @Todo: all numbers will change to string due to unit converting
 interface GridLayout {
