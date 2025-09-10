@@ -7,10 +7,8 @@ import { TextBlock } from "./TextBlock";
 import {
     Rectangle,
     Triangle,
-    Star,
     Elipse,
     Circle,
-    Arrow,
     Line,
 } from "./shapes/index";
 
@@ -23,9 +21,7 @@ export {
     TextBlock,
     Rectangle,
     Triangle,
-    Star,
     Elipse,
     Circle,
-    Arrow,
     Line,
 };

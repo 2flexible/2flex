@@ -8,6 +8,7 @@ import {
     ICustomEvents,
     BlockOptions,
     IStyle,
+    MixOpt,
 } from "./types";
 
 export interface DefaultBlockOpt {
@@ -84,7 +85,6 @@ export class Block extends Node {
             this.options.y !== this.initCords.y
                 ? this.options.y
                 : this.initCords.y;
-
         this._childs?.forEach((item: any) => {
             item.initCords.x = this.initCords.x + item.options.x;
             item.initCords.y = this.initCords.y + item.options.y;
@@ -169,6 +169,12 @@ export class Block extends Node {
             this.canvas?.invokeChange.call(this.canvas);
         }
     }
+
+    __cacheOption(option: MixOpt, def: MixOpt, opt?: any): any {
+        opt = opt || option || def;
+        return opt;
+    }
+
     reset() {}
 
     rotate(opt: number) {
@@ -185,7 +191,7 @@ export class Block extends Node {
     find(queries?: IBlock<BlockOptions>) {
         return this.filterNodes(queries);
     }
-
+    nthChild(opt?: number) {}
     checkInBound(_event: MouseEvent): boolean {
         const width = this.options.width;
         const height = this.options.height;

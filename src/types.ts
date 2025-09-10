@@ -1,10 +1,10 @@
 import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
-import { Rectangle, Star } from "./shapes/index";
+import { Rectangle } from "./shapes/index";
 import { Node } from "./Tree";
 import { Block, DefaultBlockOpt } from "./Block";
 
-export type ShapeElements = Rectangle | Star;
+export type ShapeElements = Rectangle;
 
 // move these inside to Block
 export interface BlockOptions {
@@ -88,3 +88,5 @@ export interface InitialShapes {
     borderColor?: string;
     borderWidth?: number;
 }
+
+export type MixOpt = string | number | string[] | number[];
