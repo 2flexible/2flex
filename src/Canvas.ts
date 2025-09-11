@@ -231,10 +231,10 @@ export class Canvas {
             }
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.cords.x += 10;
+                    this.cords.x -= 10;
                     invoke = true;
                 } else {
-                    this.cords.x -= 10;
+                    this.cords.x += 10;
                     invoke = true;
                 }
             } else {
