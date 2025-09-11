@@ -186,6 +186,7 @@ class Canvas {
     height;
     clipping_path;
     #tree = new Tree();
+    cords = { x: 0, y: 0 };
     constructor(canvasId, width, height, options = undefined) {
         this.canvasId = canvasId || "canvas";
         this.options = options;
@@ -204,10 +205,11 @@ class Canvas {
     #initCanvas() {
         this.canvas;
         this.context.save();
+        // this.context.translate(100,100)
+        this.move(this.#canvasMoves());
         window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
-            this.move(this.#canvasMoves());
         };
     }
     add(...block) {
@@ -281,6 +283,7 @@ class Canvas {
         this.context.restore();
         this.context.save();
         this.clearRect();
+        this.context.translate(this.cords.x, this.cords.y);
         this.#tree.checkNodes((element) => {
             if (_func)
                 _func(element);
@@ -348,30 +351,37 @@ class Canvas {
     }
     #canvasMoves() {
         return (event) => {
+            let invoke = false;
             if (event.ctrlKey) {
                 return;
             }
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.invokeChange((element) => (element.options.x += 10));
+                    this.cords.x += 10;
+                    invoke = true;
                 }
                 else {
-                    this.invokeChange((element) => (element.options.x -= 10));
+                    this.cords.x -= 10;
+                    invoke = true;
                 }
             }
             else {
                 if (event.deltaY < 0) {
-                    this.invokeChange((element) => (element.options.y += 10));
+                    this.cords.y += 10;
+                    invoke = true;
                 }
                 else {
-                    this.invokeChange((element) => (element.options.y -= 10));
+                    this.cords.y -= 10;
+                    invoke = true;
                 }
             }
+            if (invoke)
+                this.invokeChange();
         };
     }
 }
 
-const defaultOpt$7 = {
+const defaultOpt$5 = {
     x: 0,
     y: 0,
     width: 10,
@@ -396,13 +406,13 @@ class Block extends Node {
     styleChanges = [];
     constructor(options) {
         super();
-        this.options = { ...defaultOpt$7, ...options };
+        this.options = { ...defaultOpt$5, ...options };
     }
     __initSet() {
-        if (!this.initCords.x) {
+        if (this.initCords.x !== undefined) {
             this.initCords.x = this.options.x;
         }
-        if (!this.initCords.y) {
+        if (!this.initCords.y !== undefined) {
             this.initCords.y = this.options.y;
         }
     }
@@ -485,6 +495,10 @@ class Block extends Node {
             this.canvas?.invokeChange.call(this.canvas);
         }
     }
+    __cacheOption(option, def, opt) {
+        opt = opt || option || def;
+        return opt;
+    }
     reset() { }
     rotate(opt) {
         this.options.rotate = opt || this.options.angle || 0;
@@ -499,6 +513,7 @@ class Block extends Node {
     find(queries) {
         return this.filterNodes(queries);
     }
+    nthChild(opt) { }
     checkInBound(_event) {
         const width = this.options.width;
         const height = this.options.height;
@@ -692,7 +707,7 @@ class Block extends Node {
     }
 }
 
-const defaultOpt$6 = {
+const defaultOpt$4 = {
     x: 0,
     y: 0,
     width: 0,
@@ -702,74 +717,469 @@ const defaultOpt$6 = {
     zIndex: 0,
     dragX: true,
     dragY: true,
+    gapColumn: 0,
+    gapRow: 0,
 };
 // Layer spesical type of block whcih defines group of blocks
 class Layout extends Block {
+    #startX = 0;
+    #startY = 0;
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$6, ...options };
+        this.options = { ...defaultOpt$4, ...options };
     }
     __initSet() {
         super.__initSet();
-    }
-    #layoutFlex(block) {
-        if (this.options.flexDirection === "column") {
-            this.#flexColumn(block);
+        if (this.options.layout === "flex") {
+            if (this.#isFlexCol) {
+                this.#flexColumn(this._childs);
+            }
+            else {
+                this.#flexRow(this._childs);
+            }
         }
-        else if (this.options.flexDirection === "row") {
-            this.#flexRow(block);
+        else {
+            this.#layoutGrid(this._childs);
         }
     }
+    flex(opt) {
+        const flex = this.__cacheOption(this.options.flex, 0, opt);
+        this.options.flexGrow = flex[0] || this.options.flexGrow;
+        this.options.flexShrink = flex[1] || this.options.flexGrow;
+        this.options.flexBasis = flex[2] || this.options.flexGrow;
+        return flex;
+    }
+    flexFlow(opt) {
+        const flexFlow = this.__cacheOption(this.options.flexFlow, 0, opt);
+        this.options.flexDirection = flexFlow[0] || this.options.flexDirection;
+        this.options.flexWrap = flexFlow[1] || this.options.flexWrap;
+        return flexFlow;
+    }
+    flexGrow(opt) {
+        return this.__cacheOption(this.options.flexGrow, 0, opt);
+    }
+    flexShrink(opt) {
+        return this.__cacheOption(this.options.flexShrink, 0, opt);
+    }
+    flexBasis(opt) {
+        return this.__cacheOption(this.options.flexBasis, 0, opt);
+    }
+    flexDirection(opt) {
+        return this.__cacheOption(this.options.flexDirection, 0, opt);
+    }
+    flexWrap(opt) {
+        return this.__cacheOption(this.options.flexWrap, 0, opt);
+    }
+    gap(opt) {
+        const gap = this.__cacheOption(this.options.gapColumn, 0, opt);
+        if (opt instanceof Array) {
+            this.options.gapColumn = opt[0] || gap;
+            this.options.gapRow = opt[1] || gap;
+        }
+        else {
+            this.options.gapColumn = gap;
+            this.options.gapRow = gap;
+        }
+        return gap;
+    }
+    gridArea(opt) { }
+    gapColumn(opt) {
+        return this.__cacheOption(this.options.gapColumn, 0, opt);
+    }
+    gapRow(opt) {
+        return this.__cacheOption(this.options.gapRow, 0, opt);
+    }
+    columnStart(opt) {
+        return this.__cacheOption(this.options.columnStart, 1, opt);
+    }
+    columnEnd(opt) {
+        return this.__cacheOption(this.options.columnEnd, 0, opt);
+    }
+    justifyContent(opt) {
+        const justifyContent = this.__cacheOption(this.options.justifyContent, "normal", opt);
+        const justify = "justifyContent";
+        switch (justifyContent) {
+            case "space-evenly":
+                this.#spaceEvenly(justify);
+                break;
+            case "space-around":
+                this.#spaceAround(justify);
+                break;
+            case "space-between":
+                this.#spaceBetween(justify);
+                break;
+            case "center":
+                this.#center(justify);
+                break;
+            case "start":
+                this.#start(justify);
+                break;
+            case "end":
+                this.#end(justify);
+                break;
+        }
+        return justifyContent;
+    }
+    // in flexbox works with wrap option
+    alignContent(opt) {
+        const alignContent = this.__cacheOption(this.options.alignContent, "normal", opt);
+        if (this.options.flexWrap != "wrap" ||
+            this.options.flexWrap != "wrap-reverse")
+            return alignContent;
+        const align = "alignContent";
+        switch (alignContent) {
+            case "space-evenly":
+                this.#spaceEvenly(align);
+                break;
+            case "space-around":
+                this.#spaceAround(align);
+                break;
+            case "space-between":
+                this.#spaceBetween(align);
+                break;
+            case "center":
+                this.#center(align);
+                break;
+            case "start":
+                this.#start(align);
+                break;
+            case "end":
+                this.#end(align);
+                break;
+        }
+        return alignContent;
+    }
+    alignItems(opt) {
+        const alignItems = this.__cacheOption(this.options.alignItems, "normal", opt);
+        const align = "alignItems";
+        switch (alignItems) {
+            case "center":
+                this.#center(align);
+                break;
+            case "start":
+                this.#start(align);
+                break;
+            case "end":
+                this.#end(align);
+                break;
+        }
+        return alignItems;
+    }
+    get #isFlexCol() {
+        return this.options.flexDirection === "column" ? true : false;
+    }
+    get #isWrap() {
+        return this.options.wrap === "nowrap" ? false : true;
+    }
+    get #blocksSize() {
+        let blocksW = 0;
+        let blocksH = 0;
+        let biggestW = 0;
+        let biggestH = 0;
+        this._childs.forEach((item) => {
+            blocksW += item.options.width;
+            blocksH += item.options.height;
+            biggestW = item.options.width > biggestW && item.options.width;
+            biggestH = item.options.height > biggestH && item.options.height;
+        });
+        blocksW += this.options.gapColumn;
+        blocksH += this.options.gapRow;
+        return { w: blocksW, h: blocksH, bigW: biggestW, bigH: biggestH };
+    }
+    #checkLayoutType(_type, _justify_cont_func, _align_cont_func, _justify_func, _align_func) {
+        switch (_type) {
+            case "justifyContent":
+                _justify_cont_func && _justify_cont_func();
+                break;
+            case "alignContent":
+                _align_cont_func && _align_cont_func();
+                break;
+            case "justifyItems":
+                _justify_func && _justify_func();
+                break;
+            case "alignItems":
+                _align_func && _align_func();
+                break;
+        }
+    }
+    #start(_type) {
+        const _func1 = () => {
+            if (this.#isFlexCol)
+                this.#startY = 0;
+            else
+                this.#startX = 0;
+        };
+        const _func2 = () => {
+            if (this.#isFlexCol)
+                this.#startX = 0;
+            else
+                this.#startY = 0;
+        };
+        const _func3 = () => {
+            if (this.#isFlexCol)
+                this.#startY = 0;
+            else
+                this.#startX = 0;
+        };
+        const _func4 = () => {
+            if (this.#isFlexCol)
+                this.#startX = 0;
+            else
+                this.#startY = 0;
+        };
+        this.#checkLayoutType(_type, _func1, _func2, _func3, _func4);
+    }
+    #end(_type) {
+        const _func1 = () => {
+            const size = this.#blocksSize;
+            if (this.#isFlexCol)
+                this.#startY = this.options.height - size.h;
+            else
+                this.#startX = this.options.width - size.w;
+        };
+        const _func2 = () => {
+            const size = this.#blocksSize;
+            if (this.#isFlexCol)
+                this.#startX = this.options.width - size.w;
+            else
+                this.#startY = this.options.height - size.h;
+        };
+        const _func3 = () => {
+            if (this.#isFlexCol)
+                this.#startY = 0;
+            else
+                this.#startX = 0;
+        };
+        const _func4 = () => {
+            if (this.#isFlexCol) {
+                this._childs.forEach((element) => {
+                    element.options.x = Math.abs(this.options.width - element.options.width);
+                });
+            }
+            else {
+                this._childs.forEach((element) => {
+                    element.options.y = Math.abs(this.options.height - element.options.height);
+                });
+            }
+        };
+        this.#checkLayoutType(_type, _func1, _func2, _func3, _func4);
+    }
+    #center(_type) {
+        const _func1 = () => {
+            const size = this.#blocksSize;
+            if (this.#isFlexCol)
+                this.#startY = (this.options.height - size.h) / 2;
+            else
+                this.#startX = (this.options.width - size.w) / 2;
+        };
+        const _func2 = () => {
+            const size = this.#blocksSize;
+            if (this.#isFlexCol)
+                this.#startX = this.options.width - size.w;
+            else
+                this.#startY = this.options.height - size.h;
+        };
+        const _func3 = () => {
+            if (this.#isFlexCol)
+                this.#startY = 0;
+            else
+                this.#startX = 0;
+        };
+        const _func4 = () => {
+            if (this.#isFlexCol) {
+                this._childs.forEach((element) => {
+                    element.options.x = Math.abs(this.options.width / 2 - element.options.width / 2);
+                });
+            }
+            else {
+                this._childs.forEach((element) => {
+                    element.options.y = Math.abs(this.options.height / 2 - element.options.height / 2);
+                });
+            }
+        };
+        this.#checkLayoutType(_type, _func1, _func2, _func3, _func4);
+    }
+    #spaceBetween(_type) {
+        const _func1 = () => {
+            if (this.options.height - this.#blocksSize.h > 0 &&
+                this.options.width - this.#blocksSize.w > 0) {
+                const blocksHeight = this.#blocksSize.h - this.options.gapRow;
+                const blocksWidth = this.#blocksSize.w - this.options.gapColumn;
+                if (this.#isFlexCol)
+                    this.options.gapRow +=
+                        (this.options.height - blocksHeight) /
+                            (this._childs.length - 1);
+                else
+                    this.options.gapColumn +=
+                        (this.options.width - blocksWidth) /
+                            (this._childs.length - 1);
+            }
+        };
+        const _func2 = () => {
+            if (this.#isFlexCol)
+                this.options.gapColumn +=
+                    (this.options.width - this.#blocksSize.w) /
+                        this._childs.length -
+                        1;
+            else
+                this.options.gapRow +=
+                    (this.options.height - this.#blocksSize.h) /
+                        this._childs.length -
+                        1;
+        };
+        this.#checkLayoutType(_type, _func1, _func2);
+    }
+    #spaceAround(_type) {
+        const _func1 = () => {
+            if (this.options.height - this.#blocksSize.h > 0 &&
+                this.options.width - this.#blocksSize.w > 0) {
+                const blocksHeight = this.#blocksSize.h - this.options.gapRow;
+                const blocksWidth = this.#blocksSize.w - this.options.gapColumn;
+                if (this.#isFlexCol) {
+                    this.options.gapRow =
+                        (this.options.height - blocksHeight) /
+                            this._childs.length;
+                    this.#startY = this.options.gapRow / 2;
+                }
+                else {
+                    this.options.gapColumn =
+                        (this.options.width - blocksWidth) /
+                            this._childs.length;
+                    this.#startX = this.options.gapColumn / 2;
+                }
+            }
+        };
+        const _func2 = () => {
+            if (this.#isFlexCol)
+                this.options.gapColumn +=
+                    (this.options.width - this.#blocksSize.w) /
+                        this._childs.length -
+                        1;
+            else
+                this.options.gapRow +=
+                    (this.options.height - this.#blocksSize.h) /
+                        this._childs.length -
+                        1;
+        };
+        this.#checkLayoutType(_type, _func1, _func2);
+    }
+    #spaceEvenly(_type) {
+        const _func1 = () => {
+            if (this.options.height - this.#blocksSize.h > 0 &&
+                this.options.width - this.#blocksSize.w > 0) {
+                const blocksHeight = this.#blocksSize.h - this.options.gapRow;
+                const blocksWidth = this.#blocksSize.w - this.options.gapColumn;
+                if (this.#isFlexCol) {
+                    this.options.gapRow +=
+                        (this.options.height - blocksHeight) /
+                            (this._childs.length + 1);
+                    this.#startY = this.options.gapRow;
+                }
+                else {
+                    this.options.gapColumn +=
+                        (this.options.width - blocksWidth) /
+                            (this._childs.length + 1);
+                    this.#startX = this.options.gapColumn;
+                }
+            }
+        };
+        const _func2 = () => {
+            if (this.#isFlexCol)
+                this.options.gapColumn +=
+                    (this.options.width - this.#blocksSize.w) /
+                        (this._childs.length - 1);
+            else
+                this.options.gapRow +=
+                    (this.options.height - this.#blocksSize.h) /
+                        (this._childs.length - 1);
+        };
+        this.#checkLayoutType(_type, _func1, _func2);
+    }
+    // need to adjust width heigt to be responsiable
     #flexColumn(block) {
         let idx = 0;
-        while (block.length > idx + 1) {
-            let startX = block[idx].options.x;
-            let endX = block[idx].options.width + startX;
-            block[idx + 1].options.x = endX + this.options.gap;
-            idx++;
+        let sharedGap = 0;
+        if (this.options.height <= this.#blocksSize.h)
+            sharedGap =
+                Math.abs(this.options.height - this.#blocksSize.h) /
+                    this._childs.length;
+        let startY = this.#startY;
+        while (block.length - 1 >= idx) {
+            let endY = this._childs[idx].options.height - sharedGap;
+            this._childs[idx].options.y = startY;
+            this._childs[idx].options.height = endY;
+            startY += this.options.gapRow + endY;
+            idx += 1;
         }
     }
     #flexRow(block) {
         let idx = 0;
-        while (block.length > idx + 1) {
-            let startY = block[idx].options.y;
-            let endY = block[idx].options.height + startY;
-            block[idx + 1].options.x = endY + this.options.gap;
-            idx++;
-        }
-    }
-    #layoutGrid(block) {
-        let row = 0;
-        let idx = 0;
-        while (block.length > row) {
-            let startX = block[idx].options.x;
-            let endX = block[idx].options.width + startX;
-            let startY = block[idx].options.y;
-            let endY = block[idx].options.height + startY;
-            let gap = this.options.gap;
-            let gapColumn = this.options.gapColumn;
-            let gapRow = this.options.gapRow;
-            if (block.length > idx + 1) {
-                if (this.options.gridTemplateColumns % idx !== 0) ;
-                else {
-                    endX = 0;
-                    gap = 0;
-                    gapColumn = 0;
-                    gapRow = 0;
-                }
-                block[idx + 1].options.x = endX + gap + gapColumn;
-                block[idx + 1].options.y = endY + gap + gapRow;
-                idx++;
+        let sharedGap = 0;
+        if (this.#isWrap && this.options.width <= this.#blocksSize.w)
+            sharedGap =
+                Math.abs(this.options.width - this.#blocksSize.w) /
+                    this._childs.length;
+        let startX = this.#startX;
+        let startY = this.#startY;
+        while (block.length - 1 >= idx) {
+            let endX = this._childs[idx].options.width - sharedGap;
+            this._childs[idx].options.x = startX;
+            this._childs[idx].options.width = endX;
+            if (this.#isWrap && this.options.width <= this.#blocksSize.w) {
+                this.#blocksSize.bigH;
+                let endY = this._childs[idx].options.width - sharedGap;
+                this._childs[idx].options.y = startY;
+                this._childs[idx].options.width = endY;
             }
+            startX += this.options.gapColumn + endX;
+            idx += 1;
         }
     }
-    add(...block) {
-        super.add(...block);
-        if (this.options.layout == "grid") {
-            this.#layoutGrid(block);
+    // column start and end shoudl work together
+    #layoutGrid(block) {
+        const columnStart = this.options.gridColumnStart;
+        const columnEnd = this.options.gridColumnEnd;
+        this.options.gridTemplateRows.length;
+        let columns = this.options.gridTemplateColumns.length;
+        // fix for columnsEnd and Columns start negative values
+        if (columnEnd >= columns || columnEnd === 1)
+            columns += Math.abs(columns - columnEnd);
+        if (columnStart >= columns) {
+            columns += Math.abs(columns - columnStart);
         }
-        else if (this.options.layout == "flex") {
-            this.#layoutFlex(block);
+        let idx = 0;
+        let startY = block[columnEnd].options.y;
+        let endY = block[columnEnd].options.height + startY;
+        let gapRow = this.options.gapRow;
+        let blockWidth = this.options.width / columns;
+        let col = columnStart;
+        // if(columnEnd )
+        let c = block.length;
+        while (columns < c) {
+            c -= columns;
+        }
+        if (columnEnd > c) {
+            col += columnEnd - c;
+        }
+        let startX = 0;
+        let gapColumn = this.options.gapColumn;
+        let colTimes = col;
+        while (block.length - 1 > idx) {
+            if (columns !== col) {
+                startX += (colTimes - 1) * (blockWidth + gapColumn);
+                let endX = blockWidth + startX;
+                block[idx].options.x = startX;
+                block[idx].options.width = endX;
+                col++;
+                colTimes = 2;
+            }
+            else {
+                startX = 0;
+                gapColumn = 0;
+                col = 1;
+            }
+            block[idx + 1].options.y = endY + gapRow;
+            idx++;
         }
     }
 }
@@ -1068,7 +1478,7 @@ class TextBlock extends Block {
 }
 
 // borderstyle can be extended
-const defaultOpt$5 = {
+const defaultOpt$3 = {
     x: 0,
     y: 0,
     width: 0,
@@ -1084,7 +1494,7 @@ const defaultOpt$5 = {
 class Rectangle extends Shape {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$5, ...options };
+        this.options = { ...defaultOpt$3, ...options };
     }
     __initSet() {
         super.__initSet();
@@ -1268,138 +1678,7 @@ class Rectangle extends Shape {
     }
 }
 
-class Star extends Shape {
-    constructor(options) {
-        super(options);
-    }
-    __initSet() {
-        super.__initSet();
-    }
-    __drawInit() {
-        this.beginPath();
-        /* calculcate this */
-        // function strokeStar(x, y, r, n, inset) {
-        //     ctx.save();
-        //     ctx.beginPath();
-        //     ctx.translate(x, y);
-        //     ctx.move(0, 0 - r);
-        //     for (var i = 0; i < n; i++) {
-        //         ctx.rotate(Math.PI / n);
-        //         ctx.line(0, 0 - r * inset);
-        //         ctx.rotate(Math.PI / n);
-        //         ctx.line(0, 0 - r);
-        //     }
-        //     ctx.closePath();
-        //     ctx.fill();
-        //     ctx.restore();
-        // }
-        // strokeStar(0, 50, 20, 5, 2);
-    }
-}
-
-const defaultOpt$4 = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    selectable: true,
-    draggable: true,
-    zIndex: 0,
-    size: 100,
-};
-class Triangle extends Shape {
-    constructor(options) {
-        super(options);
-        this.options = { ...defaultOpt$4, ...options };
-    }
-    __initSet() {
-        super.__initSet();
-    }
-    __drawInit() {
-        this.beginPath();
-        this.backgroundColor();
-        const { x1, x2, y1 } = this.#calcTopPoint();
-        this.move({ x: this.initCords.x, y: this.initCords.y });
-        this.line({ x: x1, y: y1 });
-        this.line({ x: x2, y: y1 });
-        this.closePath();
-        this.fill();
-        this.stroke();
-    }
-    #calcTopPoint() {
-        let x = this.initCords.x || this.options.x;
-        let y = this.initCords.y || this.options.y;
-        let sides = this.options.sides || this.options.size;
-        let bottom = this.options.bottom || this.options.size;
-        console.log(this.options.bottom);
-        x += bottom / 2;
-        this.initCords.x = x;
-        const x1 = x + bottom / 2;
-        const x2 = Math.abs(bottom - x1);
-        // const y1 = ((Math.sqrt(3) * 1) / 2) * side + y;
-        const y1 = Math.sqrt(sides ** 2 - bottom ** 2 / 4) + y;
-        console.log(this.options.size);
-        return { x1, x2, y1 };
-    }
-    width(opt) {
-        this.options.bottom = super.width(opt);
-        return this.options.bottom;
-    }
-    height(opt) {
-        this.options.sides = super.height(opt);
-        return this.options.sides;
-    }
-    backgroundColor(opt) {
-        this.options.backgroundColor = super.fillStyle(opt);
-        return this.options.backgroundColor;
-    }
-    checkInBound(_event) {
-        const width = this.options.width;
-        const height = this.options.height;
-        const { x, y } = this.canvas.getCursorPosition(_event);
-        if (x >= this.initCords.x &&
-            x <= this.initCords.x + width &&
-            y >= this.initCords.y &&
-            y <= this.initCords.y + height) {
-            return true;
-        }
-        return false;
-    }
-    // borderColor(opt?: string){
-    //     return super.borderColor(opt)
-    // }
-    size(opt) {
-        this.options.side = opt || this.options.side || 100;
-        return this.options.side;
-    }
-    find(queries) {
-        return this.filterNodes(queries);
-    }
-    clip_path() {
-        const { x1, x2, y1 } = this.#calcTopPoint();
-        this.initCords.x = this.initCords.x || this.options.x;
-        this.initCords.y = this.initCords.y || this.options.y;
-        this.canvas.clipping_path.move(this.initCords.x, this.initCords.y);
-        this.canvas.clipping_path.line(x1, y1);
-        this.canvas.clipping_path.line(x2, y1);
-        this.canvas.clipping_path.closePath();
-    }
-    // do not show clip
-    clip(opt) {
-        return super.clip(opt);
-    }
-    draggable(opt) {
-        return super.draggable(opt);
-    }
-    selectable(opt) {
-        return super.selectable(opt);
-    }
-    set(options) {
-        super.set(options);
-    }
-}
-
-const defaultOpt$3 = {
+const defaultOpt$2 = {
     x: 0,
     y: 0,
     width: 0,
@@ -1417,7 +1696,7 @@ const defaultOpt$3 = {
 class Elipse extends Shape {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$3, ...options };
+        this.options = { ...defaultOpt$2, ...options };
         Elipse.prototype.draggable = Shape.prototype.draggable;
     }
     __initSet() {
@@ -1437,7 +1716,7 @@ class Elipse extends Shape {
     }
 }
 
-const defaultOpt$2 = {
+const defaultOpt$1 = {
     x: 0,
     y: 0,
     width: 10,
@@ -1454,7 +1733,7 @@ const defaultOpt$2 = {
 class Circle extends Shape {
     constructor(options) {
         super(options);
-        this.options = { ...defaultOpt$2, ...options };
+        this.options = { ...defaultOpt$1, ...options };
     }
     __initSet() {
         super.__initSet();
@@ -1502,46 +1781,6 @@ class Circle extends Shape {
     }
     set(options) {
         super.set(options);
-    }
-}
-
-const defaultOpt$1 = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    selectable: true,
-    draggable: true,
-    zIndex: 0,
-    dragX: true,
-    dragY: true,
-    tail: 20,
-    head: 10,
-};
-class Arrow extends Shape {
-    constructor(options) {
-        super(options);
-        this.options = { ...defaultOpt$1, ...options };
-        Arrow.prototype.draggable = Shape.prototype.draggable;
-        // Object.assign(Rectangle.prototype)
-    }
-    __initSet() {
-        super.__initSet();
-    }
-    // @todo: calculate bottom of the object, and end destination of line
-    __drawInit() {
-        // this.backgroundColor();
-        new Triangle({
-            x: this.options.x,
-            y: this.options.y,
-            size: this.options.head,
-            color: this.options.color,
-        });
-        this.context.move(30, 50);
-        this.context.line(150, 100);
-        this.context.stroke();
-        this.fill();
-        this.stroke();
     }
 }
 
@@ -1708,4 +1947,4 @@ class Line extends Shape {
     }
 }
 
-export { Arrow, Block, Canvas, CanvasDOMManager, Circle, Elipse, Layout, Line, Rectangle, Shape, Star, TextBlock, Triangle };
+export { Block, Canvas, CanvasDOMManager, Circle, Elipse, Layout, Line, Rectangle, Shape, TextBlock };

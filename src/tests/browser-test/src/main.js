@@ -3,9 +3,9 @@ import {
     TextBlock,
     Block,
     Rectangle,
-    Triangle,
     Circle,
     Line,
+    Layout,
 } from "./2flex/2flex";
 
 const canvas = new Canvas("canvas", 800, 400, { "background-color": "black" });
@@ -36,18 +36,7 @@ const text_b = new TextBlock("SecondText", {
     // fontSize: 35,
 });
 const block = new Block();
-const triangle = new Triangle({
-    x: 100,
-    y: 40,
-    width: 50,
-    color: "white",
-    fill: true,
-    borderColor: "red",
-    stroke: true,
-    // size: 100,
-    // clip: true,
-    // side: 40,
-});
+
 // text_a.click((e) => {
 //     text_a.set({ color: "red" });
 //     console.log("second clicked");
@@ -82,7 +71,7 @@ const rect1 = new Rectangle({
     height: 200,
     borderWidth: 2,
     borderRadius: [0, 20, 20, 0],
-    color: "white",
+    backgroundColor: "yellow",
     stroke: true,
     borderColor: "red",
     fill: true,
@@ -150,6 +139,34 @@ const linesOfPoint = new Line({
     points: points,
 });
 
+const block1 = new Rectangle({
+    width: 140,
+    height: 80,
+    backgroundColor: "blue",
+    fill: true,
+});
+const block2 = new Rectangle({
+    width: 220,
+    height: 120,
+    backgroundColor: "red",
+    fill: true,
+});
+const block3 = new Rectangle({
+    width: 60,
+    height: 80,
+    backgroundColor: "yellow",
+    fill: true,
+});
+const mainBlock = new Rectangle({
+    width: 400,
+    height: 300,
+    border: "2 solid red",
+    stroke: true,
+});
+
+const layout = new Layout({ layout: "flex",flexDirection: "row", wrap: "wrap", width: 400, height: 300, alignContent: "end"})
+layout.add(block1, block2, block3);
+mainBlock.add(layout);
 // line1.join(line2);
 // line2.join(line3)
 // line3.join(line4)
@@ -167,7 +184,7 @@ const linesOfPoint = new Line({
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(linesOfPoint);
+canvas.add(block1);
 // block.add(text_a, text_b);
 // console.log(text_b.x(10))
 // text_b.set()

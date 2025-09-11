@@ -6,7 +6,6 @@ import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
 import {
     Rectangle,
-    Triangle,
     Elipse,
     Circle,
     Line,
@@ -20,7 +19,6 @@ export {
     Shape,
     TextBlock,
     Rectangle,
-    Triangle,
     Elipse,
     Circle,
     Line,
