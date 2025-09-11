@@ -57,10 +57,10 @@ export class Block extends Node {
     }
 
     __initSet() {
-        if (!this.initCords.x) {
+        if (this.initCords.x!==undefined) {
             this.initCords.x = this.options.x;
         }
-        if (!this.initCords.y) {
+        if (!this.initCords.y!==undefined) {
             this.initCords.y = this.options.y;
         }
     }
