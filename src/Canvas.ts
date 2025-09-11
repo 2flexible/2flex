@@ -25,6 +25,7 @@ export class Canvas {
     height: number;
     clipping_path: Path;
     #tree = new Tree();
+    cords = { x: 0, y: 0 };
 
     constructor(
         canvasId?: string,
@@ -56,13 +57,13 @@ export class Canvas {
 
     #initCanvas() {
         this.canvas;
-
         this.context.save();
 
+        // this.context.translate(100,100)
+        this.move(this.#canvasMoves());
         window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
-            this.move(this.#canvasMoves());
         };
     }
 
@@ -153,6 +154,7 @@ export class Canvas {
         this.context.save();
 
         this.clearRect();
+        this.context.translate(this.cords.x, this.cords.y);
 
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);
@@ -221,26 +223,30 @@ export class Canvas {
         this.#domCanvas.removeEventListener("wheel", this.#canvasMoves);
         this.#domCanvas.addEventListener("wheel", (event) => _func(event));
     }
-
     #canvasMoves() {
         return (event: WheelEvent) => {
+            let invoke = false;
             if (event.ctrlKey) {
                 return;
             }
-
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.invokeChange((element) => (element.options.x += 10));
+                    this.cords.x += 10;
+                    invoke = true;
                 } else {
-                    this.invokeChange((element) => (element.options.x -= 10));
+                    this.cords.x -= 10;
+                    invoke = true;
                 }
             } else {
                 if (event.deltaY < 0) {
-                    this.invokeChange((element) => (element.options.y += 10));
+                    this.cords.y += 10;
+                    invoke = true;
                 } else {
-                    this.invokeChange((element) => (element.options.y -= 10));
+                    this.cords.y -= 10;
+                    invoke = true;
                 }
             }
+            if (invoke) this.invokeChange();
         };
     }
 }
