@@ -146,16 +146,36 @@ const block1 = new Rectangle({
     fill: true,
 });
 const block2 = new Rectangle({
-    width: 220,
+    width: 100,
     height: 120,
     backgroundColor: "red",
     fill: true,
 });
 const block3 = new Rectangle({
-    width: 60,
+    width: 80,
     height: 80,
     backgroundColor: "yellow",
     fill: true,
+});
+const block4 = new Rectangle({
+    width: 200,
+    height: 120,
+    backgroundColor: "orange",
+    fill: true,
+});
+const block5 = new Rectangle({
+    width: 80,
+    height: 120,
+    backgroundColor: "blue",
+    fill: true,
+    stroke: true,
+});
+const block6 = new Rectangle({
+    width: 60,
+    height: 80,
+    backgroundColor: "blue",
+    fill: true,
+    stroke: true,
 });
 const mainBlock = new Rectangle({
     width: 400,
@@ -164,8 +184,17 @@ const mainBlock = new Rectangle({
     stroke: true,
 });
 
-const layout = new Layout({ layout: "flex",flexDirection: "row", wrap: "wrap", width: 400, height: 300, alignContent: "end"})
-layout.add(block1, block2, block3);
+const layout = new Layout({
+    layout: "flex",
+    flexDirection: "row",
+    wrap: "nowrap",
+    width: 400,
+    alignItems: "center",
+    height: 300,
+    gapColumn: 40,
+    gapRow: 0,
+});
+layout.add(block1, block2, block3, block4, block5, block6);
 mainBlock.add(layout);
 // line1.join(line2);
 // line2.join(line3)
@@ -184,7 +213,7 @@ mainBlock.add(layout);
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(block1);
+canvas.add(mainBlock);
 // block.add(text_a, text_b);
 // console.log(text_b.x(10))
 // text_b.set()
