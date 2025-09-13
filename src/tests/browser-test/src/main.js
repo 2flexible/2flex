@@ -159,20 +159,20 @@ const block3 = new Rectangle({
 });
 const block4 = new Rectangle({
     width: 200,
-    height: 120,
+    height: 40,
     backgroundColor: "orange",
     fill: true,
 });
 const block5 = new Rectangle({
     width: 80,
-    height: 120,
+    height: 20,
     backgroundColor: "blue",
     fill: true,
     stroke: true,
 });
 const block6 = new Rectangle({
     width: 60,
-    height: 80,
+    height: 20,
     backgroundColor: "blue",
     fill: true,
     stroke: true,
@@ -187,9 +187,9 @@ const mainBlock = new Rectangle({
 const layout = new Layout({
     layout: "flex",
     flexDirection: "row",
-    wrap: "nowrap",
+    wrap: "wrap",
     width: 400,
-    alignItems: "center",
+    alignContent: "space-between",
     height: 300,
     gapColumn: 40,
     gapRow: 0,

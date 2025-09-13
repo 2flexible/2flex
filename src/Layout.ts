@@ -281,15 +281,10 @@ export class Layout extends Block {
             "normal",
             opt
         );
-
-        if (
-            this.options.flexWrap != "wrap" ||
-            this.options.flexWrap != "wrap-reverse"
-        )
+        if (this.options.wrap != "wrap" && this.options.wrap != "wrap-reverse")
             return alignContent;
 
         const align = "alignContent";
-
         switch (alignContent) {
             case "space-evenly":
                 this.#spaceEvenly(align);
@@ -523,8 +518,8 @@ export class Layout extends Block {
                                 ? size["rowsH"][idxs]
                                 : element.options.height;
                         }
-                    }else{
-                        maxHeight = this.options.height
+                    } else {
+                        maxHeight = this.options.height;
                     }
                     element.options.y =
                         initY +
@@ -559,11 +554,13 @@ export class Layout extends Block {
                     (this.options.width - this.#blocksSize.w) /
                         this._childs.length -
                     1;
-            else
+            else {
+                const sizes = this.#sizeByColsRow()
                 this.options.gapRow +=
-                    (this.options.height - this.#blocksSize.h) /
-                        this._childs.length -
-                    1;
+                    (this.options.height - sizes["containerH"]) /
+                    (this._childs.length - 1);
+
+            }
         };
 
         this.#checkLayoutType(_type, _func1, _func2);
@@ -684,9 +681,6 @@ export class Layout extends Block {
             col += 1;
             blocksW += item.options.width;
 
-            if (idx !== this._childs.length - 1)
-                blocksW += this.options.gapColumn;
-
             if (this.#isWrap) {
                 if (idx === this._childs.length - 1) {
                     colsByRow.push(col);
@@ -697,6 +691,8 @@ export class Layout extends Block {
                     rowshByCols.push(bigH + this.options.gapRow);
                     row += 1;
                     rows.push(row);
+                } else {
+                    blocksW += this.options.gapColumn;
                 }
                 if (blocksW >= this.options.width) {
                     colsByRow.push(col);
@@ -743,20 +739,27 @@ export class Layout extends Block {
 
         let sharedColumnGap = 0;
         let sharedRowGap = 0;
-        console.log(sizes)
+
+        console.log(sizes);
+
         while (block.length - 1 >= idx) {
             const rowN = sizes["rows"][sizeIdx];
             const colSize = 0;
             const colN = sizes["cols"][sizeRowIdx];
             const rowsW = sizes["rowsW"][sizeRowIdx];
-
+            
             if (!this.#isWrap) {
-                if (colN && rowsW)
+                if (colN && rowsW && rowsW >= this.options.width) {
                     sharedColumnGap =
                         Math.abs(this.options.width - rowsW) / colN;
+                    if (block.length - 1 !== idx)
+                        sharedColumnGap += this.options.gapColumn;
+                }
             } else sharedColumnGap = 0;
+
             let endX =
                 (this._childs[idx] as any).options.width - sharedColumnGap;
+
             if (this.#isWrap) {
                 if (startX !== 0) col += endX + this.options.gapColumn;
                 else col += endX;
@@ -777,8 +780,7 @@ export class Layout extends Block {
                         sharedRowGap =
                             Math.abs(this.options.height - colSize) / colN;
                     let endY =
-                        (this._childs[idx] as any).options.height -
-                        sharedRowGap;
+                        (this._childs[idx] as any).options.height;
                     (this._childs[idx] as any).options.y = bigH;
                     (this._childs[idx] as any).options.height = endY;
                     sizeIdx += 1;

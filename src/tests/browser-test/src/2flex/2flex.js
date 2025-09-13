@@ -833,8 +833,7 @@ class Layout extends Block {
     // in flexbox works with wrap option
     alignContent(opt) {
         const alignContent = this.__cacheOption(this.options.alignContent, "normal", opt);
-        if (this.options.flexWrap != "wrap" ||
-            this.options.flexWrap != "wrap-reverse")
+        if (this.options.wrap != "wrap" && this.options.wrap != "wrap-reverse")
             return alignContent;
         const align = "alignContent";
         switch (alignContent) {
@@ -1086,11 +1085,12 @@ class Layout extends Block {
                     (this.options.width - this.#blocksSize.w) /
                         this._childs.length -
                         1;
-            else
+            else {
+                const sizes = this.#sizeByColsRow();
                 this.options.gapRow +=
-                    (this.options.height - this.#blocksSize.h) /
-                        this._childs.length -
-                        1;
+                    (this.options.height - sizes["containerH"]) /
+                        (this._childs.length - 1);
+            }
         };
         this.#checkLayoutType(_type, _func1, _func2);
     }
@@ -1193,8 +1193,6 @@ class Layout extends Block {
             biggestH.push(item.options.height);
             col += 1;
             blocksW += item.options.width;
-            if (idx !== this._childs.length - 1)
-                blocksW += this.options.gapColumn;
             if (this.#isWrap) {
                 if (idx === this._childs.length - 1) {
                     colsByRow.push(col);
@@ -1205,6 +1203,9 @@ class Layout extends Block {
                     rowshByCols.push(bigH + this.options.gapRow);
                     row += 1;
                     rows.push(row);
+                }
+                else {
+                    blocksW += this.options.gapColumn;
                 }
                 if (blocksW >= this.options.width) {
                     colsByRow.push(col);
@@ -1247,16 +1248,18 @@ class Layout extends Block {
         let sizeIdx = 0;
         let sizeRowIdx = 0;
         let sharedColumnGap = 0;
-        let sharedRowGap = 0;
         console.log(sizes);
         while (block.length - 1 >= idx) {
             sizes["rows"][sizeIdx];
             const colN = sizes["cols"][sizeRowIdx];
             const rowsW = sizes["rowsW"][sizeRowIdx];
             if (!this.#isWrap) {
-                if (colN && rowsW)
+                if (colN && rowsW && rowsW >= this.options.width) {
                     sharedColumnGap =
                         Math.abs(this.options.width - rowsW) / colN;
+                    if (block.length - 1 !== idx)
+                        sharedColumnGap += this.options.gapColumn;
+                }
             }
             else
                 sharedColumnGap = 0;
@@ -1279,8 +1282,7 @@ class Layout extends Block {
                     startY = bigH;
                 }
                 if (newCol) {
-                    let endY = this._childs[idx].options.height -
-                        sharedRowGap;
+                    let endY = this._childs[idx].options.height;
                     this._childs[idx].options.y = bigH;
                     this._childs[idx].options.height = endY;
                     sizeIdx += 1;
