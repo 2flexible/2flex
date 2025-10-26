@@ -158,7 +158,7 @@ const block3 = new Rectangle({
     fill: true,
 });
 const block4 = new Rectangle({
-    width: 120,
+    width: 220,
     height: 40,
     backgroundColor: "orange",
     fill: true,
@@ -190,12 +190,12 @@ const layout = new Layout({
     flexDirection: "row",
     wrap: "wrap",
     width: 400,
-    justifyContent: "space-evenly",
+    alignContent: "space-evenly",
     height: 300,
     gapColumn: 0,
     gapRow: 0,
 });
-layout.add(block1, block2, block3, block4);
+layout.add(block1, block2, block3, block4, block5, block6);
 mainBlock.add(layout);
 // line1.join(line2);
 // line2.join(line3)
