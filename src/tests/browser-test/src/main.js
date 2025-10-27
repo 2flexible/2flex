@@ -190,7 +190,7 @@ const layout = new Layout({
     flexDirection: "row",
     wrap: "wrap",
     width: 400,
-    alignContent: "space-evenly",
+    alignItems: "center",
     height: 300,
     gapColumn: 0,
     gapRow: 0,

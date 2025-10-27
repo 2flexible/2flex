@@ -725,11 +725,13 @@ const defaultOpt$4 = {
 class Layout extends Block {
     #startX = 0;
     #startY = 0;
-    #startXPos = [];
-    #startYPos = [];
+    #startXPosByCOl = [];
+    #startXPosByRow = [];
+    #startYPosByCol = [];
+    #startYPosByRow = [];
     #gapColumnsByRow = [];
     #gapRowsByColumn = [];
-    #sizes = {};
+    #sizes = { rows: [], cols: [], containerW: 0, containerH: 0 };
     constructor(options) {
         super(options);
         this.options = { ...defaultOpt$4, ...options };
@@ -934,10 +936,13 @@ class Layout extends Block {
         };
         const _func3 = () => { };
         const _func4 = () => {
-            if (this.#isFlexCol)
+            if (this.#isFlexCol) {
                 this.#startX = 0;
-            else
+            }
+            else {
                 this.#startY = 0;
+                this.#flexRow();
+            }
         };
         this.#checkLayoutType(_type, _func1, _func2, _func3, _func4);
     }
@@ -950,7 +955,7 @@ class Layout extends Block {
                 else {
                     if (this.#isWrap) {
                         this.#sizes.rows.width.forEach((item) => {
-                            this.#startXPos.push(this.options.width - item);
+                            this.#startXPosByRow.push(this.options.width - item);
                         });
                     }
                     else {
@@ -963,9 +968,7 @@ class Layout extends Block {
         };
         const _func2 = () => {
             if (this.#isOutofLayout) {
-                if (this.#isFlexCol) {
-                    this.#startX = this.options.width - this.#sizes.w;
-                }
+                if (this.#isFlexCol) ;
                 else {
                     if (this.#isWrap) {
                         this.#startY =
@@ -977,38 +980,29 @@ class Layout extends Block {
         };
         const _func3 = () => { };
         const _func4 = () => {
-            if (this.#isFlexCol) {
-                this._childs.forEach((element) => {
-                    element.options.x = Math.abs(this.options.width - element.options.width);
-                });
-            }
+            if (this.#isFlexCol) ;
             else {
-                this.#sizeByColsRow();
-                // this._childs.forEach((element: any) => {
-                //     if (this.#isWrap) {
-                //         itemsWidth +=
-                //             element.options.width + this.options.gapColumn;
-                //         if (!startY) {
-                //             startY = size["rowsH"][idxs];
-                //             if (size["containerH"] < this.options.height)
-                //                 initY = Math.abs(
-                //                     this.options.height - size["containerH"]
-                //                 );
-                //         }
-                //         if (this.options.width <= itemsWidth) {
-                //             itemsWidth = element.options.width;
-                //             idxs += 1;
-                //             const maxHeight = size["rowsH"][idxs];
-                //             startY += maxHeight
-                //                 ? maxHeight
-                //                 : element.options.height;
-                //         }
-                //     } else {
-                //         startY = this.options.height;
-                //     }
-                //     element.options.y =
-                //         initY + Math.abs(startY - element.options.height);
-                // });
+                let cols = 0;
+                let idx = 0;
+                let size = 0;
+                // let bigHight = 0;
+                this.#sizes.rows.height.forEach((item, index) => {
+                    for (let i = 0; i < this.#sizes.rows.cols[idx]; i++) {
+                        const block = this._childs[i + cols];
+                        size = Math.abs(this.options.height -
+                            this.#sizes.containerH +
+                            item -
+                            block.options.height);
+                        // if (this.#isWrap && index >= 1 && i !== 0) {
+                        //     size += bigHight + this.options.gapRow;
+                        // }
+                        this.#startYPosByCol.push(size);
+                    }
+                    cols += this.#sizes.rows.cols[idx];
+                    // bigHight += item;
+                    idx++;
+                });
+                this.#flexRow(false);
             }
         };
         this.#checkLayoutType(_type, _func1, _func2, _func3, _func4);
@@ -1023,7 +1017,7 @@ class Layout extends Block {
                 else {
                     if (this.#isWrap) {
                         this.#sizes.rows.width.forEach((item) => {
-                            this.#startXPos.push((this.options.width - item) / 2);
+                            this.#startXPosByRow.push((this.options.width - item) / 2);
                         });
                     }
                     else {
@@ -1036,25 +1030,36 @@ class Layout extends Block {
         };
         const _func2 = () => {
             if (this.#isOutofLayout) {
-                if (this.#isFlexCol) {
-                    this.#startX = this.options.width - this.#sizes.w;
-                }
+                if (this.#isFlexCol) ;
                 else {
                     if (this.#isWrap) {
-                        this.#startY =
+                        (this.#startY =
                             (this.options.height - this.#sizes.containerH) /
-                                this.#sizes.rows.nItems;
-                        this.#flexRow();
+                                this.#sizes.rows.nItems),
+                            this.#flexRow();
                     }
                 }
             }
         };
         const _func3 = () => { };
         const _func4 = () => {
-            if (this.#isFlexCol) {
-                this._childs.forEach((element) => {
-                    element.options.x = Math.abs(this.options.width / 2 - element.options.width / 2);
+            if (this.#isFlexCol) ;
+            else {
+                let cols = 0;
+                let idx = 0;
+                let size = 0;
+                this.#sizes.rows.height.forEach((item, index) => {
+                    for (let i = 0; i < this.#sizes.rows.cols[idx]; i++) {
+                        const block = this._childs[i + cols];
+                        size = Math.abs((this.options.height - this.#sizes.containerH) /
+                            2 +
+                            (item - block.options.height) / 2);
+                        this.#startYPosByCol.push(size);
+                    }
+                    cols += this.#sizes.rows.cols[idx];
+                    idx++;
                 });
+                this.#flexRow(false);
             }
         };
         this.#checkLayoutType(_type, _func1, _func2, _func3, _func4);
@@ -1112,7 +1117,7 @@ class Layout extends Block {
                             const cols = this.#sizes.rows.cols[index];
                             const gap = (this.options.width - item) / cols;
                             this.#gapColumnsByRow.push(gap);
-                            this.#startXPos.push(gap / 2);
+                            this.#startXPosByRow.push(gap / 2);
                         });
                     }
                     else {
@@ -1154,7 +1159,7 @@ class Layout extends Block {
                             const cols = this.#sizes.rows.cols[index];
                             const gap = (this.options.width - item) / (cols + 1);
                             this.#gapColumnsByRow.push(gap);
-                            this.#startXPos.push(gap);
+                            this.#startXPosByRow.push(gap);
                         });
                     }
                     else {
@@ -1241,7 +1246,12 @@ class Layout extends Block {
             idx += 1;
         }
         containerW = Math.max(...rows["width"]);
-        containerH = rows["height"].reduce((prev, curr) => prev + curr, 0);
+        if (this.#isWrap) {
+            containerH = rows["height"].reduce((prev, curr) => prev + curr, 0);
+        }
+        else {
+            containerH = Math.max(...rows["height"]);
+        }
         this.#sizes = {
             rows: rows,
             cols: cols,
@@ -1249,34 +1259,49 @@ class Layout extends Block {
             containerH: containerH,
         };
     }
-    #flexRow() {
+    #flexRow(isNew = true) {
         const block = this._childs;
         let idx = 0;
         let rowIdx = 0;
         let colIdx = 0;
-        let startX = this.#startXPos[rowIdx] || this.#startX;
-        let startY = this.#startYPos[rowIdx] || this.#startY;
+        let startX = this.#startXPosByRow[rowIdx] !== undefined
+            ? this.#startXPosByRow[rowIdx]
+            : this.#startX;
+        let startY = this.#startYPosByCol[colIdx] !== undefined
+            ? this.#startYPosByCol[colIdx]
+            : this.#startY;
         let sharedColumnGap = 0;
-        let gapCol = this.#gapColumnsByRow[rowIdx] || this.options.gapColumn;
-        let gapRow = this.#gapRowsByColumn[rowIdx] || this.options.gapRow;
-        console.log(this.#sizes);
+        let gapCol = this.#gapColumnsByRow[rowIdx] !== undefined
+            ? this.#gapColumnsByRow[rowIdx]
+            : this.options.gapColumn;
+        let gapRow = this.#gapRowsByColumn[rowIdx] !== undefined
+            ? this.#gapRowsByColumn[rowIdx]
+            : this.options.gapRow;
+        let beforeItem = 0;
         while (block.length - 1 >= idx) {
             const colsByRow = this.#sizes.rows.cols[rowIdx];
             const rowsW = this.#sizes.rows.width[rowIdx];
             const rowsH = this.#sizes.rows.height[rowIdx];
+            if (this.#startYPosByCol[idx] !== undefined)
+                startY = beforeItem + this.#startYPosByCol[idx];
             if (this.#isWrap) {
                 if (colIdx === colsByRow && this.#sizes.rows.nItems > 0) {
                     rowIdx += 1;
-                    startX = this.#startXPos[rowIdx] || this.#startX;
-                    if (this.#startYPos[rowIdx])
-                        startY += this.#startYPos[rowIdx];
+                    startX =
+                        this.#startXPosByRow[rowIdx] !== undefined
+                            ? this.#startXPosByRow[rowIdx]
+                            : this.#startX;
                     startY += rowsH + gapRow;
-                    gapCol = this.#gapColumnsByRow[rowIdx] || gapCol;
+                    beforeItem += rowsH + gapRow;
+                    gapCol =
+                        this.#gapColumnsByRow[rowIdx] !== undefined
+                            ? this.#gapColumnsByRow[rowIdx]
+                            : this.options.gapColumn;
                     colIdx = 0;
                 }
             }
             else {
-                if (colsByRow && rowsW && rowsW >= this.options.width) {
+                if (isNew && rowsW >= this.options.width) {
                     sharedColumnGap =
                         Math.abs(this.options.width - rowsW) / colsByRow;
                     if (block.length - 1 !== idx)
