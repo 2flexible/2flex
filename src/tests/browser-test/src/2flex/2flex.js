@@ -985,21 +985,17 @@ class Layout extends Block {
                 let cols = 0;
                 let idx = 0;
                 let size = 0;
-                // let bigHight = 0;
                 this.#sizes.rows.height.forEach((item, index) => {
                     for (let i = 0; i < this.#sizes.rows.cols[idx]; i++) {
                         const block = this._childs[i + cols];
-                        size = Math.abs(this.options.height -
-                            this.#sizes.containerH +
-                            item -
-                            block.options.height);
-                        // if (this.#isWrap && index >= 1 && i !== 0) {
-                        //     size += bigHight + this.options.gapRow;
-                        // }
+                        let containerH = this.options.height - this.#sizes.containerH;
+                        containerH = containerH > 0 ? containerH : 0;
+                        size =
+                            containerH +
+                                Math.abs(item - block.options.height);
                         this.#startYPosByCol.push(size);
                     }
                     cols += this.#sizes.rows.cols[idx];
-                    // bigHight += item;
                     idx++;
                 });
                 this.#flexRow(false);
@@ -1048,12 +1044,13 @@ class Layout extends Block {
                 let cols = 0;
                 let idx = 0;
                 let size = 0;
-                this.#sizes.rows.height.forEach((item, index) => {
+                let containerH = this.options.height - this.#sizes.containerH;
+                containerH = containerH > 0 ? containerH : 0;
+                this.#sizes.rows.height.forEach((item) => {
                     for (let i = 0; i < this.#sizes.rows.cols[idx]; i++) {
                         const block = this._childs[i + cols];
-                        size = Math.abs((this.options.height - this.#sizes.containerH) /
-                            2 +
-                            (item - block.options.height) / 2);
+                        size =
+                            containerH / 2 + (item - block.options.height) / 2;
                         this.#startYPosByCol.push(size);
                     }
                     cols += this.#sizes.rows.cols[idx];
@@ -1217,6 +1214,10 @@ class Layout extends Block {
             if (idx === blocks.length - 1) {
                 if (!(wrapWidth >= this.options.width)) {
                     blocksW += item.options.width;
+                    blocksH =
+                        blocksH <= item.options.height
+                            ? item.options.height
+                            : blocksH;
                     col += 1;
                 }
                 rows["cols"]?.push(col);
@@ -1239,9 +1240,9 @@ class Layout extends Block {
                     col = 0;
                 }
             }
-            blocksW += item.options.width;
             blocksH =
-                blocksH < item.options.height ? item.options.height : blocksH;
+                blocksH <= item.options.height ? item.options.height : blocksH;
+            blocksW += item.options.width;
             col += 1;
             idx += 1;
         }
@@ -1260,7 +1261,7 @@ class Layout extends Block {
         };
     }
     #flexRow(isNew = true) {
-        const block = this._childs;
+        const blocks = this._childs;
         let idx = 0;
         let rowIdx = 0;
         let colIdx = 0;
@@ -1271,6 +1272,7 @@ class Layout extends Block {
             ? this.#startYPosByCol[colIdx]
             : this.#startY;
         let sharedColumnGap = 0;
+        let sharedRowGap = 0;
         let gapCol = this.#gapColumnsByRow[rowIdx] !== undefined
             ? this.#gapColumnsByRow[rowIdx]
             : this.options.gapColumn;
@@ -1278,8 +1280,10 @@ class Layout extends Block {
             ? this.#gapRowsByColumn[rowIdx]
             : this.options.gapRow;
         let beforeItem = 0;
-        while (block.length - 1 >= idx) {
+        while (blocks.length - 1 >= idx) {
+            const block = blocks[idx];
             const colsByRow = this.#sizes.rows.cols[rowIdx];
+            const nRows = this.#sizes.rows.nItems;
             const rowsW = this.#sizes.rows.width[rowIdx];
             const rowsH = this.#sizes.rows.height[rowIdx];
             if (this.#startYPosByCol[idx] !== undefined)
@@ -1304,22 +1308,39 @@ class Layout extends Block {
                 if (isNew && rowsW >= this.options.width) {
                     sharedColumnGap =
                         Math.abs(this.options.width - rowsW) / colsByRow;
-                    if (block.length - 1 !== idx)
+                    if (blocks.length - 1 !== idx)
                         sharedColumnGap += gapCol;
                 }
+                if (isNew && rowsH >= this.options.height) {
+                    sharedRowGap =
+                        Math.abs(this.options.height - rowsH) / nRows;
+                    if (blocks.length - 1 !== idx)
+                        sharedRowGap += gapRow;
+                }
             }
-            let endY = this._childs[idx].options.height;
-            this._childs[idx].options.y = startY;
-            this._childs[idx].options.height = endY;
-            const endX = this._childs[idx].options.width - sharedColumnGap;
-            this._childs[idx].options.x = startX;
-            this._childs[idx].options.width = endX;
+            let endY = block.options.height - sharedRowGap;
+            block.options.y = startY;
+            block.options.height = endY;
+            const endX = block.options.width - sharedColumnGap;
+            block.options.x = startX;
+            block.options.width = endX;
             startX += gapCol + endX;
             idx += 1;
             colIdx += 1;
         }
     }
-    #flexRowReverse() { }
+    #flexRowReverse() {
+        const dublicate = [];
+        let startPos = 0;
+        this.#sizes.rows.cols.forEach((item) => {
+            console.log(startPos, item);
+            dublicate.push(...this._childs.slice(startPos, startPos + item).reverse());
+            startPos += item;
+        });
+        console.log(this._childs, dublicate);
+        this._childs = dublicate;
+        this.#flexRow();
+    }
     // need to adjust width heigt to be responsiable
     // #flexColumn() {
     //     let idx = 0;

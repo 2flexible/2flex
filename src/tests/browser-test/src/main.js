@@ -172,12 +172,18 @@ const block5 = new Rectangle({
 });
 const block6 = new Rectangle({
     width: 60,
-    height: 20,
+    height: 120,
     backgroundColor: "orange",
     fill: true,
     stroke: true,
 });
-
+const block7 = new Rectangle({
+    width: 90,
+    height: 80,
+    backgroundColor: "blue",
+    fill: true,
+    stroke: true,
+});
 const mainBlock = new Rectangle({
     width: 400,
     height: 300,
@@ -185,17 +191,44 @@ const mainBlock = new Rectangle({
     stroke: true,
 });
 
+const random_blocks = [];
+
+function createRandomBlocks() {
+    const width = Math.floor(Math.random() * 300);
+    const height = Math.floor(Math.random() * 100);
+
+    const colors = ["blue", "red", "green", "yellow", "brown"];
+    const color = colors[Math.floor(Math.random() * colors.length - 1)];
+    for (let i = 0; i < colors.length; i++) {
+        const text = new TextBlock("SecondText", {
+            x: 0,
+            y: 0,
+            color: "white",
+            fontSize: "32px",
+            selectable: false,
+        });
+        const block = new Rectangle({
+            width: width,
+            height: height,
+            backgroundColor: color,
+            fill: true,
+            stroke: true,
+        }).add(text);
+        random_blocks.push(block);
+    }
+}
+createRandomBlocks()
 const layout = new Layout({
     layout: "flex",
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     wrap: "wrap",
     width: 400,
-    alignItems: "center",
+    alignItems: "start",
     height: 300,
     gapColumn: 0,
     gapRow: 0,
 });
-layout.add(block1, block2, block3, block4, block5, block6);
+layout.add(...random_blocks);
 mainBlock.add(layout);
 // line1.join(line2);
 // line2.join(line3)

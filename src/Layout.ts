@@ -477,24 +477,19 @@ export class Layout extends Block {
                 let cols = 0;
                 let idx = 0;
                 let size = 0;
-                // let bigHight = 0;
                 this.#sizes.rows.height.forEach(
                     (item: number, index: number) => {
                         for (let i = 0; i < this.#sizes.rows.cols[idx]; i++) {
                             const block = (this._childs as any)[i + cols];
-                            size = Math.abs(
-                                this.options.height -
-                                    this.#sizes.containerH +
-                                    item -
-                                    block.options.height
-                            );
-                            // if (this.#isWrap && index >= 1 && i !== 0) {
-                            //     size += bigHight + this.options.gapRow;
-                            // }
+                            let containerH =
+                                this.options.height - this.#sizes.containerH;
+                            containerH = containerH > 0 ? containerH : 0;
+                            size =
+                                containerH +
+                                Math.abs(item - block.options.height);
                             this.#startYPosByCol.push(size);
                         }
                         cols += this.#sizes.rows.cols[idx];
-                        // bigHight += item;
                         idx++;
                     }
                 );
@@ -545,21 +540,18 @@ export class Layout extends Block {
                 let cols = 0;
                 let idx = 0;
                 let size = 0;
-                this.#sizes.rows.height.forEach(
-                    (item: number, index: number) => {
-                        for (let i = 0; i < this.#sizes.rows.cols[idx]; i++) {
-                            const block = (this._childs as any)[i + cols];
-                            size = Math.abs(
-                                (this.options.height - this.#sizes.containerH) /
-                                    2 +
-                                    (item - block.options.height) / 2
-                            );
-                            this.#startYPosByCol.push(size);
-                        }
-                        cols += this.#sizes.rows.cols[idx];
-                        idx++;
+                let containerH = this.options.height - this.#sizes.containerH;
+                containerH = containerH > 0 ? containerH : 0;
+                this.#sizes.rows.height.forEach((item: number) => {
+                    for (let i = 0; i < this.#sizes.rows.cols[idx]; i++) {
+                        const block = (this._childs as any)[i + cols];
+                        size =
+                            containerH / 2 + (item - block.options.height) / 2;
+                        this.#startYPosByCol.push(size);
                     }
-                );
+                    cols += this.#sizes.rows.cols[idx];
+                    idx++;
+                });
                 this.#flexRow(false);
             }
         };
@@ -728,10 +720,13 @@ export class Layout extends Block {
 
             cols["nItems"] += 1;
             cols["width"].push(blocksW as number);
-
             if (idx === blocks.length - 1) {
                 if (!(wrapWidth >= this.options.width)) {
                     blocksW += item.options.width;
+                    blocksH =
+                        blocksH <= item.options.height
+                            ? item.options.height
+                            : blocksH;
                     col += 1;
                 }
                 rows["cols"]?.push(col);
@@ -755,10 +750,11 @@ export class Layout extends Block {
                     col = 0;
                 }
             }
+            blocksH =
+                blocksH <= item.options.height ? item.options.height : blocksH;
 
             blocksW += item.options.width;
-            blocksH =
-                blocksH < item.options.height ? item.options.height : blocksH;
+
             col += 1;
             idx += 1;
         }
@@ -777,7 +773,7 @@ export class Layout extends Block {
         };
     }
     #flexRow(isNew: boolean = true) {
-        const block = this._childs as BlockElements[];
+        const blocks = this._childs as BlockElements[];
         let idx = 0;
         let rowIdx = 0;
         let colIdx = 0;
@@ -793,6 +789,8 @@ export class Layout extends Block {
                 : this.#startY;
 
         let sharedColumnGap = 0;
+        let sharedRowGap = 0;
+
         let gapCol =
             this.#gapColumnsByRow[rowIdx] !== undefined
                 ? this.#gapColumnsByRow[rowIdx]
@@ -803,8 +801,11 @@ export class Layout extends Block {
                 : this.options.gapRow;
 
         let beforeItem = 0;
-        while (block.length - 1 >= idx) {
+        while (blocks.length - 1 >= idx) {
+            const block = blocks[idx];
             const colsByRow = (this.#sizes.rows.cols as number[])[rowIdx];
+            const nRows = this.#sizes.rows.nItems;
+
             const rowsW = this.#sizes.rows.width[rowIdx];
             const rowsH = this.#sizes.rows.height[rowIdx];
 
@@ -831,24 +832,39 @@ export class Layout extends Block {
                 if (isNew && rowsW >= this.options.width) {
                     sharedColumnGap =
                         Math.abs(this.options.width - rowsW) / colsByRow;
-                    if (block.length - 1 !== idx) sharedColumnGap += gapCol;
+                    if (blocks.length - 1 !== idx) sharedColumnGap += gapCol;
+                }
+                if (isNew && rowsH >= this.options.height) {
+                    sharedRowGap =
+                        Math.abs(this.options.height - rowsH) / nRows;
+                    if (blocks.length - 1 !== idx) sharedRowGap += gapRow;
                 }
             }
-            let endY = (this._childs[idx] as any).options.height;
-            (this._childs[idx] as any).options.y = startY;
-            (this._childs[idx] as any).options.height = endY;
+            let endY = block.options.height - sharedRowGap;
+            block.options.y = startY;
+            block.options.height = endY;
 
-            const endX =
-                (this._childs[idx] as any).options.width - sharedColumnGap;
-            (this._childs[idx] as any).options.x = startX;
-            (this._childs[idx] as any).options.width = endX;
+            const endX = block.options.width - sharedColumnGap;
+            block.options.x = startX;
+            block.options.width = endX;
 
             startX += gapCol + endX;
             idx += 1;
             colIdx += 1;
         }
     }
-    #flexRowReverse() {}
+    #flexRowReverse() {
+        const dublicate: any[] = [];
+        let startPos = 0;
+        this.#sizes.rows.cols.forEach((item: number) => {
+            console.log(startPos, item)
+            dublicate.push(...this._childs.slice(startPos, startPos+item).reverse());
+            startPos += item;
+        });
+        console.log(this._childs, dublicate)
+        this._childs = dublicate;
+        this.#flexRow();
+    }
 
     // need to adjust width heigt to be responsiable
     // #flexColumn() {
