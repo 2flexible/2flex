@@ -265,10 +265,12 @@ class Canvas {
             });
         });
     }
-    #handleOptions(block) {
+    #handleOptions(block, ignore) {
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
+            if (ignore && ignore.includes(key))
+                return;
             if (obj) {
                 obj.value.call(block, value);
             }
@@ -284,10 +286,11 @@ class Canvas {
         this.context.save();
         this.clearRect();
         this.context.translate(this.cords.x, this.cords.y);
+        const ignore = ["layout"];
         this.#tree.checkNodes((element) => {
             if (_func)
                 _func(element);
-            this.#handleOptions(element);
+            this.#handleOptions(element, ignore);
             element.__initSet();
         });
     }
@@ -400,42 +403,31 @@ class Block extends Node {
     options;
     events = [];
     initCords = {
-        x: undefined,
-        y: undefined,
+        x: 0,
+        y: 0,
     };
     styleChanges = [];
     constructor(options) {
         super();
         this.options = { ...defaultOpt$5, ...options };
+        this.initCords.x = this.options.x;
+        this.initCords.y = this.options.y;
     }
-    __initSet() {
-        if (this.initCords.x !== undefined) {
-            this.initCords.x = this.options.x;
-        }
-        if (!this.initCords.y !== undefined) {
-            this.initCords.y = this.options.y;
-        }
-    }
+    __initSet() { }
     get context() {
         return this.canvas.context;
     }
     add(...block) {
         this.addChild(block);
-        this.#adjustCordinates();
+        this.__adjustCordinates();
     }
-    #adjustCordinates() {
-        // initCords is problematic
-        this.initCords.x =
-            this.options.x !== this.initCords.x
-                ? this.options.x
-                : this.initCords.x;
-        this.initCords.y =
-            this.options.y !== this.initCords.y
-                ? this.options.y
-                : this.initCords.y;
+    __adjustCordinates() {
         this._childs?.forEach((item) => {
-            item.initCords.x = this.initCords.x + item.options.x;
-            item.initCords.y = this.initCords.y + item.options.y;
+            if (item) {
+                item.initCords.x = this.initCords.x + item.options.x;
+                item.initCords.y = this.initCords.y + item.options.y;
+                item.__adjustCordinates();
+            }
         });
     }
     x(opt) {
@@ -687,14 +679,20 @@ class Block extends Node {
                 let diffX = x - initX;
                 let diffY = y - initY;
                 if (diffX !== 0 && this.options.dragX) {
-                    this.options.x += diffX - beforeX;
+                    this.initCords.x = this.initCords.x
+                        ? this.initCords.x
+                        : this.options.x;
+                    this.initCords.x += diffX - beforeX;
                     beforeX = diffX;
                 }
                 if (diffY !== 0 && this.options.dragY) {
-                    this.options.y += diffY - beforeY;
+                    this.initCords.y = this.initCords.y
+                        ? this.initCords.y
+                        : this.options.y;
+                    this.initCords.y += diffY - beforeY;
                     beforeY = diffY;
                 }
-                this.#adjustCordinates();
+                this.__adjustCordinates();
                 this.canvas.invokeChange?.call(this.canvas);
             }
         });
@@ -731,6 +729,7 @@ class Layout extends Block {
     #startYPosByRow = [];
     #gapColumnsByRow = [];
     #gapRowsByColumn = [];
+    isNew = false;
     #sizes = { rows: [], cols: [], containerW: 0, containerH: 0 };
     constructor(options) {
         super(options);
@@ -738,6 +737,24 @@ class Layout extends Block {
     }
     __initSet() {
         super.__initSet();
+    }
+    clip(opt) {
+        return super.clip(opt);
+    }
+    dragX(opt) {
+        return super.dragX(opt);
+    }
+    dragY(opt) {
+        return super.dragY(opt);
+    }
+    draggable(opt) {
+        return super.draggable(opt);
+    }
+    selectable(opt) {
+        return super.selectable(opt);
+    }
+    set(options) {
+        super.set(options);
     }
     layout(opt) {
         const layout = this.__cacheOption(this.options.flex, 0, opt);
@@ -1319,11 +1336,14 @@ class Layout extends Block {
                 }
             }
             let endY = block.options.height - sharedRowGap;
+            block.initCords.y = startY;
             block.options.y = startY;
             block.options.height = endY;
             const endX = block.options.width - sharedColumnGap;
+            block.initCords.x = startX;
             block.options.x = startX;
             block.options.width = endX;
+            block.__adjustCordinates();
             startX += gapCol + endX;
             idx += 1;
             colIdx += 1;
@@ -1333,11 +1353,9 @@ class Layout extends Block {
         const dublicate = [];
         let startPos = 0;
         this.#sizes.rows.cols.forEach((item) => {
-            console.log(startPos, item);
             dublicate.push(...this._childs.slice(startPos, startPos + item).reverse());
             startPos += item;
         });
-        console.log(this._childs, dublicate);
         this._childs = dublicate;
         this.#flexRow();
     }

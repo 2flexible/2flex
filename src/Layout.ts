@@ -165,6 +165,8 @@ export class Layout extends Block {
     #gapColumnsByRow: number[] = [];
     #gapRowsByColumn: number[] = [];
 
+    isNew: boolean = false;
+
     #sizes: {
         rows: sizeInfo | any;
         cols: sizeInfo | any;
@@ -178,6 +180,26 @@ export class Layout extends Block {
     }
     __initSet() {
         super.__initSet();
+    }
+    clip(opt?: boolean): boolean {
+        return super.clip(opt);
+    }
+    dragX(opt?: boolean) {
+        return super.dragX(opt);
+    }
+    dragY(opt?: boolean) {
+        return super.dragY(opt);
+    }
+    draggable(opt: boolean): boolean {
+        return super.draggable(opt);
+    }
+
+    selectable(opt?: boolean): boolean {
+        return super.selectable(opt);
+    }
+
+    set(options: IBlock<LayoutOptions>) {
+        super.set(options);
     }
     layout(opt?: ILayout) {
         const layout = this.__cacheOption(this.options.flex, 0, opt);
@@ -205,6 +227,7 @@ export class Layout extends Block {
         }
         return layout;
     }
+
     flex(opt?: Flex) {
         const flex = this.__cacheOption(this.options.flex, 0, opt);
 
@@ -711,7 +734,6 @@ export class Layout extends Block {
         let blocksH = 0;
 
         const blocks = this._childs as any;
-
         let wrapWidth = 0;
         let idx = 0;
         while (idx < blocks.length) {
@@ -841,13 +863,16 @@ export class Layout extends Block {
                 }
             }
             let endY = block.options.height - sharedRowGap;
+            block.initCords.y = startY;
             block.options.y = startY;
             block.options.height = endY;
 
             const endX = block.options.width - sharedColumnGap;
+            block.initCords.x = startX;
             block.options.x = startX;
             block.options.width = endX;
-
+            
+            block.__adjustCordinates();
             startX += gapCol + endX;
             idx += 1;
             colIdx += 1;
@@ -857,11 +882,11 @@ export class Layout extends Block {
         const dublicate: any[] = [];
         let startPos = 0;
         this.#sizes.rows.cols.forEach((item: number) => {
-            console.log(startPos, item)
-            dublicate.push(...this._childs.slice(startPos, startPos+item).reverse());
+            dublicate.push(
+                ...this._childs.slice(startPos, startPos + item).reverse()
+            );
             startPos += item;
         });
-        console.log(this._childs, dublicate)
         this._childs = dublicate;
         this.#flexRow();
     }

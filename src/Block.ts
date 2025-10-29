@@ -46,24 +46,19 @@ export class Block extends Node {
     options: DefaultBlockOpt;
     events: ICustomEvents[] = [];
     initCords: InitCords = {
-        x: undefined,
-        y: undefined,
+        x: 0,
+        y: 0,
     };
     styleChanges: IStyle[] = [];
 
     constructor(options?: IBlock<BlockOptions>) {
         super();
         this.options = { ...defaultOpt, ...options };
+        this.initCords.x = this.options.x;
+        this.initCords.y = this.options.y;
     }
 
-    __initSet() {
-        if (this.initCords.x!==undefined) {
-            this.initCords.x = this.options.x;
-        }
-        if (!this.initCords.y!==undefined) {
-            this.initCords.y = this.options.y;
-        }
-    }
+    __initSet() {}
 
     get context() {
         return this.canvas.context;
@@ -71,23 +66,16 @@ export class Block extends Node {
 
     add(...block: BlockElements[]): void {
         this.addChild(block);
-        this.#adjustCordinates();
+        this.__adjustCordinates();
     }
 
-    #adjustCordinates(): void {
-        // initCords is problematic
-        this.initCords.x =
-            this.options.x !== this.initCords.x
-                ? this.options.x
-                : this.initCords.x;
-
-        this.initCords.y =
-            this.options.y !== this.initCords.y
-                ? this.options.y
-                : this.initCords.y;
+    __adjustCordinates(): void {
         this._childs?.forEach((item: any) => {
-            item.initCords.x = this.initCords.x + item.options.x;
-            item.initCords.y = this.initCords.y + item.options.y;
+            if (item) {
+                item.initCords.x = this.initCords.x + item.options.x;
+                item.initCords.y = this.initCords.y + item.options.y;
+                item.__adjustCordinates()
+            }
         });
     }
 
@@ -392,14 +380,20 @@ export class Block extends Node {
                 let diffY = y - initY;
 
                 if (diffX !== 0 && this.options.dragX) {
-                    this.options.x += diffX - beforeX;
+                    this.initCords.x = this.initCords.x
+                        ? this.initCords.x
+                        : this.options.x;
+                    this.initCords.x += diffX - beforeX;
                     beforeX = diffX;
                 }
                 if (diffY !== 0 && this.options.dragY) {
-                    this.options.y += diffY - beforeY;
+                    this.initCords.y = this.initCords.y
+                        ? this.initCords.y
+                        : this.options.y;
+                    this.initCords.y += diffY - beforeY;
                     beforeY = diffY;
                 }
-                this.#adjustCordinates();
+                this.__adjustCordinates();
                 this.canvas.invokeChange?.call(this.canvas);
             }
         });

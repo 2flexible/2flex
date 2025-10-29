@@ -12,7 +12,7 @@ const canvas = new Canvas("canvas", 800, 400, { "background-color": "black" });
 
 const text_a = new TextBlock("First Text", {
     x: 0,
-    y: 150,
+    y: 0,
     fontFamily: "KulminoituvaRegular",
     color: "blue",
     borderWidth: 2,
@@ -26,7 +26,6 @@ const text_b = new TextBlock("SecondText", {
     y: 0,
     color: "yellow",
     fontSize: "50px",
-    selectable: false,
     // strokeWidth: 0,
     // stroke: true,
     // clip: true,
@@ -46,7 +45,7 @@ const block = new Block();
 // const layer = new Layer({ x: 20 });
 // layer.add(text_a, text_b);
 const rect = new Rectangle({
-    x: 0,
+    x: 200,
     y: 0,
     width: 200,
     height: 200,
@@ -61,14 +60,14 @@ const rect = new Rectangle({
 
     // stroke: true,
     fill: true,
-    clip: true,
+    // clip: true,
 });
 
 const rect1 = new Rectangle({
-    x: 400,
-    y: 100,
-    width: 200,
-    height: 200,
+    x: 0,
+    y: 0,
+    width: 20,
+    height: 20,
     borderWidth: 2,
     borderRadius: [0, 20, 20, 0],
     backgroundColor: "yellow",
@@ -83,7 +82,7 @@ const circle = new Circle({
     borderColor: "blue",
     borderWidth: 5,
 });
-rect.add(text_b);
+rect.add(circle);
 
 const line1 = new Line({
     x: 0,
@@ -193,16 +192,21 @@ const mainBlock = new Rectangle({
 
 const random_blocks = [];
 
-function createRandomBlocks() {
-    const width = Math.floor(Math.random() * 300);
-    const height = Math.floor(Math.random() * 100);
+const layoutWidth = 400;
+const layoutHeight = 400;
 
+function createRandomBlocks() {
     const colors = ["blue", "red", "green", "yellow", "brown"];
-    const color = colors[Math.floor(Math.random() * colors.length - 1)];
+    const say_hello = ["bonswa", "merhaba", "hello", "holla", "salam"];
+
     for (let i = 0; i < colors.length; i++) {
-        const text = new TextBlock("SecondText", {
-            x: 0,
-            y: 0,
+        const width = Math.floor(Math.random() * 400);
+        const height = Math.floor(Math.random() * 200);
+
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const hello = say_hello[Math.floor(Math.random() * say_hello.length)];
+
+        const text = new TextBlock(hello, {
             color: "white",
             fontSize: "32px",
             selectable: false,
@@ -211,23 +215,37 @@ function createRandomBlocks() {
             width: width,
             height: height,
             backgroundColor: color,
+            borderWidth: "black",
             fill: true,
             stroke: true,
-        }).add(text);
+        });
+        block.add(text);
         random_blocks.push(block);
     }
 }
-createRandomBlocks()
+createRandomBlocks();
 const layout = new Layout({
     layout: "flex",
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     wrap: "wrap",
     width: 400,
-    alignItems: "start",
+    height: 400,
     height: 300,
     gapColumn: 0,
     gapRow: 0,
 });
+
+const text1 = new TextBlock("text1", {
+    color: "white",
+    fontSize: "32px",
+    selectable: false,
+});
+const text2 = new TextBlock("text2", {
+    color: "yellow",
+    fontSize: "32px",
+    selectable: false,
+});
+
 layout.add(...random_blocks);
 mainBlock.add(layout);
 // line1.join(line2);

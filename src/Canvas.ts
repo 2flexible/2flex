@@ -135,10 +135,11 @@ export class Canvas {
         });
     }
 
-    #handleOptions(block: BlockElements): void {
+    #handleOptions(block: BlockElements, ignore?: string[]): void {
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
+            if(ignore && ignore.includes(key)) return
             if (obj) {
                 obj.value.call(block, value);
             } else {
@@ -156,9 +157,11 @@ export class Canvas {
         this.clearRect();
         this.context.translate(this.cords.x, this.cords.y);
 
+        const ignore = ["layout"]
+
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);
-            this.#handleOptions(element);
+            this.#handleOptions(element, ignore);
             element.__initSet();
         });
     }
