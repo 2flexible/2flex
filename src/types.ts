@@ -6,6 +6,20 @@ import { Block, DefaultBlockOpt } from "./Block";
 
 export type ShapeElements = Rectangle;
 
+// Todo: need to impliment justify self, align-sef for each block, can be done with left, right, bottom top postiional values
+export type AlignSelf = "normal" | "auto" | "center" | "start" | "end" | "stertch";
+
+export type JustifySelf =
+    | "normal"
+    | "auto"
+    | "center"
+    | "start"
+    | "end"
+    | "stertch"
+    // for rtl, ltr writind mode
+    | "left"
+    | "right";
+
 // move these inside to Block
 export interface BlockOptions {
     [key: string]: any;
@@ -24,6 +38,9 @@ export interface BlockOptions {
     dragY?: boolean;
     visible?: boolean;
     rotate?: number;
+    order?: number;
+    alingSelf: AlignSelf;
+    justifySelf: JustifySelf;
 }
 // extend margin as seperate margin top, left, bottom
 

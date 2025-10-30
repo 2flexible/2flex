@@ -1,5 +1,11 @@
 import { Block } from "./Block";
-import { IBlock, IDefaultBlockOpt, BlockElements } from "./types";
+import {
+    IBlock,
+    IDefaultBlockOpt,
+    BlockElements,
+    AlignSelf,
+    JustifySelf,
+} from "./types";
 
 interface DefaultLayoutOpt {}
 
@@ -53,20 +59,6 @@ type AlignContent =
 
 type AlignItems = "normal" | "start" | "center" | "end" | "stretch";
 
-// Todo: need to impliment justify self, align-sef for each block, can be done with left, right, bottom top postiional values
-type AlignSelf = "normal" | "auto" | "center" | "start" | "end" | "stertch";
-
-type JustifySelf =
-    | "normal"
-    | "auto"
-    | "center"
-    | "start"
-    | "end"
-    | "stertch"
-    // for rtl, ltr writind mode
-    | "left"
-    | "right";
-
 type PlaceContent = AlignContent & JustifyContent;
 
 type PlaceItems = AlignItems & JustifyItems;
@@ -112,11 +104,13 @@ interface GridLayout {
 
     // grid-column: grid-column-start / grid-column-end
     gridColumn: number[];
+    gridAutoColumns: number;
     gridColumnStart: number;
     gridColumnEnd: number;
 
     // grid-row: grid-row-start / grid-row-end;
     gridRow: number[];
+    gridAutoRows: number;
     gridRowStart: number;
     gridRowEnd: number;
 
@@ -237,7 +231,7 @@ export class Layout extends Block {
                     break;
             }
         } else if (layout == "grid" || layout == "inline-grid") {
-            this.#gridLayout()
+            this.#gridLayout();
         }
         return layout;
     }
@@ -1202,5 +1196,40 @@ export class Layout extends Block {
         }
         this.#flexColumn();
     }
+    gridTemplateColumns(opt?: number[]) {
+        const columns = this.__cacheOption(
+            this.options.gridTemplateColumns,
+            0,
+            opt
+        );
+        return columns;
+    }
+    gridTemplateRows(opt?: number[]) {
+        const columns = this.__cacheOption(
+            this.options.gridTemplateRows,
+            0,
+            opt
+        );
+        return columns;
+    }
+
+    gridRowStart(opt?: number[]) {
+        const columns = this.__cacheOption(this.options.gridRowStart, 0, opt);
+        return columns;
+    }
+    gridRowEnd(opt?: number[]) {
+        const columns = this.__cacheOption(this.options.gridRowEnd, 0, opt);
+        return columns;
+    }
+
+    gridRowSize(opt?: number[]) {
+        const columns = this.__cacheOption(this.options.gridRowSize, 0, opt);
+        return columns;
+    }
+    gridColumnSize(opt?: number[]) {
+        const columns = this.__cacheOption(this.options.gridColumnSize, 0, opt);
+        return columns;
+    }
+
     #gridLayout() {}
 }
