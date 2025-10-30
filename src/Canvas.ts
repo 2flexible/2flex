@@ -157,7 +157,7 @@ export class Canvas {
         this.clearRect();
         this.context.translate(this.cords.x, this.cords.y);
 
-        const ignore = ["layout"]
+        const ignore = ["layout", "alignItems", "justifyContent", "justifyItems", "alignContent"]
 
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);

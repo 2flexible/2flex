@@ -157,21 +157,21 @@ const block3 = new Rectangle({
     fill: true,
 });
 const block4 = new Rectangle({
-    width: 220,
+    width: 100,
     height: 40,
     backgroundColor: "orange",
     fill: true,
 });
 const block5 = new Rectangle({
-    width: 200,
-    height: 50,
+    width: 180,
+    height: 30,
     backgroundColor: "blue",
     fill: true,
     stroke: true,
 });
 const block6 = new Rectangle({
     width: 60,
-    height: 120,
+    height: 80,
     backgroundColor: "orange",
     fill: true,
     stroke: true,
@@ -226,13 +226,16 @@ function createRandomBlocks() {
 createRandomBlocks();
 const layout = new Layout({
     layout: "flex",
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     wrap: "wrap",
+    // justifyContent: "space-between",
+    // alignContent: "space-evenly",
+    // alignItems: "center",
     width: 400,
     height: 400,
     height: 300,
-    gapColumn: 0,
     gapRow: 0,
+    gapColumn: 0,
 });
 
 const text1 = new TextBlock("text1", {
@@ -246,7 +249,7 @@ const text2 = new TextBlock("text2", {
     selectable: false,
 });
 
-layout.add(...random_blocks);
+layout.add(block1, block2, block3, block4, block5, block6);
 mainBlock.add(layout);
 // line1.join(line2);
 // line2.join(line3)
