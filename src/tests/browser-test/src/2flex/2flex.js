@@ -761,7 +761,13 @@ class Layout extends Block {
     }
     layout(opt) {
         const layout = this.__cacheOption(this.options.flex, 0, opt);
-        if (layout === "flex") {
+        if (layout == "inline-flex" || layout == "inline-grid") {
+            if (!this.options.width)
+                this.options.width = this._childs.reduce((prev, curr) => prev + curr.options.width, 0);
+            if (!this.options.height)
+                this.options.height = this._childs.reduce((prev, curr) => prev + curr.options.height, 0);
+        }
+        if (layout === "flex" || layout == "inline-flex") {
             switch (this.options.flexDirection) {
                 case "column":
                     this.#flexColumn();
@@ -779,6 +785,9 @@ class Layout extends Block {
                     this.#flexRow();
                     break;
             }
+        }
+        else if (layout == "grid" || layout == "inline-grid") {
+            this.#gridLayout();
         }
         return layout;
     }
@@ -1631,6 +1640,7 @@ class Layout extends Block {
         }
         this.#flexColumn();
     }
+    #gridLayout() { }
 }
 
 // each shape extends form common shape

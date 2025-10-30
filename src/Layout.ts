@@ -51,7 +51,6 @@ type AlignContent =
     // only applies to grid
     | "stretch";
 
-// this will differ based on flexbox and grid system
 type AlignItems = "normal" | "start" | "center" | "end" | "stretch";
 
 // Todo: need to impliment justify self, align-sef for each block, can be done with left, right, bottom top postiional values
@@ -206,8 +205,20 @@ export class Layout extends Block {
     }
     layout(opt?: ILayout) {
         const layout = this.__cacheOption(this.options.flex, 0, opt);
+        if (layout == "inline-flex" || layout == "inline-grid") {
+            if (!this.options.width)
+                this.options.width = (this._childs as BlockElements[]).reduce(
+                    (prev, curr) => prev + curr.options.width,
+                    0
+                );
 
-        if (layout === "flex") {
+            if (!this.options.height)
+                this.options.height = (this._childs as BlockElements[]).reduce(
+                    (prev, curr) => prev + curr.options.height,
+                    0
+                );
+        }
+        if (layout === "flex" || layout == "inline-flex") {
             switch (this.options.flexDirection) {
                 case "column":
                     this.#flexColumn();
@@ -225,8 +236,8 @@ export class Layout extends Block {
                     this.#flexRow();
                     break;
             }
-        } else if (layout == "grid") {
-            // this.#layoutGrid(this._childs as any);
+        } else if (layout == "grid" || layout == "inline-grid") {
+            this.#gridLayout()
         }
         return layout;
     }
@@ -1191,4 +1202,5 @@ export class Layout extends Block {
         }
         this.#flexColumn();
     }
+    #gridLayout() {}
 }

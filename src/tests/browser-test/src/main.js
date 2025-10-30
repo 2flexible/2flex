@@ -226,8 +226,8 @@ function createRandomBlocks() {
 createRandomBlocks();
 const layout = new Layout({
     layout: "flex",
-    flexDirection: "row-reverse",
-    wrap: "wrap",
+    // flexDirection: "row-reverse",
+    // wrap: "wrap",
     // justifyContent: "space-between",
     // alignContent: "space-evenly",
     // alignItems: "center",
