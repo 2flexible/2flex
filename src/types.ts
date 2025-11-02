@@ -7,7 +7,13 @@ import { Block, DefaultBlockOpt } from "./Block";
 export type ShapeElements = Rectangle;
 
 // Todo: need to impliment justify self, align-sef for each block, can be done with left, right, bottom top postiional values
-export type AlignSelf = "normal" | "auto" | "center" | "start" | "end" | "stertch";
+export type AlignSelf =
+    | "normal"
+    | "auto"
+    | "center"
+    | "start"
+    | "end"
+    | "stertch";
 
 export type JustifySelf =
     | "normal"
@@ -28,7 +34,11 @@ export interface BlockOptions {
     width?: number;
     height?: number;
     selectable?: boolean;
-    padding?: string;
+    padding?: number[];
+    paddingTop?: number;
+    paddingRight?: number;
+    paddingBottom?: number;
+    paddingLeft?: number;
     margin?: string;
     clip?: boolean;
     fillRule?: string;
