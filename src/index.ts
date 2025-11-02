@@ -4,12 +4,7 @@ import { Layout } from "./Layout";
 import { CanvasDOMManager } from "./DOMManager";
 import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
-import {
-    Rectangle,
-    Elipse,
-    Circle,
-    Line,
-} from "./shapes/index";
+import { Rectangle, Ellipse, Circle, Line } from "./shapes/index";
 
 export {
     Canvas,
@@ -19,7 +14,7 @@ export {
     Shape,
     TextBlock,
     Rectangle,
-    Elipse,
+    Ellipse,
     Circle,
     Line,
 };

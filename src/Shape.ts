@@ -48,9 +48,9 @@ export interface IShapeOptions {
     bezierCurve?: BezierCurveToOpt;
     quadraticCurve?: QuadraticCurveToOpt;
 
-    rect: RectOpt;
-    roundRect: RoundRectOpt;
-    strokeRect: RectOpt;
+    rect?: RectOpt;
+    roundRect?: RoundRectOpt;
+    strokeRect?: RectOpt;
 
     begin?: boolean;
     close?: boolean;

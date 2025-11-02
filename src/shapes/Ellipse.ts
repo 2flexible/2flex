@@ -23,13 +23,13 @@ const defaultOpt: IDefaultBlockOpt<DefaultElipseOpt> = {
     rotation: 0,
 };
 
-interface ElipseOptions extends DefaultElipseOpt, InitialShapes {}
+interface EllipseOptions extends DefaultElipseOpt, InitialShapes {}
 
-export class Elipse extends Shape {
-    constructor(options?: IBlock<ElipseOptions>) {
+export class Ellipse extends Shape {
+    constructor(options?: IBlock<EllipseOptions>) {
         super(options);
         this.options = { ...defaultOpt, ...options };
-        Elipse.prototype.draggable = Shape.prototype.draggable;
+        Ellipse.prototype.draggable = Shape.prototype.draggable;
     }
     __initSet(): void {
         super.__initSet();

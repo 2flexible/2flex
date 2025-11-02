@@ -1,6 +1,6 @@
 import { Rectangle } from "./Rectangle";
-import { Elipse } from "./Elipse";
+import { Ellipse } from "./Ellipse";
 import { Circle } from "./Circle";
 import { Line } from "./Line";
 
-export { Rectangle, Elipse, Circle, Line };
+export { Rectangle, Ellipse, Circle, Line };
