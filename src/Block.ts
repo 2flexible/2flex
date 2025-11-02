@@ -24,14 +24,15 @@ export interface DefaultBlockOpt {
 const defaultOpt: DefaultBlockOpt = {
     x: 0,
     y: 0,
-    width: 10,
-    height: 10,
+    width: 0,
+    height: 0,
     selectable: true,
     draggable: true,
     dragX: true,
     dragY: true,
     zIndex: 0,
     strokeWidth: 0,
+    padding: [0],
 };
 
 interface InitCords {
@@ -72,9 +73,9 @@ export class Block extends Node {
     __adjustCordinates(): void {
         this._childs?.forEach((item: any) => {
             if (item) {
-                item.initCords.x = this.initCords.x + item.options.x;
-                item.initCords.y = this.initCords.y + item.options.y;
-                item.__adjustCordinates()
+                item.initCords.x = this.initCords.x + item.options.x + this.options.paddingLeft;
+                item.initCords.y = this.initCords.y + item.options.y + this.options.paddingTop;
+                item.__adjustCordinates();
             }
         });
     }
@@ -97,6 +98,36 @@ export class Block extends Node {
     height(opt?: number) {
         this.options.height = opt || this.options.height;
         return this.options.height;
+    }
+
+    padding(opt?: number[]) {
+        this.options.padding = opt || this.options.padding;
+        switch (this.options.padding.length) {
+            case 1:
+                this.options.paddingBottom =
+                    this.options.paddingLeft =
+                    this.options.paddingRight =
+                        this.options.padding[0];
+                break;
+            case 2:
+                this.options.paddingBottom = this.options.padding[0];
+                this.options.paddingLeft = this.options.paddingRight =
+                    this.options.padding[1];
+                break;
+            case 3:
+                this.options.paddingBottom = this.options.padding[2];
+                this.options.paddingLeft = this.options.paddingRight =
+                    this.options.padding[1];
+                break;
+            case 4:
+                this.options.paddingBottom = this.options.padding[1];
+                this.options.paddingRight = this.options.padding[1];
+                this.options.paddingLeft = this.options.padding[2];
+                break;
+        }
+        this.options.paddingTop = this.options.padding[0];
+
+        return this.options.padding;
     }
 
     clip_path() {
@@ -321,14 +352,14 @@ export class Block extends Node {
             method: () => {},
         });
 
-        let old_color = this.options.color;
-        this.mousemove((event) => {
-            if (!this.options.mousedown && this.checkInBound(event)) {
-                this.set({ color: "yellow" });
-            } else {
-                this.set({ color: old_color });
-            }
-        });
+        // let old_color = this.options.borderColor;
+        // this.mousemove((event) => {
+        //     if (!this.options.mousedown && this.checkInBound(event)) {
+        //         this.set({ color: "yellow" });
+        //     } else {
+        //         this.set({ color: old_color });
+        //     }
+        // });
         this.options.selectable = opt;
 
         return this.options.selectable;
