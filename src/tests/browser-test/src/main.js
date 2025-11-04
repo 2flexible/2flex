@@ -139,7 +139,7 @@ const linesOfPoint = new Line({
 });
 
 const block1 = new Rectangle({
-    width: 140,
+    width: 70,
     height: 80,
     backgroundColor: "blue",
     fill: true,
@@ -151,19 +151,19 @@ const block2 = new Rectangle({
     fill: true,
 });
 const block3 = new Rectangle({
-    width: 80,
-    height: 80,
+    width: 40,
+    height: 40,
     backgroundColor: "yellow",
     fill: true,
 });
 const block4 = new Rectangle({
-    width: 100,
+    width: 120,
     height: 40,
     backgroundColor: "orange",
     fill: true,
 });
 const block5 = new Rectangle({
-    width: 180,
+    width: 100,
     height: 30,
     backgroundColor: "blue",
     fill: true,
@@ -227,12 +227,28 @@ createRandomBlocks();
 const layout = new Layout({
     layout: "flex",
     // flexDirection: "row-reverse",
-    // wrap: "wrap",
+    wrap: "wrap",
     // justifyContent: "space-between",
-    // alignContent: "space-evenly",
-    // alignItems: "center",
+    // @TODO: cannot use two of them together
+    alignContent: "end",
+    alignItems: "start",
+    //
     width: 400,
     height: 400,
+    height: 300,
+    gapRow: 0,
+    gapColumn: 0,
+});
+
+const gridLayout = new Layout({
+    layout: "grid",
+    gridTemplateColumns: ["auto", "auto", "auto"],
+    gridTemplateRows: [100, "auto"],
+    width: 400,
+    alignContent: "end",
+    // justifyItems: "start",
+    // alignItems: "end",
+    // justifyContent: "space-evenly",
     height: 300,
     gapRow: 0,
     gapColumn: 0,
@@ -249,8 +265,8 @@ const text2 = new TextBlock("text2", {
     selectable: false,
 });
 
-layout.add(block1, block2, block3, block4, block5, block6);
-mainBlock.add(layout);
+gridLayout.add(block1, block2, block3, block4, block5);
+mainBlock.add(gridLayout);
 // line1.join(line2);
 // line2.join(line3)
 // line3.join(line4)
