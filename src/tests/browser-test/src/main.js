@@ -146,7 +146,7 @@ const block1 = new Rectangle({
 });
 const block2 = new Rectangle({
     width: 100,
-    height: 120,
+    height: 50,
     backgroundColor: "red",
     fill: true,
 });
@@ -242,13 +242,13 @@ const layout = new Layout({
 
 const gridLayout = new Layout({
     layout: "grid",
-    gridTemplateColumns: ["auto", "auto", "auto"],
-    gridTemplateRows: [100, "auto"],
+    gridTemplateColumns: ["auto", "auto", 100],
+    // gridTemplateRows: [100, "auto"],
     width: 400,
-    alignContent: "end",
-    // justifyItems: "start",
-    // alignItems: "end",
-    // justifyContent: "space-evenly",
+    // justifyItems: "center",
+    // alignContent: "space-evenly",
+    // alignItems: "center",
+    // justifyContent: "end",
     height: 300,
     gapRow: 0,
     gapColumn: 0,
@@ -265,7 +265,7 @@ const text2 = new TextBlock("text2", {
     selectable: false,
 });
 
-gridLayout.add(block1, block2, block3, block4, block5);
+gridLayout.add(block1, block2, block3, block4, block5, block6);
 mainBlock.add(gridLayout);
 // line1.join(line2);
 // line2.join(line3)

@@ -576,8 +576,10 @@ export class Layout extends Block {
                 }
             }
             if (this.#isGrid) {
-                console.log(this.#containerW);
-                this.#startX = Math.abs(this.options.width - this.#containerW);
+                this.#startX = Math.abs(
+                    this.options.width -
+                        this.#gridItems.width.reduce((a, c) => a + c, 0)
+                );
                 this.#gridLayout();
             }
         };
@@ -594,7 +596,10 @@ export class Layout extends Block {
                 }
             }
             if (this.#isGrid) {
-                this.#startY = Math.abs(this.options.height - this.#containerH);
+                this.#startY = Math.abs(
+                    this.options.height -
+                        this.#gridItems.height.reduce((a, c) => a + c, 0)
+                );
                 this.#gridLayout();
             }
         };
@@ -602,14 +607,16 @@ export class Layout extends Block {
             if (this.#isGrid) {
                 const blocks = this._childs as BlockElements[];
                 let idx = 0;
+                let colIdx = 0;
                 while (blocks.length > idx) {
-                    const width = this.#gridItems.width[idx];
+                    const width = this.#gridItems.width[colIdx];
                     let startX = width - blocks[idx].options.width;
                     // startX = startX > 0 ? startX : 0;
                     this.#startXPos.push(startX);
                     idx += 1;
+                    colIdx += 1;
+                    if (colIdx === this.#gridItems.width.length) colIdx = 0;
                 }
-                console.log(this.#startXPos);
                 this.#gridLayout();
             }
         };
@@ -617,14 +624,18 @@ export class Layout extends Block {
             if (this.#isGrid) {
                 const blocks = this._childs as BlockElements[];
                 let idx = 0;
+                let rowIdx = 0;
                 while (blocks.length > idx) {
-                    const height = this.#gridItems.height[idx];
+                    const height = this.#gridItems.height[rowIdx];
                     let startY = height - blocks[idx].options.height;
                     // startY = startX > 0 ? startX : 0;
                     this.#startYPos.push(startY);
                     idx += 1;
+                    rowIdx += 1;
+                    if (rowIdx === this.#gridItems.height.length) rowIdx = 0;
                 }
                 this.#gridLayout();
+                console.log(this.#startYPos);
             } else {
                 if (this.#isFlexCol) {
                     let rows = 0;
@@ -703,14 +714,18 @@ export class Layout extends Block {
                 }
             }
             if (this.#isGrid) {
-                let startX = this.options.width / 2 - this.#containerW / 2;
+                let startX =
+                    this.options.width / 2 -
+                    this.#gridItems.width.reduce((a, c) => a + c, 0) / 2;
                 this.#startX = startX > 0 ? startX : 0;
                 this.#gridLayout();
             }
         };
         const _func2 = () => {
             if (this.#isGrid) {
-                const startY = this.options.height - this.#containerH;
+                const startY =
+                    this.options.height -
+                    this.#gridItems.height.reduce((a, c) => a + c, 0);
                 this.#startY = startY > 0 ? startY / this.#gridItems.nRows : 0;
                 this.#gridLayout();
             } else {
@@ -733,13 +748,16 @@ export class Layout extends Block {
             if (this.#isGrid) {
                 const blocks = this._childs as BlockElements[];
                 let idx = 0;
+                let colIdx = 0;
                 while (blocks.length > idx) {
                     let startX =
-                        this.#gridItems.width[idx] / 2 -
+                        this.#gridItems.width[colIdx] / 2 -
                         blocks[idx].options.width / 2;
                     // startX = startX > 0 ? startX : 0;
                     this.#startXPos.push(startX);
                     idx += 1;
+                    colIdx += 1;
+                    if (this.#gridItems.width.length === colIdx) colIdx = 0;
                 }
                 this.#gridLayout();
             }
@@ -748,12 +766,15 @@ export class Layout extends Block {
             if (this.#isGrid) {
                 const blocks = this._childs as BlockElements[];
                 let idx = 0;
+                let rowIdx = 0;
                 while (blocks.length > idx) {
-                    const height = this.#gridItems.height[idx];
+                    const height = this.#gridItems.height[rowIdx];
                     let startY = height / 2 - blocks[idx].options.height / 2;
                     // startY = startX > 0 ? startX : 0;
                     this.#startYPos.push(startY);
                     idx += 1;
+                    rowIdx += 1;
+                    if (this.#gridItems.height.length === rowIdx) rowIdx = 0;
                 }
                 this.#gridLayout();
             } else {
@@ -845,7 +866,9 @@ export class Layout extends Block {
                 }
             }
             if (this.#isGrid) {
-                let gap = this.options.width - this.#containerW;
+                let gap =
+                    this.options.width -
+                    this.#gridItems.width.reduce((a, c) => a + c, 0);
                 const nCols =
                     this.#gridItems.nCols - 1 !== 0
                         ? this.#gridItems.nCols - 1
@@ -870,7 +893,9 @@ export class Layout extends Block {
                 }
             }
             if (this.#isGrid) {
-                let gap = this.options.height - this.#containerH;
+                let gap =
+                    this.options.height -
+                    this.#gridItems.height.reduce((a, c) => a + c, 0);
                 const nRows =
                     this.#gridItems.nRows - 1 !== 0
                         ? this.#gridItems.nRows - 1
@@ -928,9 +953,10 @@ export class Layout extends Block {
                 }
             }
             if (this.#isGrid) {
-                let gap = this.options.width - this.#containerW;
-                gap =
-                    gap > 0 ? gap / this.options.gridTemplateColumns.length : 0;
+                let gap =
+                    this.options.width -
+                    this.#gridItems.width.reduce((a, c) => a + c, 0);
+                gap = gap > 0 ? gap / this.#gridItems.nCols : 0;
                 this.options.gapColumn = gap;
                 this.#startX = gap / 2;
                 this.#gridLayout();
@@ -938,7 +964,9 @@ export class Layout extends Block {
         };
         const _func2 = () => {
             if (this.#isGrid) {
-                let gap = this.options.height - this.#containerH;
+                let gap =
+                    this.options.height -
+                    this.#gridItems.height.reduce((a, c) => a + c, 0);
                 gap = gap > 0 ? gap / this.#gridItems.nRows : 0;
                 this.options.gapRow = gap;
                 this.#startY = gap / 2;
@@ -1010,11 +1038,10 @@ export class Layout extends Block {
                 }
             }
             if (this.#isGrid) {
-                let gap = this.options.width - this.#containerW;
-                gap =
-                    gap > 0
-                        ? gap / (this.options.gridTemplateColumns.length + 1)
-                        : 0;
+                let gap =
+                    this.options.width -
+                    this.#gridItems.width.reduce((a, c) => a + c, 0);
+                gap = gap > 0 ? gap / (this.#gridItems.nCols + 1) : 0;
                 this.options.gapColumn = gap;
                 this.#startX = gap;
                 this.#gridLayout();
@@ -1022,7 +1049,9 @@ export class Layout extends Block {
         };
         const _func2 = () => {
             if (this.#isGrid) {
-                let gap = this.options.height - this.#containerH;
+                let gap =
+                    this.options.height -
+                    this.#gridItems.height.reduce((a, c) => a + c, 0);
                 gap = gap > 0 ? gap / (this.#gridItems.nRows + 1) : 0;
                 this.options.gapRow = gap;
                 this.#startY = gap;
@@ -1429,206 +1458,111 @@ export class Layout extends Block {
 
     #gridLayout() {
         const blocks = this._childs as BlockElements[];
-        let idx = 0;
-
-        let colStart = 0;
-        let rowStart = 0;
-
-        let rowIdx = 0;
-        let colIdx = 0;
 
         let startX = this.#startX;
-        let startY = this.#startY;
+        let cols = this.options.gridTemplateColumns || [0];
 
-        let posY = 0;
+        const autoWidths = cols.filter((item: any) => item !== "auto");
+        let rWidth = autoWidths.reduce((p: number, c: number) => p + c, 0);
+        const diffCol = Math.abs(cols.length - autoWidths.length);
+        if (diffCol) rWidth = (this.options.width - rWidth) / diffCol;
+        else rWidth = this.options.width / cols.length;
 
-        let col = 0;
-
-        let gapCol =
-            this.#columnsGap[rowIdx] !== undefined
-                ? this.#columnsGap[rowIdx]
-                : this.options.gapColumn;
-        let gapRow =
-            this.#rowsGap[rowIdx] !== undefined
-                ? this.#rowsGap[rowIdx]
-                : this.options.gapRow;
-
-        const autoWidths = this.options.gridTemplateColumns.filter(
-            (item: any) => item !== "auto"
-        );
         const autoHeights = this.options.gridTemplateRows.filter(
             (item: any) => item !== "auto"
         );
-        let rWidth = 0;
-        let rHeight = 0;
+        const nRows = Math.ceil(blocks.length / cols.length);
+        let rHeight = autoHeights.reduce((p: number, c: number) => p + c, 0);
+        const diffRow = Math.abs(nRows - autoHeights.length);
+        if (diffRow) rHeight = (this.options.height - rHeight) / diffRow;
+        else rHeight = this.options.height / nRows;
 
-        rWidth = autoWidths.reduce(
-            (prev: number, curr: number) => prev + curr,
-            0
-        );
-        if (this.#isNew) this.#containerW += rWidth;
-        rWidth =
-            (this.options.width - rWidth) /
-            Math.abs(
-                this.options.gridTemplateColumns.length - autoWidths.length
-            );
-        if (rWidth === Infinity) rWidth = this.options.width;
-
-        const nRows = Math.ceil(
-            blocks.length / this.options.gridTemplateColumns.length
-        );
-        rHeight = autoHeights.reduce(
-            (prev: number, curr: number) => prev + curr,
-            0
-        );
-        if (this.#isNew) this.#containerH += rHeight;
-
-        rHeight =
-            (this.options.height - rHeight) /
-            Math.abs(nRows - autoHeights.length);
-
-        if (rHeight === Infinity) rHeight = this.options.height;
         const maxColWidths: number[] = [];
         const maxRowHeights: number[] = [];
 
-        let blocksIdx = 0;
-        let row = 0;
-
-        const nCols =
-            this.options.gridTemplateColumns.length !== 0
-                ? this.options.gridTemplateColumns.length
-                : 1;
         this.#gridItems.nRows = nRows;
-        this.#gridItems.nCols = nCols;
+        this.#gridItems.nCols = cols.length;
 
-        while (blocks.length > blocksIdx) {
-            const block = blocks[blocksIdx];
-            if (this.options.gridTemplateColumns.length === col) {
-                col = 0;
-                row += 1;
-            }
-            if (maxColWidths[col]) {
-                if (maxColWidths[col] < block.options.width)
-                    maxColWidths[col] = block.options.width;
-            } else maxColWidths.push(block.options.width);
+        for (let colIdx = 0; colIdx < this.#gridItems.nCols; colIdx++) {
+            let startY = this.#startY;
 
-            if (maxRowHeights[row]) {
-                if (maxRowHeights[row] < block.options.height)
-                    maxRowHeights[row] = block.options.height;
-            } else maxRowHeights.push(block.options.height);
+            for (let rowIdx = 0; rowIdx < this.#gridItems.nRows; rowIdx++) {
+                let colStart = 0;
+                let rowStart = 0;
 
-            col += 1;
-            blocksIdx += 1;
-        }
+                const idx =
+                    (this.#gridItems.nCols - 1) * rowIdx + rowIdx + colIdx;
+                const block = blocks[idx];
+                if (!block) continue;
 
-        while (blocks.length > idx) {
-            const block = blocks[idx];
-
-            if (this.#startYPos[idx] !== undefined)
-                startY = posY + this.#startYPos[idx];
-
-            if (this.options.gridTemplateColumns.length === colIdx) {
-                if (
-                    this.#isNew &&
-                    this.options.gridTemplateRows[rowIdx] === "auto"
-                )
-                    this.#containerH += rowStart;
-
-                rowIdx += 1;
-                startY += rowStart + gapRow;
-                posY += rowStart + gapRow;
-
-                startX = this.#startXPos[colIdx]
-                    ? this.#startXPos[colIdx]
-                    : this.#startX;
-                gapCol =
-                    this.#columnsGap[rowIdx] !== undefined
-                        ? this.#columnsGap[rowIdx]
-                        : this.options.gapColumn;
-
-                colIdx = 0;
-                col = 0;
-            }
-
-            if (
-                this.#isNew &&
-                this.options.gridTemplateColumns[colIdx] === "auto" &&
-                rowIdx === 0
-            )
-                this.#containerW += maxColWidths[colIdx];
-
-            let endX = block.options.width;
-            if (
-                this.options.gridTemplateColumns[colIdx] === "auto" ||
-                !this.options.gridTemplateColumns[colIdx]
-            ) {
-                if (endX) {
-                    if (
+                if (maxColWidths[colIdx]) {
+                    if (maxColWidths[colIdx] < block.options.width)
+                        maxColWidths[colIdx] = block.options.width;
+                    else if (
                         !this.options.justifyContent &&
                         rWidth > maxColWidths[colIdx]
-                    ) {
-                        colStart = rWidth;
-                    } else {
-                        colStart = maxColWidths[colIdx];
-                        rWidth -= colStart;
-                    }
-                    endX = block.options.width;
-                } else colStart = endX = rWidth;
-            } else {
-                colStart = this.options.gridTemplateColumns[colIdx];
-                if (!endX) endX = colStart;
-            }
-
-            let endY = block.options.height;
-            if (
-                this.options.gridTemplateRows[rowIdx] === "auto" ||
-                !this.options.gridTemplateRows[rowIdx]
-            ) {
-                if (endY) {
-                    if (
-                        !this.options.alignContent &&
-                        rHeight > maxRowHeights[rowIdx]
                     )
-                        rowStart = rHeight;
-                    else {
-                        rowStart = maxRowHeights[rowIdx];
-                        rHeight -= rowStart;
-                    }
-                    endY = block.options.height;
-                } else rowStart = endY = rHeight;
-            } else {
-                rowStart = this.options.gridTemplateRows[rowIdx];
-                if (!endY) endY = rowStart;
+                        maxColWidths[colIdx] = rWidth;
+                } else maxColWidths.push(block.options.width);
+
+                if (!maxRowHeights[rowIdx])
+                    maxRowHeights.push(block.options.height);
+
+                if (maxRowHeights[rowIdx] < block.options.height)
+                    maxRowHeights[rowIdx] = block.options.height;
+                else if (
+                    !this.options.alignContent &&
+                    rHeight > maxRowHeights[rowIdx]
+                )
+                    maxRowHeights[rowIdx] = rHeight;
+
+                let endX = block.options.width;
+
+                if (cols[colIdx] === "auto" || !cols[colIdx]) {
+                    if (endX) colStart = maxColWidths[colIdx];
+                    else colStart = endX = rWidth;
+                } else {
+                    colStart = cols[colIdx];
+                    if (!endX) endX = colStart;
+                }
+
+                let endY = block.options.height;
+                if (
+                    this.options.gridTemplateRows[rowIdx] === "auto" ||
+                    !this.options.gridTemplateRows[rowIdx]
+                ) {
+                    if (endY) rowStart = maxRowHeights[rowIdx];
+                    else rowStart = endY = rHeight;
+                } else {
+                    rowStart = this.options.gridTemplateRows[rowIdx];
+                    if (!endY) endY = rowStart;
+                }
+
+                block.options.width = endX;
+                block.options.height = endY;
+                block.initCords.x = startX;
+                block.options.x = startX;
+                block.initCords.y = startY;
+                block.options.y = startY;
+
+                if (this.#startYPos[idx] !== undefined){
+                    block.initCords.y += this.#startYPos[idx];
+                    block.options.y += this.#startYPos[idx];
+                }
+
+                if (this.#startXPos[idx]) {
+                    block.initCords.x += this.#startXPos[idx];
+                    block.options.x += this.#startXPos[idx];
+                }
+
+                block.__adjustCordinates();
+
+                startY += rowStart + this.options.gapRow;
             }
-
-            block.options.width = endX;
-            block.options.height = endY;
-            block.initCords.x = startX;
-            block.options.x = startX;
-            block.initCords.y = startY;
-            block.options.y = startY;
-
-            if (this.#startXPos[idx]) {
-                block.initCords.x += this.#startXPos[idx];
-                block.options.x += this.#startXPos[idx];
-            }
-
-            block.__adjustCordinates();
-
-            if (this.#isNew) {
-                this.#gridItems.width.push(colStart);
-                this.#gridItems.height.push(rowStart);
-            }
-            startX += gapCol + colStart;
-            idx += 1;
-            col += 1;
-            if (this.options.gridTemplateColumns.length !== 0) colIdx += 1;
-
-            if (this.#isNew && idx === blocks.length) {
-                if (this.options.gridTemplateRows[rowIdx] === "auto")
-                    this.#containerH += rowStart;
-                this.#isNew = false;
-            }
+            startX += maxColWidths[colIdx] + this.options.gapColumn;
+            if (this.#isNew) this.#gridItems.width.push(maxColWidths[colIdx]);
         }
+        if (this.#isNew) this.#gridItems.height.push(...maxRowHeights);
+        this.#isNew = false;
     }
 }
