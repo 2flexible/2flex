@@ -26,6 +26,12 @@ export type JustifySelf =
     | "left"
     | "right";
 
+export type FlexGrow = number | "all";
+export type FlexShrink = number;
+export type FlexBasis = string;
+
+export type PlaceSelf = AlignSelf & JustifySelf;
+
 // move these inside to Block
 export interface BlockOptions {
     [key: string]: any;
@@ -51,6 +57,21 @@ export interface BlockOptions {
     order?: number;
     alingSelf: AlignSelf;
     justifySelf: JustifySelf;
+    flexShrink: FlexShrink;
+    flexBasis: FlexBasis;
+    flexGrow: FlexGrow;
+    // grid-row: grid-row-start / grid-row-end;
+    gridRow: number[];
+    gridAutoRows: number;
+    gridRowStart: number;
+    gridRowEnd: number;
+    // grid-column: grid-column-start / grid-column-end
+    gridColumn: number[];
+    gridAutoColumns: number;
+    gridColumnStart: number;
+    gridColumnEnd: number;
+    // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end
+    gridArea: number[];
 }
 // extend margin as seperate margin top, left, bottom
 
@@ -116,4 +137,4 @@ export interface InitialShapes {
     borderWidth?: number;
 }
 
-export type MixOpt = string | number | string[] | number[];
+export type MixOpt = string | number | string[] | number[] | undefined;

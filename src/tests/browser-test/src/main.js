@@ -143,23 +143,35 @@ const block1 = new Rectangle({
     height: 80,
     backgroundColor: "blue",
     fill: true,
+    // flexBasis: 100,
+    flexShrink:1,
+    // flexGrow: 1,
+    gridColumnStart: 2,
+    // order: 4,
 });
 const block2 = new Rectangle({
-    width: 100,
+    width: 200,
     height: 100,
     backgroundColor: "red",
     fill: true,
+    flexShrink: 2,
+    flexGrow: 5,
+    // order:4,
 });
 const block3 = new Rectangle({
     width: 40,
     height: 100,
     backgroundColor: "yellow",
     fill: true,
+    flexGrow:4,
+    flexShrink: 9,
+    // order: 0,
 });
 const block4 = new Rectangle({
     width: 120,
     height: 40,
     backgroundColor: "orange",
+    // flexShrink: 5,
     fill: true,
 });
 const block5 = new Rectangle({
@@ -168,6 +180,7 @@ const block5 = new Rectangle({
     backgroundColor: "blue",
     fill: true,
     stroke: true,
+    flexGrow: 3,
 });
 const block6 = new Rectangle({
     width: 60,
@@ -175,6 +188,7 @@ const block6 = new Rectangle({
     backgroundColor: "orange",
     fill: true,
     stroke: true,
+    flexGrow: 1,
 });
 const block7 = new Rectangle({
     width: 90,
@@ -226,21 +240,21 @@ function createRandomBlocks() {
 createRandomBlocks();
 const layout = new Layout({
     layout: "flex",
-    // flexDirection: "column",
-    wrap: "wrap",
+    flexDirection: "row",
+    // wrap: "wrap",
     // justifyContent: "space-between",
-    alignContent: "space-around",
+    // alignContent: "space-around",
     // alignItems: "center",
     width: 400,
     height: 300,
-    gapRow: 120,
-    gapColumn: 0,
+    // gapRow: 120,
+    gapColumn: 2,
 });
 
 const gridLayout = new Layout({
     layout: "grid",
     gridTemplateColumns: ["auto", "auto", 100],
-    // gridTemplateRows: [100, "auto"],
+    // gridTemplateRows: ["auto", "auto"],
     width: 400,
     // justifyItems: "center",
     // alignContent: "space-evenly",

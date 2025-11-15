@@ -82,12 +82,10 @@ export class Canvas {
         });
 
         let zIndex = 0;
-
         this.#tree.checkNodes((el: any) => {
             el.options.zIndex += zIndex;
             zIndex += 1;
         }, true);
-
         this.#handleEvents();
     }
 
@@ -139,7 +137,7 @@ export class Canvas {
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
-            if(ignore && ignore.includes(key)) return
+            if (ignore && ignore.includes(key)) return;
             if (obj) {
                 obj.value.call(block, value);
             } else {
@@ -157,7 +155,15 @@ export class Canvas {
         this.clearRect();
         this.context.translate(this.cords.x, this.cords.y);
 
-        const ignore = ["layout", "alignItems", "justifyContent", "justifyItems", "alignContent", "gridTemplateColumns", "gridTemplateRows"]
+        const ignore = [
+            "layout",
+            "alignItems",
+            "justifyContent",
+            "justifyItems",
+            "alignContent",
+            "gridTemplateColumns",
+            "gridTemplateRows",
+        ];
 
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);

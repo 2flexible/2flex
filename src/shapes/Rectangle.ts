@@ -18,6 +18,13 @@ const defaultOpt: IDefaultBlockOpt<DefaultRectOpt> = {
     dragY: true,
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius: [0],
+    paddingTop: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    flexBasis: "auto",
+    flexGrow: 0,
+    flexShrink: 0,
 };
 
 export interface IRectangleOptions extends DefaultRectOpt, InitialShapes {}

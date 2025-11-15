@@ -1,10 +1,8 @@
-import { IText } from "./TextBlock";
 import { Node } from "./Tree";
 
 import {
     BlockElements,
     IBlock,
-    CursorPos,
     ICustomEvents,
     BlockOptions,
     IStyle,
@@ -32,7 +30,16 @@ const defaultOpt: DefaultBlockOpt = {
     dragY: true,
     zIndex: 0,
     strokeWidth: 0,
-    padding: [0],
+    paddingTop: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    flexBasis: "auto",
+    flexShrink: 0,
+    flexGrow: 0,
+    // @Todo: need to make these values also
+    alignSelf: "normal",
+    justifySelf: "normal",
 };
 
 interface InitCords {
@@ -73,8 +80,12 @@ export class Block extends Node {
     __adjustCordinates(): void {
         this._childs?.forEach((item: any) => {
             if (item) {
-                item.initCords.x = this.initCords.x + item.options.x + this.options.paddingLeft;
-                item.initCords.y = this.initCords.y + item.options.y + this.options.paddingTop;
+                item.initCords.x =
+                    this.initCords.x +
+                    item.options.x +
+                    this.options.paddingLeft;
+                item.initCords.y =
+                    this.initCords.y + item.options.y + this.options.paddingTop;
                 item.__adjustCordinates();
             }
         });
@@ -128,6 +139,30 @@ export class Block extends Node {
         this.options.paddingTop = this.options.padding[0];
 
         return this.options.padding;
+    }
+
+    flexBasis(opt?: number | string) {
+        return this.__cacheOption(this.options.flexBasis, "auto", opt);
+    }
+
+    flexShrink(opt?: number) {
+        return this.__cacheOption(this.options.flexShrink, 0, opt);
+    }
+
+    flexGrow(opt?: number) {
+        return this.__cacheOption(this.options.flexGrow, 0, opt);
+    }
+
+    order(opt?: number) {
+        return this.__cacheOption(this.options.order, undefined, opt);
+    }
+
+    gridColumnStart(opt?: number) {
+        return this.__cacheOption(this.options.gridColumnStart, 0, opt);
+    }
+
+    gridColumnEnd(opt?: number) {
+        return this.__cacheOption(this.options.gridColumnEnd, 0, opt);
     }
 
     clip_path() {
