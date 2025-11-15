@@ -1,34 +1,16 @@
 import { Shape } from "../Shape";
-import { IBlock, IDefaultBlockOpt, InitialShapes } from "../types";
+import { IBlock } from "../types";
 
-interface DefaultElipseOpt {
+interface EllipseOptions {
     radiusX: number;
     radiusY: number;
     rotation: number;
 }
 
-const defaultOpt: IDefaultBlockOpt<DefaultElipseOpt> = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    selectable: true,
-    draggable: true,
-    zIndex: 0,
-    dragX: true,
-    dragY: true,
-    // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    radiusX: 10,
-    radiusY: 10,
-    rotation: 0,
-};
-
-interface EllipseOptions extends DefaultElipseOpt, InitialShapes {}
-
 export class Ellipse extends Shape {
-    constructor(options?: IBlock<EllipseOptions>) {
+    constructor(options: IBlock<EllipseOptions>) {
         super(options);
-        this.options = { ...defaultOpt, ...options };
+        this.options = options;
         Ellipse.prototype.draggable = Shape.prototype.draggable;
     }
     __initSet(): void {
@@ -40,8 +22,8 @@ export class Ellipse extends Shape {
         this.backgroundColor();
         // cordinates need to calculate related to radius x and radius y
         this.context.ellipse(
-            this.initCords.x,
-            this.initCords.y,
+            this.canvasInit.x,
+            this.canvasInit.y,
             this.options.radiusX,
             this.options.radiusY,
             this.options.rotation,

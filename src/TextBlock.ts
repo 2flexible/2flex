@@ -85,8 +85,7 @@ export interface IText {
 
 export class TextBlock extends Block {
     text: string;
-
-    constructor(text: string, options?: IBlock<IText>) {
+    constructor(text: string, options: IBlock<IText>) {
         super(options);
         this.text = text;
         this.options.text = text;
@@ -101,26 +100,26 @@ export class TextBlock extends Block {
 
         this.options.height = this.height();
 
-        const fontY = this.options.height + this.initCords.y!;
+        const fontY = this.height() + this.canvasInit.y;
 
         this.context.fillText(
             this.text,
-            this.initCords.x,
+            this.canvasInit.x,
             fontY,
             this.options.maxWidth
         );
     }
 
-    width(opt?: number) {
+    width(opt?: number): number {
         const text_measure = this.measureText();
-        this.options.width = opt || text_measure.width;
-        return this.options.width;
+        opt = opt || text_measure?.width;
+        return super.width(opt)
     }
 
-    height(opt?: number) {
+    height(opt?: number): number {
         const text_measure = this.measureText();
-        this.options.height = opt || text_measure.hangingBaseline;
-        return this.options.height;
+        opt = opt || text_measure?.hangingBaseline;
+        return super.height(opt);
     }
 
     #format_font() {
@@ -226,11 +225,11 @@ export class TextBlock extends Block {
             this.strokeWidth();
 
             this.options.height = this.height();
-            const fontY = this.options.height + this.initCords.y!;
+            const fontY = this.height() + this.canvasInit.y;
 
             this.context.strokeText(
                 this.text,
-                this.initCords.x,
+                this.canvasInit.x,
                 fontY,
                 this.options?.maxWidth
             );
@@ -273,7 +272,7 @@ export class TextBlock extends Block {
     }
     // @return: text width in pixels
     measureText() {
-        return this.context.measureText(this.text);
+        return this.context?.measureText(this.text);
     }
     clip(opt?: boolean) {
         return super.clip(opt);

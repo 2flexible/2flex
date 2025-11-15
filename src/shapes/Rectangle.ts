@@ -1,38 +1,14 @@
-import { Shape } from "../Shape";
-import { IBlock, IDefaultBlockOpt, BorderStyle, InitialShapes } from "../types";
+import { IShapeOptions, Shape } from "../Shape";
+import { IBlock, BorderStyle, InitialShapes } from "../types";
 
-interface DefaultRectOpt {
+export interface RectOpt {
+    // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius: number[];
 }
-
-// borderstyle can be extended
-const defaultOpt: IDefaultBlockOpt<DefaultRectOpt> = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    selectable: true,
-    draggable: true,
-    zIndex: 0,
-    dragX: true,
-    dragY: true,
-    // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    borderRadius: [0],
-    paddingTop: 0,
-    paddingLeft: 0,
-    paddingRight: 0,
-    paddingBottom: 0,
-    flexBasis: "auto",
-    flexGrow: 0,
-    flexShrink: 0,
-};
-
-export interface IRectangleOptions extends DefaultRectOpt, InitialShapes {}
-
 export class Rectangle extends Shape {
-    constructor(options?: IBlock<IRectangleOptions>) {
+    constructor(options: IBlock<RectOpt>) {
         super(options);
-        this.options = { ...defaultOpt, ...options };
+        this.options = options;
     }
     __initSet(): void {
         super.__initSet();
@@ -51,28 +27,31 @@ export class Rectangle extends Shape {
 
     #drawRect() {
         this.roundRect({
-            x: this.initCords.x,
-            y: this.initCords.y,
-            width: this.options.width,
-            height: this.options.height,
-            borderRadius: this.options.borderRadius,
+            x: this.canvasInit.x,
+            y: this.canvasInit.y,
+            width: this.width(),
+            height: this.height(),
+            borderRadius: this.borderRadius() || [0],
         });
     }
 
+    borderRadius(opt?: number[]): number[] | undefined {
+        return this.__cacheOption(opt, this.options.borderRadius, undefined);
+    }
     backgroundColor(opt?: string) {
-        this.options.backgroundColor = super.fillStyle(opt);
-        return this.options.backgroundColor;
+        super.fillStyle(opt)
+        return this.__cacheOption(opt, this.options.backgroundColor, "black")
     }
 
     border(opt?: string) {
-        this.options.border = opt || this.options.border || [];
-        const { borderStyleArrWidth } = this.#borderParser(this.options.border);
+        const border = this.__cacheOption(opt, this.options.border, []);
+        const { borderStyleArrWidth } = this.#borderParser(border);
 
         if (this.options.borderStyle === "dotted") {
             this.lineDash(borderStyleArrWidth);
         }
         super.stroke(true);
-        return this.options.border;
+        return border;
     }
     borderWidth(opt?: number) {
         this.options.borderWidth = super.lineWidth(opt);
@@ -84,27 +63,24 @@ export class Rectangle extends Shape {
     }
 
     borderStyle(opt?: "solid" | "dotted") {
-        this.options.borderStyle = opt || this.options.borderStyle || "solid";
-
-        return this.options.borderStyle;
+        return this.__cacheOption(opt, this.options.borderStyle, "solid");
     }
 
     borderTop(opt?: number) {
+        const borderTop = this.__cacheOption(opt, this.options.borderRight, 0);
         this.options.borderTop = opt || this.options.borderTop;
-        let { borderStyleArrWidth } = this.#borderParser(
-            this.options.borderTop
-        );
+        let { borderStyleArrWidth } = this.#borderParser(borderTop);
         borderStyleArrWidth.pop();
 
         if (this.options.borderStyle === "dotted") {
             this.lineDash([
                 ...borderStyleArrWidth,
-                this.options.height * 2 + this.options.width,
+                this.height() * 2 + this.width(),
             ]);
         } else {
             this.lineDash([
-                this.options.width,
-                this.options.width + 2 * this.options.height,
+                this.width(),
+                this.width() + 2 * this.height(),
                 0,
                 0,
             ]);
@@ -112,82 +88,75 @@ export class Rectangle extends Shape {
 
         this.#drawRect();
         super.stroke(true);
-        return this.options.borderTop;
+        return borderTop;
     }
 
     borderRight(opt?: number) {
-        this.options.borderRight = opt || this.options.borderRight;
-        const { borderStyleArrHeight } = this.#borderParser(
-            this.options.borderRight
+        const borderRight = this.__cacheOption(
+            opt,
+            this.options.borderRight,
+            0
         );
+        const { borderStyleArrHeight } = this.#borderParser(borderRight);
         borderStyleArrHeight.pop();
 
         if (this.options.borderStyle === "dotted") {
             this.lineDash([
                 0,
-                this.options.width,
+                this.width(),
                 ...borderStyleArrHeight,
-                this.options.width + this.options.height,
+                this.width() + this.height(),
             ]);
-        } else if (this.options.borderStyle === "solid") {
-            this.lineDash([
-                0,
-                this.options.width,
-                this.options.height,
-                this.options.width,
-            ]);
+        } else if (this.borderStyle() === "solid") {
+            this.lineDash([0, this.width(), this.height(), this.width()]);
         }
         this.#drawRect();
         super.stroke(true);
-        return this.options.borderRight;
+        return borderRight;
     }
     borderBottom(opt?: number) {
-        this.options.borderBottom = opt || this.options.borderBottom;
-        let { borderStyleArrWidth } = this.#borderParser(
-            this.options.borderBottom
+        const borderBottom = this.__cacheOption(
+            opt,
+            this.options.borderBottom,
+            0
         );
+
+        let { borderStyleArrWidth } = this.#borderParser(borderBottom);
         if (this.options.borderStyle === "dotted") {
             this.lineDash([
                 0,
-                this.options.width + this.options.height,
+                this.width() + this.height(),
                 ...borderStyleArrWidth,
             ]);
         } else if (this.options.borderStyle === "solid") {
-            this.lineDash([
-                0,
-                this.options.width + this.options.height,
-                this.options.width,
-                0,
-            ]);
+            this.lineDash([0, this.width() + this.height(), this.width(), 0]);
         }
 
         this.#drawRect();
         super.stroke(true);
-        return this.options.borderBottom;
+        return borderBottom;
     }
     borderLeft(opt?: number) {
-        this.options.borderLeft = opt || this.options.borderLeft;
-        let { borderStyleArrHeight } = this.#borderParser(
-            this.options.borderLeft
-        );
+        const borderLeft = this.__cacheOption(opt, this.options.borderLeft, 0);
+        let { borderStyleArrHeight } = this.#borderParser(borderLeft);
 
         if (this.options.borderStyle === "dotted") {
             this.lineDash([
                 0,
-                this.options.width * 2 + this.options.height,
+                this.width() * 2 + this.height(),
                 ...borderStyleArrHeight,
             ]);
-        } else if (this.options.borderStyle === "solid") {
+        } else if (this.borderStyle() === "solid") {
             this.lineDash([
                 0,
-                this.options.width * 2 + this.options.height,
-                this.options.height,
-                this.options.width,
+                this.width() * 2 + this.height(),
+                this.height(),
+                this.width(),
             ]);
         }
         this.#drawRect();
         super.stroke(true);
-        return this.options.borderLeft;
+        return borderLeft;
     }
     // border size, style(required), color
     #borderParser(obj?: string) {
@@ -203,15 +172,15 @@ export class Rectangle extends Shape {
 
         if (borderStyle === "dotted") {
             let total = 0;
-            const step = this.options.width / 21;
-            while (total < this.options.width) {
+            const step = this.width() / 21;
+            while (total < this.width()) {
                 borderStyleArrWidth.push(step, step);
                 total += step * 2;
             }
 
             total = 0;
-            const stepHeight = this.options.height / 21;
-            while (total < this.options.height) {
+            const stepHeight = this.height() / 21;
+            while (total < this.height()) {
                 borderStyleArrHeight.push(stepHeight, stepHeight);
                 total += stepHeight * 2;
             }
@@ -230,7 +199,7 @@ export class Rectangle extends Shape {
     dragY(opt?: boolean) {
         return super.dragY(opt);
     }
-    draggable(opt: boolean): boolean {
+    draggable(opt?: boolean): boolean {
         return super.draggable(opt);
     }
 
@@ -238,7 +207,7 @@ export class Rectangle extends Shape {
         return super.selectable(opt);
     }
 
-    set(options: IBlock<IRectangleOptions>) {
+    set(options: IBlock<RectOpt>) {
         super.set(options);
     }
 }

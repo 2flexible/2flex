@@ -4,29 +4,12 @@ import {
     QuadraticCurveToOpt,
     BezierCurveToOpt,
 } from "../Shape";
-import { IBlock, IDefaultBlockOpt } from "../types";
+import { IBlock } from "../types";
 import { Path } from "../Path";
-
-interface DefaultLineOpt {}
-
-const defaultOpt: IDefaultBlockOpt<DefaultLineOpt> = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    selectable: true,
-    draggable: true,
-    zIndex: 0,
-    dragX: true,
-    dragY: true,
-};
 
 export type LineJoinOpt = "miter" | "round" | "bevel";
 
-interface LineOptions
-    extends DefaultLineOpt,
-        BezierCurveToOpt,
-        QuadraticCurveToOpt {
+interface LineOptions extends BezierCurveToOpt, QuadraticCurveToOpt {
     points: number[];
     lineDashOffset?: number;
     lineJoin: LineJoinOpt;
@@ -39,11 +22,11 @@ export class Line extends Shape {
     #beforeX: number;
     #beforeY: number;
 
-    constructor(options?: IBlock<LineOptions>) {
+    constructor(options: IBlock<LineOptions>) {
         super(options);
-        this.options = { ...defaultOpt, ...options };
-        this.#beforeX = this.options.x;
-        this.#beforeY = this.options.y;
+        this.options = options;
+        this.#beforeX = this.x();
+        this.#beforeY = this.y();
         this.path = new Path();
     }
     __initSet(): void {
@@ -55,7 +38,7 @@ export class Line extends Shape {
         if (!this.joinTo) {
             this.beginPath();
             this.path.createPath();
-            this.path.path.moveTo(this.initCords.x!, this.initCords.y!);
+            this.path.path.moveTo(this.canvasInit.x, this.canvasInit.y);
             this.strokeStyle();
         }
         if (!this.options.points) {
@@ -130,21 +113,21 @@ export class Line extends Shape {
         endX: number,
         endY: number
     ) {
-        const diffX = this.options.x - this.#beforeX;
+        const diffX = this.x() - this.#beforeX;
         if (diffX !== 0) {
             endX += diffX;
             if (cpx1) cpx1 += diffX;
             if (cpx2) cpx2 += diffX;
 
-            this.#beforeX = this.options.x;
+            this.#beforeX = this.x();
         }
-        const diffY = this.options.y - this.#beforeY;
+        const diffY = this.y() - this.#beforeY;
         if (diffY !== 0) {
             endY += diffY;
             if (cpy1) cpy1 += diffY;
             if (cpy2) cpy2 += diffY;
 
-            this.#beforeY = this.options.y;
+            this.#beforeY = this.y();
         }
         return { cpx1, cpy1, cpx2, cpy2, endX, endY };
     }
@@ -203,8 +186,12 @@ export class Line extends Shape {
         super.strokeStyle(opt);
     }
     strokeWidth(opt?: number) {
-        this.options.strokeWidth = opt || this.options.strokeWidth || 1;
-        this.options.strokeWidth = super.lineWidth(this.options.strokeWidth);
+        const strokeWidth = this.__cacheOption(
+            opt,
+            this.options.strokeWidth,
+            1
+        );
+        this.options.strokeWidth = super.lineWidth(strokeWidth);
         return this.options.strokeWidth;
     }
     fillStyle(opt?: string) {

@@ -2,9 +2,9 @@ import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
 import { Rectangle } from "./shapes/index";
 import { Node } from "./Tree";
-import { Block, DefaultBlockOpt } from "./Block";
+import { Block } from "./Block";
 
-export type ShapeElements = Rectangle;
+// export type ShapeElements = Rectangle;
 
 // Todo: need to impliment justify self, align-sef for each block, can be done with left, right, bottom top postiional values
 export type AlignSelf =
@@ -28,7 +28,7 @@ export type JustifySelf =
 
 export type FlexGrow = number | "all";
 export type FlexShrink = number;
-export type FlexBasis = string;
+export type FlexBasis = number | string;
 
 export type PlaceSelf = AlignSelf & JustifySelf;
 
@@ -55,31 +55,40 @@ export interface BlockOptions {
     visible?: boolean;
     rotate?: number;
     order?: number;
-    alingSelf: AlignSelf;
-    justifySelf: JustifySelf;
-    flexShrink: FlexShrink;
-    flexBasis: FlexBasis;
-    flexGrow: FlexGrow;
+    alingSelf?: AlignSelf;
+    justifySelf?: JustifySelf;
+    flexShrink?: FlexShrink;
+    flexBasis?: FlexBasis;
+    flexGrow?: FlexGrow;
     // grid-row: grid-row-start / grid-row-end;
-    gridRow: number[];
-    gridAutoRows: number;
-    gridRowStart: number;
-    gridRowEnd: number;
+    gridRow?: number[];
+    gridAutoRows?: number;
+    gridRowStart?: number;
+    gridRowEnd?: number;
     // grid-column: grid-column-start / grid-column-end
-    gridColumn: number[];
-    gridAutoColumns: number;
-    gridColumnStart: number;
-    gridColumnEnd: number;
+    gridColumn?: number[];
+    gridAutoColumns?: number;
+    gridColumnStart?: number;
+    gridColumnEnd?: number;
     // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end
-    gridArea: number[];
+    gridArea?: number[];
 }
 // extend margin as seperate margin top, left, bottom
+export interface DefaultBlockOpt {
+    [key: string]: any;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    selectable: boolean;
+    zIndex: number;
+}
+
+export type IBlock<T> = T extends DefaultBlockOpt
+    ? DefaultBlockOpt
+    : BlockOptions & T;
 
 export type BlockElements = Block | Shape | TextBlock;
-
-export type IBlock<T> = T extends BlockOptions
-    ? BlockOptions
-    : BlockOptions & T;
 
 type CanvasContext<T> = T extends CanvasRenderingContext2D
     ? CanvasRenderingContext2D
@@ -119,9 +128,7 @@ export type ICssProperties = {
 
 type Query = BlockOptions;
 
-export type IDefaultBlockOpt<T> = T extends DefaultBlockOpt
-    ? DefaultBlockOpt
-    : DefaultBlockOpt & T;
+
 
 export type BorderStyle = "solid" | "dotted";
 

@@ -19,6 +19,7 @@ export interface RectOpt extends CursorPos {
     height: number;
 }
 export interface RoundRectOpt extends RectOpt {
+    // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius: number[];
 }
 
@@ -61,8 +62,9 @@ export interface IShapeOptions {
 }
 // each shape extends form common shape
 export class Shape extends Block {
-    constructor(options?: IBlock<IShapeOptions>) {
+    constructor(options: IBlock<IShapeOptions>) {
         super(options);
+        this.options = options;
     }
     __initSet(): void {
         super.__initSet();
@@ -87,85 +89,94 @@ export class Shape extends Block {
     }
 
     fill(opt?: boolean, path?: Path) {
-        this.options.fill = opt || this.options.fill || false;
-        if (this.options.fill) {
-            this.context.fill(path);
-        }
-        return this.options.fill;
+        const fill = this.__cacheOption(opt, this.options.fill, false);
+        if (fill) this.context.fill(path);
+        return fill;
     }
     fillStyle(opt?: string) {
-        this.options.fillStyle = opt || this.options.fillStyle || "black";
-        this.context.fillStyle = this.options.fillStyle;
-        return this.options.fillStyle;
+        const fill = this.__cacheOption(opt, this.options.fill, false);
+        this.context.fillStyle = fill;
+        return fill;
     }
 
     stroke(opt?: boolean, path?: Path2D) {
-        this.options.stroke = opt || this.options.stroke || false;
-        if (this.options.stroke) {
+        const stroke = this.__cacheOption(opt, this.options.stroke, false);
+        if (stroke) {
             if (path) this.context.stroke(path);
             else this.context.stroke();
         }
-        return this.options.stroke;
+        return stroke;
     }
 
     strokeStyle(opt?: string) {
-        this.options.strokeStyle = opt || this.options.strokeStyle || "black";
-        this.context.strokeStyle = this.options.strokeStyle;
-        return this.options.strokeStyle;
+        const strokeStyle = this.__cacheOption(
+            opt,
+            this.options.strokeStyle,
+            "black"
+        );
+        this.context.strokeStyle = strokeStyle;
+        return strokeStyle;
     }
     lineCap(opt?: LineCapOpt) {
-        this.options.lineCap = opt || this.options.lineCap || "butt";
-        this.context.lineCap = this.options.lineCap;
-        return this.options.lineCap;
+        const lineCap = this.__cacheOption(opt, this.options.lineCap, "butt");
+        this.context.lineCap = lineCap;
+        return lineCap;
     }
 
     lineWidth(opt?: number) {
-        this.options.lineWidth = opt || this.options.lineWidth || 0;
-        this.context.lineWidth = this.options.lineWidth;
-        return this.options.lineWidth;
+        const lineWidth = this.__cacheOption(opt, this.options.lineWidth, 0);
+        this.context.lineWidth = lineWidth;
+        return lineWidth;
     }
 
-    lineDash(opt?: number[]) {
-        this.options.lineDash = opt || this.options.lineDash || [];
-        this.context.setLineDash(opt);
+    lineDash(opt?: number[]): void {
+        const lineDash = this.__cacheOption(opt, this.options.lineDash, []);
+        this.context.setLineDash(lineDash);
     }
-    closePath(opt?: boolean) {
+    closePath(opt?: boolean): void {
         if (opt) this.context.closePath();
     }
-    line({ x, y }: CursorPos) {
+    line({ x, y }: CursorPos): void {
         this.context.lineTo(x, y);
     }
-    quadraticCurve({ cpx1, cpy1, endX, endY }: QuadraticCurveToOpt) {
+    quadraticCurve({ cpx1, cpy1, endX, endY }: QuadraticCurveToOpt): void {
         this.context.quadraticCurveTo(cpx1, cpy1, endX, endY);
     }
 
-    bezierCurve({ cpx1, cpy1, cpx2, cpy2, endX, endY }: BezierCurveToOpt) {
+    bezierCurve({
+        cpx1,
+        cpy1,
+        cpx2,
+        cpy2,
+        endX,
+        endY,
+    }: BezierCurveToOpt): void {
         this.context.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
     }
 
-    rect({ x, y, width, height }: RectOpt) {
+    rect({ x, y, width, height }: RectOpt): void {
         this.context.rect(x, y, width, height);
     }
-    roundRect({ x, y, width, height, borderRadius }: RoundRectOpt) {
+    roundRect({ x, y, width, height, borderRadius }: RoundRectOpt): void {
         this.context.roundRect(x, y, width, height, borderRadius);
     }
-    strokeRect({ x, y, width, height }: RectOpt) {
+    strokeRect({ x, y, width, height }: RectOpt): void {
         this.context.strokeRect(x, y, width, height);
     }
     // can be 2 different format, one opt with optinos giving paramters, two like this
-    move({ x, y }: CursorPos) {
-        x = x || this.initCords.x!;
-        y = y || this.initCords.y!;
+    move({ x, y }: CursorPos): void {
+        x = x || this.canvasInit.x;
+        y = y || this.canvasInit.y;
         this.context.moveTo(x, y);
     }
-    pointInPath({ path, x, y, fillRule }: PointInPath) {
+    pointInPath({ path, x, y, fillRule }: PointInPath): void {
         x = x || this.options.x || 0;
         y = y || this.options.y || 0;
         fillRule = fillRule || "nonzero";
         if (path) this.context.isPointInPath(path, x, y, fillRule);
         else this.context.isPointInPath(x, y, fillRule);
     }
-    pointInStroke({ path, x, y }: PointInStroke) {
+    pointInStroke({ path, x, y }: PointInStroke): boolean {
         x = x || this.options.x || 0;
         y = y || this.options.y || 0;
         if (path) return this.context.isPointInStroke(path, x, y);
@@ -174,21 +185,20 @@ export class Shape extends Block {
     clip(opt?: boolean): boolean {
         return super.clip(opt);
     }
-    dragX(opt?: boolean) {
+    dragX(opt?: boolean): boolean {
         return super.dragX(opt);
     }
-    dragY(opt?: boolean) {
+    dragY(opt?: boolean): boolean {
         return super.dragY(opt);
     }
-    draggable(opt: boolean): boolean {
+    draggable(opt?: boolean): boolean {
         return super.draggable(opt);
     }
 
     selectable(opt?: boolean): boolean {
         return super.selectable(opt);
     }
-
-    set(options: IBlock<IShapeOptions>) {
+    set(options: IBlock<IShapeOptions>): void {
         super.set(options);
     }
 }

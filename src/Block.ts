@@ -6,70 +6,39 @@ import {
     ICustomEvents,
     BlockOptions,
     IStyle,
-    MixOpt,
 } from "./types";
 
-export interface DefaultBlockOpt {
-    [key: string]: any;
+interface CanvasInit {
     x: number;
     y: number;
     width: number;
     height: number;
-    selectable: boolean;
-    zIndex: number;
-}
-
-const defaultOpt: DefaultBlockOpt = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    selectable: true,
-    draggable: true,
-    dragX: true,
-    dragY: true,
-    zIndex: 0,
-    strokeWidth: 0,
-    paddingTop: 0,
-    paddingLeft: 0,
-    paddingRight: 0,
-    paddingBottom: 0,
-    flexBasis: "auto",
-    flexShrink: 0,
-    flexGrow: 0,
-    // @Todo: need to make these values also
-    alignSelf: "normal",
-    justifySelf: "normal",
-};
-
-interface InitCords {
-    x: number | undefined;
-    y: number | undefined;
 }
 
 // Each element in the canvas is block
 // each Block is Node
 export class Block extends Node {
     canvas: any;
-    options: DefaultBlockOpt;
+    options: BlockOptions;
     events: ICustomEvents[] = [];
-    initCords: InitCords = {
-        x: 0,
-        y: 0,
-    };
+    canvasInit: CanvasInit;
     styleChanges: IStyle[] = [];
 
-    constructor(options?: IBlock<BlockOptions>) {
+    constructor(options: BlockOptions) {
         super();
-        this.options = { ...defaultOpt, ...options };
-        this.initCords.x = this.options.x;
-        this.initCords.y = this.options.y;
+        this.options = options;
+        this.canvasInit = {
+            x: this.x(),
+            y: this.y(),
+            width: this.width(),
+            height: this.height(),
+        };
     }
 
     __initSet() {}
 
     get context() {
-        return this.canvas.context;
+        return this.canvas?.context;
     }
 
     add(...block: BlockElements[]): void {
@@ -80,39 +49,33 @@ export class Block extends Node {
     __adjustCordinates(): void {
         this._childs?.forEach((item: any) => {
             if (item) {
-                item.initCords.x =
-                    this.initCords.x +
-                    item.options.x +
-                    this.options.paddingLeft;
-                item.initCords.y =
-                    this.initCords.y + item.options.y + this.options.paddingTop;
+                item.canvasInit.x =
+                    this.canvasInit.x + item.x() + this.paddingLeft();
+                item.canvasInit.y =
+                    this.canvasInit.y + item.y() + this.paddingTop();
                 item.__adjustCordinates();
             }
         });
     }
 
-    x(opt?: number) {
-        this.options.x = opt || this.options.x;
-        return this.options.x;
+    x(opt?: number): number {
+        return this.__cacheOption(opt, this.options?.x, 0);
     }
 
-    y(opt?: number) {
-        this.options.y = opt || this.options.y;
-        return this.options.y;
+    y(opt?: number): number {
+        return this.__cacheOption(opt, this.options?.y, 0);
     }
 
-    width(opt?: number) {
-        this.options.width = opt || this.options.width;
-        return this.options.width;
+    width(opt?: number): number {
+        return this.__cacheOption(opt, this.options?.width, 0);
     }
 
-    height(opt?: number) {
-        this.options.height = opt || this.options.height;
-        return this.options.height;
+    height(opt?: number): number {
+        return this.__cacheOption(opt, this.options?.height, 0);
     }
 
     padding(opt?: number[]) {
-        this.options.padding = opt || this.options.padding;
+        this.options.padding = opt || this.options.padding || [];
         switch (this.options.padding.length) {
             case 1:
                 this.options.paddingBottom =
@@ -140,68 +103,74 @@ export class Block extends Node {
 
         return this.options.padding;
     }
-
-    flexBasis(opt?: number | string) {
-        return this.__cacheOption(this.options.flexBasis, "auto", opt);
+    paddingTop(opt?: number) {
+        return this.__cacheOption(opt, this.options.paddingTop, 0);
+    }
+    paddingBottom(opt?: number) {
+        return this.__cacheOption(opt, this.options.paddingBottom, 0);
+    }
+    paddingLeft(opt?: number) {
+        return this.__cacheOption(opt, this.options.paddingLeft, 0);
+    }
+    paddingRight(opt?: number) {
+        return this.__cacheOption(opt, this.options.paddingRight, 0);
     }
 
-    flexShrink(opt?: number) {
-        return this.__cacheOption(this.options.flexShrink, 0, opt);
+    flexBasis(opt?: number | string): number | string {
+        return this.__cacheOption(opt, this.options.flexBasis, "auto");
+    }
+
+    flexShrink(opt?: number): number {
+        return this.__cacheOption(opt, this.options.flexShrink, 0);
     }
 
     flexGrow(opt?: number) {
-        return this.__cacheOption(this.options.flexGrow, 0, opt);
+        return this.__cacheOption(opt, this.options.flexGrow, 0);
     }
 
-    order(opt?: number) {
-        return this.__cacheOption(this.options.order, undefined, opt);
+    order(opt?: number): undefined | number {
+        return this.__cacheOption(opt, this.options.order, undefined);
     }
 
-    gridColumnStart(opt?: number) {
-        return this.__cacheOption(this.options.gridColumnStart, 0, opt);
+    gridColumnStart(opt?: number): number {
+        return this.__cacheOption(opt, this.options.gridColumnStart, 0);
     }
 
     gridColumnEnd(opt?: number) {
-        return this.__cacheOption(this.options.gridColumnEnd, 0, opt);
+        return this.__cacheOption(opt, this.options.gridColumnEnd, 0);
     }
 
     clip_path() {
         this.canvas.clipping_path.addRect(
-            this.initCords.x,
-            this.initCords.y,
-            this.options.width,
-            this.options.height,
-            this.options.borderRadius
+            this.canvasInit.x,
+            this.canvasInit.y,
+            this.width(),
+            this.height()
+            // this.borderRadius()
         );
     }
 
     clip(opt?: boolean) {
-        this.options.clip = opt || this.options.clip || false;
-
-        if (this.options.clip) {
+        const clip = this.__cacheOption(opt, this.options.clip, false);
+        if (clip) {
             this.clip_path();
 
-            if (!this.options.fillRule) this.fillRule();
+            if (!this.fillRule()) this.fillRule();
 
-            this.context.clip(
-                this.canvas.clipping_path.path,
-                this.options.fillRule
-            );
+            this.context.clip(this.canvas.clipping_path.path, this.fillRule());
         }
-        return this.options.clip;
+        return clip;
     }
 
     fillRule(opt?: string) {
-        this.options.fillRule = opt || this.options.fillRule || "nonzero";
-        return this.options.fillRule;
+        return this.__cacheOption(opt, this.options.fillRule, "nonzero");
     }
 
-    zIndex(opt?: number) {
-        this.options.zIndex = opt || this.options.zIndex;
-        return this.options.zIndex;
+    zIndex(opt?: number): number | undefined {
+        return this.__cacheOption(opt, this.options.zIndex, undefined);
     }
 
-    set(options?: IBlock<BlockOptions>) {
+    set(options?: IBlock<BlockOptions>): void {
         let cached = false;
         if (options)
             for (const [key, value] of Object.entries(options)) {
@@ -224,17 +193,21 @@ export class Block extends Node {
         }
     }
 
-    __cacheOption(option: MixOpt, def: MixOpt, opt?: any): any {
-        opt = opt || option || def;
-        return opt;
+    __cacheOption<T>(
+        opt: T | undefined,
+        option: T | undefined,
+        defaultOpt: T
+    ): T {
+        option = opt || option || defaultOpt;
+        return option;
     }
 
     reset() {}
 
-    rotate(opt: number) {
-        this.options.rotate = opt || this.options.angle || 0;
-        this.context.rotate(this.options.angle);
-        return this.options.rotate;
+    rotate(opt?: number): number {
+        const rotate = this.__cacheOption(opt, this.options.rotate, 0);
+        this.context.rotate(rotate);
+        return rotate;
     }
     // had to come first for block scaling
     scale(x: number, y: number) {
@@ -247,23 +220,17 @@ export class Block extends Node {
     }
     nthChild(opt?: number) {}
     checkInBound(_event: MouseEvent): boolean {
-        const width = this.options.width;
-        const height = this.options.height;
-
         const { x, y } = this.canvas.getCursorPosition(_event);
 
         // include broder or stroke for dragging within them
-        const diffX = Math.abs(this.initCords.x!);
-        const diffY = Math.abs(this.initCords.y!);
         if (
-            x >= diffX &&
-            x <= this.initCords.x! + width &&
-            y >= diffY &&
-            y <= this.initCords.y! + height
+            x >= this.canvasInit.x &&
+            x <= this.canvasInit.x + this.width() &&
+            y >= this.canvasInit.y &&
+            y <= this.canvasInit.y + this.height()
         ) {
             return true;
         }
-
         return false;
     }
 
@@ -379,8 +346,7 @@ export class Block extends Node {
         const duplicat = this.events.filter(
             (elem) => elem.eventType === "selectable"
         );
-
-        if (!opt || duplicat.length >= 1) return false;
+        if (!opt && duplicat.length >= 1) return false;
 
         this.events.push({
             eventType: "selectable",
@@ -395,22 +361,24 @@ export class Block extends Node {
         //         this.set({ color: old_color });
         //     }
         // });
-        this.options.selectable = opt;
-
+        this.options.selectable = this.__cacheOption(
+            opt,
+            this.options.selectable,
+            true
+        );
         return this.options.selectable;
     }
     dragX(opt?: boolean) {
-        this.options.dragX = opt || this.options.dragX;
-        return this.options.dragX;
+        return this.__cacheOption(opt, this.options.dragX, true);
     }
-    dragY(opt?: boolean) {
-        this.options.dragY = opt || this.options.dragY;
-        return this.options.dragY;
+    dragY(opt?: boolean): boolean {
+        return this.__cacheOption(opt, this.options.dragY, true);
     }
     draggable(opt?: boolean): boolean {
         const duplicat = this.events.filter(
             (elem) => elem.eventType === "draggable"
         );
+
         if (!opt || duplicat.length >= 1 || !this.options.selectable)
             return false;
 
@@ -444,19 +412,12 @@ export class Block extends Node {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;
-
-                if (diffX !== 0 && this.options.dragX) {
-                    this.initCords.x = this.initCords.x
-                        ? this.initCords.x
-                        : this.options.x;
-                    this.initCords.x += diffX - beforeX;
+                if (diffX !== 0 && this.dragX()) {
+                    this.canvasInit.x += diffX - beforeX;
                     beforeX = diffX;
                 }
-                if (diffY !== 0 && this.options.dragY) {
-                    this.initCords.y = this.initCords.y
-                        ? this.initCords.y
-                        : this.options.y;
-                    this.initCords.y += diffY - beforeY;
+                if (diffY !== 0 && this.dragY()) {
+                    this.canvasInit.y += diffY - beforeY;
                     beforeY = diffY;
                 }
                 this.__adjustCordinates();

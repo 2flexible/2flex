@@ -7,7 +7,6 @@ import {
     IBlock,
 } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
-import { IText } from "./TextBlock";
 import { Path } from "./Path";
 
 /*
@@ -74,7 +73,6 @@ export class Canvas {
 
         this.#tree.preOrderTraversal((element: any) => {
             element.canvas = this;
-
             this.#handleOptions(element);
             element.__initSet();
 
@@ -83,8 +81,10 @@ export class Canvas {
 
         let zIndex = 0;
         this.#tree.checkNodes((el: any) => {
-            el.options.zIndex += zIndex;
-            zIndex += 1;
+            if (el.options) {
+                el.options.zIndex += zIndex;
+                zIndex += 1;
+            }
         }, true);
         this.#handleEvents();
     }
@@ -134,6 +134,7 @@ export class Canvas {
     }
 
     #handleOptions(block: BlockElements, ignore?: string[]): void {
+        if (!block.options) return;
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
@@ -203,8 +204,6 @@ export class Canvas {
                         }
                         xx *= scale;
                         yy *= scale;
-                        console.log("xx");
-                        console.log(xx);
                         elem.initX = xx;
                         elem.initY = yy;
                         this.context.scale(1.02, 1.02);

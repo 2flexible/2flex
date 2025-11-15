@@ -1,33 +1,16 @@
 import { Shape } from "../Shape";
-import { IBlock, IDefaultBlockOpt, InitialShapes } from "../types";
+import { IBlock } from "../types";
 
-interface DefaultCircleOpt {
-    radius: number;
-    startAngle: number;
-    endAngle: number;
+interface CircleOptions {
+    radius?: number;
+    startAngle?: number;
+    endAngle?: number;
 }
 
-const defaultOpt: IDefaultBlockOpt<DefaultCircleOpt> = {
-    x: 0,
-    y: 0,
-    width: 10,
-    height: 10,
-    selectable: true,
-    draggable: true,
-    zIndex: 0,
-    dragX: true,
-    dragY: true,
-    radius: 10,
-    startAngle: 0,
-    endAngle: Math.PI * 2,
-};
-
-interface CircleOptions extends DefaultCircleOpt, InitialShapes {}
-
 export class Circle extends Shape {
-    constructor(options?: IBlock<CircleOptions>) {
+    constructor(options: IBlock<CircleOptions>) {
         super(options);
-        this.options = { ...defaultOpt, ...options };
+        this.options = options;
     }
     __initSet(): void {
         super.__initSet();
@@ -37,19 +20,29 @@ export class Circle extends Shape {
         this.beginPath();
         this.backgroundColor();
 
-        const x = this.initCords.x + this.options.radius;
-        const y = this.initCords.y + this.options.radius;
-
+        const x = this.canvasInit.x + this.options.radius;
+        const y = this.canvasInit.y + this.options.radius;
+        let endAngle;
+        if (!this.options.endAngle) endAngle = Math.PI * 2;
         this.context.arc(
             x,
             y,
             this.options.radius,
             this.options.startAngle,
-            this.options.endAngle
+            endAngle
         );
 
         super.fill();
         super.stroke();
+    }
+    radius(opt?: number) {
+        return this.__cacheOption(opt, this.options.radius, 0);
+    }
+    startAngle(opt?: number) {
+        return this.__cacheOption(opt, this.options.startAngle, 0);
+    }
+    endAngle(opt?: number) {
+        return this.__cacheOption(opt, this.options.endAngle, 0);
     }
     width(opt?: number) {
         this.options.radius = this.options.radius || super.width(opt);
