@@ -29,8 +29,8 @@ export class Rectangle extends Shape {
         this.roundRect({
             x: this.canvasInit.x,
             y: this.canvasInit.y,
-            width: this.width(),
-            height: this.height(),
+            width: this.canvasInit.width,
+            height: this.canvasInit.height,
             borderRadius: this.borderRadius() || [0],
         });
     }
@@ -75,12 +75,12 @@ export class Rectangle extends Shape {
         if (this.options.borderStyle === "dotted") {
             this.lineDash([
                 ...borderStyleArrWidth,
-                this.height() * 2 + this.width(),
+                this.canvasInit.height * 2 + this.canvasInit.width,
             ]);
         } else {
             this.lineDash([
-                this.width(),
-                this.width() + 2 * this.height(),
+                this.canvasInit.width,
+                this.canvasInit.width + 2 * this.canvasInit.height,
                 0,
                 0,
             ]);
@@ -103,12 +103,12 @@ export class Rectangle extends Shape {
         if (this.options.borderStyle === "dotted") {
             this.lineDash([
                 0,
-                this.width(),
+                this.canvasInit.width,
                 ...borderStyleArrHeight,
-                this.width() + this.height(),
+                this.canvasInit.width + this.canvasInit.height,
             ]);
         } else if (this.borderStyle() === "solid") {
-            this.lineDash([0, this.width(), this.height(), this.width()]);
+            this.lineDash([0, this.canvasInit.width, this.canvasInit.height, this.canvasInit.width]);
         }
         this.#drawRect();
         super.stroke(true);
@@ -125,11 +125,11 @@ export class Rectangle extends Shape {
         if (this.options.borderStyle === "dotted") {
             this.lineDash([
                 0,
-                this.width() + this.height(),
+                this.canvasInit.width + this.canvasInit.height,
                 ...borderStyleArrWidth,
             ]);
         } else if (this.options.borderStyle === "solid") {
-            this.lineDash([0, this.width() + this.height(), this.width(), 0]);
+            this.lineDash([0, this.canvasInit.width + this.canvasInit.height, this.canvasInit.width, 0]);
         }
 
         this.#drawRect();
@@ -143,15 +143,15 @@ export class Rectangle extends Shape {
         if (this.options.borderStyle === "dotted") {
             this.lineDash([
                 0,
-                this.width() * 2 + this.height(),
+                this.canvasInit.width * 2 + this.canvasInit.height,
                 ...borderStyleArrHeight,
             ]);
         } else if (this.borderStyle() === "solid") {
             this.lineDash([
                 0,
-                this.width() * 2 + this.height(),
-                this.height(),
-                this.width(),
+                this.canvasInit.width * 2 + this.canvasInit.height,
+                this.canvasInit.height,
+                this.canvasInit.width,
             ]);
         }
         this.#drawRect();
@@ -172,15 +172,15 @@ export class Rectangle extends Shape {
 
         if (borderStyle === "dotted") {
             let total = 0;
-            const step = this.width() / 21;
-            while (total < this.width()) {
+            const step = this.canvasInit.width / 21;
+            while (total < this.canvasInit.width) {
                 borderStyleArrWidth.push(step, step);
                 total += step * 2;
             }
 
             total = 0;
-            const stepHeight = this.height() / 21;
-            while (total < this.height()) {
+            const stepHeight = this.canvasInit.height / 21;
+            while (total < this.canvasInit.height) {
                 borderStyleArrHeight.push(stepHeight, stepHeight);
                 total += stepHeight * 2;
             }

@@ -45,11 +45,11 @@ export class Circle extends Shape {
         return this.__cacheOption(opt, this.options.endAngle, 0);
     }
     width(opt?: number) {
-        this.options.radius = this.options.radius || super.width(opt);
+        this.options.radius = this.options.radius || this.canvasInit.width;
         return this.options.radius;
     }
     height(opt?: number) {
-        this.options.radius = this.options.radius || super.height(opt);
+        this.options.radius = this.options.radius || this.canvasInit.height;
         return this.options.radius;
     }
     backgroundColor(opt?: string) {

@@ -21,7 +21,7 @@ export class Block extends Node {
     canvas: any;
     options: BlockOptions;
     events: ICustomEvents[] = [];
-    canvasInit: CanvasInit;
+    canvasInit: CanvasInit = { x: 0, y: 0, width: 0, height: 0 };
     styleChanges: IStyle[] = [];
 
     constructor(options: BlockOptions) {
@@ -67,11 +67,15 @@ export class Block extends Node {
     }
 
     width(opt?: number): number {
-        return this.__cacheOption(opt, this.options?.width, 0);
+        const width = this.__cacheOption(opt, this.options?.width, 0);
+        this.canvasInit.width = width;
+        return width;
     }
 
     height(opt?: number): number {
-        return this.__cacheOption(opt, this.options?.height, 0);
+        const height = this.__cacheOption(opt, this.options?.height, 0);
+        this.canvasInit.height = height;
+        return height;
     }
 
     padding(opt?: number[]) {

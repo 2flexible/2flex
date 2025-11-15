@@ -162,15 +162,15 @@ export class Layout extends Block {
             }
         });
         if (layout == "inline-flex" || layout == "inline-grid") {
-            if (!this.options.width)
-                this.options.width = (this._childs as BlockElements[]).reduce(
-                    (prev, curr) => prev + curr.width(),
+            if (!this.canvasInit.width)
+                this.canvasInit.width = (this._childs as BlockElements[]).reduce(
+                    (prev, curr) => prev + curr.canvasInit.width,
                     0
                 );
 
-            if (!this.options.height)
-                this.options.height = (this._childs as BlockElements[]).reduce(
-                    (prev, curr) => prev + curr.height(),
+            if (!this.canvasInit.height)
+                this.canvasInit.height = (this._childs as BlockElements[]).reduce(
+                    (prev, curr) => prev + curr.canvasInit.height,
                     0
                 );
         }
@@ -413,8 +413,8 @@ export class Layout extends Block {
 
     get #isOutofLayout() {
         if (
-            this.height() - this.#containerH > 0 &&
-            this.width() - this.#containerW > 0
+            this.canvasInit.height - this.#containerH > 0 &&
+            this.canvasInit.width - this.#containerW > 0
         )
             return true;
         return false;
@@ -504,24 +504,24 @@ export class Layout extends Block {
                 if (this.#isFlexCol) {
                     if (this.#isWrap) {
                         this.#flexItems.height.forEach((item: number) => {
-                            let startY = this.height() - item;
+                            let startY = this.canvasInit.height - item;
                             startY = startY >= 0 ? startY : 0;
                             this.#startYPos.push(startY);
                         });
                     } else {
-                        const startY = this.height() - this.#containerH;
+                        const startY = this.canvasInit.height - this.#containerH;
                         this.#startY = startY > 0 ? startY : 0;
                     }
                     this.#flexColumn();
                 } else {
                     if (this.#isWrap) {
                         this.#flexItems.width.forEach((item: number) => {
-                            let startX = this.width() - item;
+                            let startX = this.canvasInit.width - item;
                             startX = startX >= 0 ? startX : 0;
                             this.#startXPos.push(startX);
                         });
                     } else {
-                        const startX = this.width() - this.#containerW;
+                        const startX = this.canvasInit.width - this.#containerW;
                         this.#startX = startX > 0 ? startX : 0;
                     }
                     this.#flexRow();
@@ -529,7 +529,7 @@ export class Layout extends Block {
             }
             if (this.#isGrid) {
                 this.#startX = Math.abs(
-                    this.width() -
+                    this.canvasInit.width -
                         this.#gridItems.width.reduce((a, c) => a + c, 0)
                 );
                 this.#gridLayout();
@@ -538,18 +538,18 @@ export class Layout extends Block {
         const _func2 = () => {
             if (this.#isOutofLayout && this.#isWrap && !this.#isGrid) {
                 if (this.#isFlexCol) {
-                    const startX = this.width() - this.#containerW;
+                    const startX = this.canvasInit.width - this.#containerW;
                     this.#startX = startX > 0 ? startX : 0;
                     this.#flexColumn();
                 } else {
-                    const startY = this.height() - this.#containerH;
+                    const startY = this.canvasInit.height - this.#containerH;
                     this.#startY = startY > 0 ? startY : 0;
                     this.#flexRow();
                 }
             }
             if (this.#isGrid) {
                 this.#startY = Math.abs(
-                    this.height() -
+                    this.canvasInit.height -
                         this.#gridItems.height.reduce((a, c) => a + c, 0)
                 );
                 this.#gridLayout();
@@ -562,7 +562,7 @@ export class Layout extends Block {
                 let colIdx = 0;
                 while (blocks.length > idx) {
                     const width = this.#gridItems.width[colIdx];
-                    let startX = width - blocks[idx].width();
+                    let startX = width - blocks[idx].canvasInit.width;
                     // startX = startX > 0 ? startX : 0;
                     this.#startXPos.push(startX);
                     idx += 1;
@@ -579,7 +579,7 @@ export class Layout extends Block {
                 let rowIdx = 0;
                 while (blocks.length > idx) {
                     const height = this.#gridItems.height[rowIdx];
-                    let startY = height - blocks[idx].height();
+                    let startY = height - blocks[idx].canvasInit.height;
                     // startY = startX > 0 ? startX : 0;
                     this.#startYPos.push(startY);
                     idx += 1;
@@ -591,7 +591,7 @@ export class Layout extends Block {
                 if (this.#isFlexCol) {
                     let rows = 0;
                     let idx = 0;
-                    let containerW = this.width() - this.#containerW;
+                    let containerW = this.canvasInit.width - this.#containerW;
                     containerW =
                         containerW > 0 && !this.#isWrap ? containerW : 0;
                     this.#flexItems.width.forEach((item: number) => {
@@ -599,7 +599,7 @@ export class Layout extends Block {
                             const block = (this._childs as any)[i + rows];
 
                             this.#startXPos.push(
-                                containerW + (item - block.width())
+                                containerW + (item - block.canvasInit.width)
                             );
                         }
                         rows += this.#flexItems.rows[idx];
@@ -609,14 +609,14 @@ export class Layout extends Block {
                 } else {
                     let cols = 0;
                     let idx = 0;
-                    let containerH = this.height() - this.#containerH;
+                    let containerH = this.canvasInit.height - this.#containerH;
                     containerH =
                         containerH > 0 && !this.#isWrap ? containerH : 0;
                     this.#flexItems.height.forEach((item: number) => {
                         for (let i = 0; i < this.#flexItems.cols[idx]; i++) {
                             const block = (this._childs as any)[i + cols];
                             this.#startYPos.push(
-                                containerH + (item - block.height())
+                                containerH + (item - block.canvasInit.height)
                             );
                         }
                         cols += this.#flexItems.cols[idx];
@@ -634,12 +634,12 @@ export class Layout extends Block {
                 if (this.#isFlexCol) {
                     if (this.#isWrap) {
                         this.#flexItems.height.forEach((item: number) => {
-                            let startY = this.height() - item;
+                            let startY = this.canvasInit.height - item;
                             startY = startY > 0 ? startY : 0;
                             this.#startYPos.push(startY / 2);
                         });
                     } else {
-                        const startY = this.height() - this.#containerH;
+                        const startY = this.canvasInit.height - this.#containerH;
                         this.#startY = startY > 0 ? startY / 2 : 0;
                     }
 
@@ -647,12 +647,12 @@ export class Layout extends Block {
                 } else {
                     if (this.#isWrap) {
                         this.#flexItems.width.forEach((item: number) => {
-                            let startX = this.width() - item;
+                            let startX = this.canvasInit.width - item;
                             startX = startX > 0 ? startX : 0;
                             this.#startXPos.push(startX / 2);
                         });
                     } else {
-                        const startX = this.width() - this.#containerW;
+                        const startX = this.canvasInit.width - this.#containerW;
                         this.#startX = startX > 0 ? startX / 2 : 0;
                     }
 
@@ -661,7 +661,7 @@ export class Layout extends Block {
             }
             if (this.#isGrid) {
                 let startX =
-                    this.width() / 2 -
+                    this.canvasInit.width / 2 -
                     this.#gridItems.width.reduce((a, c) => a + c, 0) / 2;
                 this.#startX = startX > 0 ? startX : 0;
                 this.#gridLayout();
@@ -670,21 +670,21 @@ export class Layout extends Block {
         const _func2 = () => {
             if (this.#isGrid) {
                 const startY =
-                    this.height() -
+                    this.canvasInit.height -
                     this.#gridItems.height.reduce((a, c) => a + c, 0);
                 this.#startY = startY > 0 ? startY / this.#gridItems.nRows : 0;
                 this.#gridLayout();
             } else {
                 if (this.#isOutofLayout && this.#isWrap) {
                     if (this.#isFlexCol) {
-                        const startX = this.width() - this.#containerW;
+                        const startX = this.canvasInit.width - this.#containerW;
                         this.#startX =
                             startX > 0
                                 ? startX / this.#flexItems.cols.length
                                 : 0;
                         this.#flexColumn();
                     } else {
-                        const startY = this.height() - this.#containerH;
+                        const startY = this.canvasInit.height - this.#containerH;
                         this.#startY =
                             startY > 0
                                 ? startY / this.#flexItems.rows.length
@@ -702,7 +702,7 @@ export class Layout extends Block {
                 while (blocks.length > idx) {
                     let startX =
                         this.#gridItems.width[colIdx] / 2 -
-                        blocks[idx].width() / 2;
+                        blocks[idx].canvasInit.width / 2;
                     // startX = startX > 0 ? startX : 0;
                     this.#startXPos.push(startX);
                     idx += 1;
@@ -719,7 +719,7 @@ export class Layout extends Block {
                 let rowIdx = 0;
                 while (blocks.length > idx) {
                     const height = this.#gridItems.height[rowIdx];
-                    let startY = height / 2 - blocks[idx].height() / 2;
+                    let startY = height / 2 - blocks[idx].canvasInit.height / 2;
                     // startY = startX > 0 ? startX : 0;
                     this.#startYPos.push(startY);
                     idx += 1;
@@ -731,14 +731,14 @@ export class Layout extends Block {
                 if (this.#isFlexCol) {
                     let rows = 0;
                     let idx = 0;
-                    let containerW = this.width() - this.#containerW;
+                    let containerW = this.canvasInit.width - this.#containerW;
                     containerW =
                         containerW > 0 && !this.#isWrap ? containerW : 0;
                     this.#flexItems.width.forEach((item: number) => {
                         for (let i = 0; i < this.#flexItems.rows[idx]; i++) {
                             const block = (this._childs as any)[i + rows];
                             this.#startXPos.push(
-                                containerW / 2 + (item - block.width()) / 2
+                                containerW / 2 + (item - block.canvasInit.width) / 2
                             );
                         }
                         rows += this.#flexItems.rows[idx];
@@ -748,14 +748,14 @@ export class Layout extends Block {
                 } else {
                     let cols = 0;
                     let idx = 0;
-                    let containerH = this.height() - this.#containerH;
+                    let containerH = this.canvasInit.height - this.#containerH;
                     containerH =
                         containerH > 0 && !this.#isWrap ? containerH : 0;
                     this.#flexItems.height.forEach((item: number) => {
                         for (let i = 0; i < this.#flexItems.cols[idx]; i++) {
                             const block = (this._childs as any)[i + cols];
                             this.#startYPos.push(
-                                containerH / 2 + (item - block.height()) / 2
+                                containerH / 2 + (item - block.canvasInit.height) / 2
                             );
                         }
                         cols += this.#flexItems.cols[idx];
@@ -774,7 +774,7 @@ export class Layout extends Block {
                     if (this.#isWrap) {
                         this.#flexItems.height.forEach(
                             (item: number, index: number) => {
-                                let gap = this.height() - item;
+                                let gap = this.canvasInit.height - item;
                                 gap =
                                     gap > 0
                                         ? gap /
@@ -786,7 +786,7 @@ export class Layout extends Block {
                             }
                         );
                     } else {
-                        let gap = this.height() - this.#containerH;
+                        let gap = this.canvasInit.height - this.#containerH;
                         gap = gap > 0 ? (gap /= this._childs.length - 1) : 0;
                         this.options.gapRow = this.gapRow() + gap;
                     }
@@ -795,7 +795,7 @@ export class Layout extends Block {
                     if (this.#isWrap) {
                         this.#flexItems.width.forEach(
                             (item: number, index: number) => {
-                                let gap = this.width() - item;
+                                let gap = this.canvasInit.width - item;
                                 gap =
                                     gap > 0
                                         ? gap /
@@ -807,7 +807,7 @@ export class Layout extends Block {
                             }
                         );
                     } else {
-                        let gap = this.width() - this.#containerW;
+                        let gap = this.canvasInit.width - this.#containerW;
                         gap = gap > 0 ? (gap /= this._childs.length - 1) : 0;
                         this.options.gapColumn = this.gapColumn() + gap;
                     }
@@ -816,7 +816,7 @@ export class Layout extends Block {
             }
             if (this.#isGrid) {
                 let gap =
-                    this.width() -
+                    this.canvasInit.width -
                     this.#gridItems.width.reduce((a, c) => a + c, 0);
                 const nCols =
                     this.#gridItems.nCols - 1 !== 0
@@ -831,12 +831,12 @@ export class Layout extends Block {
         const _func2 = () => {
             if (this.#isOutofLayout && this.#isWrap && !this.#isGrid) {
                 if (this.#isFlexCol) {
-                    let gap = this.width() - this.#containerW;
+                    let gap = this.canvasInit.width - this.#containerW;
                     this.options.gapColumn =
                         gap > 0 ? gap / (this.#flexItems.cols.length - 1) : 0;
                     this.#flexColumn();
                 } else {
-                    let gap = this.height() - this.#containerH;
+                    let gap = this.canvasInit.height - this.#containerH;
                     this.options.gapRow =
                         gap > 0 ? gap / (this.#flexItems.rows.length - 1) : 0;
                     this.#flexRow();
@@ -844,7 +844,7 @@ export class Layout extends Block {
             }
             if (this.#isGrid) {
                 let gap =
-                    this.height() -
+                    this.canvasInit.height -
                     this.#gridItems.height.reduce((a, c) => a + c, 0);
                 const nRows =
                     this.#gridItems.nRows - 1 !== 0
@@ -865,7 +865,7 @@ export class Layout extends Block {
                         this.#flexItems.height.forEach(
                             (item: number, index: number) => {
                                 const cols = this.#flexItems.rows[index];
-                                let gap = this.height() - item;
+                                let gap = this.canvasInit.height - item;
                                 gap = gap > 0 ? gap / cols : 0;
                                 if (this.gapRow() > gap) gap = this.gapRow();
                                 this.#rowsGap.push(gap);
@@ -873,7 +873,7 @@ export class Layout extends Block {
                             }
                         );
                     } else {
-                        let gap = this.height() - this.#containerH;
+                        let gap = this.canvasInit.height - this.#containerH;
                         gap = gap > 0 ? gap / this._childs.length : 0;
                         this.options.gapRow = gap;
                         this.#startY = gap / 2;
@@ -884,7 +884,7 @@ export class Layout extends Block {
                         this.#flexItems.width.forEach(
                             (item: number, index: number) => {
                                 const cols = this.#flexItems.cols[index];
-                                let gap = this.width() - item;
+                                let gap = this.canvasInit.width - item;
                                 gap = gap > 0 ? gap / cols : 0;
                                 if (this.gapColumn() > gap)
                                     gap = this.gapColumn();
@@ -893,7 +893,7 @@ export class Layout extends Block {
                             }
                         );
                     } else {
-                        let gap = this.width() - this.#containerW;
+                        let gap = this.canvasInit.width - this.#containerW;
                         gap = gap > 0 ? gap / this._childs.length : 0;
                         this.options.gapColumn = gap;
                         this.#startX = gap / 2;
@@ -903,7 +903,7 @@ export class Layout extends Block {
             }
             if (this.#isGrid) {
                 let gap =
-                    this.width() -
+                    this.canvasInit.width -
                     this.#gridItems.width.reduce((a, c) => a + c, 0);
                 gap = gap > 0 ? gap / this.#gridItems.nCols : 0;
                 this.options.gapColumn = gap;
@@ -914,7 +914,7 @@ export class Layout extends Block {
         const _func2 = () => {
             if (this.#isGrid) {
                 let gap =
-                    this.height() -
+                    this.canvasInit.height -
                     this.#gridItems.height.reduce((a, c) => a + c, 0);
                 gap = gap > 0 ? gap / this.#gridItems.nRows : 0;
                 this.options.gapRow = gap;
@@ -923,13 +923,13 @@ export class Layout extends Block {
             } else {
                 if (this.#isWrap) {
                     if (this.#isFlexCol) {
-                        let gap = this.width() - this.#containerW;
+                        let gap = this.canvasInit.width - this.#containerW;
                         gap = gap > 0 ? gap / this.#flexItems.cols.length : 0;
                         this.options.gapColumn = gap;
                         this.#startX = gap / 2;
                         this.#flexColumn();
                     } else {
-                        let gap = this.height() - this.#containerH;
+                        let gap = this.canvasInit.height - this.#containerH;
                         gap = gap > 0 ? gap / this.#flexItems.rows.length : 0;
                         this.options.gapRow = gap;
                         this.#startY = gap / 2;
@@ -949,7 +949,7 @@ export class Layout extends Block {
                         this.#flexItems.height.forEach(
                             (item: number, index: number) => {
                                 const rows = this.#flexItems.rows[index];
-                                let gap = this.height() - item;
+                                let gap = this.canvasInit.height - item;
                                 gap = gap > 0 ? gap / (rows + 1) : 0;
                                 if (this.gapRow() > gap) gap = this.gapRow();
                                 this.#rowsGap.push(gap);
@@ -957,7 +957,7 @@ export class Layout extends Block {
                             }
                         );
                     } else {
-                        let gap = this.height() - this.#containerH;
+                        let gap = this.canvasInit.height - this.#containerH;
                         gap = gap > 0 ? gap / this._childs.length + 1 : 0;
                         this.options.gapRow = this.gapRow() + gap;
                         this.#startY = gap;
@@ -968,7 +968,7 @@ export class Layout extends Block {
                         this.#flexItems.width.forEach(
                             (item: number, index: number) => {
                                 const cols = this.#flexItems.cols[index];
-                                let gap = this.width() - item;
+                                let gap = this.canvasInit.width - item;
                                 gap = gap > 0 ? gap / (cols + 1) : 0;
                                 if (this.gapColumn() > gap)
                                     gap = this.gapColumn();
@@ -977,7 +977,7 @@ export class Layout extends Block {
                             }
                         );
                     } else {
-                        let gap = this.width() - this.#containerW;
+                        let gap = this.canvasInit.width - this.#containerW;
                         gap = gap > 0 ? gap / (this._childs.length + 1) : 0;
                         this.options.gapColumn = this.gapColumn() + gap;
                         this.#startX = gap;
@@ -987,7 +987,7 @@ export class Layout extends Block {
             }
             if (this.#isGrid) {
                 let gap =
-                    this.width() -
+                    this.canvasInit.width -
                     this.#gridItems.width.reduce((a, c) => a + c, 0);
                 gap = gap > 0 ? gap / (this.#gridItems.nCols + 1) : 0;
                 this.options.gapColumn = gap;
@@ -998,7 +998,7 @@ export class Layout extends Block {
         const _func2 = () => {
             if (this.#isGrid) {
                 let gap =
-                    this.height() -
+                    this.canvasInit.height -
                     this.#gridItems.height.reduce((a, c) => a + c, 0);
                 gap = gap > 0 ? gap / (this.#gridItems.nRows + 1) : 0;
                 this.options.gapRow = gap;
@@ -1007,7 +1007,7 @@ export class Layout extends Block {
             } else {
                 if (this.#isWrap) {
                     if (this.#isFlexCol) {
-                        let gap = this.width() - this.#containerW;
+                        let gap = this.canvasInit.width - this.#containerW;
                         gap =
                             gap > 0
                                 ? gap / (this.#flexItems.cols.length + 1)
@@ -1016,7 +1016,7 @@ export class Layout extends Block {
                         this.#startX = gap;
                         this.#flexColumn();
                     } else {
-                        let gap = this.height() - this.#containerH;
+                        let gap = this.canvasInit.height - this.#containerH;
                         gap =
                             gap > 0
                                 ? gap / (this.#flexItems.rows.length + 1)
@@ -1068,17 +1068,17 @@ export class Layout extends Block {
                 ? this.#rowsGap[rowIdx]
                 : this.gapRow();
         if (!this.#isWrap) {
-            sumWidths = blocks.reduce((prev, curr) => prev + curr.width(), 0);
-            let diffShrink = this.width() - sumWidths;
+            sumWidths = blocks.reduce((prev, curr) => prev + curr.canvasInit.width, 0);
+            let diffShrink = this.canvasInit.width - sumWidths;
             dumpSharedColumnGap = sharedColumnGap =
                 Math.abs(diffShrink) / blocks.length;
-            if (sumWidths > this.width()) {
+            if (sumWidths > this.canvasInit.width) {
                 let allShrinkSum = 0;
                 let allDiff = 0;
                 blocks.forEach((item) => {
                     if (item.flexShrink() !== 0) {
                         if (
-                            item.width() - sharedColumnGap * item.flexShrink() >
+                            item.canvasInit.width - sharedColumnGap * item.flexShrink() >
                             0
                         ) {
                             allShrinkSum += item.flexShrink();
@@ -1098,14 +1098,14 @@ export class Layout extends Block {
         let flexAdjust = [];
         while (blocks.length > idx) {
             let block = blocks[idx];
-            if (this.#isWrap) wrapWidth += block.width();
-            if (wrapWidth > this.width() || blocks.length - 1 === idx) {
+            if (this.#isWrap) wrapWidth += block.canvasInit.width;
+            if (wrapWidth > this.canvasInit.width || blocks.length - 1 === idx) {
                 let ccCol = col;
                 if (blocks.length - 1 === idx) ccCol += 1;
                 else ccCol -= 1;
-                let diff = this.width() - (blocksW + gapCol * ccCol);
+                let diff = this.canvasInit.width - (blocksW + gapCol * ccCol);
                 if (blocks.length - 1 === idx) {
-                    diff -= block.width();
+                    diff -= block.canvasInit.width;
                     if (block.flexGrow())
                         flexAdjust.push({
                             idx: idx,
@@ -1118,8 +1118,8 @@ export class Layout extends Block {
                         0
                     );
                     flexAdjust.forEach((item) => {
-                        blocks[item.idx].options.width =
-                            blocks[item.idx].width() +
+                        blocks[item.idx].canvasInit.width =
+                            blocks[item.idx].canvasInit.width +
                             (diff / sumOf) * (item.grow as number);
                     });
                     startX =
@@ -1136,7 +1136,7 @@ export class Layout extends Block {
             }
 
             if (this.#isWrap) {
-                if (wrapWidth > this.width()) {
+                if (wrapWidth > this.canvasInit.width) {
                     rowIdx += 1;
                     startY += blocksH + gapRow;
 
@@ -1149,7 +1149,7 @@ export class Layout extends Block {
                             ? this.#columnsGap[rowIdx]
                             : this.gapColumn();
 
-                    wrapWidth = block.width();
+                    wrapWidth = block.canvasInit.width;
 
                     if (this.#isNew) {
                         this.#flexItems.width.push(blocksW);
@@ -1165,7 +1165,7 @@ export class Layout extends Block {
                 }
             }
 
-            let endX = block.width();
+            let endX = block.canvasInit.width;
             let gap = sharedColumnGap;
             if (!this.#isWrap) {
                 if (block.flexShrink())
@@ -1180,29 +1180,29 @@ export class Layout extends Block {
                 }
             }
             block.canvasInit.x = startX;
-            block.options.x = startX;
-            block.options.width = endX;
-
+            block.canvasInit.width = endX;
             block.canvasInit.y = startY;
-            block.options.y = startY;
-            block.options.height = block.height();
+            // block.options.x = startX;
+
+            // block.options.y = startY;
+            // block.options.height = block.canvasInit.height;
 
             if (block.flexBasis() !== "auto")
-                block.options.width = block.flexBasis() as number;
+                block.canvasInit.width = block.flexBasis() as number;
 
             if (this.#startYPos[idx] !== undefined) {
                 block.canvasInit.y = startY + this.#startYPos[idx];
-                block.options.y = startY + this.#startYPos[idx];
+                block.canvasInit.y = startY + this.#startYPos[idx];
             }
 
             block.__adjustCordinates();
 
-            blocksW += block.width();
-            blocksH = blocksH < block.height() ? block.height() : blocksH;
+            blocksW += block.canvasInit.width;
+            blocksH = blocksH < block.canvasInit.height ? block.canvasInit.height : blocksH;
 
             if (block.flexGrow())
                 flexAdjust.push({ idx: idx, grow: block.flexGrow() });
-            startX += gapCol + block.width();
+            startX += gapCol + block.canvasInit.width;
             idx += 1;
             col += 1;
             wrapWidth += gapCol;
@@ -1240,8 +1240,8 @@ export class Layout extends Block {
 
             while (blocks.length > idx) {
                 const block = blocks[idx];
-                width += block.width();
-                if (width > this.width()) {
+                width += block.canvasInit.width;
+                if (width > this.canvasInit.width) {
                     dublicate.reverse();
                     childs.push(...dublicate);
                     dublicate = [];
@@ -1296,10 +1296,10 @@ export class Layout extends Block {
                 : this.gapRow();
 
         if (!this.#isWrap) {
-            sumHeights = blocks.reduce((prev, curr) => prev + curr.height(), 0);
-            let diffShrink = this.width() - sumHeights;
+            sumHeights = blocks.reduce((prev, curr) => prev + curr.canvasInit.height, 0);
+            let diffShrink = this.canvasInit.width - sumHeights;
             sharedRowGap = Math.abs(diffShrink) / blocks.length;
-            if (sumHeights > this.height()) {
+            if (sumHeights > this.canvasInit.height) {
                 let allShrinkSum = 0;
                 let allDiff = 0;
                 dumpSharedRowGap = sharedRowGap =
@@ -1307,7 +1307,7 @@ export class Layout extends Block {
                 blocks.forEach((item) => {
                     if (item.flexShrink() !== 0) {
                         if (
-                            item.height() - sharedRowGap * item.flexShrink() >
+                            item.canvasInit.height - sharedRowGap * item.flexShrink() >
                             0
                         ) {
                             allShrinkSum += item.flexShrink();
@@ -1328,15 +1328,15 @@ export class Layout extends Block {
         while (blocks.length > idx) {
             const block = blocks[idx];
 
-            if (this.#isWrap) wrapHeight += block.height();
+            if (this.#isWrap) wrapHeight += block.canvasInit.height;
 
-            if (wrapHeight > this.height() || blocks.length - 1 === idx) {
+            if (wrapHeight > this.canvasInit.height || blocks.length - 1 === idx) {
                 let rrRow = row;
                 if (blocks.length - 1 === idx) rrRow += 1;
                 else rrRow -= 1;
-                let diff = this.height() - (blocksH + gapRow * rrRow);
+                let diff = this.canvasInit.height - (blocksH + gapRow * rrRow);
                 if (blocks.length - 1 === idx) {
-                    diff -= block.height();
+                    diff -= block.canvasInit.height;
                     if (block.flexGrow())
                         flexAdjust.push({
                             idx: idx,
@@ -1349,8 +1349,8 @@ export class Layout extends Block {
                         0
                     );
                     flexAdjust.forEach((item) => {
-                        blocks[item.idx].options.height =
-                            blocks[item.idx].height() +
+                        blocks[item.idx].canvasInit.height =
+                            blocks[item.idx].canvasInit.height +
                             (diff / sumOf) * (item.grow as number);
                     });
                     startY =
@@ -1367,7 +1367,7 @@ export class Layout extends Block {
             }
 
             if (this.#isWrap) {
-                if (wrapHeight > this.height()) {
+                if (wrapHeight > this.canvasInit.height) {
                     colIdx += 1;
                     startX += blocksW + gapCol;
 
@@ -1381,7 +1381,7 @@ export class Layout extends Block {
                             ? this.#rowsGap[colIdx]
                             : this.gapRow();
 
-                    wrapHeight = block.height();
+                    wrapHeight = block.canvasInit.height;
 
                     if (this.#isNew) {
                         this.#flexItems.width.push(blocksW);
@@ -1396,7 +1396,7 @@ export class Layout extends Block {
                 }
             }
 
-            let endY = block.height();
+            let endY = block.canvasInit.height;
             let gap = sharedRowGap;
             if (sharedRowGap) {
                 if (block.flexShrink())
@@ -1410,30 +1410,29 @@ export class Layout extends Block {
                 }
             }
             block.canvasInit.y = startY;
-            block.options.y = startY;
-            block.options.height = endY;
-
             block.canvasInit.x = startX;
-            block.options.x = startX;
-            // block.options.width = block.width();
+            block.canvasInit.height = endY;
+            // block.options.y = startY;
+            // block.options.x = startX;
+            // block.options.width = block.canvasInit.width;
 
             if (block.flexBasis() !== "auto")
-                block.options.height = block.flexBasis() as number;
+                block.canvasInit.height = block.flexBasis() as number;
 
             if (this.#startXPos[idx] !== undefined)
                 block.canvasInit.x = startX + this.#startXPos[idx];
 
-            block.options.x = startX + this.#startXPos[idx];
+            block.canvasInit.x = startX + this.#startXPos[idx];
 
             block.__adjustCordinates();
 
             if (block.flexGrow())
                 flexAdjust.push({ idx: idx, grow: block.flexGrow() });
 
-            blocksW = blocksW <= block.width() ? block.width() : blocksW;
-            blocksH += block.height();
+            blocksW = blocksW <= block.canvasInit.width ? block.canvasInit.width : blocksW;
+            blocksH += block.canvasInit.height;
 
-            startY += gapRow + block.height();
+            startY += gapRow + block.canvasInit.height;
             idx += 1;
             row += 1;
             wrapHeight += gapRow;
@@ -1469,8 +1468,8 @@ export class Layout extends Block {
 
             while (blocks.length > idx) {
                 const block = blocks[idx];
-                height += block.height() + this.gapRow();
-                if (height > this.height()) {
+                height += block.canvasInit.height + this.gapRow();
+                if (height > this.canvasInit.height) {
                     dublicate.reverse();
                     childs.push(...dublicate);
                     dublicate = [];
@@ -1505,8 +1504,8 @@ export class Layout extends Block {
         const autoWidths = cols.filter((item: any) => item !== "auto");
         let rWidth = autoWidths.reduce((p: number, c: number) => p + c, 0);
         const diffCol = Math.abs(cols.length - autoWidths.length);
-        if (diffCol) rWidth = (this.width() - rWidth) / diffCol;
-        else rWidth = this.width() / cols.length;
+        if (diffCol) rWidth = (this.canvasInit.width - rWidth) / diffCol;
+        else rWidth = this.canvasInit.width / cols.length;
 
         const autoHeights = this.gridTemplateRows().filter(
             (item: any) => item !== "auto"
@@ -1514,8 +1513,8 @@ export class Layout extends Block {
         const nRows = Math.ceil(blocks.length / cols.length);
         let rHeight = autoHeights.reduce((p: number, c: number) => p + c, 0);
         const diffRow = Math.abs(nRows - autoHeights.length);
-        if (diffRow) rHeight = (this.height() - rHeight) / diffRow;
-        else rHeight = this.height() / nRows;
+        if (diffRow) rHeight = (this.canvasInit.height - rHeight) / diffRow;
+        else rHeight = this.canvasInit.height / nRows;
 
         const maxColWidths: number[] = [];
         const maxRowHeights: number[] = [];
@@ -1535,26 +1534,26 @@ export class Layout extends Block {
                 if (!block) continue;
 
                 if (maxColWidths[colIdx]) {
-                    if (maxColWidths[colIdx] < block.width())
-                        maxColWidths[colIdx] = block.width();
+                    if (maxColWidths[colIdx] < block.canvasInit.width)
+                        maxColWidths[colIdx] = block.canvasInit.width;
                     else if (
                         !this.justifyContent() &&
                         rWidth > maxColWidths[colIdx]
                     )
                         maxColWidths[colIdx] = rWidth;
-                } else maxColWidths.push(block.width());
+                } else maxColWidths.push(block.canvasInit.width);
 
-                if (!maxRowHeights[rowIdx]) maxRowHeights.push(block.height());
+                if (!maxRowHeights[rowIdx]) maxRowHeights.push(block.canvasInit.height);
 
-                if (maxRowHeights[rowIdx] < block.height())
-                    maxRowHeights[rowIdx] = block.height();
+                if (maxRowHeights[rowIdx] < block.canvasInit.height)
+                    maxRowHeights[rowIdx] = block.canvasInit.height;
                 else if (
                     !this.alignContent() &&
                     rHeight > maxRowHeights[rowIdx]
                 )
                     maxRowHeights[rowIdx] = rHeight;
 
-                let endX = block.width();
+                let endX = block.canvasInit.width;
 
                 if (cols[colIdx] === "auto" || !cols[colIdx]) {
                     if (endX) colStart = maxColWidths[colIdx];
@@ -1564,7 +1563,7 @@ export class Layout extends Block {
                     if (!endX) endX = colStart;
                 }
 
-                let endY = block.height();
+                let endY = block.canvasInit.height;
                 if (
                     this.gridTemplateRows()[rowIdx] === "auto" ||
                     !this.gridTemplateRows()[rowIdx]
@@ -1578,21 +1577,21 @@ export class Layout extends Block {
 
                 // if(block.options.gridColumnStart && block.options.gridColumnStart !== colIdx) continue
 
-                block.options.width = endX;
-                block.options.height = endY;
+                block.canvasInit.width = endX;
+                block.canvasInit.height = endY;
                 block.canvasInit.x = startX;
-                block.options.x = startX;
                 block.canvasInit.y = startY;
-                block.options.y = startY;
+                // block.options.x = startX;
+                // block.options.y = startY;
 
                 if (this.#startYPos[idx] !== undefined) {
                     block.canvasInit.y += this.#startYPos[idx];
-                    block.options.y = block.y() + this.#startYPos[idx];
+                    // block.canvasInit.y = block.y() + this.#startYPos[idx];
                 }
 
                 if (this.#startXPos[idx]) {
                     block.canvasInit.x += this.#startXPos[idx];
-                    block.options.x = block.x() + this.#startXPos[idx];
+                    // block.canvasInit.x = block.x() + this.#startXPos[idx];
                 }
 
                 block.__adjustCordinates();
