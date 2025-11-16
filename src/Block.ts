@@ -8,6 +8,10 @@ import {
     IStyle,
     AlignSelf,
     JustifySelf,
+    Flex,
+    FlexGrow,
+    FlexShrink,
+    FlexBasis,
 } from "./types";
 
 interface CanvasInit {
@@ -57,31 +61,33 @@ export class Block extends Node {
         this._childs?.forEach((item: any) => {
             if (item) {
                 item.canvasInit.x +=
-                    this.x() + this.canvasInit.x - before.x + this.paddingLeft();
+                    this.x() +
+                    this.canvasInit.x -
+                    before.x +
+                    this.paddingLeft();
                 item.canvasInit.y +=
-                this.y() + 
-                    this.canvasInit.y - before.y + this.paddingTop();
+                    this.y() + this.canvasInit.y - before.y + this.paddingTop();
                 item.__adjustCordinates(before);
             }
         });
     }
 
     x(opt?: number): number {
-        return this.__cacheOption(opt, this.options?.x, 0);
+        return this.__cacheOption(opt, "x", 0);
     }
 
     y(opt?: number): number {
-        return this.__cacheOption(opt, this.options?.y, 0);
+        return this.__cacheOption(opt, "y", 0);
     }
 
     width(opt?: number): number {
-        const width = this.__cacheOption(opt, this.options?.width, 0);
+        const width = this.__cacheOption(opt, "width", 0);
         this.canvasInit.width = width;
         return width;
     }
 
     height(opt?: number): number {
-        const height = this.__cacheOption(opt, this.options?.height, 0);
+        const height = this.__cacheOption(opt, "height", 0);
         this.canvasInit.height = height;
         return height;
     }
@@ -116,60 +122,71 @@ export class Block extends Node {
         return this.options.padding;
     }
     paddingTop(opt?: number) {
-        return this.__cacheOption(opt, this.options.paddingTop, 0);
+        return this.__cacheOption(opt, "paddingTop", 0);
     }
     paddingBottom(opt?: number) {
-        return this.__cacheOption(opt, this.options.paddingBottom, 0);
+        return this.__cacheOption(opt, "paddingBottom", 0);
     }
     paddingLeft(opt?: number) {
-        return this.__cacheOption(opt, this.options.paddingLeft, 0);
+        return this.__cacheOption(opt, "paddingLeft", 0);
     }
     paddingRight(opt?: number) {
-        return this.__cacheOption(opt, this.options.paddingRight, 0);
+        return this.__cacheOption(opt, "paddingRight", 0);
+    }
+    flex(opt?: Flex) {
+        const flex = this.__cacheOption(opt, "flex", [
+            this.flexGrow(),
+            this.flexShrink(),
+            this.flexBasis(),
+        ]);
+        this.flexGrow(flex[0] as FlexGrow);
+        this.flexShrink(flex[1] as FlexShrink);
+        this.flexBasis(flex[2]) as FlexBasis;
+        return flex;
     }
 
-    flexBasis(opt?: number | string): number | string {
-        return this.__cacheOption(opt, this.options.flexBasis, "auto");
+    flexBasis(opt?: FlexBasis): FlexBasis {
+        return this.__cacheOption(opt, "flexBasis", "auto");
     }
 
-    flexShrink(opt?: number): number {
-        return this.__cacheOption(opt, this.options.flexShrink, 0);
+    flexShrink(opt?: FlexShrink): FlexShrink {
+        return this.__cacheOption(opt, "flexShrink", 0);
     }
 
-    flexGrow(opt?: number) {
-        return this.__cacheOption(opt, this.options.flexGrow, 0);
+    flexGrow(opt?: FlexGrow) {
+        return this.__cacheOption(opt, "flexGrow", 0);
     }
 
     order(opt?: number): undefined | number {
-        return this.__cacheOption(opt, this.options.order, undefined);
+        return this.__cacheOption(opt, "order", undefined);
     }
 
     alignSelf(opt?: AlignSelf) {
-        return this.__cacheOption(opt, this.options.alignSelf, "auto");
+        return this.__cacheOption(opt, "alignSelf", "auto");
     }
     justifySelf(opt?: JustifySelf) {
-        return this.__cacheOption(opt, this.options.justifySelf, "auto");
+        return this.__cacheOption(opt, "justifySelf", "auto");
     }
     gridRow(opt?: number[]) {
-        return this.__cacheOption(opt, this.options.gridRow, []);
+        return this.__cacheOption(opt, "gridRow", []);
     }
     gridRowStart(opt?: number | string) {
-        return this.__cacheOption(opt, this.options.gridRowStart, 0);
+        return this.__cacheOption(opt, "gridRowStart", 0);
     }
     gridRowEnd(opt?: number | string) {
-        return this.__cacheOption(opt, this.options.gridRowEnd, 0);
+        return this.__cacheOption(opt, "gridRowEnd", 0);
     }
     gridColumn(opt?: number[]) {
-        return this.__cacheOption(opt, this.options.gridColumn, []);
+        return this.__cacheOption(opt, "gridColumn", []);
     }
     gridColumnStart(opt?: number | string) {
-        return this.__cacheOption(opt, this.options.gridColumnStart, 0);
+        return this.__cacheOption(opt, "gridColumnStart", 0);
     }
     gridColumnEnd(opt?: number | string) {
-        return this.__cacheOption(opt, this.options.gridColumnEnd, 0);
+        return this.__cacheOption(opt, "gridColumnEnd", 0);
     }
     gridArea(opt?: number[] | string) {
-        const gridArea = this.__cacheOption(opt, this.options.gridArea, []);
+        const gridArea = this.__cacheOption(opt, "gridArea", []);
         this.gridRowStart(gridArea[0] || "auto");
         this.gridColumnStart(gridArea[1] || "auto");
         this.gridRowEnd(gridArea[2] || "auto");
@@ -187,7 +204,7 @@ export class Block extends Node {
     }
 
     clip(opt?: boolean) {
-        const clip = this.__cacheOption(opt, this.options.clip, false);
+        const clip = this.__cacheOption(opt, "clip", false);
         if (clip) {
             this.clip_path();
 
@@ -199,11 +216,11 @@ export class Block extends Node {
     }
 
     fillRule(opt?: string) {
-        return this.__cacheOption(opt, this.options.fillRule, "nonzero");
+        return this.__cacheOption(opt, "fillRule", "nonzero");
     }
 
     zIndex(opt?: number): number | undefined {
-        return this.__cacheOption(opt, this.options.zIndex, undefined);
+        return this.__cacheOption(opt, "zIndex", undefined);
     }
 
     set(options?: IBlock<BlockOptions>): void {
@@ -229,19 +246,20 @@ export class Block extends Node {
         }
     }
 
-    __cacheOption<T>(
-        opt: T | undefined,
-        option: T | undefined,
-        defaultOpt: T
-    ): T {
-        option = opt || option || defaultOpt;
-        return option;
+    __cacheOption<T>(opt: T | undefined, option: string, defaultOpt: T): T {
+        if (this.options) {
+            if (opt) this.options[option] = opt;
+            else if (this.options[option]) return this.options[option];
+            else this.options[option] = defaultOpt;
+            return this.options[option];
+        }
+        return undefined as T;
     }
 
     reset() {}
 
     rotate(opt?: number): number {
-        const rotate = this.__cacheOption(opt, this.options.rotate, 0);
+        const rotate = this.__cacheOption(opt, "rotate", 0);
         this.context.rotate(rotate);
         return rotate;
     }
@@ -258,12 +276,12 @@ export class Block extends Node {
     checkInBound(_event: MouseEvent): boolean {
         const { x, y } = this.canvas.getCursorPosition(_event);
 
-        // include broder or stroke for dragging within them
+        const borderWidth = this.options.borderWidth || 0;
         if (
-            x >= this.canvasInit.x &&
-            x <= this.canvasInit.x + this.width() &&
-            y >= this.canvasInit.y &&
-            y <= this.canvasInit.y + this.height()
+            x >= this.canvasInit.x - borderWidth &&
+            x <= this.canvasInit.x + this.width() + borderWidth &&
+            y >= this.canvasInit.y - borderWidth &&
+            y <= this.canvasInit.y + this.height() + borderWidth
         ) {
             return true;
         }
@@ -397,18 +415,14 @@ export class Block extends Node {
         //         this.set({ color: old_color });
         //     }
         // });
-        this.options.selectable = this.__cacheOption(
-            opt,
-            this.options.selectable,
-            true
-        );
+        this.options.selectable = this.__cacheOption(opt, "selectable", true);
         return this.options.selectable;
     }
     dragX(opt?: boolean) {
-        return this.__cacheOption(opt, this.options.dragX, true);
+        return this.__cacheOption(opt, "dragX", true);
     }
     dragY(opt?: boolean): boolean {
-        return this.__cacheOption(opt, this.options.dragY, true);
+        return this.__cacheOption(opt, "dragY", true);
     }
     draggable(opt?: boolean): boolean {
         const duplicat = this.events.filter(

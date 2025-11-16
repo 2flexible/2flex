@@ -89,18 +89,18 @@ export class Shape extends Block {
     }
 
     fill(opt?: boolean, path?: Path) {
-        const fill = this.__cacheOption(opt, this.options.fill, false);
+        const fill = this.__cacheOption(opt, "fill", false);
         if (fill) this.context.fill(path);
         return fill;
     }
     fillStyle(opt?: string) {
-        const fill = this.__cacheOption(opt, this.options.fill, false);
-        this.context.fillStyle = fill;
-        return fill;
+        const fillStyle = this.__cacheOption(opt, "fillStyle", "black");
+        this.context.fillStyle = fillStyle;
+        return fillStyle;
     }
 
     stroke(opt?: boolean, path?: Path2D) {
-        const stroke = this.__cacheOption(opt, this.options.stroke, false);
+        const stroke = this.__cacheOption(opt, "stroke", false);
         if (stroke) {
             if (path) this.context.stroke(path);
             else this.context.stroke();
@@ -109,28 +109,24 @@ export class Shape extends Block {
     }
 
     strokeStyle(opt?: string) {
-        const strokeStyle = this.__cacheOption(
-            opt,
-            this.options.strokeStyle,
-            "black"
-        );
+        const strokeStyle = this.__cacheOption(opt, "strokeStyle", "black");
         this.context.strokeStyle = strokeStyle;
         return strokeStyle;
     }
     lineCap(opt?: LineCapOpt) {
-        const lineCap = this.__cacheOption(opt, this.options.lineCap, "butt");
+        const lineCap = this.__cacheOption(opt, "lineCap", "butt");
         this.context.lineCap = lineCap;
         return lineCap;
     }
 
     lineWidth(opt?: number) {
-        const lineWidth = this.__cacheOption(opt, this.options.lineWidth, 0);
+        const lineWidth = this.__cacheOption(opt, "lineWidth", 0);
         this.context.lineWidth = lineWidth;
         return lineWidth;
     }
 
     lineDash(opt?: number[]): void {
-        const lineDash = this.__cacheOption(opt, this.options.lineDash, []);
+        const lineDash = this.__cacheOption(opt, "lineDash", []);
         this.context.setLineDash(lineDash);
     }
     closePath(opt?: boolean): void {
@@ -170,15 +166,11 @@ export class Shape extends Block {
         this.context.moveTo(x, y);
     }
     pointInPath({ path, x, y, fillRule }: PointInPath): void {
-        x = x || this.options.x || 0;
-        y = y || this.options.y || 0;
         fillRule = fillRule || "nonzero";
         if (path) this.context.isPointInPath(path, x, y, fillRule);
         else this.context.isPointInPath(x, y, fillRule);
     }
     pointInStroke({ path, x, y }: PointInStroke): boolean {
-        x = x || this.options.x || 0;
-        y = y || this.options.y || 0;
         if (path) return this.context.isPointInStroke(path, x, y);
         else return this.context.isPointInStroke(x, y);
     }

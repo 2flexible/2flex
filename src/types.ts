@@ -26,9 +26,10 @@ export type JustifySelf =
     | "left"
     | "right";
 
-export type FlexGrow = number | "all";
+export type FlexGrow = number;
 export type FlexShrink = number;
 export type FlexBasis = number | string;
+export type Flex = [FlexGrow, FlexShrink, FlexBasis];
 
 export type PlaceSelf = AlignSelf & JustifySelf;
 

@@ -139,13 +139,17 @@ const linesOfPoint = new Line({
 });
 
 const block1 = new Rectangle({
-    width: 70,
-    height: 80,
+    width: 100,
+    height: 100,
     backgroundColor: "blue",
     fill: true,
+    x: 70,
+    y: 50,
     // flexBasis: 100,
     flexShrink: 1,
     // flexGrow: 1,
+    border: "20 dotted red",
+    // borderRight: "6 solid red",
     gridColumnStart: 2,
     draggable: true,
     selectable: true,
@@ -189,7 +193,9 @@ const block6 = new Rectangle({
     height: 80,
     backgroundColor: "orange",
     fill: true,
-    stroke: true,
+    // stroke: true,
+    // borderWidth: 3,
+    // borderColor: "red"
     // flexGrow: 1,
 });
 const block7 = new Rectangle({
@@ -300,7 +306,7 @@ mainBlock.add(layout);
 // text_a.set({ fontSize: 40 });
 // });
 canvas.add(mainBlock);
-console.log(block1.x())
+// console.log(block1.x())
 // block.add(text_a, text_b);
 // console.log(text_b.x(10))
 // text_b.set()

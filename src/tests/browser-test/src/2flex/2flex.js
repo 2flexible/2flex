@@ -207,27 +207,29 @@ class Block extends Node {
         this._childs?.forEach((item) => {
             if (item) {
                 item.canvasInit.x +=
-                    this.x() + this.canvasInit.x - before.x + this.paddingLeft();
+                    this.x() +
+                        this.canvasInit.x -
+                        before.x +
+                        this.paddingLeft();
                 item.canvasInit.y +=
-                    this.y() +
-                        this.canvasInit.y - before.y + this.paddingTop();
+                    this.y() + this.canvasInit.y - before.y + this.paddingTop();
                 item.__adjustCordinates(before);
             }
         });
     }
     x(opt) {
-        return this.__cacheOption(opt, this.options?.x, 0);
+        return this.__cacheOption(opt, "x", 0);
     }
     y(opt) {
-        return this.__cacheOption(opt, this.options?.y, 0);
+        return this.__cacheOption(opt, "y", 0);
     }
     width(opt) {
-        const width = this.__cacheOption(opt, this.options?.width, 0);
+        const width = this.__cacheOption(opt, "width", 0);
         this.canvasInit.width = width;
         return width;
     }
     height(opt) {
-        const height = this.__cacheOption(opt, this.options?.height, 0);
+        const height = this.__cacheOption(opt, "height", 0);
         this.canvasInit.height = height;
         return height;
     }
@@ -260,55 +262,66 @@ class Block extends Node {
         return this.options.padding;
     }
     paddingTop(opt) {
-        return this.__cacheOption(opt, this.options.paddingTop, 0);
+        return this.__cacheOption(opt, "paddingTop", 0);
     }
     paddingBottom(opt) {
-        return this.__cacheOption(opt, this.options.paddingBottom, 0);
+        return this.__cacheOption(opt, "paddingBottom", 0);
     }
     paddingLeft(opt) {
-        return this.__cacheOption(opt, this.options.paddingLeft, 0);
+        return this.__cacheOption(opt, "paddingLeft", 0);
     }
     paddingRight(opt) {
-        return this.__cacheOption(opt, this.options.paddingRight, 0);
+        return this.__cacheOption(opt, "paddingRight", 0);
+    }
+    flex(opt) {
+        const flex = this.__cacheOption(opt, "flex", [
+            this.flexGrow(),
+            this.flexShrink(),
+            this.flexBasis(),
+        ]);
+        this.flexGrow(flex[0]);
+        this.flexShrink(flex[1]);
+        this.flexBasis(flex[2]);
+        return flex;
     }
     flexBasis(opt) {
-        return this.__cacheOption(opt, this.options.flexBasis, "auto");
+        return this.__cacheOption(opt, "flexBasis", "auto");
     }
     flexShrink(opt) {
-        return this.__cacheOption(opt, this.options.flexShrink, 0);
+        return this.__cacheOption(opt, "flexShrink", 0);
     }
     flexGrow(opt) {
-        return this.__cacheOption(opt, this.options.flexGrow, 0);
+        return this.__cacheOption(opt, "flexGrow", 0);
     }
     order(opt) {
-        return this.__cacheOption(opt, this.options.order, undefined);
+        return this.__cacheOption(opt, "order", undefined);
     }
     alignSelf(opt) {
-        return this.__cacheOption(opt, this.options.alignSelf, "auto");
+        return this.__cacheOption(opt, "alignSelf", "auto");
     }
     justifySelf(opt) {
-        return this.__cacheOption(opt, this.options.justifySelf, "auto");
+        return this.__cacheOption(opt, "justifySelf", "auto");
     }
     gridRow(opt) {
-        return this.__cacheOption(opt, this.options.gridRow, []);
+        return this.__cacheOption(opt, "gridRow", []);
     }
     gridRowStart(opt) {
-        return this.__cacheOption(opt, this.options.gridRowStart, 0);
+        return this.__cacheOption(opt, "gridRowStart", 0);
     }
     gridRowEnd(opt) {
-        return this.__cacheOption(opt, this.options.gridRowEnd, 0);
+        return this.__cacheOption(opt, "gridRowEnd", 0);
     }
     gridColumn(opt) {
-        return this.__cacheOption(opt, this.options.gridColumn, []);
+        return this.__cacheOption(opt, "gridColumn", []);
     }
     gridColumnStart(opt) {
-        return this.__cacheOption(opt, this.options.gridColumnStart, 0);
+        return this.__cacheOption(opt, "gridColumnStart", 0);
     }
     gridColumnEnd(opt) {
-        return this.__cacheOption(opt, this.options.gridColumnEnd, 0);
+        return this.__cacheOption(opt, "gridColumnEnd", 0);
     }
     gridArea(opt) {
-        const gridArea = this.__cacheOption(opt, this.options.gridArea, []);
+        const gridArea = this.__cacheOption(opt, "gridArea", []);
         this.gridRowStart(gridArea[0] || "auto");
         this.gridColumnStart(gridArea[1] || "auto");
         this.gridRowEnd(gridArea[2] || "auto");
@@ -321,7 +334,7 @@ class Block extends Node {
         );
     }
     clip(opt) {
-        const clip = this.__cacheOption(opt, this.options.clip, false);
+        const clip = this.__cacheOption(opt, "clip", false);
         if (clip) {
             this.clip_path();
             if (!this.fillRule())
@@ -331,10 +344,10 @@ class Block extends Node {
         return clip;
     }
     fillRule(opt) {
-        return this.__cacheOption(opt, this.options.fillRule, "nonzero");
+        return this.__cacheOption(opt, "fillRule", "nonzero");
     }
     zIndex(opt) {
-        return this.__cacheOption(opt, this.options.zIndex, undefined);
+        return this.__cacheOption(opt, "zIndex", undefined);
     }
     set(options) {
         let cached = false;
@@ -357,12 +370,20 @@ class Block extends Node {
         }
     }
     __cacheOption(opt, option, defaultOpt) {
-        option = opt || option || defaultOpt;
-        return option;
+        if (this.options) {
+            if (opt)
+                this.options[option] = opt;
+            else if (this.options[option])
+                return this.options[option];
+            else
+                this.options[option] = defaultOpt;
+            return this.options[option];
+        }
+        return undefined;
     }
     reset() { }
     rotate(opt) {
-        const rotate = this.__cacheOption(opt, this.options.rotate, 0);
+        const rotate = this.__cacheOption(opt, "rotate", 0);
         this.context.rotate(rotate);
         return rotate;
     }
@@ -377,11 +398,11 @@ class Block extends Node {
     nthChild(opt) { }
     checkInBound(_event) {
         const { x, y } = this.canvas.getCursorPosition(_event);
-        // include broder or stroke for dragging within them
-        if (x >= this.canvasInit.x &&
-            x <= this.canvasInit.x + this.width() &&
-            y >= this.canvasInit.y &&
-            y <= this.canvasInit.y + this.height()) {
+        const borderWidth = this.options.borderWidth || 0;
+        if (x >= this.canvasInit.x - borderWidth &&
+            x <= this.canvasInit.x + this.width() + borderWidth &&
+            y >= this.canvasInit.y - borderWidth &&
+            y <= this.canvasInit.y + this.height() + borderWidth) {
             return true;
         }
         return false;
@@ -502,14 +523,14 @@ class Block extends Node {
         //         this.set({ color: old_color });
         //     }
         // });
-        this.options.selectable = this.__cacheOption(opt, this.options.selectable, true);
+        this.options.selectable = this.__cacheOption(opt, "selectable", true);
         return this.options.selectable;
     }
     dragX(opt) {
-        return this.__cacheOption(opt, this.options.dragX, true);
+        return this.__cacheOption(opt, "dragX", true);
     }
     dragY(opt) {
-        return this.__cacheOption(opt, this.options.dragY, true);
+        return this.__cacheOption(opt, "dragY", true);
     }
     draggable(opt) {
         const duplicat = this.events.filter((elem) => elem.eventType === "draggable");
@@ -605,7 +626,7 @@ class Layout extends Block {
         super.set(options);
     }
     layout(opt) {
-        const layout = this.__cacheOption(this.options.flex, 0, opt);
+        const layout = this.__cacheOption(opt, "layout", "flex");
         let order = 0;
         this._childs.forEach((item) => {
             if (!item.options.order) {
@@ -643,85 +664,72 @@ class Layout extends Block {
         }
         return layout;
     }
-    flex(opt) {
-        const flex = this.__cacheOption(opt, this.options.flex, 0);
-        this.flexGrow(flex[0]);
-        this.flexShrink(flex[1]);
-        this.flexBasis(flex[2]);
-        return flex;
-    }
     flexFlow(opt) {
-        const flexFlow = this.__cacheOption(opt, this.options.flexFlow, 0);
+        const flexFlow = this.__cacheOption(opt, "flexFlow", [
+            this.flexDirection(),
+            this.flexWrap(),
+        ]);
         this.flexDirection(flexFlow[0]);
         this.flexWrap(flexFlow[1]);
         return flexFlow;
     }
-    flexGrow(opt) {
-        return this.__cacheOption(opt, this.options.flexGrow, 0);
-    }
-    flexShrink(opt) {
-        return this.__cacheOption(opt, this.options.flexShrink, 0);
-    }
-    flexBasis(opt) {
-        return this.__cacheOption(opt, this.options.flexBasis, 0);
-    }
     flexDirection(opt) {
-        return this.__cacheOption(opt, this.options.flexDirection, 0);
+        return this.__cacheOption(opt, "flexDirection", "row");
     }
     flexWrap(opt) {
-        return this.__cacheOption(opt, this.options.flexWrap, "nowrap");
+        return this.__cacheOption(opt, "flexWrap", "nowrap");
     }
     placeContent(opt) {
         this.alignContent(opt);
         this.justifyContent(opt);
-        return this.__cacheOption(opt, this.options.placeContent, 0);
+        return this.__cacheOption(opt, "placeContent", "start");
     }
     placeItems(opt) {
         this.alignItems(opt);
         this.justifyItems(opt);
-        return this.__cacheOption(opt, this.options.placeItems, 0);
+        return this.__cacheOption(opt, "placeItems", "start");
     }
     gap(opt) {
-        const gap = this.__cacheOption(opt, this.options.gapColumn, 0);
+        const gap = this.__cacheOption(opt, "gap", 0);
+        let gapRow, gapColumn;
+        gapRow = gapColumn = gap;
         if (opt instanceof Array) {
-            this.gapColumn(opt[0] || gap);
-            this.gapRow(opt[1] || gap);
+            gapRow = gap[0];
+            gapColumn = gap[0];
         }
-        else {
-            this.gapColumn(gap);
-            this.gapRow(gap);
-        }
+        this.gapColumn(gapRow);
+        this.gapRow(gapColumn);
         return gap;
     }
     gridTemplate(opt) {
-        const gridTemplate = this.__cacheOption(opt, this.options.gridTemplate, []);
+        const gridTemplate = this.__cacheOption(opt, "gridTemplate", []);
         this.gridTemplateRows(gridTemplate[0]);
         this.gridTemplateColumns(gridTemplate[1]);
         return gridTemplate;
     }
     gridAutoFlow(opt) {
-        return this.__cacheOption(opt, this.options.gridAutoFlow, "row");
+        return this.__cacheOption(opt, "gridAutoFlow", "row");
     }
     gridTemplateColumns(opt) {
-        return this.__cacheOption(opt, this.options.gridTemplateColumns, []);
+        return this.__cacheOption(opt, "gridTemplateColumns", []);
     }
     gridTemplateRows(opt) {
-        return this.__cacheOption(this.options.gridTemplateRows, [], opt);
+        return this.__cacheOption(opt, "gridTemplateRows", []);
     }
     gapColumn(opt) {
-        return this.__cacheOption(opt, this.options.gapColumn, 0);
+        return this.__cacheOption(opt, "gapColumn", 0);
     }
     gapRow(opt) {
-        return this.__cacheOption(opt, this.options.gapRow, 0);
+        return this.__cacheOption(opt, "gapRow", 0);
     }
     columnStart(opt) {
-        return this.__cacheOption(opt, this.options.columnStart, 1);
+        return this.__cacheOption(opt, "columnStart", 1);
     }
     columnEnd(opt) {
-        return this.__cacheOption(opt, this.options.columnEnd, 0);
+        return this.__cacheOption(opt, "columnEnd", 0);
     }
     justifyContent(opt) {
-        const justifyContent = this.__cacheOption(opt, this.options.justifyContent, "normal");
+        const justifyContent = this.__cacheOption(opt, "justifyContent", "normal");
         const justify = "justifyContent";
         switch (justifyContent) {
             case "space-evenly":
@@ -747,18 +755,9 @@ class Layout extends Block {
     }
     // only works for grid layout
     justifyItems(opt) {
-        const justifyItems = this.__cacheOption(opt, this.options.justifyItems, "normal");
+        const justifyItems = this.__cacheOption(opt, "justifyItems", "normal");
         const justify = "justifyItems";
         switch (justifyItems) {
-            case "space-evenly":
-                this.#spaceEvenly(justify);
-                break;
-            case "space-around":
-                this.#spaceAround(justify);
-                break;
-            case "space-between":
-                this.#spaceBetween(justify);
-                break;
             case "center":
                 this.#center(justify);
                 break;
@@ -773,7 +772,7 @@ class Layout extends Block {
     }
     // in flexbox works with wrap option
     alignContent(opt) {
-        const alignContent = this.__cacheOption(opt, this.options.alignContent, "normal");
+        const alignContent = this.__cacheOption(opt, "alignContent", "normal");
         if (!this.#isWrap && !this.#isGrid)
             return alignContent;
         const align = "alignContent";
@@ -800,7 +799,7 @@ class Layout extends Block {
         return alignContent;
     }
     alignItems(opt) {
-        const alignItems = this.__cacheOption(opt, this.options.alignItems, "normal");
+        const alignItems = this.__cacheOption(opt, "alignItems", "normal");
         const align = "alignItems";
         switch (alignItems) {
             case "center":
@@ -2158,18 +2157,18 @@ class Shape extends Block {
             return this.context.beginPath();
     }
     fill(opt, path) {
-        const fill = this.__cacheOption(opt, this.options.fill, false);
+        const fill = this.__cacheOption(opt, "fill", false);
         if (fill)
             this.context.fill(path);
         return fill;
     }
     fillStyle(opt) {
-        const fill = this.__cacheOption(opt, this.options.fill, false);
-        this.context.fillStyle = fill;
-        return fill;
+        const fillStyle = this.__cacheOption(opt, "fillStyle", "black");
+        this.context.fillStyle = fillStyle;
+        return fillStyle;
     }
     stroke(opt, path) {
-        const stroke = this.__cacheOption(opt, this.options.stroke, false);
+        const stroke = this.__cacheOption(opt, "stroke", false);
         if (stroke) {
             if (path)
                 this.context.stroke(path);
@@ -2179,22 +2178,22 @@ class Shape extends Block {
         return stroke;
     }
     strokeStyle(opt) {
-        const strokeStyle = this.__cacheOption(opt, this.options.strokeStyle, "black");
+        const strokeStyle = this.__cacheOption(opt, "strokeStyle", "black");
         this.context.strokeStyle = strokeStyle;
         return strokeStyle;
     }
     lineCap(opt) {
-        const lineCap = this.__cacheOption(opt, this.options.lineCap, "butt");
+        const lineCap = this.__cacheOption(opt, "lineCap", "butt");
         this.context.lineCap = lineCap;
         return lineCap;
     }
     lineWidth(opt) {
-        const lineWidth = this.__cacheOption(opt, this.options.lineWidth, 0);
+        const lineWidth = this.__cacheOption(opt, "lineWidth", 0);
         this.context.lineWidth = lineWidth;
         return lineWidth;
     }
     lineDash(opt) {
-        const lineDash = this.__cacheOption(opt, this.options.lineDash, []);
+        const lineDash = this.__cacheOption(opt, "lineDash", []);
         this.context.setLineDash(lineDash);
     }
     closePath(opt) {
@@ -2226,8 +2225,6 @@ class Shape extends Block {
         this.context.moveTo(x, y);
     }
     pointInPath({ path, x, y, fillRule }) {
-        x = x || this.options.x || 0;
-        y = y || this.options.y || 0;
         fillRule = fillRule || "nonzero";
         if (path)
             this.context.isPointInPath(path, x, y, fillRule);
@@ -2235,8 +2232,6 @@ class Shape extends Block {
             this.context.isPointInPath(x, y, fillRule);
     }
     pointInStroke({ path, x, y }) {
-        x = x || this.options.x || 0;
-        y = y || this.options.y || 0;
         if (path)
             return this.context.isPointInStroke(path, x, y);
         else
@@ -2303,65 +2298,57 @@ class TextBlock extends Block {
         this.context.font = opt || this.#format_font();
     }
     fontFamily(opt) {
-        this.options.fontFamily =
-            opt || this.options.fontFamily || "sans-serif";
-        return this.options.fontFamily;
+        return this.__cacheOption(opt, "fontFamily", "sans-serif");
     }
     fontSize(opt) {
-        this.options.fontSize = opt || this.options.fontSize || "10px";
-        return this.options.fontSize;
+        return this.__cacheOption(opt, "fontSize", "10px");
     }
     fontWeight(opt) {
-        this.options.fontWeight = opt || this.options.fontWeight || 100;
-        return this.options.fontWeight;
+        return this.__cacheOption(opt, "fontWeight", "normal");
     }
     fontVariant(opt) {
-        this.options.fontVariant = opt || this.options.fontVariant || "normal";
-        return this.options.fontVariant;
+        return this.__cacheOption(opt, "fontVariant", "normal");
     }
     fontStyle(opt) {
-        this.options.fontStyle = opt || this.options.fontVariant || "normal";
-        return this.options.fontStyle;
+        return this.__cacheOption(opt, "fontStyle", "normal");
     }
     fontStretch(opt) {
-        this.options.fontStretch = opt || this.options.fontStretch || "normal";
-        this.context.fontStretch = this.options.fontStretch;
-        return this.options.fontStretch;
+        const fontStretch = this.__cacheOption(opt, "fontStretch", "normal");
+        this.context.fontStretch = fontStretch;
+        return fontStretch;
     }
     fontKerning(opt) {
-        this.options.fontKerning = opt || this.options.fontKerning || "auto";
-        this.context.fontKerning = this.options.fontKerning;
-        return this.options.fontKerning;
+        const fontKerning = this.__cacheOption(opt, "fontKerning", "auto");
+        this.context.fontKerning = fontKerning;
+        return fontKerning;
     }
     fontVariantCaps(opt) {
-        this.options.fontVariantCaps =
-            opt || this.options.fontVariantCaps || "normal";
-        this.context.fontVariantCaps = this.options.fontVariantCaps;
-        return this.options.fontVariantCaps;
+        const fontVariantCaps = this.__cacheOption(opt, "fontVariantCaps", "normal");
+        this.context.fontVariantCaps = fontVariantCaps;
+        return fontVariantCaps;
     }
     wordSpacing(opt) {
-        this.options.wordSpacing =
-            `${opt}px` || this.options.wordSpacing || "0px";
-        this.context.wordSpacing = this.options.wordSpacing;
-        return this.options.wordSpacing;
+        const wordSpacing = this.__cacheOption(`${opt}px`, "wordSpacing", "0px");
+        this.context.wordSpacing = wordSpacing;
+        return wordSpacing;
     }
     color(opt) {
-        this.options.color = opt || this.options.color || "black";
-        this.context.fillStyle = this.options.color;
-        return this.options.color;
+        const color = this.__cacheOption(opt, "color", "black");
+        this.context.fillStyle = color;
+        return color;
     }
     strokeWidth(opt) {
-        this.options.strokeWidth = opt || this.options.strokeWidth || 0;
-        this.context.lineWidth = this.options.strokeWidth;
-        return this.options.strokeWidth;
+        const strokeWidth = this.__cacheOption(opt, "strokeWidth", 0);
+        this.context.lineWidth = strokeWidth;
+        return strokeWidth;
     }
     strokeColor(opt) {
-        this.options.strokeColor = opt || this.options.strokeColor || "black";
-        this.context.strokeStyle = this.options.strokeColor;
-        return this.options.strokeColor;
+        const strokeColor = this.__cacheOption(opt, "strokeColor", "black");
+        this.context.strokeStyle = strokeColor;
+        return strokeColor;
     }
     stroke(opt) {
-        this.options.stroke = opt || this.options.stroke || false;
+        const stroke = this.__cacheOption(opt, "stroke", false);
         if (opt) {
             this.setFont();
             this.strokeColor();
@@ -2370,34 +2357,32 @@ class TextBlock extends Block {
             const fontY = this.height() + this.canvasInit.y;
             this.context.strokeText(this.text, this.canvasInit.x, fontY, this.options?.maxWidth);
         }
-        return this.options.stroke;
+        return stroke;
     }
     direction(opt) {
-        this.context.direction = opt || this.options.direction || "ltr";
-        this.options.direction = this.context.direction;
-        return this.options.direction;
+        const direction = this.__cacheOption(opt, "direction", "ltr");
+        this.context.direction = direction;
+        return direction;
     }
     letterSpacing(opt) {
-        this.context.letterSpacing = opt || this.options.letterSpacing || "0px";
-        this.options.letterSpacing = this.context.letterSpacing;
-        return this.options.letterSpacing;
+        const letterSpacing = this.__cacheOption(opt, "letterSpacing", "0px");
+        this.context.letterSpacing = letterSpacing;
+        return letterSpacing;
     }
     textRendering(opt) {
-        this.context.textRendering =
-            opt || this.options.textRendering || "auto";
-        this.options.textRendering = this.context.textRendering;
-        return this.options.textRendering;
+        const textRendering = this.__cacheOption(opt, "textRendering", "auto");
+        this.context.textRendering = textRendering;
+        return textRendering;
     }
     textAlign(opt) {
-        this.context.textAlign = opt || this.options.textAlign || "start";
-        this.options.align = this.context.align;
-        return this.options.align;
+        const textAlign = this.__cacheOption(opt, "textAlign", "start");
+        this.context.align = textAlign;
+        return textAlign;
     }
     textBaseline(opt) {
-        this.context.textBaseline =
-            opt || this.options.textBaseline || "alphabetic";
-        this.options.baseline = this.context.baseline;
-        return this.options.baseline;
+        const textBaseline = this.__cacheOption(opt, "textBaseline", "alphabetic");
+        this.context.baseline = textBaseline;
+        return textBaseline;
     }
     find(queries) {
         return this.filterNodes(queries);
@@ -2451,38 +2436,40 @@ class Rectangle extends Shape {
         });
     }
     borderRadius(opt) {
-        return this.__cacheOption(opt, this.options.borderRadius, undefined);
+        return this.__cacheOption(opt, "borderRadius", undefined);
     }
     backgroundColor(opt) {
         super.fillStyle(opt);
-        return this.__cacheOption(opt, this.options.backgroundColor, "black");
+        return this.__cacheOption(opt, "backgroundColor", "black");
     }
     border(opt) {
-        const border = this.__cacheOption(opt, this.options.border, []);
+        const border = this.__cacheOption(opt, "border", "");
+        this.options.stroke = true;
         const { borderStyleArrWidth } = this.#borderParser(border);
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash(borderStyleArrWidth);
         }
-        super.stroke(true);
         return border;
     }
     borderWidth(opt) {
-        this.options.borderWidth = super.lineWidth(opt);
-        return this.options.borderWidth;
+        const borderWidth = this.__cacheOption(opt, "borderWidth", 0);
+        super.lineWidth(borderWidth);
+        return borderWidth;
     }
     borderColor(opt) {
-        this.options.borderColor = super.strokeStyle(opt);
+        const borderColor = this.__cacheOption(opt, "borderColor", "");
+        super.strokeStyle(borderColor);
         return this.options.borderColor;
     }
     borderStyle(opt) {
-        return this.__cacheOption(opt, this.options.borderStyle, "solid");
+        return this.__cacheOption(opt, "borderStyle", "dotted");
     }
     borderTop(opt) {
-        const borderTop = this.__cacheOption(opt, this.options.borderRight, 0);
-        this.options.borderTop = opt || this.options.borderTop;
+        const borderTop = this.__cacheOption(opt, "borderRight", "");
+        this.options.stroke = true;
         let { borderStyleArrWidth } = this.#borderParser(borderTop);
         borderStyleArrWidth.pop();
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash([
                 ...borderStyleArrWidth,
                 this.canvasInit.height * 2 + this.canvasInit.width,
@@ -2496,15 +2483,14 @@ class Rectangle extends Shape {
                 0,
             ]);
         }
-        this.#drawRect();
-        super.stroke(true);
         return borderTop;
     }
     borderRight(opt) {
-        const borderRight = this.__cacheOption(opt, this.options.borderRight, 0);
+        const borderRight = this.__cacheOption(opt, "borderRight", "");
+        this.options.stroke = true;
         const { borderStyleArrHeight } = this.#borderParser(borderRight);
         borderStyleArrHeight.pop();
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash([
                 0,
                 this.canvasInit.width,
@@ -2513,33 +2499,41 @@ class Rectangle extends Shape {
             ]);
         }
         else if (this.borderStyle() === "solid") {
-            this.lineDash([0, this.canvasInit.width, this.canvasInit.height, this.canvasInit.width]);
+            this.lineDash([
+                0,
+                this.canvasInit.width,
+                this.canvasInit.height,
+                this.canvasInit.width + this.canvasInit.height,
+            ]);
         }
-        this.#drawRect();
-        super.stroke(true);
         return borderRight;
     }
     borderBottom(opt) {
-        const borderBottom = this.__cacheOption(opt, this.options.borderBottom, 0);
+        const borderBottom = this.__cacheOption(opt, "borderBottom", "");
+        this.options.stroke = true;
         let { borderStyleArrWidth } = this.#borderParser(borderBottom);
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash([
                 0,
                 this.canvasInit.width + this.canvasInit.height,
                 ...borderStyleArrWidth,
             ]);
         }
-        else if (this.options.borderStyle === "solid") {
-            this.lineDash([0, this.canvasInit.width + this.canvasInit.height, this.canvasInit.width, 0]);
+        else if (this.borderStyle() === "solid") {
+            this.lineDash([
+                0,
+                this.canvasInit.width + this.canvasInit.height,
+                this.canvasInit.width,
+                0,
+            ]);
         }
-        this.#drawRect();
-        super.stroke(true);
         return borderBottom;
     }
     borderLeft(opt) {
-        const borderLeft = this.__cacheOption(opt, this.options.borderLeft, 0);
+        const borderLeft = this.__cacheOption(opt, "borderLeft", "");
+        this.options.stroke = true;
         let { borderStyleArrHeight } = this.#borderParser(borderLeft);
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash([
                 0,
                 this.canvasInit.width * 2 + this.canvasInit.height,
@@ -2554,34 +2548,32 @@ class Rectangle extends Shape {
                 this.canvasInit.width,
             ]);
         }
-        this.#drawRect();
-        super.stroke(true);
         return borderLeft;
     }
     // border size, style(required), color
     #borderParser(obj) {
         const border = obj?.split(" ") || [];
         // need to impliment css unit converter for different size, ex, px, em, rem etc.
-        const borderWitdh = Number(border[0]);
+        const borderWidth = Number(border[0]);
         const borderStyle = border[1];
         const borderColor = border[2];
         const borderStyleArrWidth = [];
         const borderStyleArrHeight = [];
         if (borderStyle === "dotted") {
             let total = 0;
-            const step = this.canvasInit.width / 21;
+            const step = this.canvasInit.width / (this.canvasInit.width / 4);
             while (total < this.canvasInit.width) {
                 borderStyleArrWidth.push(step, step);
                 total += step * 2;
             }
             total = 0;
-            const stepHeight = this.canvasInit.height / 21;
+            const stepHeight = this.canvasInit.height / (this.canvasInit.height / 4);
             while (total < this.canvasInit.height) {
-                borderStyleArrHeight.push(stepHeight, stepHeight);
+                borderStyleArrHeight.push(stepHeight, stepHeight, stepHeight, stepHeight);
                 total += stepHeight * 2;
             }
         }
-        this.borderWidth(borderWitdh);
+        this.borderWidth(borderWidth);
         this.borderStyle(borderStyle);
         this.borderColor(borderColor);
         return { borderStyleArrWidth, borderStyleArrHeight };
@@ -2650,13 +2642,13 @@ class Circle extends Shape {
         super.stroke();
     }
     radius(opt) {
-        return this.__cacheOption(opt, this.options.radius, 0);
+        return this.__cacheOption(opt, "radius", 0);
     }
     startAngle(opt) {
-        return this.__cacheOption(opt, this.options.startAngle, 0);
+        return this.__cacheOption(opt, "startAngle", 0);
     }
     endAngle(opt) {
-        return this.__cacheOption(opt, this.options.endAngle, 0);
+        return this.__cacheOption(opt, "endAngle", 0);
     }
     width(opt) {
         this.options.radius = this.options.radius || this.canvasInit.width;
@@ -2816,11 +2808,8 @@ class Line extends Shape {
         line.joinTo = this;
         line.path = this.path;
     }
-    strokeStyle(opt) {
-        super.strokeStyle(opt);
-    }
     strokeWidth(opt) {
-        const strokeWidth = this.__cacheOption(opt, this.options.strokeWidth, 1);
+        const strokeWidth = this.__cacheOption(opt, "strokeWidth", 1);
         this.options.strokeWidth = super.lineWidth(strokeWidth);
         return this.options.strokeWidth;
     }

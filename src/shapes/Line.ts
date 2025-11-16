@@ -182,15 +182,8 @@ export class Line extends Shape {
         line.joinTo = this;
         line.path = this.path;
     }
-    strokeStyle(opt?: string) {
-        super.strokeStyle(opt);
-    }
     strokeWidth(opt?: number) {
-        const strokeWidth = this.__cacheOption(
-            opt,
-            this.options.strokeWidth,
-            1
-        );
+        const strokeWidth = this.__cacheOption(opt, "strokeWidth", 1);
         this.options.strokeWidth = super.lineWidth(strokeWidth);
         return this.options.strokeWidth;
     }

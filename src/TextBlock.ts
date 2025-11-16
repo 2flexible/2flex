@@ -113,7 +113,7 @@ export class TextBlock extends Block {
     width(opt?: number): number {
         const text_measure = this.measureText();
         opt = opt || text_measure?.width;
-        return super.width(opt)
+        return super.width(opt);
     }
 
     height(opt?: number): number {
@@ -142,82 +142,74 @@ export class TextBlock extends Block {
     }
 
     fontFamily(opt?: string) {
-        this.options.fontFamily =
-            opt || this.options.fontFamily || "sans-serif";
-
-        return this.options.fontFamily;
+        return this.__cacheOption(opt, "fontFamily", "sans-serif");
     }
     fontSize(opt?: string) {
-        this.options.fontSize = opt || this.options.fontSize || "10px";
-        return this.options.fontSize;
+        return this.__cacheOption(opt, "fontSize", "10px");
     }
     fontWeight(opt?: FontWeight) {
-        this.options.fontWeight = opt || this.options.fontWeight || 100;
-
-        return this.options.fontWeight;
+        return this.__cacheOption(opt, "fontWeight", "normal");
     }
 
     fontVariant(opt?: FontVariant) {
-        this.options.fontVariant = opt || this.options.fontVariant || "normal";
-
-        return this.options.fontVariant;
+        return this.__cacheOption(opt, "fontVariant", "normal");
     }
 
     fontStyle(opt?: FontStyle) {
-        this.options.fontStyle = opt || this.options.fontVariant || "normal";
-
-        return this.options.fontStyle;
+        return this.__cacheOption(opt, "fontStyle", "normal");
     }
     fontStretch(opt?: FontStretch) {
-        this.options.fontStretch = opt || this.options.fontStretch || "normal";
-
-        this.context.fontStretch = this.options.fontStretch;
-
-        return this.options.fontStretch;
+        const fontStretch = this.__cacheOption(opt, "fontStretch", "normal");
+        this.context.fontStretch = fontStretch;
+        return fontStretch;
     }
 
     fontKerning(opt?: FontKerning) {
-        this.options.fontKerning = opt || this.options.fontKerning || "auto";
-        this.context.fontKerning = this.options.fontKerning;
-        return this.options.fontKerning;
+        const fontKerning = this.__cacheOption(opt, "fontKerning", "auto");
+        this.context.fontKerning = fontKerning;
+        return fontKerning;
     }
 
     fontVariantCaps(opt?: FontVariantCaps) {
-        this.options.fontVariantCaps =
-            opt || this.options.fontVariantCaps || "normal";
-
-        this.context.fontVariantCaps = this.options.fontVariantCaps;
-
-        return this.options.fontVariantCaps;
+        const fontVariantCaps = this.__cacheOption(
+            opt,
+            "fontVariantCaps",
+            "normal"
+        );
+        this.context.fontVariantCaps = fontVariantCaps;
+        return fontVariantCaps;
     }
 
     wordSpacing(opt?: string) {
-        this.options.wordSpacing =
-            `${opt}px` || this.options.wordSpacing || "0px";
-        this.context.wordSpacing = this.options.wordSpacing;
-        return this.options.wordSpacing;
+        const wordSpacing = this.__cacheOption(
+            `${opt}px`,
+            "wordSpacing",
+            "0px"
+        );
+        this.context.wordSpacing = wordSpacing;
+        return wordSpacing;
     }
 
     color(opt?: string) {
-        this.options.color = opt || this.options.color || "black";
-        this.context.fillStyle = this.options.color;
-        return this.options.color;
+        const color = this.__cacheOption(opt, "color", "black");
+        this.context.fillStyle = color;
+        return color;
     }
 
     strokeWidth(opt?: number) {
-        this.options.strokeWidth = opt || this.options.strokeWidth || 0;
-        this.context.lineWidth = this.options.strokeWidth;
-        return this.options.strokeWidth;
+        const strokeWidth = this.__cacheOption(opt, "strokeWidth", 0);
+        this.context.lineWidth = strokeWidth;
+        return strokeWidth;
     }
 
     strokeColor(opt?: string) {
-        this.options.strokeColor = opt || this.options.strokeColor || "black";
-        this.context.strokeStyle = this.options.strokeColor;
-        return this.options.strokeColor;
+        const strokeColor = this.__cacheOption(opt, "strokeColor", "black");
+        this.context.strokeStyle = strokeColor;
+        return strokeColor;
     }
 
     stroke(opt?: boolean) {
-        this.options.stroke = opt || this.options.stroke || false;
+        const stroke = this.__cacheOption(opt, "stroke", false);
         if (opt) {
             this.setFont();
 
@@ -234,38 +226,39 @@ export class TextBlock extends Block {
                 this.options?.maxWidth
             );
         }
-
-        return this.options.stroke;
+        return stroke;
     }
 
     direction(opt?: TextDirection) {
-        this.context.direction = opt || this.options.direction || "ltr";
-        this.options.direction = this.context.direction;
-        return this.options.direction;
+        const direction = this.__cacheOption(opt, "direction", "ltr");
+        this.context.direction = direction;
+        return direction;
     }
 
     letterSpacing(opt?: string) {
-        this.context.letterSpacing = opt || this.options.letterSpacing || "0px";
-        this.options.letterSpacing = this.context.letterSpacing;
-        return this.options.letterSpacing;
+        const letterSpacing = this.__cacheOption(opt, "letterSpacing", "0px");
+        this.context.letterSpacing = letterSpacing;
+        return letterSpacing;
     }
 
     textRendering(opt?: TextRendering) {
-        this.context.textRendering =
-            opt || this.options.textRendering || "auto";
-        this.options.textRendering = this.context.textRendering;
-        return this.options.textRendering;
+        const textRendering = this.__cacheOption(opt, "textRendering", "auto");
+        this.context.textRendering = textRendering;
+        return textRendering;
     }
     textAlign(opt?: TextAlign) {
-        this.context.textAlign = opt || this.options.textAlign || "start";
-        this.options.align = this.context.align;
-        return this.options.align;
+        const textAlign = this.__cacheOption(opt, "textAlign", "start");
+        this.context.align = textAlign;
+        return textAlign;
     }
     textBaseline(opt?: TextBaseline) {
-        this.context.textBaseline =
-            opt || this.options.textBaseline || "alphabetic";
-        this.options.baseline = this.context.baseline;
-        return this.options.baseline;
+        const textBaseline = this.__cacheOption(
+            opt,
+            "textBaseline",
+            "alphabetic"
+        );
+        this.context.baseline = textBaseline;
+        return textBaseline;
     }
     find(queries?: IBlock<IText>) {
         return this.filterNodes(queries);

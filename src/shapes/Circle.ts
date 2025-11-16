@@ -36,13 +36,13 @@ export class Circle extends Shape {
         super.stroke();
     }
     radius(opt?: number) {
-        return this.__cacheOption(opt, this.options.radius, 0);
+        return this.__cacheOption(opt, "radius", 0);
     }
     startAngle(opt?: number) {
-        return this.__cacheOption(opt, this.options.startAngle, 0);
+        return this.__cacheOption(opt, "startAngle", 0);
     }
     endAngle(opt?: number) {
-        return this.__cacheOption(opt, this.options.endAngle, 0);
+        return this.__cacheOption(opt, "endAngle", 0);
     }
     width(opt?: number) {
         this.options.radius = this.options.radius || this.canvasInit.width;

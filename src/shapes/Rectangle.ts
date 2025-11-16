@@ -36,19 +36,17 @@ export class Rectangle extends Shape {
     }
 
     borderRadius(opt?: number[]): number[] | undefined {
-        return this.__cacheOption(opt, this.options.borderRadius, undefined);
+        return this.__cacheOption(opt, "borderRadius", undefined);
     }
     backgroundColor(opt?: string) {
         super.fillStyle(opt);
-        return this.__cacheOption(opt, this.options.backgroundColor, "black");
+        return this.__cacheOption(opt, "backgroundColor", "black");
     }
 
     border(opt?: string) {
-        const border = this.__cacheOption(opt, this.options.border, []);
+        const border = this.__cacheOption(opt, "border", "");
         this.options.stroke = true;
         const { borderStyleArrWidth } = this.#borderParser(border);
-        const borderWidth = this.borderWidth();
-        
 
         if (this.borderStyle() === "dotted") {
             this.lineDash(borderStyleArrWidth);
@@ -56,30 +54,22 @@ export class Rectangle extends Shape {
         return border;
     }
     borderWidth(opt?: number) {
-        const borderWidth = this.__cacheOption(
-            opt,
-            this.options.borderWidth,
-            0
-        );
+        const borderWidth = this.__cacheOption(opt, "borderWidth", 0);
         super.lineWidth(borderWidth);
         return borderWidth;
     }
     borderColor(opt?: string) {
-        const borderColor = this.__cacheOption(
-            opt,
-            this.options.borderColor,
-            0
-        );
+        const borderColor = this.__cacheOption(opt, "borderColor", "");
         super.strokeStyle(borderColor);
         return this.options.borderColor;
     }
 
     borderStyle(opt?: "solid" | "dotted"): string {
-        return this.__cacheOption(opt, this.options.borderStyle, "dotted");
+        return this.__cacheOption(opt, "borderStyle", "dotted");
     }
 
     borderTop(opt?: string) {
-        const borderTop = this.__cacheOption(opt, this.options.borderRight, "");
+        const borderTop = this.__cacheOption(opt, "borderRight", "");
         this.options.stroke = true;
         let { borderStyleArrWidth } = this.#borderParser(borderTop);
         borderStyleArrWidth.pop();
@@ -101,11 +91,7 @@ export class Rectangle extends Shape {
     }
 
     borderRight(opt?: string) {
-        const borderRight = this.__cacheOption(
-            opt,
-            this.options.borderRight,
-            0
-        );
+        const borderRight = this.__cacheOption(opt, "borderRight", "");
         this.options.stroke = true;
         const { borderStyleArrHeight } = this.#borderParser(borderRight);
         borderStyleArrHeight.pop();
@@ -128,11 +114,7 @@ export class Rectangle extends Shape {
         return borderRight;
     }
     borderBottom(opt?: string) {
-        const borderBottom = this.__cacheOption(
-            opt,
-            this.options.borderBottom,
-            ""
-        );
+        const borderBottom = this.__cacheOption(opt, "borderBottom", "");
         this.options.stroke = true;
 
         let { borderStyleArrWidth } = this.#borderParser(borderBottom);
@@ -154,7 +136,7 @@ export class Rectangle extends Shape {
         return borderBottom;
     }
     borderLeft(opt?: string) {
-        const borderLeft = this.__cacheOption(opt, this.options.borderLeft, 0);
+        const borderLeft = this.__cacheOption(opt, "borderLeft", "");
         this.options.stroke = true;
         let { borderStyleArrHeight } = this.#borderParser(borderLeft);
 
@@ -179,13 +161,13 @@ export class Rectangle extends Shape {
         const border = obj?.split(" ") || [];
 
         // need to impliment css unit converter for different size, ex, px, em, rem etc.
-        this.options.borderWidth = Number(border[0]);
-        this.options.borderStyle = border[1] as BorderStyle;
-        this.options.borderColor = border[2];
+        const borderWidth = Number(border[0]);
+        const borderStyle = border[1] as BorderStyle;
+        const borderColor = border[2];
 
         const borderStyleArrWidth = [];
         const borderStyleArrHeight = [];
-        if (this.options.borderStyle === "dotted") {
+        if (borderStyle === "dotted") {
             let total = 0;
             const step = this.canvasInit.width / (this.canvasInit.width / 4);
             while (total < this.canvasInit.width) {
@@ -197,13 +179,18 @@ export class Rectangle extends Shape {
             const stepHeight =
                 this.canvasInit.height / (this.canvasInit.height / 4);
             while (total < this.canvasInit.height) {
-                borderStyleArrHeight.push(stepHeight, stepHeight);
+                borderStyleArrHeight.push(
+                    stepHeight,
+                    stepHeight,
+                    stepHeight,
+                    stepHeight
+                );
                 total += stepHeight * 2;
             }
         }
-        this.borderWidth();
-        this.borderStyle();
-        this.borderColor();
+        this.borderWidth(borderWidth);
+        this.borderStyle(borderStyle);
+        this.borderColor(borderColor);
         return { borderStyleArrWidth, borderStyleArrHeight };
     }
     clip(opt?: boolean): boolean {
