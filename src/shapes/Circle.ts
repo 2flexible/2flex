@@ -3,6 +3,8 @@ import { IBlock } from "../types";
 
 interface CircleOptions {
     radius?: number;
+    radiusX?: number;
+    radiusY?: number;
     startAngle?: number;
     endAngle?: number;
 }
@@ -18,67 +20,79 @@ export class Circle extends Shape {
 
     __drawInit() {
         this.beginPath();
+
         this.backgroundColor();
 
-        const x = this.canvasInit.x + this.options.radius;
-        const y = this.canvasInit.y + this.options.radius;
-        let endAngle;
-        if (!this.options.endAngle) endAngle = Math.PI * 2;
-        this.context.arc(
-            x,
-            y,
-            this.options.radius,
-            this.options.startAngle,
-            endAngle
-        );
+        this.#drawCircle();
 
         super.fill();
         super.stroke();
     }
+    #drawCircle() {
+        this.canvasInit.width = this.canvasInit.width || this.radiusX();
+        this.canvasInit.height = this.canvasInit.height || this.radiusY();
+        this.context.ellipse(
+            this.canvasInit.x + this.canvasInit.width + this.lineWidth(),
+            this.canvasInit.y + this.canvasInit.height + this.lineWidth(),
+            this.canvasInit.width,
+            this.canvasInit.height,
+            this.rotation(),
+            this.startAngle(),
+            this.endAngle()
+        );
+    }
     radius(opt?: number) {
-        return this.__cacheOption(opt, "radius", 0);
+        const radius = this.__cacheOption(opt, "radius", 0);
+        this.radiusX(radius);
+        this.radiusY(radius);
+        return radius;
+    }
+    radiusX(opt?: number) {
+        return this.__cacheOption(opt, "radiusX", 0);
+    }
+    radiusY(opt?: number) {
+        return this.__cacheOption(opt, "radiusY", 0);
+    }
+    rotation(opt?: number) {
+        return this.__cacheOption(opt, "rotation", 0);
     }
     startAngle(opt?: number) {
         return this.__cacheOption(opt, "startAngle", 0);
     }
     endAngle(opt?: number) {
-        return this.__cacheOption(opt, "endAngle", 0);
-    }
-    width(opt?: number) {
-        this.options.radius = this.options.radius || this.canvasInit.width;
-        return this.options.radius;
-    }
-    height(opt?: number) {
-        this.options.radius = this.options.radius || this.canvasInit.height;
-        return this.options.radius;
+        return this.__cacheOption(opt, "endAngle", Math.PI * 2);
     }
     backgroundColor(opt?: string) {
-        this.options.backgroundColor = super.fillStyle(opt);
-        return this.options.backgroundColor;
+        const backgroundColor = this.__cacheOption(
+            opt,
+            "backgroundColor",
+            "black"
+        );
+        super.fillStyle(backgroundColor);
+        return backgroundColor;
     }
     borderWidth(opt?: number) {
-        this.options.borderWidth = super.lineWidth(opt);
-        return this.options.borderWidth;
+        const borderWidth = this.__cacheOption(opt, "backgroundColor", 0);
+        super.lineWidth(borderWidth);
+        return borderWidth;
     }
     borderColor(opt?: string) {
-        this.options.borderColor = super.strokeStyle(opt);
-        return this.options.borderColor;
+        const borderColor = this.__cacheOption(opt, "borderColor", "black");
+        super.strokeStyle(borderColor);
+        return borderColor;
     }
     dragX(opt?: boolean) {
         return super.dragX(opt);
     }
-
     dragY(opt?: boolean) {
         return super.dragY(opt);
     }
     draggable(opt: boolean): boolean {
         return super.draggable(opt);
     }
-
     selectable(opt?: boolean): boolean {
         return super.selectable(opt);
     }
-
     set(options: IBlock<CircleOptions>) {
         super.set(options);
     }
