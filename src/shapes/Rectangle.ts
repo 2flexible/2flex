@@ -1,5 +1,5 @@
-import { IShapeOptions, Shape } from "../Shape";
-import { IBlock, BorderStyle, InitialShapes } from "../types";
+import { Shape } from "../Shape";
+import { IBlock, BorderStyle } from "../types";
 
 export interface RectOpt {
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
@@ -45,33 +45,45 @@ export class Rectangle extends Shape {
 
     border(opt?: string) {
         const border = this.__cacheOption(opt, this.options.border, []);
+        this.options.stroke = true;
         const { borderStyleArrWidth } = this.#borderParser(border);
+        const borderWidth = this.borderWidth();
+        
 
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash(borderStyleArrWidth);
         }
         return border;
     }
     borderWidth(opt?: number) {
-        this.options.borderWidth = super.lineWidth(opt);
-        return this.options.borderWidth;
+        const borderWidth = this.__cacheOption(
+            opt,
+            this.options.borderWidth,
+            0
+        );
+        super.lineWidth(borderWidth);
+        return borderWidth;
     }
     borderColor(opt?: string) {
-        this.options.borderColor = super.strokeStyle(opt);
+        const borderColor = this.__cacheOption(
+            opt,
+            this.options.borderColor,
+            0
+        );
+        super.strokeStyle(borderColor);
         return this.options.borderColor;
     }
 
-    borderStyle(opt?: "solid" | "dotted") {
-        return this.__cacheOption(opt, this.options.borderStyle, "solid");
+    borderStyle(opt?: "solid" | "dotted"): string {
+        return this.__cacheOption(opt, this.options.borderStyle, "dotted");
     }
 
-    borderTop(opt?: number) {
-        const borderTop = this.__cacheOption(opt, this.options.borderRight, 0);
-        this.options.borderTop = opt || this.options.borderTop;
+    borderTop(opt?: string) {
+        const borderTop = this.__cacheOption(opt, this.options.borderRight, "");
+        this.options.stroke = true;
         let { borderStyleArrWidth } = this.#borderParser(borderTop);
         borderStyleArrWidth.pop();
-
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash([
                 ...borderStyleArrWidth,
                 this.canvasInit.height * 2 + this.canvasInit.width,
@@ -85,21 +97,20 @@ export class Rectangle extends Shape {
             ]);
         }
 
-        this.#drawRect();
-        super.stroke(true);
         return borderTop;
     }
 
-    borderRight(opt?: number) {
+    borderRight(opt?: string) {
         const borderRight = this.__cacheOption(
             opt,
             this.options.borderRight,
             0
         );
+        this.options.stroke = true;
         const { borderStyleArrHeight } = this.#borderParser(borderRight);
         borderStyleArrHeight.pop();
 
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash([
                 0,
                 this.canvasInit.width,
@@ -111,28 +122,27 @@ export class Rectangle extends Shape {
                 0,
                 this.canvasInit.width,
                 this.canvasInit.height,
-                this.canvasInit.width,
+                this.canvasInit.width + this.canvasInit.height,
             ]);
         }
-        this.#drawRect();
-        super.stroke(true);
         return borderRight;
     }
-    borderBottom(opt?: number) {
+    borderBottom(opt?: string) {
         const borderBottom = this.__cacheOption(
             opt,
             this.options.borderBottom,
-            0
+            ""
         );
+        this.options.stroke = true;
 
         let { borderStyleArrWidth } = this.#borderParser(borderBottom);
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash([
                 0,
                 this.canvasInit.width + this.canvasInit.height,
                 ...borderStyleArrWidth,
             ]);
-        } else if (this.options.borderStyle === "solid") {
+        } else if (this.borderStyle() === "solid") {
             this.lineDash([
                 0,
                 this.canvasInit.width + this.canvasInit.height,
@@ -141,15 +151,14 @@ export class Rectangle extends Shape {
             ]);
         }
 
-        this.#drawRect();
-        super.stroke(true);
         return borderBottom;
     }
-    borderLeft(opt?: number) {
+    borderLeft(opt?: string) {
         const borderLeft = this.__cacheOption(opt, this.options.borderLeft, 0);
+        this.options.stroke = true;
         let { borderStyleArrHeight } = this.#borderParser(borderLeft);
 
-        if (this.options.borderStyle === "dotted") {
+        if (this.borderStyle() === "dotted") {
             this.lineDash([
                 0,
                 this.canvasInit.width * 2 + this.canvasInit.height,
@@ -163,8 +172,6 @@ export class Rectangle extends Shape {
                 this.canvasInit.width,
             ]);
         }
-        this.#drawRect();
-        super.stroke(true);
         return borderLeft;
     }
     // border size, style(required), color
@@ -172,31 +179,31 @@ export class Rectangle extends Shape {
         const border = obj?.split(" ") || [];
 
         // need to impliment css unit converter for different size, ex, px, em, rem etc.
-        const borderWitdh = Number(border[0]);
-        const borderStyle = border[1] as BorderStyle;
-        const borderColor = border[2];
+        this.options.borderWidth = Number(border[0]);
+        this.options.borderStyle = border[1] as BorderStyle;
+        this.options.borderColor = border[2];
 
         const borderStyleArrWidth = [];
         const borderStyleArrHeight = [];
-
-        if (borderStyle === "dotted") {
+        if (this.options.borderStyle === "dotted") {
             let total = 0;
-            const step = this.canvasInit.width / 21;
+            const step = this.canvasInit.width / (this.canvasInit.width / 4);
             while (total < this.canvasInit.width) {
                 borderStyleArrWidth.push(step, step);
                 total += step * 2;
             }
 
             total = 0;
-            const stepHeight = this.canvasInit.height / 21;
+            const stepHeight =
+                this.canvasInit.height / (this.canvasInit.height / 4);
             while (total < this.canvasInit.height) {
                 borderStyleArrHeight.push(stepHeight, stepHeight);
                 total += stepHeight * 2;
             }
         }
-        this.borderWidth(borderWitdh);
-        this.borderStyle(borderStyle);
-        this.borderColor(borderColor);
+        this.borderWidth();
+        this.borderStyle();
+        this.borderColor();
         return { borderStyleArrWidth, borderStyleArrHeight };
     }
     clip(opt?: boolean): boolean {
