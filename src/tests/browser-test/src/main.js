@@ -75,14 +75,8 @@ const rect1 = new Rectangle({
     borderColor: "red",
     fill: true,
 });
-const circle = new Circle({
-    color: "red",
-    fill: true,
-    stroke: true,
-    borderColor: "blue",
-    borderWidth: 5,
-});
-rect.add(circle);
+
+// rect.add(circle);
 
 const line1 = new Line({
     x: 0,
@@ -148,11 +142,12 @@ const block1 = new Rectangle({
     // flexBasis: 100,
     flexShrink: 1,
     // flexGrow: 1,
-    border: "20 dotted red",
+    border: "5 dotted red",
     // borderRight: "6 solid red",
     gridColumnStart: 2,
     draggable: true,
     selectable: true,
+    // borderRadius: [10, 100]
     // order: 4,
 });
 const block2 = new Rectangle({
@@ -160,6 +155,8 @@ const block2 = new Rectangle({
     height: 100,
     backgroundColor: "red",
     fill: true,
+    selectable: true,
+    draggable: true,
     // flexShrink: 2,
     // flexGrow: 5,
     // order:4,
@@ -253,8 +250,8 @@ const layout = new Layout({
     // flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    alignContent: "space-around",
-    // alignItems: "center",
+    // alignContent: "space-around",
+    // alignItems: "end",
     width: 400,
     height: 300,
     // gapRow: 120,
@@ -305,7 +302,18 @@ mainBlock.add(layout);
 // text_b.set({ fontSize: 20 });
 // text_a.set({ fontSize: 40 });
 // });
-canvas.add(mainBlock);
+const circle = new Circle({
+    color: "red",
+    borderColor: "red",
+    borderWidth: 5,
+    stroke: true,
+    fill: true,
+    // radius: 40,
+    width: 40,
+    height: 10,
+    backgroundColor: "blue"
+});
+canvas.add(circle);
 // console.log(block1.x())
 // block.add(text_a, text_b);
 // console.log(text_b.x(10))

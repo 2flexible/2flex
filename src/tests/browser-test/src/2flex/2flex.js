@@ -177,7 +177,7 @@ class Block extends Node {
     canvas;
     options;
     events = [];
-    canvasInit = { x: 0, y: 0, width: 0, height: 0 };
+    canvasInit = { x: 0, y: 0, width: 0, height: 0, zIndex: 0 };
     styleChanges = [];
     beforeCords = { x: 0, y: 0 };
     constructor(options) {
@@ -218,10 +218,14 @@ class Block extends Node {
         });
     }
     x(opt) {
-        return this.__cacheOption(opt, "x", 0);
+        const x = this.__cacheOption(opt, "x", 0);
+        this.canvasInit.x = x;
+        return x;
     }
     y(opt) {
-        return this.__cacheOption(opt, "y", 0);
+        const y = this.__cacheOption(opt, "y", 0);
+        this.canvasInit.y = y;
+        return y;
     }
     width(opt) {
         const width = this.__cacheOption(opt, "width", 0);
@@ -1937,12 +1941,16 @@ class Canvas {
     height;
     clipping_path;
     #tree = new Tree();
-    cords = { x: 0, y: 0 };
-    constructor(canvasId, width, height, options = undefined) {
+    #cords = { x: 0, y: 0 };
+    zoomSpeed = 1.02;
+    zoomInvSpeed = 0.95;
+    constructor(canvasId, width, height, zoomSpeed, zoomInvSpeed, options = undefined) {
         this.canvasId = canvasId || "canvas";
         this.options = options;
         this.width = width || 300;
         this.height = height || 300;
+        this.zoomSpeed = zoomSpeed;
+        this.zoomSpeed = zoomInvSpeed;
         this.clipping_path = new Path();
         this.#domCanvas = new CanvasDOMManager(this.canvasId, this.width, this.height);
         this.#initCanvas();
@@ -1956,7 +1964,6 @@ class Canvas {
     #initCanvas() {
         this.canvas;
         this.context.save();
-        // this.context.translate(100,100)
         this.move(this.#canvasMoves());
         window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
@@ -1964,7 +1971,6 @@ class Canvas {
         };
     }
     add(...block) {
-        // block = block.reverse();
         this.#tree.addNodes(block);
         this.#tree.preOrderTraversal((element) => {
             element.canvas = this;
@@ -1975,7 +1981,7 @@ class Canvas {
         let zIndex = 0;
         this.#tree.checkNodes((el) => {
             if (el.options) {
-                el.options.zIndex += zIndex;
+                el.canvasInit.zIndex = el.options.zIndex || 0 + zIndex;
                 zIndex += 1;
             }
         }, true);
@@ -1992,7 +1998,7 @@ class Canvas {
         return cursor;
     }
     #handleEvents() {
-        // created events for every same type events beacuse canvas is same, but events changing
+        // added unique events because canvas is same, but events changing
         let uniqeEvents = [];
         for (const item of this.#canvasEvents) {
             const tempUniqe = uniqeEvents?.filter((_item) => _item.eventType === item.eventType);
@@ -2040,7 +2046,7 @@ class Canvas {
         this.context.restore();
         this.context.save();
         this.clearRect();
-        this.context.translate(this.cords.x, this.cords.y);
+        this.context.translate(this.#cords.x, this.#cords.y);
         const ignore = [
             "layout",
             "alignItems",
@@ -2066,10 +2072,9 @@ class Canvas {
         this.#domCanvas.removeEventListener("wheel", this.#zoomInOut);
         this.#domCanvas.addEventListener("wheel", (event) => _func(event));
     }
-    // not workign correctyly due to x and y cordinates
     #zoomInOut() {
-        let scale = 1.02;
-        let invScale = 0.95;
+        let scale = this.zoomSpeed;
+        let invScale = this.zoomInvSpeed;
         return (event) => {
             if (event.ctrlKey) {
                 if (event.deltaY < 0) {
@@ -2077,8 +2082,8 @@ class Canvas {
                     this.invokeChange((elem) => {
                         elem.canvasInit.x = elem.canvasInit.x * scale;
                         elem.canvasInit.y = elem.canvasInit.y * scale;
-                        elem.canvasInit.width = elem.canvasInit.width * scale;
-                        elem.canvasInit.height = elem.canvasInit.height * scale;
+                        elem.canvasInit.width *= scale;
+                        elem.canvasInit.height *= scale;
                     });
                 }
                 else {
@@ -2086,8 +2091,8 @@ class Canvas {
                     this.invokeChange((elem) => {
                         elem.canvasInit.x = elem.canvasInit.x * invScale;
                         elem.canvasInit.y = elem.canvasInit.y * invScale;
-                        elem.canvasInit.width = elem.canvasInit.width * invScale;
-                        elem.canvasInit.height = elem.canvasInit.height * invScale;
+                        elem.canvasInit.width *= invScale;
+                        elem.canvasInit.height *= invScale;
                     });
                 }
             }
@@ -2108,21 +2113,21 @@ class Canvas {
             }
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.cords.x -= 10;
+                    this.#cords.x -= 10;
                     invoke = true;
                 }
                 else {
-                    this.cords.x += 10;
+                    this.#cords.x += 10;
                     invoke = true;
                 }
             }
             else {
                 if (event.deltaY < 0) {
-                    this.cords.y += 10;
+                    this.#cords.y += 10;
                     invoke = true;
                 }
                 else {
-                    this.cords.y -= 10;
+                    this.#cords.y -= 10;
                     invoke = true;
                 }
             }
@@ -2632,43 +2637,50 @@ class Circle extends Shape {
     __drawInit() {
         this.beginPath();
         this.backgroundColor();
-        const x = this.canvasInit.x + this.options.radius;
-        const y = this.canvasInit.y + this.options.radius;
-        let endAngle;
-        if (!this.options.endAngle)
-            endAngle = Math.PI * 2;
-        this.context.arc(x, y, this.options.radius, this.options.startAngle, endAngle);
+        this.#drawCircle();
         super.fill();
         super.stroke();
     }
+    #drawCircle() {
+        this.canvasInit.width = this.canvasInit.width || this.radiusX();
+        this.canvasInit.height = this.canvasInit.height || this.radiusY();
+        this.context.ellipse(this.canvasInit.x + this.canvasInit.width + this.lineWidth(), this.canvasInit.y + this.canvasInit.height + this.lineWidth(), this.canvasInit.width, this.canvasInit.height, this.rotation(), this.startAngle(), this.endAngle());
+    }
     radius(opt) {
-        return this.__cacheOption(opt, "radius", 0);
+        const radius = this.__cacheOption(opt, "radius", 0);
+        this.radiusX(radius);
+        this.radiusY(radius);
+        return radius;
+    }
+    radiusX(opt) {
+        return this.__cacheOption(opt, "radiusX", 0);
+    }
+    radiusY(opt) {
+        return this.__cacheOption(opt, "radiusY", 0);
+    }
+    rotation(opt) {
+        return this.__cacheOption(opt, "rotation", 0);
     }
     startAngle(opt) {
         return this.__cacheOption(opt, "startAngle", 0);
     }
     endAngle(opt) {
-        return this.__cacheOption(opt, "endAngle", 0);
-    }
-    width(opt) {
-        this.options.radius = this.options.radius || this.canvasInit.width;
-        return this.options.radius;
-    }
-    height(opt) {
-        this.options.radius = this.options.radius || this.canvasInit.height;
-        return this.options.radius;
+        return this.__cacheOption(opt, "endAngle", Math.PI * 2);
     }
     backgroundColor(opt) {
-        this.options.backgroundColor = super.fillStyle(opt);
-        return this.options.backgroundColor;
+        const backgroundColor = this.__cacheOption(opt, "backgroundColor", "black");
+        super.fillStyle(backgroundColor);
+        return backgroundColor;
     }
     borderWidth(opt) {
-        this.options.borderWidth = super.lineWidth(opt);
-        return this.options.borderWidth;
+        const borderWidth = this.__cacheOption(opt, "backgroundColor", 0);
+        super.lineWidth(borderWidth);
+        return borderWidth;
     }
     borderColor(opt) {
-        this.options.borderColor = super.strokeStyle(opt);
-        return this.options.borderColor;
+        const borderColor = this.__cacheOption(opt, "borderColor", "black");
+        super.strokeStyle(borderColor);
+        return borderColor;
     }
     dragX(opt) {
         return super.dragX(opt);

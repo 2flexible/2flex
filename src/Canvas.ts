@@ -25,18 +25,24 @@ export class Canvas {
     height: number;
     clipping_path: Path;
     #tree = new Tree();
-    cords = { x: 0, y: 0 };
+    #cords = { x: 0, y: 0 };
+    zoomSpeed?: number = 1.02;
+    zoomInvSpeed?: number = 0.95;
 
     constructor(
         canvasId?: string,
         width?: number,
         height?: number,
+        zoomSpeed?: number,
+        zoomInvSpeed?: number,
         options: ICssProperties | undefined = undefined
     ) {
         this.canvasId = canvasId || "canvas";
         this.options = options;
         this.width = width || 300;
         this.height = height || 300;
+        this.zoomSpeed = zoomSpeed;
+        this.zoomSpeed = zoomInvSpeed;
         this.clipping_path = new Path();
 
         this.#domCanvas = new CanvasDOMManager(
@@ -152,7 +158,7 @@ export class Canvas {
         this.context.save();
 
         this.clearRect();
-        this.context.translate(this.cords.x, this.cords.y);
+        this.context.translate(this.#cords.x, this.#cords.y);
 
         const ignore = [
             "layout",
@@ -181,8 +187,8 @@ export class Canvas {
     }
 
     #zoomInOut() {
-        let scale = 1.02;
-        let invScale = 0.95;
+        let scale = this.zoomSpeed as number;
+        let invScale = this.zoomInvSpeed as number;
         return (event: WheelEvent) => {
             if (event.ctrlKey) {
                 if (event.deltaY < 0) {
@@ -190,18 +196,16 @@ export class Canvas {
                     this.invokeChange((elem) => {
                         elem.canvasInit.x = elem.canvasInit.x * scale;
                         elem.canvasInit.y = elem.canvasInit.y * scale;
-                        elem.canvasInit.width = elem.canvasInit.width * scale;
-                        elem.canvasInit.height = elem.canvasInit.height * scale;
+                        elem.canvasInit.width *= scale;
+                        elem.canvasInit.height *= scale;
                     });
                 } else {
                     this.context.scale(invScale, invScale);
                     this.invokeChange((elem) => {
                         elem.canvasInit.x = elem.canvasInit.x * invScale;
                         elem.canvasInit.y = elem.canvasInit.y * invScale;
-                        elem.canvasInit.width =
-                            elem.canvasInit.width * invScale;
-                        elem.canvasInit.height =
-                            elem.canvasInit.height * invScale;
+                        elem.canvasInit.width *= invScale;
+                        elem.canvasInit.height *= invScale;
                     });
                 }
             }
@@ -223,18 +227,18 @@ export class Canvas {
             }
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.cords.x -= 10;
+                    this.#cords.x -= 10;
                     invoke = true;
                 } else {
-                    this.cords.x += 10;
+                    this.#cords.x += 10;
                     invoke = true;
                 }
             } else {
                 if (event.deltaY < 0) {
-                    this.cords.y += 10;
+                    this.#cords.y += 10;
                     invoke = true;
                 } else {
-                    this.cords.y -= 10;
+                    this.#cords.y -= 10;
                     invoke = true;
                 }
             }

@@ -74,11 +74,15 @@ export class Block extends Node {
     }
 
     x(opt?: number): number {
-        return this.__cacheOption(opt, "x", 0);
+        const x = this.__cacheOption(opt, "x", 0);
+        this.canvasInit.x = x
+        return x
     }
 
     y(opt?: number): number {
-        return this.__cacheOption(opt, "y", 0);
+        const y =  this.__cacheOption(opt, "y", 0);
+        this.canvasInit.y = y
+        return y
     }
 
     width(opt?: number): number {
