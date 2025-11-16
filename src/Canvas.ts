@@ -8,6 +8,7 @@ import {
 } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
 import { Path } from "./Path";
+import { Layout } from "./Layout";
 
 /*
 @Todo
@@ -169,7 +170,7 @@ export class Canvas {
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);
             this.#handleOptions(element, ignore);
-            element.__initSet();
+            if(!(element instanceof Layout)) element.__initSet();
         });
     }
     // we can do this later as and || or
