@@ -2071,38 +2071,24 @@ class Canvas {
     #zoomInOut() {
         let scale = 1.02;
         let invScale = 0.95;
-        let xx = undefined;
-        let yy = undefined;
         return (event) => {
             if (event.ctrlKey) {
                 if (event.deltaY < 0) {
+                    this.context.scale(scale, scale);
                     this.invokeChange((elem) => {
-                        // const diffX = elem.options.x * scale - elem.options.x;
-                        // elem.options.width += this.width * scale - this.width;
-                        elem.options.width *= scale;
-                        if (!xx) {
-                            xx = elem.options.x;
-                        }
-                        if (!yy) {
-                            yy = elem.options.y;
-                        }
-                        xx *= scale;
-                        yy *= scale;
-                        elem.initX = xx;
-                        elem.initY = yy;
-                        this.context.scale(1.02, 1.02);
+                        elem.canvasInit.x = elem.canvasInit.x * scale;
+                        elem.canvasInit.y = elem.canvasInit.y * scale;
+                        elem.canvasInit.width = elem.canvasInit.width * scale;
+                        elem.canvasInit.height = elem.canvasInit.height * scale;
                     });
                 }
                 else {
+                    this.context.scale(invScale, invScale);
                     this.invokeChange((elem) => {
-                        this.width /= invScale;
-                        this.height /= invScale;
-                        elem.options.width *= invScale;
-                        elem.options.height *= invScale;
-                        elem.options.x *= invScale;
-                        elem.options.y *= invScale;
-                        // invScale *= 0.95;
-                        this.context.scale(invScale, invScale);
+                        elem.canvasInit.x = elem.canvasInit.x * invScale;
+                        elem.canvasInit.y = elem.canvasInit.y * invScale;
+                        elem.canvasInit.width = elem.canvasInit.width * invScale;
+                        elem.canvasInit.height = elem.canvasInit.height * invScale;
                     });
                 }
             }
