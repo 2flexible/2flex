@@ -787,7 +787,6 @@ class Block extends Node {
 }
 
 // Layer spesical type of block whcih defines group of blocks
-// @todo: some of the methods won't be triggered by the invoker
 class Layout extends Block {
     #startX = 0;
     #startY = 0;
@@ -796,6 +795,7 @@ class Layout extends Block {
     #columnsGap = [];
     #rowsGap = [];
     #isNew = true;
+    #invoker;
     #containerW = 0;
     #containerH = 0;
     #flexItems = { width: [], height: [], cols: [], rows: [] };
@@ -806,6 +806,8 @@ class Layout extends Block {
     }
     __initSet() {
         super.__initSet();
+        if (this.#invoker)
+            this.#invoker();
     }
     clip(opt) {
         return super.clip(opt);
@@ -995,9 +997,7 @@ class Layout extends Block {
     // in flexbox works with wrap option
     alignContent(opt) {
         const alignContent = this.__cacheOption(opt, this.options.alignContent, "normal");
-        if (this.options.wrap != "wrap" &&
-            this.options.wrap != "wrap-reverse" &&
-            !this.#isGrid)
+        if (!this.#isWrap && !this.#isGrid)
             return alignContent;
         const align = "alignContent";
         switch (alignContent) {
@@ -1079,33 +1079,33 @@ class Layout extends Block {
         const _func1 = () => {
             if (this.#isGrid) {
                 this.#startX = 0;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
             else {
                 if (this.#isFlexCol) {
                     this.#startY = 0;
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     this.#startX = 0;
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
         };
         const _func2 = () => {
             if (this.#isGrid) {
                 this.#startY = 0;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
             else {
                 if (this.#isFlexCol) {
                     this.#startX = 0;
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     if (this.#isWrap) {
                         this.#startY = 0;
-                        this.#flexRow();
+                        this.#invoker = this.#flexRow;
                     }
                 }
             }
@@ -1113,22 +1113,22 @@ class Layout extends Block {
         const _func3 = () => {
             if (this.#isGrid) {
                 this.#startX = 0;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
         };
         const _func4 = () => {
             if (this.#isGrid) {
                 this.#startY = 0;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
             else {
                 if (this.#isFlexCol) {
                     this.#startX = 0;
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     this.#startY = 0;
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
         };
@@ -1149,7 +1149,7 @@ class Layout extends Block {
                         const startY = this.canvasInit.height - this.#containerH;
                         this.#startY = startY > 0 ? startY : 0;
                     }
-                    this.#flexColumn();
+                    this.#invoker = this.#invoker = this.#flexColumn;
                 }
                 else {
                     if (this.#isWrap) {
@@ -1163,13 +1163,13 @@ class Layout extends Block {
                         const startX = this.canvasInit.width - this.#containerW;
                         this.#startX = startX > 0 ? startX : 0;
                     }
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
             if (this.#isGrid) {
                 this.#startX = Math.abs(this.canvasInit.width -
                     this.#gridItems.width.reduce((a, c) => a + c, 0));
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
         };
         const _func2 = () => {
@@ -1177,18 +1177,18 @@ class Layout extends Block {
                 if (this.#isFlexCol) {
                     const startX = this.canvasInit.width - this.#containerW;
                     this.#startX = startX > 0 ? startX : 0;
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     const startY = this.canvasInit.height - this.#containerH;
                     this.#startY = startY > 0 ? startY : 0;
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
             if (this.#isGrid) {
                 this.#startY = Math.abs(this.canvasInit.height -
                     this.#gridItems.height.reduce((a, c) => a + c, 0));
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
         };
         const _func3 = () => {
@@ -1278,7 +1278,7 @@ class Layout extends Block {
                         const startY = this.canvasInit.height - this.#containerH;
                         this.#startY = startY > 0 ? startY / 2 : 0;
                     }
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     if (this.#isWrap) {
@@ -1292,14 +1292,14 @@ class Layout extends Block {
                         const startX = this.canvasInit.width - this.#containerW;
                         this.#startX = startX > 0 ? startX / 2 : 0;
                     }
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
             if (this.#isGrid) {
                 let startX = this.canvasInit.width / 2 -
                     this.#gridItems.width.reduce((a, c) => a + c, 0) / 2;
                 this.#startX = startX > 0 ? startX : 0;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
         };
         const _func2 = () => {
@@ -1307,7 +1307,7 @@ class Layout extends Block {
                 const startY = this.canvasInit.height -
                     this.#gridItems.height.reduce((a, c) => a + c, 0);
                 this.#startY = startY > 0 ? startY / this.#gridItems.nRows : 0;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
             else {
                 if (this.#isOutofLayout && this.#isWrap) {
@@ -1317,7 +1317,7 @@ class Layout extends Block {
                             startX > 0
                                 ? startX / this.#flexItems.cols.length
                                 : 0;
-                        this.#flexColumn();
+                        this.#invoker = this.#flexColumn;
                     }
                     else {
                         const startY = this.canvasInit.height - this.#containerH;
@@ -1325,7 +1325,7 @@ class Layout extends Block {
                             startY > 0
                                 ? startY / this.#flexItems.rows.length
                                 : 0;
-                        this.#flexRow();
+                        this.#invoker = this.#flexRow;
                     }
                 }
             }
@@ -1345,7 +1345,7 @@ class Layout extends Block {
                     if (this.#gridItems.width.length === colIdx)
                         colIdx = 0;
                 }
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
         };
         const _func4 = () => {
@@ -1363,7 +1363,7 @@ class Layout extends Block {
                     if (this.#gridItems.height.length === rowIdx)
                         rowIdx = 0;
                 }
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
             else {
                 if (this.#isFlexCol) {
@@ -1381,7 +1381,7 @@ class Layout extends Block {
                         rows += this.#flexItems.rows[idx];
                         idx++;
                     });
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     let cols = 0;
@@ -1398,7 +1398,7 @@ class Layout extends Block {
                         cols += this.#flexItems.cols[idx];
                         idx++;
                     });
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
         };
@@ -1426,7 +1426,7 @@ class Layout extends Block {
                         gap = gap > 0 ? (gap /= this._childs.length - 1) : 0;
                         this.options.gapRow = this.gapRow() + gap;
                     }
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     if (this.#isWrap) {
@@ -1447,7 +1447,7 @@ class Layout extends Block {
                         gap = gap > 0 ? (gap /= this._childs.length - 1) : 0;
                         this.options.gapColumn = this.gapColumn() + gap;
                     }
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
             if (this.#isGrid) {
@@ -1458,7 +1458,7 @@ class Layout extends Block {
                     : 1;
                 this.options.gapColumn =
                     this.gapColumn() + gap > 0 ? gap / nCols : 0;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
         };
         const _func2 = () => {
@@ -1467,13 +1467,13 @@ class Layout extends Block {
                     let gap = this.canvasInit.width - this.#containerW;
                     this.options.gapColumn =
                         gap > 0 ? gap / (this.#flexItems.cols.length - 1) : 0;
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     let gap = this.canvasInit.height - this.#containerH;
                     this.options.gapRow =
                         gap > 0 ? gap / (this.#flexItems.rows.length - 1) : 0;
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
             if (this.#isGrid) {
@@ -1483,7 +1483,7 @@ class Layout extends Block {
                     ? this.#gridItems.nRows - 1
                     : 1;
                 this.options.gapRow = this.gapRow() + gap > 0 ? gap / nRows : 0;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
         };
         this.#checkLayoutType(_type, _func1, _func2);
@@ -1509,7 +1509,7 @@ class Layout extends Block {
                         this.options.gapRow = gap;
                         this.#startY = gap / 2;
                     }
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     if (this.#isWrap) {
@@ -1529,7 +1529,7 @@ class Layout extends Block {
                         this.options.gapColumn = gap;
                         this.#startX = gap / 2;
                     }
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
             if (this.#isGrid) {
@@ -1538,7 +1538,7 @@ class Layout extends Block {
                 gap = gap > 0 ? gap / this.#gridItems.nCols : 0;
                 this.options.gapColumn = gap;
                 this.#startX = gap / 2;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
         };
         const _func2 = () => {
@@ -1548,7 +1548,7 @@ class Layout extends Block {
                 gap = gap > 0 ? gap / this.#gridItems.nRows : 0;
                 this.options.gapRow = gap;
                 this.#startY = gap / 2;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
             else {
                 if (this.#isWrap) {
@@ -1557,14 +1557,14 @@ class Layout extends Block {
                         gap = gap > 0 ? gap / this.#flexItems.cols.length : 0;
                         this.options.gapColumn = gap;
                         this.#startX = gap / 2;
-                        this.#flexColumn();
+                        this.#invoker = this.#flexColumn;
                     }
                     else {
                         let gap = this.canvasInit.height - this.#containerH;
                         gap = gap > 0 ? gap / this.#flexItems.rows.length : 0;
                         this.options.gapRow = gap;
                         this.#startY = gap / 2;
-                        this.#flexRow();
+                        this.#invoker = this.#flexRow;
                     }
                 }
             }
@@ -1592,7 +1592,7 @@ class Layout extends Block {
                         this.options.gapRow = this.gapRow() + gap;
                         this.#startY = gap;
                     }
-                    this.#flexColumn();
+                    this.#invoker = this.#flexColumn;
                 }
                 else {
                     if (this.#isWrap) {
@@ -1612,7 +1612,7 @@ class Layout extends Block {
                         this.options.gapColumn = this.gapColumn() + gap;
                         this.#startX = gap;
                     }
-                    this.#flexRow();
+                    this.#invoker = this.#flexRow;
                 }
             }
             if (this.#isGrid) {
@@ -1621,7 +1621,7 @@ class Layout extends Block {
                 gap = gap > 0 ? gap / (this.#gridItems.nCols + 1) : 0;
                 this.options.gapColumn = gap;
                 this.#startX = gap;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
         };
         const _func2 = () => {
@@ -1631,7 +1631,7 @@ class Layout extends Block {
                 gap = gap > 0 ? gap / (this.#gridItems.nRows + 1) : 0;
                 this.options.gapRow = gap;
                 this.#startY = gap;
-                this.#gridLayout();
+                this.#invoker = this.#gridLayout;
             }
             else {
                 if (this.#isWrap) {
@@ -1643,7 +1643,7 @@ class Layout extends Block {
                                 : 0;
                         this.options.gapColumn = gap;
                         this.#startX = gap;
-                        this.#flexColumn();
+                        this.#invoker = this.#flexColumn;
                     }
                     else {
                         let gap = this.canvasInit.height - this.#containerH;
@@ -1653,7 +1653,7 @@ class Layout extends Block {
                                 : 0;
                         this.options.gapRow = gap;
                         this.#startY = gap;
-                        this.#flexRow();
+                        this.#invoker = this.#flexRow;
                     }
                 }
             }

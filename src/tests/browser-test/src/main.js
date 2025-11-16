@@ -157,7 +157,7 @@ const block2 = new Rectangle({
     backgroundColor: "red",
     fill: true,
     // flexShrink: 2,
-    flexGrow: 5,
+    // flexGrow: 5,
     // order:4,
 });
 const block3 = new Rectangle({
@@ -165,7 +165,7 @@ const block3 = new Rectangle({
     height: 100,
     backgroundColor: "yellow",
     fill: true,
-    flexGrow: 4,
+    // flexGrow: 4,
     // flexShrink: 9,
     // order: 0,
 });
@@ -182,7 +182,7 @@ const block5 = new Rectangle({
     backgroundColor: "blue",
     fill: true,
     stroke: true,
-    flexGrow: 3,
+    // flexGrow: 3,
 });
 const block6 = new Rectangle({
     width: 60,
@@ -190,7 +190,7 @@ const block6 = new Rectangle({
     backgroundColor: "orange",
     fill: true,
     stroke: true,
-    flexGrow: 1,
+    // flexGrow: 1,
 });
 const block7 = new Rectangle({
     width: 90,
@@ -245,9 +245,9 @@ createRandomBlocks();
 const layout = new Layout({
     layout: "flex",
     // flexDirection: "row",
-    // wrap: "wrap",
-    // justifyContent: "space-between",
-    // alignContent: "space-around",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignContent: "space-around",
     // alignItems: "center",
     width: 400,
     height: 300,
@@ -281,7 +281,7 @@ const text2 = new TextBlock("text2", {
 });
 
 layout.add(block1, block2, block3, block4, block5, block6);
-mainBlock.add(block1);
+mainBlock.add(layout);
 // line1.join(line2);
 // line2.join(line3)
 // line3.join(line4)
