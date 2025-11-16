@@ -19,6 +19,7 @@ interface CanvasInit {
     y: number;
     width: number;
     height: number;
+    zIndex?: number;
 }
 
 // Each element in the canvas is block
@@ -27,7 +28,7 @@ export class Block extends Node {
     canvas: any;
     options: BlockOptions;
     events: ICustomEvents[] = [];
-    canvasInit: CanvasInit = { x: 0, y: 0, width: 0, height: 0 };
+    canvasInit: CanvasInit = { x: 0, y: 0, width: 0, height: 0, zIndex: 0 };
     styleChanges: IStyle[] = [];
     beforeCords = { x: 0, y: 0 };
     constructor(options: BlockOptions) {

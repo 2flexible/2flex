@@ -59,7 +59,6 @@ export class Canvas {
         this.canvas;
         this.context.save();
 
-        // this.context.translate(100,100)
         this.move(this.#canvasMoves());
         window.onload = () => {
             this.#domCanvas.changeStyle(this.options);
@@ -68,8 +67,6 @@ export class Canvas {
     }
 
     add(...block: BlockElements[]) {
-        // block = block.reverse();
-
         this.#tree.addNodes(block);
 
         this.#tree.preOrderTraversal((element: any) => {
@@ -83,7 +80,7 @@ export class Canvas {
         let zIndex = 0;
         this.#tree.checkNodes((el: any) => {
             if (el.options) {
-                el.options.zIndex += zIndex;
+                el.canvasInit.zIndex = el.options.zIndex || 0 + zIndex;
                 zIndex += 1;
             }
         }, true);
@@ -104,7 +101,7 @@ export class Canvas {
     }
 
     #handleEvents() {
-        // created events for every same type events beacuse canvas is same, but events changing
+        // added unique events because canvas is same, but events changing
         let uniqeEvents: any[] = [];
 
         for (const item of this.#canvasEvents) {
@@ -183,7 +180,6 @@ export class Canvas {
         this.#domCanvas.addEventListener("wheel", (event) => _func(event));
     }
 
-    // not workign correctyly due to x and y cordinates
     #zoomInOut() {
         let scale = 1.02;
         let invScale = 0.95;
@@ -202,8 +198,10 @@ export class Canvas {
                     this.invokeChange((elem) => {
                         elem.canvasInit.x = elem.canvasInit.x * invScale;
                         elem.canvasInit.y = elem.canvasInit.y * invScale;
-                        elem.canvasInit.width = elem.canvasInit.width * invScale;
-                        elem.canvasInit.height = elem.canvasInit.height * invScale;
+                        elem.canvasInit.width =
+                            elem.canvasInit.width * invScale;
+                        elem.canvasInit.height =
+                            elem.canvasInit.height * invScale;
                     });
                 }
             }
