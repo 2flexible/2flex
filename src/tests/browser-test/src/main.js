@@ -147,6 +147,8 @@ const block1 = new Rectangle({
     flexShrink: 1,
     // flexGrow: 1,
     gridColumnStart: 2,
+    draggable: true,
+    selectable: true,
     // order: 4,
 });
 const block2 = new Rectangle({
@@ -242,15 +244,15 @@ function createRandomBlocks() {
 createRandomBlocks();
 const layout = new Layout({
     layout: "flex",
-    flexDirection: "row",
-    wrap: "wrap",
+    // flexDirection: "row",
+    // wrap: "wrap",
     // justifyContent: "space-between",
     // alignContent: "space-around",
     // alignItems: "center",
     width: 400,
     height: 300,
-    gapRow: 120,
-    gapColumn: 20,
+    // gapRow: 120,
+    // gapColumn: 20,
 });
 
 const gridLayout = new Layout({
@@ -279,7 +281,7 @@ const text2 = new TextBlock("text2", {
 });
 
 layout.add(block1, block2, block3, block4, block5, block6);
-mainBlock.add(layout);
+mainBlock.add(block1);
 // line1.join(line2);
 // line2.join(line3)
 // line3.join(line4)
@@ -298,6 +300,7 @@ mainBlock.add(layout);
 // text_a.set({ fontSize: 40 });
 // });
 canvas.add(mainBlock);
+console.log(block1.x())
 // block.add(text_a, text_b);
 // console.log(text_b.x(10))
 // text_b.set()

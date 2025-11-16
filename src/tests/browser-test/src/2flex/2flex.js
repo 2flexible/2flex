@@ -402,6 +402,7 @@ class Block extends Node {
     events = [];
     canvasInit = { x: 0, y: 0, width: 0, height: 0 };
     styleChanges = [];
+    beforeCords = { x: 0, y: 0 };
     constructor(options) {
         super();
         this.options = options;
@@ -410,6 +411,10 @@ class Block extends Node {
             y: this.y(),
             width: this.width(),
             height: this.height(),
+        };
+        this.beforeCords = {
+            x: this.canvasInit.x,
+            y: this.canvasInit.y,
         };
     }
     __initSet() { }
@@ -420,14 +425,16 @@ class Block extends Node {
         this.addChild(block);
         this.__adjustCordinates();
     }
-    __adjustCordinates() {
+    __adjustCordinates(before) {
+        before = before ? before : this.beforeCords;
         this._childs?.forEach((item) => {
             if (item) {
-                item.canvasInit.x =
-                    this.canvasInit.x + item.x() + this.paddingLeft();
-                item.canvasInit.y =
-                    this.canvasInit.y + item.y() + this.paddingTop();
-                item.__adjustCordinates();
+                item.canvasInit.x +=
+                    this.x() + this.canvasInit.x - before.x + this.paddingLeft();
+                item.canvasInit.y +=
+                    this.y() +
+                        this.canvasInit.y - before.y + this.paddingTop();
+                item.__adjustCordinates(before);
             }
         });
     }
@@ -499,11 +506,37 @@ class Block extends Node {
     order(opt) {
         return this.__cacheOption(opt, this.options.order, undefined);
     }
+    alignSelf(opt) {
+        return this.__cacheOption(opt, this.options.alignSelf, "auto");
+    }
+    justifySelf(opt) {
+        return this.__cacheOption(opt, this.options.justifySelf, "auto");
+    }
+    gridRow(opt) {
+        return this.__cacheOption(opt, this.options.gridRow, []);
+    }
+    gridRowStart(opt) {
+        return this.__cacheOption(opt, this.options.gridRowStart, 0);
+    }
+    gridRowEnd(opt) {
+        return this.__cacheOption(opt, this.options.gridRowEnd, 0);
+    }
+    gridColumn(opt) {
+        return this.__cacheOption(opt, this.options.gridColumn, []);
+    }
     gridColumnStart(opt) {
         return this.__cacheOption(opt, this.options.gridColumnStart, 0);
     }
     gridColumnEnd(opt) {
         return this.__cacheOption(opt, this.options.gridColumnEnd, 0);
+    }
+    gridArea(opt) {
+        const gridArea = this.__cacheOption(opt, this.options.gridArea, []);
+        this.gridRowStart(gridArea[0] || "auto");
+        this.gridColumnStart(gridArea[1] || "auto");
+        this.gridRowEnd(gridArea[2] || "auto");
+        this.gridColumnEnd(gridArea[3] || "auto");
+        return gridArea;
     }
     clip_path() {
         this.canvas.clipping_path.addRect(this.canvasInit.x, this.canvasInit.y, this.width(), this.height()
@@ -730,10 +763,12 @@ class Block extends Node {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;
+                this.beforeCords.x = this.canvasInit.x;
                 if (diffX !== 0 && this.dragX()) {
                     this.canvasInit.x += diffX - beforeX;
                     beforeX = diffX;
                 }
+                this.beforeCords.y = this.canvasInit.y;
                 if (diffY !== 0 && this.dragY()) {
                     this.canvasInit.y += diffY - beforeY;
                     beforeY = diffY;
@@ -855,7 +890,17 @@ class Layout extends Block {
         return this.__cacheOption(opt, this.options.flexDirection, 0);
     }
     flexWrap(opt) {
-        return this.__cacheOption(opt, this.options.flexWrap, 0);
+        return this.__cacheOption(opt, this.options.flexWrap, "nowrap");
+    }
+    placeContent(opt) {
+        this.alignContent(opt);
+        this.justifyContent(opt);
+        return this.__cacheOption(opt, this.options.placeContent, 0);
+    }
+    placeItems(opt) {
+        this.alignItems(opt);
+        this.justifyItems(opt);
+        return this.__cacheOption(opt, this.options.placeItems, 0);
     }
     gap(opt) {
         const gap = this.__cacheOption(opt, this.options.gapColumn, 0);
@@ -869,7 +914,21 @@ class Layout extends Block {
         }
         return gap;
     }
-    gridArea(opt) { }
+    gridTemplate(opt) {
+        const gridTemplate = this.__cacheOption(opt, this.options.gridTemplate, []);
+        this.gridTemplateRows(gridTemplate[0]);
+        this.gridTemplateColumns(gridTemplate[1]);
+        return gridTemplate;
+    }
+    gridAutoFlow(opt) {
+        return this.__cacheOption(opt, this.options.gridAutoFlow, "row");
+    }
+    gridTemplateColumns(opt) {
+        return this.__cacheOption(opt, this.options.gridTemplateColumns, []);
+    }
+    gridTemplateRows(opt) {
+        return this.__cacheOption(this.options.gridTemplateRows, [], opt);
+    }
     gapColumn(opt) {
         return this.__cacheOption(opt, this.options.gapColumn, 0);
     }
@@ -992,7 +1051,7 @@ class Layout extends Block {
         return false;
     }
     get #isWrap() {
-        return this.options.wrap === "nowrap" ? false : true;
+        return this.flexWrap() === "nowrap" ? false : true;
     }
     get #isOutofLayout() {
         if (this.canvasInit.height - this.#containerH > 0 &&
@@ -1316,7 +1375,8 @@ class Layout extends Block {
                     this.#flexItems.width.forEach((item) => {
                         for (let i = 0; i < this.#flexItems.rows[idx]; i++) {
                             const block = this._childs[i + rows];
-                            this.#startXPos.push(containerW / 2 + (item - block.canvasInit.width) / 2);
+                            this.#startXPos.push(containerW / 2 +
+                                (item - block.canvasInit.width) / 2);
                         }
                         rows += this.#flexItems.rows[idx];
                         idx++;
@@ -1332,7 +1392,8 @@ class Layout extends Block {
                     this.#flexItems.height.forEach((item) => {
                         for (let i = 0; i < this.#flexItems.cols[idx]; i++) {
                             const block = this._childs[i + cols];
-                            this.#startYPos.push(containerH / 2 + (item - block.canvasInit.height) / 2);
+                            this.#startYPos.push(containerH / 2 +
+                                (item - block.canvasInit.height) / 2);
                         }
                         cols += this.#flexItems.cols[idx];
                         idx++;
@@ -1631,7 +1692,8 @@ class Layout extends Block {
                 let allDiff = 0;
                 blocks.forEach((item) => {
                     if (item.flexShrink() !== 0) {
-                        if (item.canvasInit.width - sharedColumnGap * item.flexShrink() >
+                        if (item.canvasInit.width -
+                            sharedColumnGap * item.flexShrink() >
                             0) {
                             allShrinkSum += item.flexShrink();
                             allDiff += 1;
@@ -1652,7 +1714,8 @@ class Layout extends Block {
             let block = blocks[idx];
             if (this.#isWrap)
                 wrapWidth += block.canvasInit.width;
-            if (wrapWidth > this.canvasInit.width || blocks.length - 1 === idx) {
+            if (wrapWidth > this.canvasInit.width ||
+                blocks.length - 1 === idx) {
                 let ccCol = col;
                 if (blocks.length - 1 === idx)
                     ccCol += 1;
@@ -1726,11 +1789,8 @@ class Layout extends Block {
                 }
             }
             block.canvasInit.x = startX;
-            block.canvasInit.width = endX;
             block.canvasInit.y = startY;
-            // block.options.x = startX;
-            // block.options.y = startY;
-            // block.options.height = block.canvasInit.height;
+            block.canvasInit.width = endX;
             if (block.flexBasis() !== "auto")
                 block.canvasInit.width = block.flexBasis();
             if (this.#startYPos[idx] !== undefined) {
@@ -1739,7 +1799,10 @@ class Layout extends Block {
             }
             block.__adjustCordinates();
             blocksW += block.canvasInit.width;
-            blocksH = blocksH < block.canvasInit.height ? block.canvasInit.height : blocksH;
+            blocksH =
+                blocksH < block.canvasInit.height
+                    ? block.canvasInit.height
+                    : blocksH;
             if (block.flexGrow())
                 flexAdjust.push({ idx: idx, grow: block.flexGrow() });
             startX += gapCol + block.canvasInit.width;
@@ -1824,7 +1887,8 @@ class Layout extends Block {
                     Math.abs(diffShrink) / blocks.length;
                 blocks.forEach((item) => {
                     if (item.flexShrink() !== 0) {
-                        if (item.canvasInit.height - sharedRowGap * item.flexShrink() >
+                        if (item.canvasInit.height -
+                            sharedRowGap * item.flexShrink() >
                             0) {
                             allShrinkSum += item.flexShrink();
                             allDiff += 1;
@@ -1844,7 +1908,8 @@ class Layout extends Block {
             const block = blocks[idx];
             if (this.#isWrap)
                 wrapHeight += block.canvasInit.height;
-            if (wrapHeight > this.canvasInit.height || blocks.length - 1 === idx) {
+            if (wrapHeight > this.canvasInit.height ||
+                blocks.length - 1 === idx) {
                 let rrRow = row;
                 if (blocks.length - 1 === idx)
                     rrRow += 1;
@@ -1920,9 +1985,6 @@ class Layout extends Block {
             block.canvasInit.y = startY;
             block.canvasInit.x = startX;
             block.canvasInit.height = endY;
-            // block.options.y = startY;
-            // block.options.x = startX;
-            // block.options.width = block.canvasInit.width;
             if (block.flexBasis() !== "auto")
                 block.canvasInit.height = block.flexBasis();
             if (this.#startXPos[idx] !== undefined)
@@ -1931,7 +1993,10 @@ class Layout extends Block {
             block.__adjustCordinates();
             if (block.flexGrow())
                 flexAdjust.push({ idx: idx, grow: block.flexGrow() });
-            blocksW = blocksW <= block.canvasInit.width ? block.canvasInit.width : blocksW;
+            blocksW =
+                blocksW <= block.canvasInit.width
+                    ? block.canvasInit.width
+                    : blocksW;
             blocksH += block.canvasInit.height;
             startY += gapRow + block.canvasInit.height;
             idx += 1;
@@ -1980,12 +2045,6 @@ class Layout extends Block {
             this._childs.reverse();
         }
         this.#flexColumn();
-    }
-    gridTemplateColumns(opt) {
-        return this.__cacheOption(opt, this.options.gridTemplateColumns, []);
-    }
-    gridTemplateRows(opt) {
-        return this.__cacheOption(this.options.gridTemplateRows, [], opt);
     }
     #gridLayout() {
         const blocks = this._childs;
@@ -2066,8 +2125,6 @@ class Layout extends Block {
                 block.canvasInit.height = endY;
                 block.canvasInit.x = startX;
                 block.canvasInit.y = startY;
-                // block.options.x = startX;
-                // block.options.y = startY;
                 if (this.#startYPos[idx] !== undefined) {
                     block.canvasInit.y += this.#startYPos[idx];
                     // block.canvasInit.y = block.y() + this.#startYPos[idx];

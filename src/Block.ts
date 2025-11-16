@@ -6,6 +6,8 @@ import {
     ICustomEvents,
     BlockOptions,
     IStyle,
+    AlignSelf,
+    JustifySelf,
 } from "./types";
 
 interface CanvasInit {
@@ -23,7 +25,7 @@ export class Block extends Node {
     events: ICustomEvents[] = [];
     canvasInit: CanvasInit = { x: 0, y: 0, width: 0, height: 0 };
     styleChanges: IStyle[] = [];
-
+    beforeCords = { x: 0, y: 0 };
     constructor(options: BlockOptions) {
         super();
         this.options = options;
@@ -32,6 +34,10 @@ export class Block extends Node {
             y: this.y(),
             width: this.width(),
             height: this.height(),
+        };
+        this.beforeCords = {
+            x: this.canvasInit.x,
+            y: this.canvasInit.y,
         };
     }
 
@@ -46,14 +52,16 @@ export class Block extends Node {
         this.__adjustCordinates();
     }
 
-    __adjustCordinates(): void {
+    __adjustCordinates(before?: any): void {
+        before = before ? before : this.beforeCords;
         this._childs?.forEach((item: any) => {
             if (item) {
-                item.canvasInit.x =
-                    this.canvasInit.x + item.x() + this.paddingLeft();
-                item.canvasInit.y =
-                    this.canvasInit.y + item.y() + this.paddingTop();
-                item.__adjustCordinates();
+                item.canvasInit.x +=
+                    this.x() + this.canvasInit.x - before.x + this.paddingLeft();
+                item.canvasInit.y +=
+                this.y() + 
+                    this.canvasInit.y - before.y + this.paddingTop();
+                item.__adjustCordinates(before);
             }
         });
     }
@@ -136,14 +144,38 @@ export class Block extends Node {
         return this.__cacheOption(opt, this.options.order, undefined);
     }
 
-    gridColumnStart(opt?: number): number {
+    alignSelf(opt?: AlignSelf) {
+        return this.__cacheOption(opt, this.options.alignSelf, "auto");
+    }
+    justifySelf(opt?: JustifySelf) {
+        return this.__cacheOption(opt, this.options.justifySelf, "auto");
+    }
+    gridRow(opt?: number[]) {
+        return this.__cacheOption(opt, this.options.gridRow, []);
+    }
+    gridRowStart(opt?: number | string) {
+        return this.__cacheOption(opt, this.options.gridRowStart, 0);
+    }
+    gridRowEnd(opt?: number | string) {
+        return this.__cacheOption(opt, this.options.gridRowEnd, 0);
+    }
+    gridColumn(opt?: number[]) {
+        return this.__cacheOption(opt, this.options.gridColumn, []);
+    }
+    gridColumnStart(opt?: number | string) {
         return this.__cacheOption(opt, this.options.gridColumnStart, 0);
     }
-
-    gridColumnEnd(opt?: number) {
+    gridColumnEnd(opt?: number | string) {
         return this.__cacheOption(opt, this.options.gridColumnEnd, 0);
     }
-
+    gridArea(opt?: number[] | string) {
+        const gridArea = this.__cacheOption(opt, this.options.gridArea, []);
+        this.gridRowStart(gridArea[0] || "auto");
+        this.gridColumnStart(gridArea[1] || "auto");
+        this.gridRowEnd(gridArea[2] || "auto");
+        this.gridColumnEnd(gridArea[3] || "auto");
+        return gridArea;
+    }
     clip_path() {
         this.canvas.clipping_path.addRect(
             this.canvasInit.x,
@@ -416,10 +448,12 @@ export class Block extends Node {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;
+                this.beforeCords.x = this.canvasInit.x;
                 if (diffX !== 0 && this.dragX()) {
                     this.canvasInit.x += diffX - beforeX;
                     beforeX = diffX;
                 }
+                this.beforeCords.y = this.canvasInit.y;
                 if (diffY !== 0 && this.dragY()) {
                     this.canvasInit.y += diffY - beforeY;
                     beforeY = diffY;

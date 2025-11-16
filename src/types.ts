@@ -55,22 +55,20 @@ export interface BlockOptions {
     visible?: boolean;
     rotate?: number;
     order?: number;
-    alingSelf?: AlignSelf;
+    alignSelf?: AlignSelf;
     justifySelf?: JustifySelf;
     flexShrink?: FlexShrink;
     flexBasis?: FlexBasis;
     flexGrow?: FlexGrow;
     // grid-row: grid-row-start / grid-row-end;
     gridRow?: number[];
-    gridAutoRows?: number;
     gridRowStart?: number;
     gridRowEnd?: number;
     // grid-column: grid-column-start / grid-column-end
     gridColumn?: number[];
-    gridAutoColumns?: number;
     gridColumnStart?: number;
     gridColumnEnd?: number;
-    // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end
+    // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end | itemname
     gridArea?: number[];
 }
 // extend margin as seperate margin top, left, bottom
@@ -128,8 +126,6 @@ export type ICssProperties = {
 
 type Query = BlockOptions;
 
-
-
 export type BorderStyle = "solid" | "dotted";
 
 export interface InitialShapes {
@@ -143,5 +139,3 @@ export interface InitialShapes {
     borderColor?: string;
     borderWidth?: number;
 }
-
-export type MixOpt = string | number | string[] | number[] | undefined;
