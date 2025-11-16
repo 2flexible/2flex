@@ -39,8 +39,8 @@ export class Rectangle extends Shape {
         return this.__cacheOption(opt, this.options.borderRadius, undefined);
     }
     backgroundColor(opt?: string) {
-        super.fillStyle(opt)
-        return this.__cacheOption(opt, this.options.backgroundColor, "black")
+        super.fillStyle(opt);
+        return this.__cacheOption(opt, this.options.backgroundColor, "black");
     }
 
     border(opt?: string) {
@@ -50,7 +50,6 @@ export class Rectangle extends Shape {
         if (this.options.borderStyle === "dotted") {
             this.lineDash(borderStyleArrWidth);
         }
-        super.stroke(true);
         return border;
     }
     borderWidth(opt?: number) {
@@ -108,7 +107,12 @@ export class Rectangle extends Shape {
                 this.canvasInit.width + this.canvasInit.height,
             ]);
         } else if (this.borderStyle() === "solid") {
-            this.lineDash([0, this.canvasInit.width, this.canvasInit.height, this.canvasInit.width]);
+            this.lineDash([
+                0,
+                this.canvasInit.width,
+                this.canvasInit.height,
+                this.canvasInit.width,
+            ]);
         }
         this.#drawRect();
         super.stroke(true);
@@ -129,7 +133,12 @@ export class Rectangle extends Shape {
                 ...borderStyleArrWidth,
             ]);
         } else if (this.options.borderStyle === "solid") {
-            this.lineDash([0, this.canvasInit.width + this.canvasInit.height, this.canvasInit.width, 0]);
+            this.lineDash([
+                0,
+                this.canvasInit.width + this.canvasInit.height,
+                this.canvasInit.width,
+                0,
+            ]);
         }
 
         this.#drawRect();
