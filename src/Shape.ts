@@ -13,6 +13,7 @@ export interface BezierCurveToOpt extends QuadraticCurveToOpt {
     cpx2: number;
     cpy2: number;
 }
+export type LineJoinOpt = "miter" | "round" | "bevel";
 
 export interface RectOpt extends CursorPos {
     width: number;
@@ -68,16 +69,7 @@ export class Shape extends Block {
     }
     __initSet(): void {
         super.__initSet();
-        this.__drawInit();
-    }
-
-    __drawInit() {
-        this.fillStyle();
-
         this.draw();
-
-        this.fill();
-        this.stroke();
     }
 
     draw(_func?: (context: this) => void) {
@@ -165,6 +157,11 @@ export class Shape extends Block {
         y = y || this.canvasInit.y;
         this.context.moveTo(x, y);
     }
+    lineJoin(opt?: LineJoinOpt) {
+        const lineJoin = this.__cacheOption(opt, "lineJoin", "miter");
+        this.context.lineJoin = lineJoin;
+        return lineJoin;
+    }
     pointInPath({ path, x, y, fillRule }: PointInPath): void {
         fillRule = fillRule || "nonzero";
         if (path) this.context.isPointInPath(path, x, y, fillRule);
@@ -194,7 +191,3 @@ export class Shape extends Block {
         super.set(options);
     }
 }
-
-// new Shape({ width: 100, height: 100, setLineDash: [10, 10] }).draw((context) =>
-//     context.setLineDash([10, 10])
-// );

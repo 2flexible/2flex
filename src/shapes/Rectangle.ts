@@ -1,31 +1,21 @@
 import { Shape } from "../Shape";
 import { IBlock, BorderStyle } from "../types";
 
-export interface RectOpt {
+export interface RectOptions {
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius: number[];
 }
 export class Rectangle extends Shape {
-    constructor(options: IBlock<RectOpt>) {
+    constructor(options: IBlock<RectOptions>) {
         super(options);
         this.options = options;
     }
-    __initSet(): void {
-        super.__initSet();
-    }
 
-    __drawInit() {
+    draw(_func?: ((context: this) => void) | undefined): void {
         this.beginPath();
 
         this.backgroundColor();
 
-        this.#drawRect();
-
-        this.fill();
-        this.stroke();
-    }
-
-    #drawRect() {
         this.roundRect({
             x: this.canvasInit.x,
             y: this.canvasInit.y,
@@ -33,6 +23,9 @@ export class Rectangle extends Shape {
             height: this.canvasInit.height,
             borderRadius: this.borderRadius() || [0],
         });
+
+        this.fill();
+        this.stroke();
     }
 
     borderRadius(opt?: number[]): number[] | undefined {
@@ -210,7 +203,7 @@ export class Rectangle extends Shape {
         return super.selectable(opt);
     }
 
-    set(options: IBlock<RectOpt>) {
+    set(options: IBlock<RectOptions>) {
         super.set(options);
     }
 }

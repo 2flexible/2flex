@@ -14,21 +14,10 @@ export class Circle extends Shape {
         super(options);
         this.options = options;
     }
-    __initSet(): void {
-        super.__initSet();
-    }
-
-    __drawInit() {
+    draw(_func?: ((context: this) => void) | undefined): void {
         this.beginPath();
-
         this.backgroundColor();
 
-        this.#drawCircle();
-
-        super.fill();
-        super.stroke();
-    }
-    #drawCircle() {
         this.canvasInit.width = this.canvasInit.width || this.radiusX();
         this.canvasInit.height = this.canvasInit.height || this.radiusY();
         this.context.ellipse(
@@ -40,7 +29,11 @@ export class Circle extends Shape {
             this.startAngle(),
             this.endAngle()
         );
+
+        super.fill();
+        super.stroke();
     }
+
     radius(opt?: number) {
         const radius = this.__cacheOption(opt, "radius", 0);
         this.radiusX(radius);
