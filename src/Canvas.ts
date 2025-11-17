@@ -16,9 +16,14 @@ make checkpoint for canvas to load
 export canvas model
 make import model for canvas
 */
+
+interface CanvasOptions {
+    zoomSpeed?: number;
+    zoomInvSpeed?: number;
+}
 export class Canvas {
     #domCanvas: CanvasDOMManager;
-    options: ICssProperties | undefined;
+    options?: CanvasOptions & ICssProperties;
     #canvasEvents: any[] = [];
     canvasId: string;
     width: number;
@@ -33,16 +38,12 @@ export class Canvas {
         canvasId?: string,
         width?: number,
         height?: number,
-        zoomSpeed?: number,
-        zoomInvSpeed?: number,
-        options: ICssProperties | undefined = undefined
+        options?: CanvasOptions & ICssProperties
     ) {
         this.canvasId = canvasId || "canvas";
         this.options = options;
         this.width = width || 300;
         this.height = height || 300;
-        this.zoomSpeed = zoomSpeed;
-        this.zoomSpeed = zoomInvSpeed;
         this.clipping_path = new Path();
 
         this.#domCanvas = new CanvasDOMManager(
@@ -187,8 +188,8 @@ export class Canvas {
     }
 
     #zoomInOut() {
-        let scale = this.zoomSpeed as number;
-        let invScale = this.zoomInvSpeed as number;
+        let scale = this.options?.zoomSpeed as number;
+        let invScale = this.options?.zoomInvSpeed as number;
         return (event: WheelEvent) => {
             if (event.ctrlKey) {
                 if (event.deltaY < 0) {

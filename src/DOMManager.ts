@@ -42,7 +42,8 @@ export class CanvasDOMManager {
     changeStyle(options: ICssProperties | undefined) {
         if (options !== undefined)
             for (const [key, value] of Object.entries(options)) {
-                this.canvas.style.setProperty(key, `${value}`);
+                if (Object.hasOwn(this.canvas.style, key))
+                    this.canvas.style.setProperty(key, `${value}`);
             }
     }
 
