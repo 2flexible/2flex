@@ -98,6 +98,15 @@ export interface CursorPos {
     y?: number;
 }
 
+export interface RectOpt extends CursorPos {
+    width: number;
+    height: number;
+}
+export interface RoundRectOpt extends RectOpt {
+    // border-radius: [top-left, top-right, bottom-right, bottom-left]
+    borderRadius: number[];
+}
+
 type IMouseEvents =
     | "click"
     | "dblclick"

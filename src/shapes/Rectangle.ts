@@ -1,12 +1,9 @@
 import { Shape } from "../Shape";
-import { IBlock, BorderStyle } from "../types";
+import { IBlock, BorderStyle, RoundRectOpt } from "../types";
 
-export interface RectOptions {
-    // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    borderRadius: number[];
-}
+
 export class Rectangle extends Shape {
-    constructor(options: IBlock<RectOptions>) {
+    constructor(options: IBlock<RoundRectOpt>) {
         super(options);
         this.options = options;
     }
@@ -203,7 +200,7 @@ export class Rectangle extends Shape {
         return super.selectable(opt);
     }
 
-    set(options: IBlock<RectOptions>) {
+    set(options: IBlock<RoundRectOpt>) {
         super.set(options);
     }
 }

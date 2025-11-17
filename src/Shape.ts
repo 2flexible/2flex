@@ -1,6 +1,5 @@
 import { Block } from "./Block";
-import { Path } from "./Path";
-import { IBlock, CursorPos } from "./types";
+import { IBlock, CursorPos, RectOpt, RoundRectOpt } from "./types";
 
 export interface QuadraticCurveToOpt {
     cpx1: number;
@@ -8,25 +7,21 @@ export interface QuadraticCurveToOpt {
     endX: number;
     endY: number;
 }
-
 export interface BezierCurveToOpt extends QuadraticCurveToOpt {
     cpx2: number;
     cpy2: number;
 }
 export type LineJoinOpt = "miter" | "round" | "bevel";
-
-export interface RectOpt extends CursorPos {
-    width: number;
-    height: number;
-}
-export interface RoundRectOpt extends RectOpt {
-    // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    borderRadius: number[];
-}
-
+export type LineDashOffset = number;
+export type LineDash = number[];
+export type LineWidth = number;
 export type LineCapOpt = "butt" | "round" | "square";
-
 export type FillRule = "nonzero" | "evenodd";
+export type strokeStyle = string;
+export type FillStyle = string;
+export type Fill = boolean;
+export type Storke = boolean;
+
 
 interface PointInPath extends CursorPos {
     path?: Path2D;
@@ -36,15 +31,15 @@ interface PointInStroke extends CursorPos {
     path?: Path2D;
 }
 export interface IShapeOptions {
-    fill?: boolean;
-    fillStyle?: string;
+    fill?: Fill;
+    fillStyle?: FillStyle;
 
-    stroke?: boolean;
-    strokeStyle?: string;
+    stroke?: Storke;
+    strokeStyle?: strokeStyle;
 
     line?: CursorPos;
-    lineWidth?: number;
-    lineDash?: number[];
+    lineWidth?: LineWidth;
+    lineDash?: LineDash[];
     lineCap?: LineCapOpt;
 
     bezierCurve?: BezierCurveToOpt;
@@ -54,12 +49,10 @@ export interface IShapeOptions {
     roundRect?: RoundRectOpt;
     strokeRect?: RectOpt;
 
-    begin?: boolean;
-    close?: boolean;
-    move?: CursorPos;
-
     pointInPath?: PointInPath;
     pointInStroke?: PointInStroke;
+
+    moveTo?: CursorPos;
 }
 // each shape extends form common shape
 export class Shape extends Block {
@@ -76,31 +69,31 @@ export class Shape extends Block {
         if (_func) _func(this);
     }
 
-    beginPath(opt: boolean = true) {
-        if (opt) return this.context.beginPath();
+    beginPath() {
+        this.context.beginPath();
     }
 
-    fill(opt?: boolean, path?: Path) {
+    closePath(): void {
+        this.context.closePath();
+    }
+
+    fill(opt?: Fill) {
         const fill = this.__cacheOption(opt, "fill", false);
-        if (fill) this.context.fill(path);
+        if (fill) this.context.fill();
         return fill;
     }
-    fillStyle(opt?: string) {
+    fillStyle(opt?: FillStyle) {
         const fillStyle = this.__cacheOption(opt, "fillStyle", "black");
         this.context.fillStyle = fillStyle;
         return fillStyle;
     }
 
-    stroke(opt?: boolean, path?: Path2D) {
+    stroke(opt?: Storke) {
         const stroke = this.__cacheOption(opt, "stroke", false);
-        if (stroke) {
-            if (path) this.context.stroke(path);
-            else this.context.stroke();
-        }
+        if (stroke) this.context.stroke();
         return stroke;
     }
-
-    strokeStyle(opt?: string) {
+    strokeStyle(opt?: strokeStyle) {
         const strokeStyle = this.__cacheOption(opt, "strokeStyle", "black");
         this.context.strokeStyle = strokeStyle;
         return strokeStyle;
@@ -111,19 +104,23 @@ export class Shape extends Block {
         return lineCap;
     }
 
-    lineWidth(opt?: number) {
+    lineWidth(opt?: LineWidth) {
         const lineWidth = this.__cacheOption(opt, "lineWidth", 0);
         this.context.lineWidth = lineWidth;
         return lineWidth;
     }
 
-    lineDash(opt?: number[]): void {
+    lineDash(opt?: LineDash) {
         const lineDash = this.__cacheOption(opt, "lineDash", []);
         this.context.setLineDash(lineDash);
+        return lineDash;
     }
-    closePath(opt?: boolean): void {
-        if (opt) this.context.closePath();
+    lineDashOffset(opt?: LineDashOffset) {
+        const lineDash = this.__cacheOption(opt, "lineDash", 0);
+        this.context.lineDashOffset = lineDash;
+        return lineDash;
     }
+
     line({ x, y }: CursorPos): void {
         this.context.lineTo(x, y);
     }
@@ -152,9 +149,7 @@ export class Shape extends Block {
         this.context.strokeRect(x, y, width, height);
     }
     // can be 2 different format, one opt with optinos giving paramters, two like this
-    move({ x, y }: CursorPos): void {
-        x = x || this.canvasInit.x;
-        y = y || this.canvasInit.y;
+    moveTo({ x, y }: CursorPos): void {
         this.context.moveTo(x, y);
     }
     lineJoin(opt?: LineJoinOpt) {
@@ -183,7 +178,6 @@ export class Shape extends Block {
     draggable(opt?: boolean): boolean {
         return super.draggable(opt);
     }
-
     selectable(opt?: boolean): boolean {
         return super.selectable(opt);
     }
