@@ -2603,29 +2603,6 @@ class Rectangle extends Shape {
     }
 }
 
-class Ellipse extends Shape {
-    constructor(options) {
-        super(options);
-        this.options = options;
-        Ellipse.prototype.draggable = Shape.prototype.draggable;
-    }
-    __initSet() {
-        super.__initSet();
-    }
-    __drawInit() {
-        this.beginPath();
-        this.backgroundColor();
-        // cordinates need to calculate related to radius x and radius y
-        this.context.ellipse(this.canvasInit.x, this.canvasInit.y, this.options.radiusX, this.options.radiusY, this.options.rotation, 0, 2 * Math.PI);
-        this.fill();
-        this.stroke();
-    }
-    backgroundColor(opt) {
-        this.options.backgroundColor = super.fillStyle(opt);
-        return this.options.backgroundColor;
-    }
-}
-
 class Circle extends Shape {
     constructor(options) {
         super(options);
@@ -2848,4 +2825,4 @@ class Line extends Shape {
     }
 }
 
-export { Block, Canvas, CanvasDOMManager, Circle, Ellipse, Layout, Line, Rectangle, Shape, TextBlock };
+export { Block, Canvas, CanvasDOMManager, Circle, Layout, Line, Rectangle, Shape, TextBlock };
