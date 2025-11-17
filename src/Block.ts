@@ -75,25 +75,25 @@ export class Block extends Node {
 
     x(opt?: number): number {
         const x = this.__cacheOption(opt, "x", 0);
-        this.canvasInit.x = x
-        return x
+        if (opt) this.canvasInit.x = x;
+        return x;
     }
 
     y(opt?: number): number {
-        const y =  this.__cacheOption(opt, "y", 0);
-        this.canvasInit.y = y
-        return y
+        const y = this.__cacheOption(opt, "y", 0);
+        if (opt) this.canvasInit.y = y;
+        return y;
     }
 
     width(opt?: number): number {
         const width = this.__cacheOption(opt, "width", 0);
-        this.canvasInit.width = width;
+        if (opt) this.canvasInit.width = width;
         return width;
     }
 
     height(opt?: number): number {
         const height = this.__cacheOption(opt, "height", 0);
-        this.canvasInit.height = height;
+        if (opt) this.canvasInit.height = height;
         return height;
     }
 
@@ -253,8 +253,9 @@ export class Block extends Node {
 
     __cacheOption<T>(opt: T | undefined, option: string, defaultOpt: T): T {
         if (this.options) {
-            if (opt) this.options[option] = opt;
-            else if (this.options[option]) return this.options[option];
+            if (opt !== undefined) this.options[option] = opt;
+            else if (this.options[option] !== undefined)
+                return this.options[option];
             else this.options[option] = defaultOpt;
             return this.options[option];
         }
@@ -330,9 +331,7 @@ export class Block extends Node {
         this.events.push({
             eventType: "mouseup",
             method: (event: MouseEvent) => {
-                if (this.checkInBound(event)) {
-                    _func(event);
-                }
+                _func(event);
             },
         });
     }
@@ -402,26 +401,17 @@ export class Block extends Node {
     }
 
     selectable(opt?: boolean): boolean {
-        const duplicat = this.events.filter(
-            (elem) => elem.eventType === "selectable"
-        );
-        if (!opt && duplicat.length >= 1) return false;
+        const selectable = this.__cacheOption(opt, "selectable", true);
 
-        this.events.push({
-            eventType: "selectable",
-            method: () => {},
+        let old_color = this.options.borderColor;
+        this.mousemove((event) => {
+            if (!this.options.mousedown && this.checkInBound(event)) {
+                this.set({ color: "yellow" });
+            } else {
+                this.set({ color: old_color });
+            }
         });
-
-        // let old_color = this.options.borderColor;
-        // this.mousemove((event) => {
-        //     if (!this.options.mousedown && this.checkInBound(event)) {
-        //         this.set({ color: "yellow" });
-        //     } else {
-        //         this.set({ color: old_color });
-        //     }
-        // });
-        this.options.selectable = this.__cacheOption(opt, "selectable", true);
-        return this.options.selectable;
+        return selectable;
     }
     dragX(opt?: boolean) {
         return this.__cacheOption(opt, "dragX", true);
@@ -430,17 +420,9 @@ export class Block extends Node {
         return this.__cacheOption(opt, "dragY", true);
     }
     draggable(opt?: boolean): boolean {
-        const duplicat = this.events.filter(
-            (elem) => elem.eventType === "draggable"
-        );
-
-        if (!opt || duplicat.length >= 1 || !this.options.selectable)
-            return false;
-
-        this.events.push({
-            eventType: "draggable",
-            method: () => {},
-        });
+        const draggable = this.__cacheOption(opt, "draggable", true);
+        if (!draggable) return false;
+        if (!this.selectable()) return false;
 
         let isMouseDown = false;
 
@@ -458,7 +440,6 @@ export class Block extends Node {
                 isMouseDown = true;
                 beforeX = 0;
                 beforeY = 0;
-                this.options.mousedown = isMouseDown;
             }
         });
 
@@ -484,9 +465,7 @@ export class Block extends Node {
 
         this.mouseup((event) => {
             isMouseDown = false;
-            this.options.mousedown = isMouseDown;
         });
-        this.options.draggable = opt;
-        return this.options.draggable;
+        return draggable;
     }
 }
