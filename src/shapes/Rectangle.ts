@@ -1,7 +1,6 @@
 import { Shape } from "../Shape";
 import { IBlock, BorderStyle, RoundRectOpt } from "../types";
 
-
 export class Rectangle extends Shape {
     constructor(options: IBlock<RoundRectOpt>) {
         super(options);
@@ -182,6 +181,36 @@ export class Rectangle extends Shape {
         this.borderStyle(borderStyle);
         this.borderColor(borderColor);
         return { borderStyleArrWidth, borderStyleArrHeight };
+    }
+    padding(opt?: number[]): number[] | undefined {
+        return super.padding(opt);
+    }
+    paddingLeft(opt?: number): number {
+        return super.paddingLeft(opt);
+    }
+    paddingTop(opt?: number): number {
+        return super.paddingTop(opt);
+    }
+    paddingBottom(opt?: number): number {
+        return super.paddingBottom(opt);
+    }
+    paddingRight(opt?: number): number {
+        return super.paddingRight(opt);
+    }
+    margin(opt?: number[]): number[] | undefined {
+        return super.margin(opt);
+    }
+    marginLeft(opt?: number): number {
+        return super.marginLeft(opt);
+    }
+    marginTop(opt?: number): number {
+        return super.marginTop(opt);
+    }
+    marginBottom(opt?: number): number {
+        return super.marginBottom(opt);
+    }
+    marginRight(opt?: number): number {
+        return super.marginRight(opt);
     }
     clip(opt?: boolean): boolean {
         return super.clip(opt);

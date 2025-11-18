@@ -47,6 +47,10 @@ export interface BlockOptions {
     paddingBottom?: number;
     paddingLeft?: number;
     margin?: string;
+    marginTop?: number;
+    marginRight?: number;
+    marginBottom?: number;
+    marginLeft?: number;
     clip?: boolean;
     fillRule?: string;
     zIndex?: number;

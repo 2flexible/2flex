@@ -30,19 +30,23 @@ export class Block extends Node {
     events: ICustomEvents[] = [];
     canvasInit: CanvasInit = { x: 0, y: 0, width: 0, height: 0, zIndex: 0 };
     styleChanges: IStyle[] = [];
-    beforeCords = { x: 0, y: 0 };
+    beforeInit = { x: 0, y: 0, width: 0, height: 0 };
     constructor(options: BlockOptions) {
         super();
         this.options = options;
+        this.padding();
+        this.margin();
         this.canvasInit = {
-            x: this.x(),
-            y: this.y(),
-            width: this.width(),
-            height: this.height(),
+            x: this.x() + this.marginLeft(),
+            y: this.y() + this.marginTop(),
+            width: this.width() + this.paddingLeft() + this.paddingRight(),
+            height: this.height() + this.paddingTop() + this.paddingBottom(),
         };
-        this.beforeCords = {
+        this.beforeInit = {
             x: this.canvasInit.x,
             y: this.canvasInit.y,
+            width: this.canvasInit.width,
+            height: this.canvasInit.height,
         };
     }
 
@@ -54,20 +58,31 @@ export class Block extends Node {
 
     add(...block: BlockElements[]): void {
         this.addChild(block);
+        this.__adjustSpaces();
         this.__adjustCordinates();
     }
-
-    __adjustCordinates(before?: any): void {
-        before = before ? before : this.beforeCords;
+    __adjustSpaces() {
         this._childs?.forEach((item: any) => {
             if (item) {
                 item.canvasInit.x +=
+                    this.marginLeft() +
                     this.x() +
-                    this.canvasInit.x -
-                    before.x +
-                    this.paddingLeft();
+                    this.paddingLeft() -
+                    this.paddingRight();
                 item.canvasInit.y +=
-                    this.y() + this.canvasInit.y - before.y + this.paddingTop();
+                    this.marginTop() +
+                    this.y() +
+                    this.paddingTop() -
+                    this.paddingBottom();
+            }
+        });
+    }
+    __adjustCordinates(before?: any): void {
+        before = before || this.beforeInit;
+        this._childs?.forEach((item: any) => {
+            if (item) {
+                item.canvasInit.x += this.canvasInit.x - before.x;
+                item.canvasInit.y += this.canvasInit.y - before.y;
                 item.__adjustCordinates(before);
             }
         });
@@ -75,13 +90,13 @@ export class Block extends Node {
 
     x(opt?: number): number {
         const x = this.__cacheOption(opt, "x", 0);
-        if (opt) this.canvasInit.x = x;
+        if (opt !== undefined) this.canvasInit.x = x;
         return x;
     }
 
     y(opt?: number): number {
         const y = this.__cacheOption(opt, "y", 0);
-        if (opt) this.canvasInit.y = y;
+        if (opt !== undefined) this.canvasInit.y = y;
         return y;
     }
 
@@ -98,33 +113,32 @@ export class Block extends Node {
     }
 
     padding(opt?: number[]) {
-        this.options.padding = opt || this.options.padding || [];
-        switch (this.options.padding.length) {
+        const padding = this.__cacheOption(opt, "padding", undefined);
+        if (!padding) return padding;
+        this.paddingTop(padding[0]);
+        switch (padding.length) {
             case 1:
-                this.options.paddingBottom =
-                    this.options.paddingLeft =
-                    this.options.paddingRight =
-                        this.options.padding[0];
+                this.paddingBottom(padding[0]);
+                this.paddingLeft(padding[0]);
+                this.paddingRight(padding[0]);
                 break;
             case 2:
-                this.options.paddingBottom = this.options.padding[0];
-                this.options.paddingLeft = this.options.paddingRight =
-                    this.options.padding[1];
+                this.paddingBottom(padding[0]);
+                this.paddingLeft(padding[1]);
+                this.paddingRight(padding[1]);
                 break;
             case 3:
-                this.options.paddingBottom = this.options.padding[2];
-                this.options.paddingLeft = this.options.paddingRight =
-                    this.options.padding[1];
+                this.paddingLeft(padding[1]);
+                this.paddingRight(padding[1]);
+                this.paddingBottom(padding[2]);
                 break;
             case 4:
-                this.options.paddingBottom = this.options.padding[1];
-                this.options.paddingRight = this.options.padding[1];
-                this.options.paddingLeft = this.options.padding[2];
+                this.paddingRight(padding[1]);
+                this.paddingBottom(padding[2]);
+                this.paddingLeft(padding[3]);
                 break;
         }
-        this.options.paddingTop = this.options.padding[0];
-
-        return this.options.padding;
+        return padding;
     }
     paddingTop(opt?: number) {
         return this.__cacheOption(opt, "paddingTop", 0);
@@ -137,6 +151,46 @@ export class Block extends Node {
     }
     paddingRight(opt?: number) {
         return this.__cacheOption(opt, "paddingRight", 0);
+    }
+    margin(opt?: number[]) {
+        const margin = this.__cacheOption(opt, "margin", undefined);
+        if (!margin) return margin;
+        this.marginTop(margin[0]);
+        switch (margin.length) {
+            case 1:
+                this.marginBottom(margin[0]);
+                this.marginLeft(margin[0]);
+                this.marginRight(margin[0]);
+                break;
+            case 2:
+                this.marginBottom(margin[0]);
+                this.marginLeft(margin[1]);
+                this.marginRight(margin[1]);
+                break;
+            case 3:
+                this.marginLeft(margin[1]);
+                this.marginRight(margin[1]);
+                this.marginBottom(margin[2]);
+                break;
+            case 4:
+                this.marginRight(margin[1]);
+                this.marginBottom(margin[2]);
+                this.marginLeft(margin[3]);
+                break;
+        }
+        return margin;
+    }
+    marginTop(opt?: number) {
+        return this.__cacheOption(opt, "marginTop", 0);
+    }
+    marginBottom(opt?: number) {
+        return this.__cacheOption(opt, "marginBottom", 0);
+    }
+    marginLeft(opt?: number) {
+        return this.__cacheOption(opt, "marginLeft", 0);
+    }
+    marginRight(opt?: number) {
+        return this.__cacheOption(opt, "marginRight", 0);
     }
     flex(opt?: Flex) {
         const flex = this.__cacheOption(opt, "flex", [
@@ -285,9 +339,9 @@ export class Block extends Node {
         const borderWidth = this.options.borderWidth || 0;
         if (
             x >= this.canvasInit.x - borderWidth &&
-            x <= this.canvasInit.x + this.width() + borderWidth &&
+            x <= this.canvasInit.x + this.canvasInit.width + borderWidth &&
             y >= this.canvasInit.y - borderWidth &&
-            y <= this.canvasInit.y + this.height() + borderWidth
+            y <= this.canvasInit.y + this.canvasInit.height + borderWidth
         ) {
             return true;
         }
@@ -448,12 +502,12 @@ export class Block extends Node {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;
-                this.beforeCords.x = this.canvasInit.x;
+                this.beforeInit.x = this.canvasInit.x;
                 if (diffX !== 0 && this.dragX()) {
                     this.canvasInit.x += diffX - beforeX;
                     beforeX = diffX;
                 }
-                this.beforeCords.y = this.canvasInit.y;
+                this.beforeInit.y = this.canvasInit.y;
                 if (diffY !== 0 && this.dragY()) {
                     this.canvasInit.y += diffY - beforeY;
                     beforeY = diffY;
