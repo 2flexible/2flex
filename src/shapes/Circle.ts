@@ -77,6 +77,30 @@ export class Circle extends Shape {
     padding(opt?: number[]): number[] | undefined {
         return super.padding(opt);
     }
+     blur(opt?: number): number {
+        return super.blur(opt);
+    }
+    brightness(opt?: number): number {
+        return super.brightness(opt);
+    }
+    contrast(opt?: number): number {
+        return super.contrast(opt);
+    }
+    dropShadow(opt?: [number, number, number, string][]) {
+        return super.dropShadow(opt);
+    }
+    grayscale(opt?: number): number {
+        return super.grayscale(opt);
+    }
+    hueRotate(opt?: number): number {
+        return super.hueRotate(opt);
+    }
+    opacity(opt?: number): number {
+        return super.opacity(opt);
+    }
+    sepia(opt?: number): number {
+        return super.sepia(opt);
+    }
     paddingLeft(opt?: number): number {
         return super.paddingLeft(opt);
     }

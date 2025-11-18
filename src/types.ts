@@ -60,6 +60,14 @@ export interface BlockOptions {
     visible?: boolean;
     rotate?: number;
     order?: number;
+    blur?: number;
+    brightness?: number;
+    contrast?: number;
+    dropShadow?: number;
+    grayscale?: number;
+    hueRotate?: number;
+    saturate?: number;
+    sepia?: number;
     alignSelf?: AlignSelf;
     justifySelf?: JustifySelf;
     flexShrink?: FlexShrink;

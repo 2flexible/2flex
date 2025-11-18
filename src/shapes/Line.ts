@@ -215,6 +215,30 @@ export class Line extends Shape {
     closePath(opt?: boolean): boolean {
         return this.__cacheOption(opt, "closePath", false);
     }
+     blur(opt?: number): number {
+        return super.blur(opt);
+    }
+    brightness(opt?: number): number {
+        return super.brightness(opt);
+    }
+    contrast(opt?: number): number {
+        return super.contrast(opt);
+    }
+    dropShadow(opt?: [number, number, number, string][]) {
+        return super.dropShadow(opt);
+    }
+    grayscale(opt?: number): number {
+        return super.grayscale(opt);
+    }
+    hueRotate(opt?: number): number {
+        return super.hueRotate(opt);
+    }
+    opacity(opt?: number): number {
+        return super.opacity(opt);
+    }
+    sepia(opt?: number): number {
+        return super.sepia(opt);
+    }
     clip(opt?: boolean): boolean {
         return super.clip(opt);
     }
@@ -275,14 +299,14 @@ export class Line extends Shape {
                 //     endY + 20 > y &&
                 //     y > endY + this.#startCords.y;
 
-                this.beforeCords.x = this.canvasInit.x;
+                this.beforeInit.x = this.canvasInit.x;
                 if (diffX !== 0 && this.dragX()) {
                     if (this.dragStartX()) this.canvasInit.x += diffX - beforeX;
                     // if (dragX1 || dragX2 || dragEndX)
                     this.#startCords.x += diffX - beforeX;
                     beforeX = diffX;
                 }
-                this.beforeCords.y = this.canvasInit.y;
+                this.beforeInit.y = this.canvasInit.y;
                 if (diffY !== 0 && this.dragY()) {
                     if (this.dragStartY()) this.canvasInit.y += diffY - beforeY;
                     // if (dragEndY)

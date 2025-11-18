@@ -31,6 +31,8 @@ export class Block extends Node {
     canvasInit: CanvasInit = { x: 0, y: 0, width: 0, height: 0, zIndex: 0 };
     styleChanges: IStyle[] = [];
     beforeInit = { x: 0, y: 0, width: 0, height: 0 };
+    __filters: string[] = [];
+
     constructor(options: BlockOptions) {
         super();
         this.options = options;
@@ -50,7 +52,9 @@ export class Block extends Node {
         };
     }
 
-    __initSet() {}
+    __initSet() {
+        this.context.filter = this.__filters.join(" ");
+    }
 
     get context() {
         return this.canvas?.context;
@@ -110,6 +114,56 @@ export class Block extends Node {
         const height = this.__cacheOption(opt, "height", 0);
         if (opt) this.canvasInit.height = height;
         return height;
+    }
+    blur(opt?: number) {
+        const blur = this.__cacheOption(opt, "blur", 0);
+        if (blur) this.__filters.push(`blur(${blur}px)`);
+        return blur;
+    }
+    brightness(opt?: number) {
+        const brightness = this.__cacheOption(opt, "brightness", 0);
+        if (brightness) this.__filters.push(`brightness(${brightness}%)`);
+        return brightness;
+    }
+    contrast(opt?: number) {
+        const contrast = this.__cacheOption(opt, "contrast", 0);
+        if (contrast) this.__filters.push(`contrast(${contrast}%)`);
+        return contrast;
+    }
+    dropShadow(opt?: [number, number, number, string][]) {
+        const dropShadow = this.__cacheOption(opt, "dropShadow", []);
+        let _s = "";
+        dropShadow.forEach((i) => {
+            if (i instanceof Number) _s += `${i}px`;
+            else _s += i;
+        });
+        if (dropShadow) this.__filters.push(`drop-shadow(${_s})`);
+        return dropShadow;
+    }
+    grayscale(opt?: number) {
+        const grayscale = this.__cacheOption(opt, "grayscale", 0);
+        if (grayscale) this.__filters.push(`grayscale(${grayscale}%)`);
+        return grayscale;
+    }
+    hueRotate(opt?: number) {
+        const hueRotate = this.__cacheOption(opt, "hueRotate", 0);
+        if (hueRotate) this.__filters.push(`hue-rotate(${hueRotate}deg)`);
+        return hueRotate;
+    }
+    opacity(opt?: number) {
+        const opacity = this.__cacheOption(opt, "opacity", 0);
+        if (opacity) this.__filters.push(`opacity(${opacity}%)`);
+        return opacity;
+    }
+    saturate(opt?: number) {
+        const saturate = this.__cacheOption(opt, "saturate", 0);
+        if (saturate) this.__filters.push(`saturate(${saturate}%)`);
+        return saturate;
+    }
+    sepia(opt?: number) {
+        const sepia = this.__cacheOption(opt, "sepia", 0);
+        if (sepia) this.__filters.push(`sepia(${sepia}%)`);
+        return sepia;
     }
 
     padding(opt?: number[]) {
@@ -459,11 +513,11 @@ export class Block extends Node {
 
         let old_color = this.options.borderColor;
         this.mousemove((event) => {
-            if (!this.options.mousedown && this.checkInBound(event)) {
-                this.set({ color: "yellow" });
-            } else {
-                this.set({ color: old_color });
-            }
+            // if (!this.options.mousedown && this.checkInBound(event)) {
+            //     this.set({ color: "yellow" });
+            // } else {
+            //     this.set({ color: old_color });
+            // }
         });
         return selectable;
     }

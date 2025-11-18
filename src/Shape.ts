@@ -22,7 +22,6 @@ export type FillStyle = string;
 export type Fill = boolean;
 export type Storke = boolean;
 
-
 interface PointInPath extends CursorPos {
     path?: Path2D;
     fillRule?: FillRule;
@@ -110,6 +109,35 @@ export class Shape extends Block {
         return lineWidth;
     }
 
+    filter(opt?: string) {
+        const filter = this.__cacheOption(opt, "filter", "");
+        this.context.filter = filter;
+        return filter;
+    }
+    blur(opt?: number): number {
+        return super.blur(opt);
+    }
+    brightness(opt?: number): number {
+        return super.brightness(opt);
+    }
+    contrast(opt?: number): number {
+        return super.contrast(opt);
+    }
+    dropShadow(opt?: [number, number, number, string][]) {
+        return super.dropShadow(opt);
+    }
+    grayscale(opt?: number): number {
+        return super.grayscale(opt);
+    }
+    hueRotate(opt?: number): number {
+        return super.hueRotate(opt);
+    }
+    opacity(opt?: number): number {
+        return super.opacity(opt);
+    }
+    sepia(opt?: number): number {
+        return super.sepia(opt);
+    }
     lineDash(opt?: LineDash) {
         const lineDash = this.__cacheOption(opt, "lineDash", []);
         this.context.setLineDash(lineDash);
