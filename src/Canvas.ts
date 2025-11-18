@@ -31,8 +31,6 @@ export class Canvas {
     clipping_path: Path;
     #tree = new Tree();
     #cords = { x: 0, y: 0 };
-    zoomSpeed?: number = 1.02;
-    zoomInvSpeed?: number = 0.95;
 
     constructor(
         canvasId?: string,
@@ -169,6 +167,8 @@ export class Canvas {
             "alignContent",
             "gridTemplateColumns",
             "gridTemplateRows",
+            "draggable",
+            "selectable",
         ];
 
         this.#tree.checkNodes((element: any) => {
@@ -188,23 +188,19 @@ export class Canvas {
     }
 
     #zoomInOut() {
-        let scale = this.options?.zoomSpeed as number;
-        let invScale = this.options?.zoomInvSpeed as number;
+        let scale = this.options?.zoomSpeed || 1.2;
+        let invScale = this.options?.zoomInvSpeed || 0.8;
         return (event: WheelEvent) => {
             if (event.ctrlKey) {
                 if (event.deltaY < 0) {
                     this.context.scale(scale, scale);
                     this.invokeChange((elem) => {
-                        elem.canvasInit.x = elem.canvasInit.x * scale;
-                        elem.canvasInit.y = elem.canvasInit.y * scale;
                         elem.canvasInit.width *= scale;
                         elem.canvasInit.height *= scale;
                     });
                 } else {
                     this.context.scale(invScale, invScale);
                     this.invokeChange((elem) => {
-                        elem.canvasInit.x = elem.canvasInit.x * invScale;
-                        elem.canvasInit.y = elem.canvasInit.y * invScale;
                         elem.canvasInit.width *= invScale;
                         elem.canvasInit.height *= invScale;
                     });
@@ -229,21 +225,17 @@ export class Canvas {
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
                     this.#cords.x -= 10;
-                    invoke = true;
                 } else {
                     this.#cords.x += 10;
-                    invoke = true;
                 }
             } else {
                 if (event.deltaY < 0) {
                     this.#cords.y += 10;
-                    invoke = true;
                 } else {
                     this.#cords.y -= 10;
-                    invoke = true;
                 }
             }
-            if (invoke) this.invokeChange();
+            this.invokeChange();
         };
     }
 }
