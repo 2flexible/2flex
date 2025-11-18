@@ -4,6 +4,7 @@ import { Layout } from "./Layout";
 import { CanvasDOMManager } from "./DOMManager";
 import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
+import { ImageBlock } from "./ImageBlock";
 import { Rectangle, Circle, Line } from "./shapes/index";
 
 export {
@@ -14,6 +15,7 @@ export {
     Shape,
     TextBlock,
     Rectangle,
+    ImageBlock,
     Circle,
     Line,
 };
