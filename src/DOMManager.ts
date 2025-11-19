@@ -4,6 +4,7 @@ export class CanvasDOMManager {
     canvasId: string;
     width: number;
     height: number;
+    #isTransparent = false;
 
     constructor(canvasId: string, width: number, height: number) {
         this.canvasId = canvasId;
@@ -12,7 +13,7 @@ export class CanvasDOMManager {
     }
 
     get context(): CanvasRenderingContext2D {
-        return this.canvas.getContext("2d")!;
+        return this.canvas.getContext("2d", { alpha: this.#isTransparent })!;
     }
 
     get canvas(): HTMLCanvasElement {
@@ -42,6 +43,8 @@ export class CanvasDOMManager {
     changeStyle(options: ICssProperties | undefined) {
         if (options !== undefined)
             for (const [key, value] of Object.entries(options)) {
+                if (key === "backgroundColor" && value === "transparent")
+                    this.#isTransparent = true;
                 if (Object.hasOwn(this.canvas.style, key))
                     this.canvas.style.setProperty(key, `${value}`);
             }
