@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import { IBlock } from "../types";
+import { IBlock, Position } from "../types";
 
 interface CircleOptions {
     radius?: number;
@@ -77,7 +77,26 @@ export class Circle extends Shape {
     padding(opt?: number[]): number[] | undefined {
         return super.padding(opt);
     }
-     blur(opt?: number): number {
+    position(opt?: Position) {
+        return this.__cacheOption(opt, "position", "static");
+    }
+    top(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "top", 0);
+    }
+    bottom(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "bottom", 0);
+    }
+    left(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "left", 0);
+    }
+    right(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "right", 0);
+    }
+    blur(opt?: number): number {
         return super.blur(opt);
     }
     brightness(opt?: number): number {

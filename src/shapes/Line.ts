@@ -7,7 +7,7 @@ import {
     LineDashOffset,
     Fill,
 } from "../Shape";
-import { IBlock } from "../types";
+import { IBlock, Position } from "../types";
 import { Path } from "../Path";
 
 interface Points {
@@ -152,6 +152,25 @@ export class Line extends Shape {
     startY1(opt?: number) {
         return this.__cacheOption(opt, "startY1", 0);
     }
+    position(opt?: Position) {
+        return this.__cacheOption(opt, "position", "static");
+    }
+    top(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "top", 0);
+    }
+    bottom(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "bottom", 0);
+    }
+    left(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "left", 0);
+    }
+    right(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "right", 0);
+    }
     startX2(opt?: number) {
         return this.__cacheOption(opt, "startX2", 0);
     }
@@ -215,7 +234,7 @@ export class Line extends Shape {
     closePath(opt?: boolean): boolean {
         return this.__cacheOption(opt, "closePath", false);
     }
-     blur(opt?: number): number {
+    blur(opt?: number): number {
         return super.blur(opt);
     }
     brightness(opt?: number): number {

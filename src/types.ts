@@ -33,6 +33,8 @@ export type Flex = [FlexGrow, FlexShrink, FlexBasis];
 
 export type PlaceSelf = AlignSelf & JustifySelf;
 
+export type Position = "static" | "relative" | "absolute" | "sticky" | "fixed";
+
 // move these inside to Block
 export interface BlockOptions {
     [key: string]: any;
@@ -40,6 +42,11 @@ export interface BlockOptions {
     y?: number;
     width?: number;
     height?: number;
+    position?: Position;
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
     selectable?: boolean;
     padding?: number[];
     paddingTop?: number;

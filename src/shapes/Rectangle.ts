@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import { IBlock, BorderStyle, RoundRectOpt } from "../types";
+import { IBlock, BorderStyle, RoundRectOpt, Position } from "../types";
 
 export class Rectangle extends Shape {
     constructor(options: IBlock<RoundRectOpt>) {
@@ -181,6 +181,25 @@ export class Rectangle extends Shape {
         this.borderStyle(borderStyle);
         this.borderColor(borderColor);
         return { borderStyleArrWidth, borderStyleArrHeight };
+    }
+    position(opt?: Position) {
+        return this.__cacheOption(opt, "position", "static");
+    }
+    top(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "top", 0);
+    }
+    bottom(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "bottom", 0);
+    }
+    left(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "left", 0);
+    }
+    right(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "right", 0);
     }
     blur(opt?: number): number {
         return super.blur(opt);

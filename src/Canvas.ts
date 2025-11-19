@@ -30,7 +30,7 @@ export class Canvas {
     height: number;
     clipping_path: Path;
     #tree = new Tree();
-    #cords = { x: 0, y: 0 };
+    __positionCords = { x: 0, y: 0 };
 
     constructor(
         canvasId?: string,
@@ -157,7 +157,7 @@ export class Canvas {
         this.context.save();
 
         this.clearRect();
-        this.context.translate(this.#cords.x, this.#cords.y);
+        this.context.translate(this.__positionCords.x, this.__positionCords.y);
 
         const ignore = [
             "layout",
@@ -218,21 +218,20 @@ export class Canvas {
     }
     #canvasMoves() {
         return (event: WheelEvent) => {
-            let invoke = false;
             if (event.ctrlKey) {
                 return;
             }
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.#cords.x -= 10;
+                    this.__positionCords.x -= 10;
                 } else {
-                    this.#cords.x += 10;
+                    this.__positionCords.x += 10;
                 }
             } else {
                 if (event.deltaY < 0) {
-                    this.#cords.y += 10;
+                    this.__positionCords.y += 10;
                 } else {
-                    this.#cords.y -= 10;
+                    this.__positionCords.y -= 10;
                 }
             }
             this.invokeChange();

@@ -12,6 +12,7 @@ import {
     FlexGrow,
     FlexShrink,
     FlexBasis,
+    Position,
 } from "./types";
 
 interface CanvasInit {
@@ -31,6 +32,7 @@ export class Block extends Node {
     canvasInit: CanvasInit = { x: 0, y: 0, width: 0, height: 0, zIndex: 0 };
     styleChanges: IStyle[] = [];
     beforeInit = { x: 0, y: 0, width: 0, height: 0 };
+    #isPosApplied = false;
     __filters: string[] = [];
 
     constructor(options: BlockOptions) {
@@ -54,6 +56,104 @@ export class Block extends Node {
 
     __initSet() {
         this.context.filter = this.__filters.join(" ");
+        const pos = this.position();
+        if (pos === "fixed" && !this.options.draggable) {
+            if (this.options.top) {
+                this.canvasInit.y =
+                    -this.canvas.__positionCords.y + this.options.top;
+            } else if (this.options.bottom) {
+                this.canvasInit.y =
+                    -this.canvas.__positionCords.y +
+                    Math.abs(this.canvas.height - this.canvasInit.height);
+                -this.options.bottom;
+            }
+
+            if (this.options.left) {
+                this.canvasInit.x =
+                    -this.canvas.__positionCords.x + this.left();
+            } else if (this.options.right) {
+                this.canvasInit.x =
+                    -this.canvas.__positionCords.x +
+                    Math.abs(this.canvas.width - this.canvasInit.width) -
+                    this.options.right;
+            }
+        }
+        if (pos === "sticky" && !this.options.draggable) {
+            if (this.canvas.__positionCords.y < 0) {
+                if (
+                    this.options.top &&
+                    this.canvas.__positionCords.y <=
+                        Math.abs(this.canvas.height - this.canvasInit.height) -
+                            this.canvasInit.y
+                ) {
+                    this.canvasInit.y =
+                        -this.canvas.__positionCords.y + this.options.top;
+                }
+            } else {
+                if (
+                    this.options.bottom &&
+                    this.canvas.__positionCords.y + this.options.bottom >=
+                        Math.abs(this.canvas.height - this.canvasInit.height) -
+                            Math.abs(this.canvasInit.y)
+                ) {
+                    this.canvasInit.y =
+                        -this.canvas.__positionCords.y +
+                        Math.abs(this.canvas.height - this.canvasInit.height) -
+                        this.options.bottom;
+                }
+            }
+            if (this.canvas.__positionCords.x < 0) {
+                if (
+                    this.options.left &&
+                    this.canvas.__positionCords.x <=
+                        Math.abs(this.canvas.width - this.canvasInit.width) -
+                            this.canvasInit.x
+                ) {
+                    this.canvasInit.x =
+                        -this.canvas.__positionCords.x + this.options.left;
+                }
+            } else {
+                const diffX = Math.abs(
+                    this.canvas.width - this.canvasInit.width
+                );
+                if (
+                    this.options.right &&
+                    this.canvas.__positionCords.x + this.options.right >=
+                        diffX - Math.abs(this.canvasInit.x)
+                ) {
+                    this.canvasInit.x =
+                        -this.canvas.__positionCords.x +
+                        diffX -
+                        this.options.right;
+                }
+            }
+        }
+        if (pos === "absolute" && !this.#isPosApplied) {
+            if (this.options.left !== undefined)
+                this.canvasInit.x = this.options.left;
+            else if (this.options.right !== undefined)
+                this.canvasInit.x =
+                    Math.abs(this.canvas.width - this.width()) -
+                    this.options.right;
+            if (this.options.top !== undefined)
+                this.canvasInit.y = this.options.top;
+            else if (this.options.bottom !== undefined)
+                this.canvasInit.y =
+                    Math.abs(this.canvas.height - this.height()) -
+                    this.options.bottom;
+            this.#isPosApplied = true;
+        }
+        if (pos === "relative" && !this.#isPosApplied) {
+            if (this.options.left !== undefined)
+                this.canvasInit.x += this.options.left;
+            else if (this.options.right !== undefined)
+                this.canvasInit.x -= this.options.right;
+            if (this.options.top !== undefined)
+                this.canvasInit.y += this.options.top;
+            else if (this.options.bottom !== undefined)
+                this.canvasInit.y -= this.options.bottom;
+            this.#isPosApplied = true;
+        }
     }
 
     get context() {
@@ -114,6 +214,25 @@ export class Block extends Node {
         const height = this.__cacheOption(opt, "height", 0);
         if (opt) this.canvasInit.height = height;
         return height;
+    }
+    position(opt?: Position) {
+        return this.__cacheOption(opt, "position", "static");
+    }
+    top(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "top", 0);
+    }
+    bottom(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "bottom", 0);
+    }
+    left(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "left", 0);
+    }
+    right(opt?: number) {
+        if (this.position() === "static") opt = 0;
+        return this.__cacheOption(opt, "right", 0);
     }
     blur(opt?: number) {
         const blur = this.__cacheOption(opt, "blur", 0);
@@ -392,10 +511,24 @@ export class Block extends Node {
 
         const borderWidth = this.options.borderWidth || 0;
         if (
-            x >= this.canvasInit.x - borderWidth &&
-            x <= this.canvasInit.x + this.canvasInit.width + borderWidth &&
-            y >= this.canvasInit.y - borderWidth &&
-            y <= this.canvasInit.y + this.canvasInit.height + borderWidth
+            x >=
+                this.canvasInit.x -
+                    borderWidth +
+                    this.canvas.__positionCords.x &&
+            x <=
+                this.canvasInit.x +
+                    this.canvasInit.width +
+                    borderWidth +
+                    this.canvas.__positionCords.x &&
+            y >=
+                this.canvasInit.y -
+                    borderWidth +
+                    this.canvas.__positionCords.y &&
+            y <=
+                this.canvasInit.y +
+                    this.canvasInit.height +
+                    borderWidth +
+                    this.canvas.__positionCords.y
         ) {
             return true;
         }
