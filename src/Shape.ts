@@ -55,11 +55,14 @@ export interface IShapeOptions {
 }
 // each shape extends form common shape
 export class Shape extends Block {
+    __filters: string[] = [];
+
     constructor(options: IBlock<IShapeOptions>) {
         super(options);
         this.options = options;
     }
     __initSet(): void {
+        this.context.filter = this.__filters.join(" ");
         super.__initSet();
         this.draw();
     }
@@ -133,29 +136,55 @@ export class Shape extends Block {
         this.context.filter = filter;
         return filter;
     }
-    blur(opt?: number): number {
-        return super.blur(opt);
+    blur(opt?: number) {
+        const blur = this.__cacheOption(opt, "blur", 0);
+        if (blur) this.__filters.push(`blur(${blur}px)`);
+        return blur;
     }
-    brightness(opt?: number): number {
-        return super.brightness(opt);
+    brightness(opt?: number) {
+        const brightness = this.__cacheOption(opt, "brightness", 0);
+        if (brightness) this.__filters.push(`brightness(${brightness}%)`);
+        return brightness;
     }
-    contrast(opt?: number): number {
-        return super.contrast(opt);
+    contrast(opt?: number) {
+        const contrast = this.__cacheOption(opt, "contrast", 0);
+        if (contrast) this.__filters.push(`contrast(${contrast}%)`);
+        return contrast;
     }
     dropShadow(opt?: [number, number, number, string][]) {
-        return super.dropShadow(opt);
+        const dropShadow = this.__cacheOption(opt, "dropShadow", []);
+        let _s = "";
+        dropShadow.forEach((i) => {
+            if (i instanceof Number) _s += `${i}px`;
+            else _s += i;
+        });
+        if (dropShadow) this.__filters.push(`drop-shadow(${_s})`);
+        return dropShadow;
     }
-    grayscale(opt?: number): number {
-        return super.grayscale(opt);
+    grayscale(opt?: number) {
+        const grayscale = this.__cacheOption(opt, "grayscale", 0);
+        if (grayscale) this.__filters.push(`grayscale(${grayscale}%)`);
+        return grayscale;
     }
-    hueRotate(opt?: number): number {
-        return super.hueRotate(opt);
+    hueRotate(opt?: number) {
+        const hueRotate = this.__cacheOption(opt, "hueRotate", 0);
+        if (hueRotate) this.__filters.push(`hue-rotate(${hueRotate}deg)`);
+        return hueRotate;
     }
-    opacity(opt?: number): number {
-        return super.opacity(opt);
+    opacity(opt?: number) {
+        const opacity = this.__cacheOption(opt, "opacity", 0);
+        if (opacity) this.__filters.push(`opacity(${opacity}%)`);
+        return opacity;
     }
-    sepia(opt?: number): number {
-        return super.sepia(opt);
+    saturate(opt?: number) {
+        const saturate = this.__cacheOption(opt, "saturate", 0);
+        if (saturate) this.__filters.push(`saturate(${saturate}%)`);
+        return saturate;
+    }
+    sepia(opt?: number) {
+        const sepia = this.__cacheOption(opt, "sepia", 0);
+        if (sepia) this.__filters.push(`sepia(${sepia}%)`);
+        return sepia;
     }
     lineDash(opt?: LineDash) {
         const lineDash = this.__cacheOption(opt, "lineDash", []);

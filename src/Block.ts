@@ -33,7 +33,6 @@ export class Block extends Node {
     styleChanges: IStyle[] = [];
     beforeInit = { x: 0, y: 0, width: 0, height: 0 };
     #isPosApplied = false;
-    __filters: string[] = [];
 
     constructor(options: BlockOptions) {
         super();
@@ -55,7 +54,6 @@ export class Block extends Node {
     }
 
     __initSet() {
-        this.context.filter = this.__filters.join(" ");
         const pos = this.position();
         if (pos === "fixed" && !this.options.draggable) {
             if (this.options.top) {
@@ -233,56 +231,6 @@ export class Block extends Node {
     right(opt?: number) {
         if (this.position() === "static") opt = 0;
         return this.__cacheOption(opt, "right", 0);
-    }
-    blur(opt?: number) {
-        const blur = this.__cacheOption(opt, "blur", 0);
-        if (blur) this.__filters.push(`blur(${blur}px)`);
-        return blur;
-    }
-    brightness(opt?: number) {
-        const brightness = this.__cacheOption(opt, "brightness", 0);
-        if (brightness) this.__filters.push(`brightness(${brightness}%)`);
-        return brightness;
-    }
-    contrast(opt?: number) {
-        const contrast = this.__cacheOption(opt, "contrast", 0);
-        if (contrast) this.__filters.push(`contrast(${contrast}%)`);
-        return contrast;
-    }
-    dropShadow(opt?: [number, number, number, string][]) {
-        const dropShadow = this.__cacheOption(opt, "dropShadow", []);
-        let _s = "";
-        dropShadow.forEach((i) => {
-            if (i instanceof Number) _s += `${i}px`;
-            else _s += i;
-        });
-        if (dropShadow) this.__filters.push(`drop-shadow(${_s})`);
-        return dropShadow;
-    }
-    grayscale(opt?: number) {
-        const grayscale = this.__cacheOption(opt, "grayscale", 0);
-        if (grayscale) this.__filters.push(`grayscale(${grayscale}%)`);
-        return grayscale;
-    }
-    hueRotate(opt?: number) {
-        const hueRotate = this.__cacheOption(opt, "hueRotate", 0);
-        if (hueRotate) this.__filters.push(`hue-rotate(${hueRotate}deg)`);
-        return hueRotate;
-    }
-    opacity(opt?: number) {
-        const opacity = this.__cacheOption(opt, "opacity", 0);
-        if (opacity) this.__filters.push(`opacity(${opacity}%)`);
-        return opacity;
-    }
-    saturate(opt?: number) {
-        const saturate = this.__cacheOption(opt, "saturate", 0);
-        if (saturate) this.__filters.push(`saturate(${saturate}%)`);
-        return saturate;
-    }
-    sepia(opt?: number) {
-        const sepia = this.__cacheOption(opt, "sepia", 0);
-        if (sepia) this.__filters.push(`sepia(${sepia}%)`);
-        return sepia;
     }
 
     padding(opt?: number[]) {
