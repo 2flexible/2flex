@@ -69,6 +69,18 @@ export class Circle extends Shape {
         super.lineWidth(borderWidth);
         return borderWidth;
     }
+    shadowBlur(opt?: number): number {
+        return super.shadowBlur(opt);
+    }
+    shadowColor(opt?: string): string {
+        return super.shadowColor(opt);
+    }
+    shadowOffsetX(opt?: number): number {
+        return super.shadowOffsetX(opt);
+    }
+    shadowOffsetY(opt?: number): number {
+        return super.shadowOffsetY(opt);
+    }
     borderColor(opt?: string) {
         const borderColor = this.__cacheOption(opt, "borderColor", "black");
         super.strokeStyle(borderColor);

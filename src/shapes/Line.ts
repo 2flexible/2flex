@@ -171,6 +171,18 @@ export class Line extends Shape {
         if (this.position() === "static") opt = 0;
         return this.__cacheOption(opt, "right", 0);
     }
+    shadowBlur(opt?: number): number {
+        return super.shadowBlur(opt);
+    }
+    shadowColor(opt?: string): string {
+        return super.shadowColor(opt);
+    }
+    shadowOffsetX(opt?: number): number {
+        return super.shadowOffsetX(opt);
+    }
+    shadowOffsetY(opt?: number): number {
+        return super.shadowOffsetY(opt);
+    }
     startX2(opt?: number) {
         return this.__cacheOption(opt, "startX2", 0);
     }

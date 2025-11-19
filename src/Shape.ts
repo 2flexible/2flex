@@ -108,7 +108,26 @@ export class Shape extends Block {
         this.context.lineWidth = lineWidth;
         return lineWidth;
     }
-
+    shadowBlur(opt?: number) {
+        const shadowBlur = this.__cacheOption(opt, "shadowBlur", 0);
+        this.context.shadowBlur = shadowBlur;
+        return shadowBlur;
+    }
+    shadowColor(opt?: string) {
+        const shadowColor = this.__cacheOption(opt, "shadowColor", "black");
+        this.context.shadowColor = shadowColor;
+        return shadowColor;
+    }
+    shadowOffsetX(opt?: number) {
+        const shadowOffsetX = this.__cacheOption(opt, "shadowOffsetX", 0);
+        this.context.shadowOffsetX = shadowOffsetX;
+        return shadowOffsetX;
+    }
+    shadowOffsetY(opt?: number) {
+        const shadowOffsetY = this.__cacheOption(opt, "shadowOffsetY", 0);
+        this.context.shadowOffsetY = shadowOffsetY;
+        return shadowOffsetY;
+    }
     filter(opt?: string) {
         const filter = this.__cacheOption(opt, "filter", "");
         this.context.filter = filter;
