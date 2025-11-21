@@ -90,6 +90,10 @@ export interface BlockOptions {
     gridColumnEnd?: number;
     // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end | itemname
     gridArea?: number[];
+    hotAreaGap?: number;
+    // can be also object {width: number: height: number}
+    hotCornerSize?: number;
+    resizable?: boolean;
 }
 // extend margin as seperate margin top, left, bottom
 export interface DefaultBlockOpt {

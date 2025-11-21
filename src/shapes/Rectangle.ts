@@ -57,6 +57,13 @@ export class Rectangle extends Shape {
         return this.__cacheOption(opt, "borderStyle", "dotted");
     }
 
+    resizable(opt?: boolean): boolean {
+        return super.resizable()
+    }
+    hotAreaGap(opt?: number): number {
+        return super.hotAreaGap(opt)
+    }
+
     borderTop(opt?: string) {
         const borderTop = this.__cacheOption(opt, "borderRight", "");
         this.options.stroke = true;

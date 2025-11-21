@@ -33,6 +33,7 @@ export class Block extends Node {
     styleChanges: IStyle[] = [];
     beforeInit = { x: 0, y: 0, width: 0, height: 0 };
     #isPosApplied = false;
+    #isResizing = false;
     __filters: string[] = [];
 
     constructor(options: BlockOptions) {
@@ -154,10 +155,229 @@ export class Block extends Node {
                 this.canvasInit.y -= this.options.bottom;
             this.#isPosApplied = true;
         }
+        this.hotLines();
     }
 
     get context() {
         return this.canvas?.context;
+    }
+
+    hotLines() {
+        const width = this.hotCornerSize();
+        const height = this.hotCornerSize();
+        const gap = this.hotAreaGap();
+        let cornerX = this.canvasInit.x - gap;
+        let cornerY = this.canvasInit.y - gap;
+
+        let up = 1;
+        let turn = 1;
+
+        this.context.beginPath();
+        for (let i = 0; i < 4; i++) {
+            this.context.roundRect(
+                cornerX - width / 2,
+                cornerY - height / 2,
+                width,
+                height,
+                [0]
+            );
+            this.context.moveTo(cornerX, cornerY);
+            if (i % 2 == 0) {
+                cornerX += up * this.canvasInit.width + 2 * gap * up;
+                up = -1;
+            } else {
+                cornerY += turn * this.canvasInit.height + 2 * gap * turn;
+                turn = -1;
+            }
+            this.context.lineTo(cornerX, cornerY);
+        }
+        this.context.fillStyle = "white";
+        this.context.fill();
+        this.context.strokeStyle = "blue";
+        this.context.stroke();
+    }
+
+    resizable(opt?: boolean): boolean {
+        const resizable = this.__cacheOption(opt, "resizable", true);
+        if (!resizable) return false;
+
+        let isMouseDown = false;
+
+        let initX = 0;
+        let initY = 0;
+
+        let beforeX = 0;
+        let beforeY = 0;
+
+        const areaGap = this.hotAreaGap();
+        const cornerSize = this.hotCornerSize();
+
+        let topResize = true;
+        let leftResize = true;
+        let xResize = false;
+        let yResize = false;
+        let cornerResize = false;
+
+        this.mousedown((event) => {
+            const { x, y } = this.canvas.getCursorPosition(event);
+            initX = x;
+            initY = y;
+            if (event.button === 0) {
+                isMouseDown = true;
+                beforeX = 0;
+                beforeY = 0;
+            }
+        });
+
+        this.mousemove((event) => {
+            const { x, y } = this.canvas.getCursorPosition(event);
+            const l = this.canvasInit.x - this.canvas.__positionCords.x;
+            const r =
+                this.canvasInit.x +
+                this.canvasInit.width +
+                this.canvas.__positionCords.x;
+
+            const t = this.canvasInit.y - this.canvas.__positionCords.y;
+            const b =
+                this.canvasInit.y +
+                this.canvasInit.height +
+                this.canvas.__positionCords.y;
+
+            // left left, right right
+            const ll = l - areaGap * 2;
+            const rr = r + areaGap * 2;
+            const tt = t - areaGap * 2;
+            const bb = b + areaGap * 2;
+
+            let inBound = false;
+
+            if (!isMouseDown) {
+                if (x >= ll && x <= l && y >= t && y <= b) {
+                    leftResize = true;
+                    xResize = true;
+                    yResize = false;
+                    cornerResize = false;
+                    inBound = true;
+                }
+
+                if (x <= rr && x >= r && y >= t && y <= b) {
+                    leftResize = false;
+                    xResize = true;
+                    yResize = false;
+                    cornerResize = false;
+                    inBound = true;
+                }
+
+                if (y >= tt && y <= t && x >= l && x <= r) {
+                    topResize = true;
+                    xResize = false;
+                    yResize = true;
+                    cornerResize = false;
+                    inBound = true;
+                }
+
+                if (y <= bb && y >= b && x >= l && x <= r) {
+                    topResize = false;
+                    xResize = false;
+                    yResize = true;
+                    cornerResize = false;
+                    inBound = true;
+                }
+
+                if (y <= t && y >= tt && x <= l && x >= ll) {
+                    topResize = true;
+                    leftResize = true;
+                    cornerResize = true;
+                    inBound = true;
+                }
+                if (y <= t && y >= tt && x >= r && x <= rr) {
+                    topResize = true;
+                    leftResize = false;
+                    cornerResize = true;
+                    inBound = true;
+                }
+                if (y >= b && y <= bb && x <= l && x >= ll) {
+                    topResize = false;
+                    leftResize = true;
+                    cornerResize = true;
+                    inBound = true;
+                }
+                if (y >= b && y <= bb && x >= r && x <= rr) {
+                    topResize = false;
+                    leftResize = false;
+                    cornerResize = true;
+                    inBound = true;
+                }
+                if (inBound) {
+                    let cursor;
+                    if (!cornerResize)
+                        cursor = xResize ? "w-resize" : "n-resize";
+                    else {
+                        xResize = true;
+                        yResize = true;
+                        if (
+                            (topResize && leftResize) ||
+                            (!topResize && !leftResize)
+                        )
+                            cursor = "nw-resize";
+                        if (
+                            (topResize && !leftResize) ||
+                            (!topResize && leftResize)
+                        )
+                            cursor = "nesw-resize";
+                    }
+                    this.canvas.__domCanvas.changeStyle({
+                        cursor: cursor,
+                    });
+                    this.#isResizing = true;
+                } else {
+                    this.canvas.__domCanvas.changeStyle({
+                        cursor: "auto",
+                    });
+                    topResize = false;
+                    leftResize = false;
+                    xResize = false;
+                    yResize = false;
+                    cornerResize = false;
+                    this.#isResizing = false;
+                }
+            }
+            if (isMouseDown) {
+                const { x, y } = this.canvas.getCursorPosition(event);
+                let diffX = x - initX;
+                let diffY = y - initY;
+                this.beforeInit.x = this.canvasInit.x;
+                this.beforeInit.y = this.canvasInit.y;
+
+                if (diffX !== 0 && this.dragX() && xResize) {
+                    if (leftResize) {
+                        this.canvasInit.width -= diffX - beforeX;
+                        this.canvasInit.x += diffX - beforeX;
+                    } else {
+                        this.canvasInit.width += diffX - beforeX;
+                    }
+                    beforeX = diffX;
+                }
+                if (diffY !== 0 && this.dragY() && yResize) {
+                    if (topResize) {
+                        this.canvasInit.height -= diffY - beforeY;
+                        this.canvasInit.y += diffY - beforeY;
+                    } else {
+                        this.canvasInit.height += diffY - beforeY;
+                    }
+                    beforeY = diffY;
+                }
+                this.__adjustCordinates();
+                this.canvas.invokeChange?.call(this.canvas);
+            }
+        });
+
+        this.mouseup((event) => {
+            isMouseDown = false;
+            this.canvas.__domCanvas.changeStyle({ cursor: "auto" });
+        });
+
+        return resizable;
     }
 
     add(...block: BlockElements[]): void {
@@ -233,6 +453,12 @@ export class Block extends Node {
     right(opt?: number) {
         if (this.position() === "static") opt = 0;
         return this.__cacheOption(opt, "right", 0);
+    }
+    hotCornerSize(opt?: number) {
+        return this.__cacheOption(opt, "hotCornerSize", 5);
+    }
+    hotAreaGap(opt?: number) {
+        return this.__cacheOption(opt, "hotAreaGap", 5);
     }
     blur(opt?: number) {
         const blur = this.__cacheOption(opt, "blur", 0);
@@ -561,7 +787,7 @@ export class Block extends Node {
         this.events.push({
             eventType: "mousedown",
             method: (event: MouseEvent) => {
-                if (this.options.selectable && this.checkInBound(event)) {
+                if (this.options.selectable) {
                     _func(event);
                 }
             },
@@ -685,7 +911,7 @@ export class Block extends Node {
         });
 
         this.mousemove((event) => {
-            if (isMouseDown) {
+            if (isMouseDown && !this.#isResizing) {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;

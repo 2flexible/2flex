@@ -22,7 +22,7 @@ interface CanvasOptions {
     zoomInvSpeed?: number;
 }
 export class Canvas {
-    #domCanvas: CanvasDOMManager;
+    __domCanvas: CanvasDOMManager;
     options?: CanvasOptions & ICssProperties;
     #canvasEvents: any[] = [];
     canvasId: string;
@@ -44,7 +44,7 @@ export class Canvas {
         this.height = height || 300;
         this.clipping_path = new Path();
 
-        this.#domCanvas = new CanvasDOMManager(
+        this.__domCanvas = new CanvasDOMManager(
             this.canvasId,
             this.width,
             this.height
@@ -53,11 +53,11 @@ export class Canvas {
     }
 
     get context(): CanvasRenderingContext2D {
-        return this.#domCanvas.context;
+        return this.__domCanvas.context;
     }
 
     get canvas(): HTMLCanvasElement {
-        return this.#domCanvas.canvas;
+        return this.__domCanvas.canvas;
     }
 
     #initCanvas() {
@@ -66,7 +66,7 @@ export class Canvas {
 
         this.move(this.#canvasMoves());
         window.onload = () => {
-            this.#domCanvas.changeStyle(this.options);
+            this.__domCanvas.changeStyle(this.options);
             this.zoom(this.#zoomInOut());
         };
     }
@@ -128,7 +128,7 @@ export class Canvas {
         this.#canvasEvents = uniqeEvents;
 
         this.#canvasEvents?.forEach((elem: any) => {
-            this.#domCanvas.addEventListener(elem.eventType, (event) => {
+            this.__domCanvas.addEventListener(elem.eventType, (event) => {
                 elem.methods?.forEach((_method: any) => {
                     _method(event);
                 });
@@ -183,8 +183,8 @@ export class Canvas {
     }
 
     zoom(_func: (event: any) => void) {
-        this.#domCanvas.removeEventListener("wheel", this.#zoomInOut);
-        this.#domCanvas.addEventListener("wheel", (event) => _func(event));
+        this.__domCanvas.removeEventListener("wheel", this.#zoomInOut);
+        this.__domCanvas.addEventListener("wheel", (event) => _func(event));
     }
 
     #zoomInOut() {
@@ -213,8 +213,8 @@ export class Canvas {
     }
 
     move(_func: (event: any) => void) {
-        this.#domCanvas.removeEventListener("wheel", this.#canvasMoves);
-        this.#domCanvas.addEventListener("wheel", (event) => _func(event));
+        this.__domCanvas.removeEventListener("wheel", this.#canvasMoves);
+        this.__domCanvas.addEventListener("wheel", (event) => _func(event));
     }
     #canvasMoves() {
         return (event: WheelEvent) => {
