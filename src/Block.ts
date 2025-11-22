@@ -1,9 +1,9 @@
 import { Node } from "./Tree";
+import { checkInBound } from "./Utils";
 
 import {
     BlockElements,
     IBlock,
-    ICustomEvents,
     BlockOptions,
     IStyle,
     AlignSelf,
@@ -13,6 +13,7 @@ import {
     FlexShrink,
     FlexBasis,
     Position,
+    IMouseEvents,
 } from "./types";
 
 interface CanvasInit {
@@ -28,13 +29,24 @@ interface CanvasInit {
 export class Block extends Node {
     canvas: any;
     options: BlockOptions;
-    events: ICustomEvents[] = [];
+    __events: any = {
+        click: [],
+        dbclick: [],
+        mousedown: [],
+        mouseup: [],
+        mousemove: [],
+        mouseenter: [],
+        mouseleave: [],
+        mouseout: [],
+        mouseover: [],
+    };
     canvasInit: CanvasInit = { x: 0, y: 0, width: 0, height: 0, zIndex: 0 };
     styleChanges: IStyle[] = [];
     beforeInit = { x: 0, y: 0, width: 0, height: 0 };
+    #boundries = { x: 0, y: 0, width: 0, height: 0 };
     #isPosApplied = false;
     #isResizing = false;
-    #rotateDegree = 1;
+    #rotateDegree = 0;
     __filters: string[] = [];
 
     constructor(options: BlockOptions) {
@@ -49,6 +61,12 @@ export class Block extends Node {
             height: this.height() + this.paddingTop() + this.paddingBottom(),
         };
         this.beforeInit = {
+            x: this.canvasInit.x,
+            y: this.canvasInit.y,
+            width: this.canvasInit.width,
+            height: this.canvasInit.height,
+        };
+        this.#boundries = {
             x: this.canvasInit.x,
             y: this.canvasInit.y,
             width: this.canvasInit.width,
@@ -165,14 +183,13 @@ export class Block extends Node {
             -(this.canvasInit.x + this.canvasInit.width / 2),
             -(this.canvasInit.y + this.canvasInit.height / 2)
         );
-        this.hotLines();
     }
 
     get context() {
         return this.canvas?.context;
     }
 
-    hotLines() {
+    hotLines(resizable: boolean = true) {
         const width = this.hotCornerSize();
         const height = this.hotCornerSize();
         const gap = this.hotAreaGap();
@@ -184,13 +201,14 @@ export class Block extends Node {
 
         this.context.beginPath();
         for (let i = 0; i < 4; i++) {
-            this.context.roundRect(
-                cornerX - width / 2,
-                cornerY - height / 2,
-                width,
-                height,
-                [0]
-            );
+            if (resizable)
+                this.context.roundRect(
+                    cornerX - width / 2,
+                    cornerY - height / 2,
+                    width,
+                    height,
+                    [0]
+                );
             this.context.moveTo(cornerX, cornerY);
             if (i % 2 == 0) {
                 cornerX += up * this.canvasInit.width + 2 * gap * up;
@@ -201,8 +219,10 @@ export class Block extends Node {
             }
             this.context.lineTo(cornerX, cornerY);
         }
-        this.context.fillStyle = "white";
-        this.context.fill();
+        if (resizable) {
+            this.context.fillStyle = "white";
+            this.context.fill();
+        }
         this.context.strokeStyle = "blue";
         this.context.stroke();
     }
@@ -226,6 +246,7 @@ export class Block extends Node {
         let rotation = 1;
         let lx = this.canvasInit.width;
         let ly = this.canvasInit.height;
+
         this.mousedown((event) => {
             const { x, y } = this.canvas.getCursorPosition(event);
             if (event.button === 0) {
@@ -348,7 +369,7 @@ export class Block extends Node {
             }
         });
 
-        this.mousemove((event) => {
+        const mousemove = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
             const l = this.canvasInit.x - this.canvas.__positionCords.x;
             const r =
@@ -488,36 +509,54 @@ export class Block extends Node {
                 this.__adjustCordinates();
                 this.canvas.invokeChange?.call(this.canvas);
             }
-        });
+        };
 
-        this.mouseup((event) => {
+        this.mouseup(() => {
             isMouseDown = false;
             this.canvas.__domCanvas.changeStyle({ cursor: "auto" });
         });
 
+        this.__eventHandler("mouseup", mousemove);
         return resizable;
     }
 
     add(...block: BlockElements[]): void {
         this.addChild(block);
-        this.__adjustSpaces();
         this.__adjustCordinates();
+        this.__adjustSpaces();
     }
     __adjustSpaces() {
+        let boundaryX = this.canvasInit.x;
+        let boundaryY = this.canvasInit.y;
+        let boundaryWidth = boundaryX + this.canvasInit.width;
+        let boundaryHeight = boundaryY + this.canvasInit.height;
         this._childs?.forEach((item: any) => {
             if (item) {
                 item.canvasInit.x +=
                     this.marginLeft() +
-                    this.x() +
                     this.paddingLeft() -
                     this.paddingRight();
                 item.canvasInit.y +=
                     this.marginTop() +
-                    this.y() +
                     this.paddingTop() -
                     this.paddingBottom();
+
+                const w = item.canvasInit.width + item.canvasInit.x;
+                const h = item.canvasInit.height + item.canvasInit.y;
+                if (item.canvasInit.x < boundaryX)
+                    boundaryX -= item.canvasInit.x;
+                if (item.canvasInit.y < boundaryY)
+                    boundaryY -= item.canvasInit.y;
+                if (w > boundaryWidth) boundaryWidth += boundaryWidth - w;
+                if (h > boundaryHeight) boundaryHeight += boundaryHeight - h;
             }
         });
+        this.#boundries = {
+            x: boundaryX,
+            y: boundaryY,
+            width: boundaryWidth,
+            height: boundaryHeight,
+        };
     }
     __adjustCordinates(before?: any): void {
         before = before || this.beforeInit;
@@ -850,153 +889,140 @@ export class Block extends Node {
         return this.filterNodes(queries);
     }
     nthChild(opt?: number) {}
-    checkInBound(_event: MouseEvent): boolean {
+    checkInBound(_event: any): boolean {
         const { x, y } = this.canvas.getCursorPosition(_event);
-
         const borderWidth = this.options.borderWidth || 0;
-        if (
-            x >=
-                this.canvasInit.x -
-                    borderWidth +
-                    this.canvas.__positionCords.x &&
-            x <=
-                this.canvasInit.x +
-                    this.canvasInit.width +
-                    borderWidth +
-                    this.canvas.__positionCords.x &&
-            y >=
-                this.canvasInit.y -
-                    borderWidth +
-                    this.canvas.__positionCords.y &&
-            y <=
-                this.canvasInit.y +
-                    this.canvasInit.height +
-                    borderWidth +
-                    this.canvas.__positionCords.y
-        ) {
-            return true;
-        }
-        return false;
+        const startX =
+            this.canvasInit.x - borderWidth + this.canvas.__positionCords.x;
+        const endX =
+            this.canvasInit.x +
+            this.canvasInit.width +
+            borderWidth +
+            this.canvas.__positionCords.x;
+
+        const startY =
+            this.canvasInit.y - borderWidth + this.canvas.__positionCords.y;
+        const endY =
+            this.canvasInit.y +
+            this.canvasInit.height +
+            borderWidth +
+            this.canvas.__positionCords.y;
+        return checkInBound(x, y, startX, startY, endX, endY);
     }
 
     click(_func: (event: MouseEvent) => void) {
-        this.events.push({
-            eventType: "click",
-            method: (event: MouseEvent) => {
-                if (this.options.selectable && this.checkInBound(event)) {
-                    _func(event);
-                }
-            },
-        });
+        const out = (event: MouseEvent) => {
+            if (this.checkInBound(event)) {
+                _func(event);
+                this.canvas?.invokeChange.call(this.canvas);
+            }
+        };
+        this.__eventHandler<MouseEvent>("click", out);
     }
 
     dbclick(_func: (event: MouseEvent) => void) {
-        this.events.push({
-            eventType: "dblclick",
-            method: (event: MouseEvent) => {
-                if (this.options.selectable && this.checkInBound(event)) {
-                    _func(event);
-                }
-            },
-        });
+        const out = (event: MouseEvent) => {
+            if (this.checkInBound(event)) {
+                _func(event);
+                this.canvas?.invokeChange.call(this.canvas);
+            }
+        };
+        this.__eventHandler<MouseEvent>("dblclick", out);
     }
 
     mousedown(_func: (event: MouseEvent) => void) {
-        this.events.push({
-            eventType: "mousedown",
-            method: (event: MouseEvent) => {
-                if (this.options.selectable) {
-                    _func(event);
-                }
-            },
-        });
+        const out = (event: MouseEvent) => {
+            if (this.checkInBound(event)) {
+                _func(event);
+                this.canvas?.invokeChange.call(this.canvas);
+            }
+        };
+        this.__eventHandler<MouseEvent>("mousedown", out);
     }
 
     mouseup(_func: (event: MouseEvent) => void) {
-        this.events.push({
-            eventType: "mouseup",
-            method: (event: MouseEvent) => {
+        const out = (event: MouseEvent) => {
+            if (this.checkInBound(event)) {
                 _func(event);
-            },
-        });
+                this.canvas?.invokeChange.call(this.canvas);
+            }
+        };
+        this.__eventHandler<MouseEvent>("mouseup", out);
     }
 
     mousemove(_func: (event: MouseEvent) => void) {
-        this.events.push({
-            eventType: "mousemove",
-            method: (event: MouseEvent) => {
+        const out = (event: MouseEvent) => {
+            if (this.checkInBound(event)) {
                 _func(event);
-            },
-        });
+                this.canvas?.invokeChange.call(this.canvas);
+            }
+        };
+        this.__eventHandler<MouseEvent>("mousemove", out);
     }
 
     mouseenter(_func: (event: MouseEvent) => void) {
-        this.options.mouseenter = true;
-        this.mousemove((event) => {
-            if (this.options.selectable && this.checkInBound(event)) {
-                if (this.options.mouseenter) {
-                    this.options.mouseenter = false;
-                    _func(event);
-                }
-            } else {
-                this.options.mouseenter = true;
+        const enter = (event: MouseEvent) => {
+            const { x, y } = this.canvas.getCursorPosition(event);
+            console.log(this.#boundries);
+            if (
+                checkInBound(
+                    x,
+                    y,
+                    this.#boundries.x,
+                    this.#boundries.y,
+                    this.#boundries.x + this.#boundries.width,
+                    this.#boundries.y + this.#boundries.height
+                )
+            ) {
+                _func(event);
+                this.canvas?.invokeChange.call(this.canvas);
             }
-        });
+        };
+        this.__eventHandler<MouseEvent>("mousemove", enter);
     }
 
     mouseleave(_func: (event: MouseEvent) => void) {
-        this.options.mouseleave = false;
-        this.mousemove((event) => {
-            if (!this.checkInBound(event)) {
-                if (this.options.mouseleave) {
-                    _func(event);
-                    this.options.mouseleave = false;
-                }
-            } else {
-                this.options.mouseleave = true;
+        const leave = (event: MouseEvent) => {
+            const { x, y } = this.canvas.getCursorPosition(event);
+            if (
+                !checkInBound(
+                    x,
+                    y,
+                    this.#boundries.x,
+                    this.#boundries.y,
+                    this.#boundries.width,
+                    this.#boundries.height
+                )
+            ) {
+                _func(event);
+                this.canvas?.invokeChange.call(this.canvas);
             }
-        });
+        };
+        this.__eventHandler<MouseEvent>("mousemove", leave);
     }
 
     mouseout(_func: (event: MouseEvent) => void) {
-        this.mousemove((event) => {
+        const out = (event: MouseEvent) => {
             if (!this.checkInBound(event)) {
                 _func(event);
+                this.canvas?.invokeChange.call(this.canvas);
             }
-        });
+        };
+        this.__eventHandler<MouseEvent>("mousemove", out);
     }
 
     mouseover(_func: (event: MouseEvent) => void) {
-        this.mousemove((event) => {
-            if (this.options.selectable && this.checkInBound(event)) {
+        const over = (event: MouseEvent) => {
+            if (this.checkInBound(event)) {
                 _func(event);
+                this.canvas?.invokeChange.call(this.canvas);
             }
-        });
+        };
+        this.__eventHandler<MouseEvent>("mousemove", over);
     }
 
-    selectableAction(_func: (event: MouseEvent) => void) {
-        this.events.push({
-            eventType: "mousemove",
-            method: (event: MouseEvent) => {
-                if (!this.options.mousedown && this.checkInBound(event)) {
-                    _func(event);
-                }
-            },
-        });
-    }
-
-    selectable(opt?: boolean): boolean {
-        const selectable = this.__cacheOption(opt, "selectable", true);
-
-        let old_color = this.options.borderColor;
-        this.mousemove((event) => {
-            // if (!this.options.mousedown && this.checkInBound(event)) {
-            //     this.set({ color: "yellow" });
-            // } else {
-            //     this.set({ color: old_color });
-            // }
-        });
-        return selectable;
+    __eventHandler<E>(type: IMouseEvents, _func: (event: E) => void) {
+        this.__events[type].push(_func);
     }
     dragX(opt?: boolean) {
         return this.__cacheOption(opt, "dragX", true);
@@ -1007,7 +1033,6 @@ export class Block extends Node {
     draggable(opt?: boolean): boolean {
         const draggable = this.__cacheOption(opt, "draggable", true);
         if (!draggable) return false;
-        if (!this.selectable()) return false;
 
         let isMouseDown = false;
 
@@ -1018,20 +1043,18 @@ export class Block extends Node {
         let beforeY = 0;
 
         this.mousedown((event) => {
-            if (this.checkInBound(event)) {
-                const { x, y } = this.canvas.getCursorPosition(event);
-                initX = x;
-                initY = y;
-                if (event.button === 0) {
-                    isMouseDown = true;
-                    beforeX = 0;
-                    beforeY = 0;
-                }
+            const { x, y } = this.canvas.getCursorPosition(event);
+            initX = x;
+            initY = y;
+            if (event.button === 0) {
+                isMouseDown = true;
+                beforeX = 0;
+                beforeY = 0;
             }
         });
 
-        this.mousemove((event) => {
-            if (isMouseDown && !this.#isResizing && this.checkInBound(event)) {
+        const mousemove = (event: MouseEvent) => {
+            if (isMouseDown && !this.#isResizing) {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;
@@ -1046,13 +1069,15 @@ export class Block extends Node {
                     beforeY = diffY;
                 }
                 this.__adjustCordinates();
-                this.canvas.invokeChange?.call(this.canvas);
+                this.canvas?.invokeChange();
             }
-        });
+        };
 
         this.mouseup((event) => {
             isMouseDown = false;
         });
+        this.__eventHandler<MouseEvent>("mousemove", mousemove);
+
         return draggable;
     }
 }

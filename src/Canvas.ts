@@ -24,7 +24,17 @@ interface CanvasOptions {
 export class Canvas {
     __domCanvas: CanvasDOMManager;
     options?: CanvasOptions & ICssProperties;
-    #canvasEvents: any[] = [];
+    #canvasEvents: any = {
+        click: [],
+        dbclick: [],
+        mousedown: [],
+        mouseup: [],
+        mousemove: [],
+        mouseenter: [],
+        mouseleave: [],
+        mouseout: [],
+        mouseover: [],
+    };
     canvasId: string;
     width: number;
     height: number;
@@ -78,8 +88,9 @@ export class Canvas {
             element.canvas = this;
             this.#handleOptions(element);
             element.__initSet();
-
-            this.#canvasEvents.push(...element.events);
+            for (const key in element.__events) {
+                this.#canvasEvents[key].push(...element.__events[key]);
+            }
         });
 
         let zIndex = 0;
@@ -107,33 +118,15 @@ export class Canvas {
 
     #handleEvents() {
         // added unique events because canvas is same, but events changing
-        let uniqeEvents: any[] = [];
-
-        for (const item of this.#canvasEvents) {
-            const tempUniqe = uniqeEvents?.filter(
-                (_item) => _item.eventType === item.eventType
-            );
-            if (tempUniqe[0]) {
-                const idx = uniqeEvents.indexOf(tempUniqe[0]);
-                uniqeEvents.splice(idx, 1);
-                tempUniqe[0].methods.push(item.method);
-                uniqeEvents = [...uniqeEvents, tempUniqe[0]];
-            } else {
-                uniqeEvents.push({
-                    eventType: item.eventType,
-                    methods: [item.method],
+        for (const key in this.#canvasEvents) {
+            if (this.#canvasEvents[key].length !== 0) {
+                this.__domCanvas.addEventListener(key, (event) => {
+                    for (const func of this.#canvasEvents[key]) {
+                        func(event);
+                    }
                 });
             }
         }
-        this.#canvasEvents = uniqeEvents;
-
-        this.#canvasEvents?.forEach((elem: any) => {
-            this.__domCanvas.addEventListener(elem.eventType, (event) => {
-                elem.methods?.forEach((_method: any) => {
-                    _method(event);
-                });
-            });
-        });
     }
 
     #handleOptions(block: BlockElements, ignore?: string[]): void {
@@ -167,6 +160,16 @@ export class Canvas {
             "alignContent",
             "gridTemplateColumns",
             "gridTemplateRows",
+            "resizable",
+            "click",
+            "dblclick",
+            "mousedown",
+            "mouseup",
+            "mousemove",
+            "mouseenter",
+            "mouseleave",
+            "mouseout",
+            "mouseover",
             "draggable",
             "selectable",
         ];
@@ -174,7 +177,7 @@ export class Canvas {
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);
             this.#handleOptions(element, ignore);
-            if (!(element instanceof Layout)) element.__initSet();
+            element.__initSet();
         });
     }
     // we can do this later as and || or

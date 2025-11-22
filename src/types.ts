@@ -130,7 +130,7 @@ export interface RoundRectOpt extends RectOpt {
     borderRadius: number[];
 }
 
-type IMouseEvents =
+export type IMouseEvents =
     | "click"
     | "dblclick"
     | "mousedown"
@@ -143,10 +143,6 @@ type IMouseEvents =
     | "draggable"
     | "selectable";
 
-export interface ICustomEvents {
-    eventType: IMouseEvents;
-    method: (event: MouseEvent, cursor: CursorPos) => void;
-}
 
 export interface IStyle {
     styleType: string;

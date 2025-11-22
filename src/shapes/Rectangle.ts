@@ -293,10 +293,6 @@ export class Rectangle extends Shape {
         return super.draggable(opt);
     }
 
-    selectable(opt?: boolean): boolean {
-        return super.selectable(opt);
-    }
-
     set(options: IBlock<RoundRectOpt>) {
         super.set(options);
     }

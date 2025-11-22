@@ -282,7 +282,6 @@ export class Line extends Shape {
     draggable(opt: boolean): boolean {
         const draggable = this.__cacheOption(opt, "draggable", true);
         if (!draggable) return false;
-        if (!this.selectable()) return false;
 
         let isMouseDown = false;
 
@@ -353,9 +352,6 @@ export class Line extends Shape {
             isMouseDown = false;
         });
         return draggable;
-    }
-    selectable(opt?: boolean): boolean {
-        return super.selectable(opt);
     }
     set(options: IBlock<LineOptions>) {
         super.set(options);

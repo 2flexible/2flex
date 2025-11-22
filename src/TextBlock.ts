@@ -305,10 +305,6 @@ export class TextBlock extends Block {
         return super.draggable(opt);
     }
 
-    selectable(opt: boolean): boolean {
-        return super.selectable(opt);
-    }
-
     set(options: IBlock<IText>) {
         super.set(options);
     }

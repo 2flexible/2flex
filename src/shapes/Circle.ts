@@ -168,9 +168,6 @@ export class Circle extends Shape {
     draggable(opt: boolean): boolean {
         return super.draggable(opt);
     }
-    selectable(opt?: boolean): boolean {
-        return super.selectable(opt);
-    }
     set(options: IBlock<CircleOptions>) {
         super.set(options);
     }

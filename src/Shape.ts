@@ -225,9 +225,6 @@ export class Shape extends Block {
     draggable(opt?: boolean): boolean {
         return super.draggable(opt);
     }
-    selectable(opt?: boolean): boolean {
-        return super.selectable(opt);
-    }
     set(options: IBlock<IShapeOptions>): void {
         super.set(options);
     }
