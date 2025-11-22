@@ -533,10 +533,12 @@ export class Block extends Node {
         this._childs?.forEach((item: any) => {
             if (item) {
                 item.canvasInit.x +=
+                    this.x() +
                     this.marginLeft() +
                     this.paddingLeft() -
                     this.paddingRight();
                 item.canvasInit.y +=
+                    this.y() +
                     this.marginTop() +
                     this.paddingTop() -
                     this.paddingBottom();
@@ -963,7 +965,6 @@ export class Block extends Node {
     mouseenter(_func: (event: MouseEvent) => void) {
         const enter = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
-            console.log(this.#boundries);
             if (
                 checkInBound(
                     x,
@@ -1042,40 +1043,36 @@ export class Block extends Node {
         let beforeX = 0;
         let beforeY = 0;
 
-        this.mousedown((event) => {
-            const { x, y } = this.canvas.getCursorPosition(event);
-            initX = x;
-            initY = y;
-            if (event.button === 0) {
-                isMouseDown = true;
-                beforeX = 0;
-                beforeY = 0;
-            }
-        });
-
         const mousemove = (event: MouseEvent) => {
-            if (isMouseDown && !this.#isResizing) {
+            if (event.buttons == 0) isMouseDown = false;
+            if (event.buttons == 1 && !this.#isResizing) {
                 const { x, y } = this.canvas.getCursorPosition(event);
-                let diffX = x - initX;
-                let diffY = y - initY;
-                this.beforeInit.x = this.canvasInit.x;
-                if (diffX !== 0 && this.dragX()) {
-                    this.canvasInit.x += diffX - beforeX;
-                    beforeX = diffX;
+                if (!isMouseDown && this.checkInBound(event)) {
+                    initX = x;
+                    initY = y;
+                    beforeX = 0;
+                    beforeY = 0;
+                    isMouseDown = true;
                 }
-                this.beforeInit.y = this.canvasInit.y;
-                if (diffY !== 0 && this.dragY()) {
-                    this.canvasInit.y += diffY - beforeY;
-                    beforeY = diffY;
+                if (isMouseDown) {
+                    let diffX = x - initX;
+                    let diffY = y - initY;
+                    this.beforeInit.x = this.canvasInit.x;
+                    if (diffX !== 0 && this.dragX()) {
+                        this.canvasInit.x += diffX - beforeX;
+                        beforeX = diffX;
+                    }
+                    this.beforeInit.y = this.canvasInit.y;
+                    if (diffY !== 0 && this.dragY()) {
+                        this.canvasInit.y += diffY - beforeY;
+                        beforeY = diffY;
+                    }
+                    this.__adjustCordinates();
+                    this.canvas?.invokeChange();
                 }
-                this.__adjustCordinates();
-                this.canvas?.invokeChange();
             }
         };
 
-        this.mouseup((event) => {
-            isMouseDown = false;
-        });
         this.__eventHandler<MouseEvent>("mousemove", mousemove);
 
         return draggable;
