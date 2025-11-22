@@ -58,10 +58,16 @@ export class Rectangle extends Shape {
     }
 
     resizable(opt?: boolean): boolean {
-        return super.resizable()
+        return super.resizable(opt);
     }
     hotAreaGap(opt?: number): number {
-        return super.hotAreaGap(opt)
+        return super.hotAreaGap(opt);
+    }
+    rotatable(opt?: boolean): boolean {
+        return super.rotatable(opt);
+    }
+    rotate(opt?: number): number {
+        return super.rotate(opt);
     }
 
     borderTop(opt?: string) {

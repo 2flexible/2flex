@@ -34,6 +34,7 @@ export class Block extends Node {
     beforeInit = { x: 0, y: 0, width: 0, height: 0 };
     #isPosApplied = false;
     #isResizing = false;
+    #rotateDegree = 1;
     __filters: string[] = [];
 
     constructor(options: BlockOptions) {
@@ -155,6 +156,15 @@ export class Block extends Node {
                 this.canvasInit.y -= this.options.bottom;
             this.#isPosApplied = true;
         }
+        this.context.translate(
+            this.canvasInit.x + this.canvasInit.width / 2,
+            this.canvasInit.y + this.canvasInit.height / 2
+        );
+        this.rotate((this.#rotateDegree * Math.PI) / 180);
+        this.context.translate(
+            -(this.canvasInit.x + this.canvasInit.width / 2),
+            -(this.canvasInit.y + this.canvasInit.height / 2)
+        );
         this.hotLines();
     }
 
@@ -195,6 +205,115 @@ export class Block extends Node {
         this.context.fill();
         this.context.strokeStyle = "blue";
         this.context.stroke();
+    }
+
+    rotatable(opt?: boolean) {
+        const rotatable = this.__cacheOption(opt, "rotatable", true);
+        if (!rotatable) return false;
+        let isMouseDown = false;
+
+        let initX = 0;
+        let initY = 0;
+
+        let beforeX = 0;
+        let beforeY = 0;
+        let reverse = false;
+        let beforeDegree = 0;
+
+        const areaGap = this.hotAreaGap();
+        const cornerSize = this.hotCornerSize();
+        const gap = 10;
+        let rotation = 1;
+        let lx = this.canvasInit.width;
+        let ly = this.canvasInit.height;
+        this.mousedown((event) => {
+            const { x, y } = this.canvas.getCursorPosition(event);
+            if (event.button === 0) {
+                initX = x;
+                initY = y;
+                isMouseDown = true;
+                beforeX = x;
+                beforeY = y;
+                if (beforeX > lx) beforeX -= beforeX - lx;
+                if (beforeY > ly) beforeY -= beforeY - ly;
+            }
+        });
+
+        const r =
+            Math.sqrt(
+                Math.pow(this.canvasInit.width, 2) +
+                    Math.pow(this.canvasInit.height, 2)
+            ) / 2;
+
+        let l = 0;
+        let radian = 0;
+        let degree = 0;
+
+        this.mousemove((event) => {
+            let { x, y } = this.canvas.getCursorPosition(event);
+            const right = this.canvasInit.x + this.canvasInit.width;
+            const bottom = this.canvasInit.y + this.canvasInit.height;
+            if (
+                x >= right + areaGap &&
+                x <= right + areaGap + gap &&
+                y >= bottom + areaGap &&
+                y <= bottom + areaGap + gap
+            ) {
+                this.canvas.__domCanvas.changeStyle({
+                    cursor: "grab",
+                });
+            }
+            let left = false;
+
+            if (isMouseDown) {
+                if (lx === this.canvasInit.width) lx += 1;
+                if (ly === this.canvasInit.height) ly -= 1;
+                // if (x > lx) x -= x - lx;
+                // if (y > ly) y -= y - ly;
+                const diffX = x - beforeX;
+                const diffY = y - beforeY;
+                // const r = Math.sqrt(
+                //     Math.pow(x - this.canvasInit.width / 2, 2) +
+                //         Math.pow(y - this.canvasInit.height / 2, 2)
+                // );
+                if (diffX !== 0 && diffY !== 0) {
+                    l += Math.sqrt(Math.pow(diffX, 2) + Math.pow(diffY, 2));
+                    degree += (l * 180) / (Math.PI * r);
+                    console.log(degree);
+                }
+                lx += x;
+                ly += y;
+                beforeX = x;
+                beforeY = y;
+                // if (y < beforeY) {
+                //     if (x < beforeX) left = true;
+                //     else left = false;
+                // }
+                // if (x < beforeX && y <= beforeY) {
+                //     left = true;
+                // } else if (x < beforeX && y > beforeY) {
+                //     left = true;
+                // } else if (x > beforeX && y >= beforeY) {
+                //     left = true;
+                // } else if (x >= beforeX && y < beforeY) {
+                //     left = false;
+                // }
+
+                if (degree >= beforeDegree) this.#rotateDegree -= degree;
+                else this.#rotateDegree += degree;
+                // if(degree === beforeDegree) reverse = true
+                beforeDegree = degree;
+                this.__adjustCordinates();
+
+                this.canvas.invokeChange?.call(this.canvas);
+            }
+        });
+
+        this.mouseup((event) => {
+            isMouseDown = false;
+        });
+
+        return rotatable;
     }
 
     resizable(opt?: boolean): boolean {
@@ -343,7 +462,6 @@ export class Block extends Node {
                 }
             }
             if (isMouseDown) {
-                const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;
                 this.beforeInit.x = this.canvasInit.x;
@@ -900,18 +1018,20 @@ export class Block extends Node {
         let beforeY = 0;
 
         this.mousedown((event) => {
-            const { x, y } = this.canvas.getCursorPosition(event);
-            initX = x;
-            initY = y;
-            if (event.button === 0) {
-                isMouseDown = true;
-                beforeX = 0;
-                beforeY = 0;
+            if (this.checkInBound(event)) {
+                const { x, y } = this.canvas.getCursorPosition(event);
+                initX = x;
+                initY = y;
+                if (event.button === 0) {
+                    isMouseDown = true;
+                    beforeX = 0;
+                    beforeY = 0;
+                }
             }
         });
 
         this.mousemove((event) => {
-            if (isMouseDown && !this.#isResizing) {
+            if (isMouseDown && !this.#isResizing && this.checkInBound(event)) {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;

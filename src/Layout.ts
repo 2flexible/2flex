@@ -136,6 +136,12 @@ export class Layout extends Block {
         super.__initSet();
         if (this.#invoker) this.#invoker();
     }
+    resizable(opt?: boolean): boolean {
+        return super.resizable(opt);
+    }
+    hotAreaGap(opt?: number): number {
+        return super.hotAreaGap(opt);
+    }
     clip(opt?: boolean): boolean {
         return super.clip(opt);
     }
