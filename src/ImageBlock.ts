@@ -90,9 +90,6 @@ export class ImageBlock extends Block {
     draggable(opt?: boolean): boolean {
         return super.draggable(opt);
     }
-    selectable(opt?: boolean): boolean {
-        return super.selectable(opt);
-    }
     set(options: IBlock<ImageOptions>): void {
         super.set(options);
     }
