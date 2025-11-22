@@ -110,6 +110,7 @@ export class Layout extends Block {
 
     #isNew: boolean = true;
     #invoker?: () => void;
+    #isLayoutInvoked = false;
 
     #containerW: number = 0;
     #containerH: number = 0;
@@ -134,7 +135,10 @@ export class Layout extends Block {
     }
     __initSet() {
         super.__initSet();
-        if (this.#invoker) this.#invoker();
+        if (this.#invoker && !this.#isLayoutInvoked) {
+            this.#invoker();
+            this.#isLayoutInvoked = true;
+        }
     }
     resizable(opt?: boolean): boolean {
         return super.resizable(opt);
@@ -153,9 +157,6 @@ export class Layout extends Block {
     }
     draggable(opt: boolean): boolean {
         return super.draggable(opt);
-    }
-    selectable(opt?: boolean): boolean {
-        return super.selectable(opt);
     }
     set(options: IBlock<LayoutOptions>) {
         super.set(options);
@@ -1187,7 +1188,6 @@ export class Layout extends Block {
                 block.canvasInit.y = startY + this.#startYPos[idx];
                 block.canvasInit.y = startY + this.#startYPos[idx];
             }
-
             block.__adjustCordinates();
 
             blocksW += block.canvasInit.width;
