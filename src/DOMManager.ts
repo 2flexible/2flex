@@ -36,6 +36,7 @@ export class CanvasDOMManager {
         canvas.id = this.canvasId;
         canvas.width = 800;
         canvas.height = 400;
+        canvas.tabIndex = 0
         const body = document.querySelector("body") as HTMLElement;
         body.appendChild(canvas);
     }

@@ -20,6 +20,7 @@ make import model for canvas
 interface CanvasOptions {
     zoomSpeed?: number;
     zoomInvSpeed?: number;
+    move?: "auto" | "keyboard" | "mouse";
 }
 export class Canvas {
     __domCanvas: CanvasDOMManager;
@@ -74,10 +75,17 @@ export class Canvas {
         this.canvas;
         this.context.save();
 
-        this.move(this.#canvasMoves());
         window.onload = () => {
             this.__domCanvas.changeStyle(this.options);
-            this.zoom(this.#zoomInOut());
+            if (this.options?.move == "mouse") {
+                this.#handMove();
+            } else if (this.options?.move == "keyboard") {
+                this.#keyboardMove();
+            } else {
+                this.#keyboardMove();
+                this.#handMove();
+            }
+            this.#zoomInOut();
         };
     }
 
@@ -172,6 +180,7 @@ export class Canvas {
             "mouseover",
             "draggable",
             "selectable",
+            "rotatable",
         ];
 
         this.#tree.checkNodes((element: any) => {
@@ -185,16 +194,11 @@ export class Canvas {
         return this.#tree.filterNodes(queries);
     }
 
-    zoom(_func: (event: any) => void) {
-        this.__domCanvas.removeEventListener("wheel", this.#zoomInOut);
-        this.__domCanvas.addEventListener("wheel", (event) => _func(event));
-    }
-
     #zoomInOut() {
-        let scale = this.options?.zoomSpeed || 1.2;
-        let invScale = this.options?.zoomInvSpeed || 0.8;
-        return (event: WheelEvent) => {
+        this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
             if (event.ctrlKey) {
+                let scale = this.options?.zoomSpeed || 1.2;
+                let invScale = this.options?.zoomInvSpeed || 0.8;
                 if (event.deltaY < 0) {
                     this.context.scale(scale, scale);
                     this.invokeChange((elem) => {
@@ -209,18 +213,73 @@ export class Canvas {
                     });
                 }
             }
-        };
+        });
     }
     clearRect() {
         this.context.clearRect(0, 0, this.width, this.height);
     }
 
-    move(_func: (event: any) => void) {
-        this.__domCanvas.removeEventListener("wheel", this.#canvasMoves);
-        this.__domCanvas.addEventListener("wheel", (event) => _func(event));
+    #handMove() {
+        let initX = 0;
+        let initY = 0;
+        let beforeX = 0;
+        let beforeY = 0;
+        let isMouseDown = false;
+        let isKeyDown = false;
+
+        this.__domCanvas.canvas.focus();
+        this.__domCanvas.addEventListener("keydown", (event) => {
+            if (event.code == "Space") {
+                if (!isKeyDown) {
+                    (this.__domCanvas as any).changeStyle({ cursor: "grab" });
+                    isKeyDown = true;
+                }
+            }
+        });
+
+        this.__domCanvas.addEventListener("mousemove", (event) => {
+            if (event.buttons == 0) {
+                isMouseDown = false;
+                if (isKeyDown)
+                    (this.__domCanvas as any).changeStyle({ cursor: "grab" });
+            }
+
+            if (event.buttons == 1) {
+                if (!isMouseDown) {
+                    initX = event.clientX;
+                    initY = event.clientY;
+                    beforeX = 0;
+                    beforeY = 0;
+                    isMouseDown = true;
+                }
+                if (isMouseDown) {
+                    (this.__domCanvas as any).changeStyle({
+                        cursor: "grabbing",
+                    });
+                    let diffX = event.clientX - initX;
+                    let diffY = event.clientY - initY;
+                    if (diffX !== 0) {
+                        this.__positionCords.x += diffX - beforeX;
+                        beforeX = diffX;
+                    }
+                    if (diffY !== 0) {
+                        this.__positionCords.y += diffY - beforeY;
+                        beforeY = diffY;
+                    }
+
+                    this.invokeChange();
+                }
+            }
+        });
+
+        this.__domCanvas.addEventListener("keyup", (event) => {
+            (this.__domCanvas as any).changeStyle({ cursor: "auto" });
+            isKeyDown = false;
+        });
     }
-    #canvasMoves() {
-        return (event: WheelEvent) => {
+
+    #keyboardMove() {
+        this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
             if (event.ctrlKey) {
                 return;
             }
@@ -238,6 +297,6 @@ export class Canvas {
                 }
             }
             this.invokeChange();
-        };
+        });
     }
 }
