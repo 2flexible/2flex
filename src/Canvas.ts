@@ -20,6 +20,8 @@ make import model for canvas
 interface CanvasOptions {
     zoomSpeed?: number;
     zoomInvSpeed?: number;
+    moveSpeed?: number;
+    zoom?: "center" | "point";
     move?: "auto" | "keyboard" | "mouse";
 }
 export class Canvas {
@@ -41,6 +43,10 @@ export class Canvas {
     height: number;
     clipping_path: Path;
     #tree = new Tree();
+    #zoomSpeed = 1.2;
+    #zoomInvSpeed = 0.8;
+    #moveSpeed = 10;
+    currentCursor: string = "auto";
     __positionCords = { x: 0, y: 0 };
 
     constructor(
@@ -76,16 +82,21 @@ export class Canvas {
         this.context.save();
 
         window.onload = () => {
-            this.__domCanvas.changeStyle(this.options);
-            if (this.options?.move == "mouse") {
-                this.#handMove();
-            } else if (this.options?.move == "keyboard") {
-                this.#keyboardMove();
-            } else {
-                this.#keyboardMove();
-                this.#handMove();
+            if (this.options) {
+                this.__domCanvas.changeStyle(this.options);
+                if (this.options.move == "mouse") {
+                    this.#handMove();
+                } else if (this.options.move == "keyboard") {
+                    this.#keyboardMove();
+                } else {
+                    this.#keyboardMove();
+                    this.#handMove();
+                }
+
+                if (this.options.zoom == "point") {
+                    this.#pointZoom();
+                } else this.#centerZoom();
             }
-            this.#zoomInOut();
         };
     }
 
@@ -120,8 +131,7 @@ export class Canvas {
 
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-        const cursor: CursorPos = { x, y };
-        return cursor;
+        return { x, y };
     }
 
     #handleEvents() {
@@ -193,20 +203,51 @@ export class Canvas {
     find(queries: IBlock<BlockOptions>) {
         return this.#tree.filterNodes(queries);
     }
-
-    #zoomInOut() {
+    #pointZoom() {
+        const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
         this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
             if (event.ctrlKey) {
-                let scale = this.options?.zoomSpeed || 1.2;
-                let invScale = this.options?.zoomInvSpeed || 0.8;
+                const { x, y } = this.getCursorPosition(event);
+                let scale = this.options?.zoomSpeed || this.#zoomSpeed;
+                let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
                 if (event.deltaY < 0) {
-                    this.context.scale(scale, scale);
                     this.invokeChange((elem) => {
                         elem.canvasInit.width *= scale;
                         elem.canvasInit.height *= scale;
                     });
                 } else {
-                    this.context.scale(invScale, invScale);
+                    this.invokeChange((elem) => {
+                        elem.canvasInit.width *= invScale;
+                        elem.canvasInit.height *= invScale;
+                    });
+                }
+                if (this.canvas.width / 2 < x && this.__positionCords.x < x)
+                    this.__positionCords.x -= moveSpeed;
+                else this.__positionCords.x += moveSpeed;
+                if (this.canvas.height / 2 < y && this.__positionCords.y < y)
+                    this.__positionCords.y -= moveSpeed;
+                else this.__positionCords.y += moveSpeed;
+            }
+        });
+    }
+
+    #centerZoom() {
+        const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
+
+        this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
+            if (event.ctrlKey) {
+                let scale = this.options?.zoomSpeed || this.#zoomSpeed;
+                let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
+                if (event.deltaY < 0) {
+                    this.__positionCords.x -= moveSpeed;
+                    this.__positionCords.y -= moveSpeed;
+                    this.invokeChange((elem) => {
+                        elem.canvasInit.width *= scale;
+                        elem.canvasInit.height *= scale;
+                    });
+                } else {
+                    this.__positionCords.x += moveSpeed;
+                    this.__positionCords.y += moveSpeed;
                     this.invokeChange((elem) => {
                         elem.canvasInit.width *= invScale;
                         elem.canvasInit.height *= invScale;
@@ -217,6 +258,13 @@ export class Canvas {
     }
     clearRect() {
         this.context.clearRect(0, 0, this.width, this.height);
+    }
+
+    chageCursor(cur: string) {
+        cur = cur || "auto";
+        return this.__domCanvas.changeStyle({
+            cursor: cur,
+        } as any);
     }
 
     #handMove() {
@@ -244,7 +292,7 @@ export class Canvas {
                     (this.__domCanvas as any).changeStyle({ cursor: "grab" });
             }
 
-            if (event.buttons == 1) {
+            if (event.buttons == 1 && isKeyDown) {
                 if (!isMouseDown) {
                     initX = event.clientX;
                     initY = event.clientY;
@@ -279,21 +327,23 @@ export class Canvas {
     }
 
     #keyboardMove() {
+        const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
+
         this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
             if (event.ctrlKey) {
                 return;
             }
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.__positionCords.x -= 10;
+                    this.__positionCords.x -= moveSpeed;
                 } else {
-                    this.__positionCords.x += 10;
+                    this.__positionCords.x += moveSpeed;
                 }
             } else {
                 if (event.deltaY < 0) {
-                    this.__positionCords.y += 10;
+                    this.__positionCords.y += moveSpeed;
                 } else {
-                    this.__positionCords.y -= 10;
+                    this.__positionCords.y -= moveSpeed;
                 }
             }
             this.invokeChange();

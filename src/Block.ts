@@ -46,6 +46,7 @@ export class Block extends Node {
     #boundries = { x: 0, y: 0, width: 0, height: 0 };
     #isPosApplied = false;
     #isResizing = false;
+    #isRotating = false;
     #rotateDegree = 0;
     __filters: string[] = [];
 
@@ -183,6 +184,7 @@ export class Block extends Node {
             -(this.canvasInit.x + this.canvasInit.width / 2),
             -(this.canvasInit.y + this.canvasInit.height / 2)
         );
+        this.hotLines();
     }
 
     get context() {
@@ -230,109 +232,83 @@ export class Block extends Node {
     rotatable(opt?: boolean) {
         const rotatable = this.__cacheOption(opt, "rotatable", true);
         if (!rotatable) return false;
+
         let isMouseDown = false;
-
-        let initX = 0;
-        let initY = 0;
-
-        let beforeX = 0;
-        let beforeY = 0;
-        let reverse = false;
-        let beforeDegree = 0;
 
         const areaGap = this.hotAreaGap();
         const cornerSize = this.hotCornerSize();
         const gap = 10;
-        let rotation = 1;
-        let lx = this.canvasInit.width;
-        let ly = this.canvasInit.height;
+        let grap = false;
+        let topMove = false;
+        let leftMove = false;
 
-        this.mousedown((event) => {
-            const { x, y } = this.canvas.getCursorPosition(event);
-            if (event.button === 0) {
-                initX = x;
-                initY = y;
-                isMouseDown = true;
-                beforeX = x;
-                beforeY = y;
-                if (beforeX > lx) beforeX -= beforeX - lx;
-                if (beforeY > ly) beforeY -= beforeY - ly;
-            }
-        });
-
-        const r =
-            Math.sqrt(
-                Math.pow(this.canvasInit.width, 2) +
-                    Math.pow(this.canvasInit.height, 2)
-            ) / 2;
-
-        let l = 0;
-        let radian = 0;
-        let degree = 0;
-
-        this.mousemove((event) => {
+        const mousemove = (event: MouseEvent) => {
             let { x, y } = this.canvas.getCursorPosition(event);
-            const right = this.canvasInit.x + this.canvasInit.width;
-            const bottom = this.canvasInit.y + this.canvasInit.height;
-            if (
-                x >= right + areaGap &&
-                x <= right + areaGap + gap &&
-                y >= bottom + areaGap &&
-                y <= bottom + areaGap + gap
-            ) {
-                this.canvas.__domCanvas.changeStyle({
-                    cursor: "grab",
-                });
+            if (event.buttons == 0) {
+                isMouseDown = false;
             }
-            let left = false;
-
-            if (isMouseDown) {
-                if (lx === this.canvasInit.width) lx += 1;
-                if (ly === this.canvasInit.height) ly -= 1;
-                // if (x > lx) x -= x - lx;
-                // if (y > ly) y -= y - ly;
-                const diffX = x - beforeX;
-                const diffY = y - beforeY;
-                // const r = Math.sqrt(
-                //     Math.pow(x - this.canvasInit.width / 2, 2) +
-                //         Math.pow(y - this.canvasInit.height / 2, 2)
-                // );
-                if (diffX !== 0 && diffY !== 0) {
-                    l += Math.sqrt(Math.pow(diffX, 2) + Math.pow(diffY, 2));
-                    degree += (l * 180) / (Math.PI * r);
-                    console.log(degree);
+            const centerX = this.canvasInit.x + this.canvasInit.width / 2;
+            const centerY = this.canvasInit.y + this.canvasInit.height / 2;
+            if (!isMouseDown) {
+                if (event.buttons === 1) {
+                    isMouseDown = true;
+                    this.#isRotating = false;
                 }
-                lx += x;
-                ly += y;
-                beforeX = x;
-                beforeY = y;
-                // if (y < beforeY) {
-                //     if (x < beforeX) left = true;
-                //     else left = false;
-                // }
-                // if (x < beforeX && y <= beforeY) {
-                //     left = true;
-                // } else if (x < beforeX && y > beforeY) {
-                //     left = true;
-                // } else if (x > beforeX && y >= beforeY) {
-                //     left = true;
-                // } else if (x >= beforeX && y < beforeY) {
-                //     left = false;
-                // }
+                const l = this.canvasInit.x - this.canvas.__positionCords.x;
+                const r =
+                    this.canvasInit.x +
+                    this.canvasInit.width +
+                    this.canvas.__positionCords.x;
 
-                if (degree >= beforeDegree) this.#rotateDegree -= degree;
-                else this.#rotateDegree += degree;
-                // if(degree === beforeDegree) reverse = true
-                beforeDegree = degree;
-                this.__adjustCordinates();
+                const t = this.canvasInit.y - this.canvas.__positionCords.y;
+                const b =
+                    this.canvasInit.y +
+                    this.canvasInit.height +
+                    this.canvas.__positionCords.y;
 
-                this.canvas.invokeChange?.call(this.canvas);
+                const ll = l - (areaGap * 2 + gap);
+                const rr = r + (areaGap * 2 + gap);
+                const tt = t - (areaGap * 2 + gap);
+                const bb = b + (areaGap * 2 + gap);
+
+                if (y <= t && y >= tt && x <= l && x >= ll) {
+                    topMove = true;
+                    leftMove = true;
+                    grap = true;
+                } else if (y <= t && y >= tt && x >= r && x <= rr) {
+                    topMove = true;
+                    leftMove = false;
+                    grap = true;
+                } else if (y >= b && y <= bb && x <= l && x >= ll) {
+                    topMove = false;
+                    leftMove = true;
+                    grap = true;
+                } else if (y >= b && y <= bb && x >= r && x <= rr) {
+                    topMove = false;
+                    leftMove = false;
+                    grap = true;
+                } else {
+                    grap = false;
+                    isMouseDown = false;
+                }
+                if (grap) this.canvas.chageCursor("grab");
+                // else this.canvas.chageCursor();
             }
-        });
+            if (isMouseDown) {
+                this.#rotateDegree =
+                    (Math.atan2(y - centerY, x - centerX) * 180) / Math.PI;
+                if (this.#rotateDegree >= -180) {
+                    if (topMove && leftMove) this.#rotateDegree += 135;
+                    else if (topMove && !leftMove) this.#rotateDegree += 45;
+                    else if (!topMove && !leftMove) this.#rotateDegree -= 45;
+                    else if (!topMove && leftMove) this.#rotateDegree -= 135;
+                }
+                this.#isRotating = true;
+                this.canvas.invokeChange();
+            }
+        };
 
-        this.mouseup((event) => {
-            isMouseDown = false;
-        });
+        this.__eventHandler("mousemove", mousemove);
 
         return rotatable;
     }
@@ -358,17 +334,6 @@ export class Block extends Node {
         let yResize = false;
         let cornerResize = false;
 
-        this.mousedown((event) => {
-            const { x, y } = this.canvas.getCursorPosition(event);
-            initX = x;
-            initY = y;
-            if (event.button === 0) {
-                isMouseDown = true;
-                beforeX = 0;
-                beforeY = 0;
-            }
-        });
-
         const mousemove = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
             const l = this.canvasInit.x - this.canvas.__positionCords.x;
@@ -391,7 +356,18 @@ export class Block extends Node {
 
             let inBound = false;
 
+            if (event.buttons == 0) {
+                isMouseDown = false;
+            }
             if (!isMouseDown) {
+                if (event.buttons == 1) {
+                    initX = x;
+                    initY = y;
+                    beforeX = 0;
+                    beforeY = 0;
+                    isMouseDown = true;
+                }
+
                 if (x >= ll && x <= l && y >= t && y <= b) {
                     leftResize = true;
                     xResize = true;
@@ -466,14 +442,10 @@ export class Block extends Node {
                         )
                             cursor = "nesw-resize";
                     }
-                    this.canvas.__domCanvas.changeStyle({
-                        cursor: cursor,
-                    });
+                    this.canvas.chageCursor(cursor);
                     this.#isResizing = true;
                 } else {
-                    this.canvas.__domCanvas.changeStyle({
-                        cursor: "auto",
-                    });
+                    this.canvas.chageCursor();
                     topResize = false;
                     leftResize = false;
                     xResize = false;
@@ -507,16 +479,11 @@ export class Block extends Node {
                     beforeY = diffY;
                 }
                 this.__adjustCordinates();
-                this.canvas.invokeChange?.call(this.canvas);
+                this.canvas.invokeChange();
             }
         };
 
-        this.mouseup(() => {
-            isMouseDown = false;
-            this.canvas.__domCanvas.changeStyle({ cursor: "auto" });
-        });
-
-        this.__eventHandler("mouseup", mousemove);
+        this.__eventHandler("mousemove", mousemove);
         return resizable;
     }
 
@@ -1045,7 +1012,7 @@ export class Block extends Node {
 
         const mousemove = (event: MouseEvent) => {
             if (event.buttons == 0) isMouseDown = false;
-            if (event.buttons == 1 && !this.#isResizing) {
+            if (event.buttons == 1 && !this.#isResizing && !this.#isRotating) {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 if (!isMouseDown && this.checkInBound(event)) {
                     initX = x;
