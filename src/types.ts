@@ -121,6 +121,8 @@ export interface CursorPos {
     y?: number;
 }
 
+export type XY = [number, number];
+
 export interface RectOpt extends CursorPos {
     width: number;
     height: number;

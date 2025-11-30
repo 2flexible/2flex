@@ -14,6 +14,7 @@ import {
     FlexBasis,
     Position,
     IMouseEvents,
+    XY,
 } from "./types";
 
 interface CanvasInit {
@@ -23,7 +24,7 @@ interface CanvasInit {
     height: number;
     zIndex?: number;
 }
-
+type Corners = [XY, XY, XY, XY];
 // Each element in the canvas is block
 // each Block is Node
 export class Block extends Node {
@@ -40,10 +41,24 @@ export class Block extends Node {
         mouseout: [],
         mouseover: [],
     };
-    canvasInit: CanvasInit = { x: 0, y: 0, width: 0, height: 0, zIndex: 0 };
+    // (x,y) as top left, top right, bottom left, bottom right.
+    corners: Corners = [
+        [0, 0],
+        [0, 0],
+        [0, 0],
+        [0, 0],
+    ];
+
+    canvasInit: CanvasInit = {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        zIndex: 0,
+    };
     styleChanges: IStyle[] = [];
-    beforeInit = { x: 0, y: 0, width: 0, height: 0 };
-    #boundries = { x: 0, y: 0, width: 0, height: 0 };
+    beforeInit = this.canvasInit;
+    #boundries = this.canvasInit;
     #isPosApplied = false;
     #isResizing = false;
     #isRotating = false;
@@ -55,24 +70,28 @@ export class Block extends Node {
         this.options = options;
         this.padding();
         this.margin();
-        this.canvasInit = {
-            x: this.x() + this.marginLeft(),
-            y: this.y() + this.marginTop(),
-            width: this.width() + this.paddingLeft() + this.paddingRight(),
-            height: this.height() + this.paddingTop() + this.paddingBottom(),
-        };
+
+        this.canvasInit["x"] = this.x() + this.marginLeft();
+        this.canvasInit["y"] = this.y() + this.marginTop();
+        this.canvasInit["width"] =
+            this.width() + this.paddingLeft() + this.paddingRight();
+        this.canvasInit["height"] =
+            this.height() + this.paddingTop() + this.paddingBottom();
+
+        this.corners[0][0] = this.corners[2][0] = this.canvasInit.x;
+        this.corners[1][1] = this.corners[0][1] = this.canvasInit.y;
+        this.corners[1][0] = this.corners[3][0] =
+            this.canvasInit.x + this.canvasInit.width;
+        this.corners[3][1] = this.corners[2][1] =
+            this.canvasInit.y + this.canvasInit.height;
+
         this.beforeInit = {
             x: this.canvasInit.x,
             y: this.canvasInit.y,
             width: this.canvasInit.width,
             height: this.canvasInit.height,
         };
-        this.#boundries = {
-            x: this.canvasInit.x,
-            y: this.canvasInit.y,
-            width: this.canvasInit.width,
-            height: this.canvasInit.height,
-        };
+        this.#boundries = this.beforeInit;
     }
 
     __initSet() {
@@ -175,15 +194,19 @@ export class Block extends Node {
                 this.canvasInit.y -= this.options.bottom;
             this.#isPosApplied = true;
         }
-        this.context.translate(
-            this.canvasInit.x + this.canvasInit.width / 2,
-            this.canvasInit.y + this.canvasInit.height / 2
-        );
-        this.rotate((this.#rotateDegree * Math.PI) / 180);
-        this.context.translate(
-            -(this.canvasInit.x + this.canvasInit.width / 2),
-            -(this.canvasInit.y + this.canvasInit.height / 2)
-        );
+        if (this.#rotateDegree !== 0) {
+            this.context.translate(
+                this.canvasInit.x + this.canvasInit.width / 2,
+                this.canvasInit.y + this.canvasInit.height / 2
+            );
+            this.rotate((this.#rotateDegree * Math.PI) / 180);
+            this.context.translate(
+                -(this.canvasInit.x + this.canvasInit.width / 2),
+                -(this.canvasInit.y + this.canvasInit.height / 2)
+            );
+        } else {
+            this.context.setTransform(1, 0, 0, 1, 0, 0);
+        }
         this.hotLines();
     }
 
@@ -241,49 +264,86 @@ export class Block extends Node {
         let grap = false;
         let topMove = false;
         let leftMove = false;
+        let isReverseX = 2;
+        let isReverseY = 2;
+
+        let startRotX =
+            this.canvasInit.width / 2 +
+            this.canvasInit.x +
+            this.canvas.__positionCords.x;
+        let startRotY =
+            this.canvasInit.height / 2 +
+            this.canvasInit.y +
+            this.canvas.__positionCords.y;
 
         const mousemove = (event: MouseEvent) => {
             let { x, y } = this.canvas.getCursorPosition(event);
+            // console.log(x, y);
             if (event.buttons == 0) {
                 isMouseDown = false;
             }
-            const centerX = this.canvasInit.x + this.canvasInit.width / 2;
-            const centerY = this.canvasInit.y + this.canvasInit.height / 2;
+            const centerX =
+                this.canvasInit.x -
+                this.canvas.__positionCords.x +
+                this.canvasInit.width / 2;
+            const centerY =
+                this.canvasInit.y -
+                this.canvas.__positionCords.y +
+                this.canvasInit.height / 2;
+            const R =
+                Math.sqrt(
+                    this.canvasInit.height ** 2 + this.canvasInit.width ** 2
+                ) / 2;
             if (!isMouseDown) {
                 if (event.buttons === 1) {
                     isMouseDown = true;
                     this.#isRotating = false;
                 }
-                const l = this.canvasInit.x - this.canvas.__positionCords.x;
-                const r =
-                    this.canvasInit.x +
-                    this.canvasInit.width +
-                    this.canvas.__positionCords.x;
+                const ltx = this.corners[0][0] - this.canvas.__positionCords.x;
+                const lty = this.corners[0][1] - this.canvas.__positionCords.y;
 
-                const t = this.canvasInit.y - this.canvas.__positionCords.y;
-                const b =
-                    this.canvasInit.y +
-                    this.canvasInit.height +
-                    this.canvas.__positionCords.y;
+                const rtx = this.corners[1][0] + this.canvas.__positionCords.x;
+                const rty = this.corners[1][1] + this.canvas.__positionCords.y;
 
-                const ll = l - (areaGap * 2 + gap);
-                const rr = r + (areaGap * 2 + gap);
-                const tt = t - (areaGap * 2 + gap);
-                const bb = b + (areaGap * 2 + gap);
+                const lbx = this.corners[2][0] - this.canvas.__positionCords.x;
+                const lby = this.corners[2][1] - this.canvas.__positionCords.y;
 
-                if (y <= t && y >= tt && x <= l && x >= ll) {
+                const rbx = this.corners[3][0] + this.canvas.__positionCords.x;
+                const rby = this.corners[3][1] + this.canvas.__positionCords.y;
+
+                console.log(isReverseX, isReverseY);
+                console.log(centerY, rty, ltx);
+
+                const lttx = ltx - isReverseX * areaGap + gap;
+                const ltty = lty - isReverseY * areaGap + gap;
+
+                const rttx = rtx + isReverseX * areaGap + gap;
+                const rtty = rty + isReverseY * areaGap + gap;
+
+                const lbbx = lbx - isReverseX * areaGap + gap;
+                const lbby = lby - isReverseY * areaGap + gap;
+
+                const rbbx = rbx + isReverseX * areaGap + gap;
+                const rbby = rby + isReverseY * areaGap + gap;
+
+                if (y <= lty && y >= ltty && x <= ltx && x >= lttx) {
                     topMove = true;
                     leftMove = true;
                     grap = true;
-                } else if (y <= t && y >= tt && x >= r && x <= rr) {
+                } else if (y <= rty && y >= rtty && x >= rtx && x <= rttx) {
                     topMove = true;
                     leftMove = false;
                     grap = true;
-                } else if (y >= b && y <= bb && x <= l && x >= ll) {
+                } else if (y >= lby && y <= lbby && x <= lbx && x >= lbbx) {
                     topMove = false;
                     leftMove = true;
                     grap = true;
-                } else if (y >= b && y <= bb && x >= r && x <= rr) {
+                } else if (
+                    ((y >= rby && y <= rbby) ||
+                        (y <= rby && y >= rby - areaGap - gap)) &&
+                    ((x >= rbx && x <= rbbx) ||
+                        (x <= rbx && x >= rbx - areaGap - gap))
+                ) {
                     topMove = false;
                     leftMove = false;
                     grap = true;
@@ -291,18 +351,48 @@ export class Block extends Node {
                     grap = false;
                     isMouseDown = false;
                 }
+                console.log(x <= rbx && x >= rbx - areaGap - gap);
                 if (grap) this.canvas.chageCursor("grab");
-                // else this.canvas.chageCursor();
+                else this.canvas.chageCursor();
             }
             if (isMouseDown) {
                 this.#rotateDegree =
                     (Math.atan2(y - centerY, x - centerX) * 180) / Math.PI;
+                const rad = (this.#rotateDegree * Math.PI) / 180;
+
                 if (this.#rotateDegree >= -180) {
-                    if (topMove && leftMove) this.#rotateDegree += 135;
-                    else if (topMove && !leftMove) this.#rotateDegree += 45;
-                    else if (!topMove && !leftMove) this.#rotateDegree -= 45;
-                    else if (!topMove && leftMove) this.#rotateDegree -= 135;
+                    if (topMove && leftMove) {
+                        this.#rotateDegree += 135;
+                    } else if (topMove && !leftMove) {
+                        this.#rotateDegree += 45;
+                    } else if (!topMove && !leftMove) {
+                        this.#rotateDegree -= 45;
+                    } else if (!topMove && leftMove) {
+                        this.#rotateDegree -= 135;
+                    }
                 }
+
+                const endX = this.canvasInit.x + R * Math.cos(rad);
+                const diffX = endX - startRotX;
+                startRotX = endX;
+
+                this.corners[0][0] += -diffX;
+                this.corners[1][0] += -diffX;
+                this.corners[2][0] += diffX;
+                this.corners[3][0] += diffX;
+
+                const endY = this.canvasInit.y + R * Math.sin(rad);
+                const diffY = endY - startRotY;
+                startRotY = endY;
+
+                this.corners[0][1] += -diffY;
+                this.corners[1][1] += diffY;
+                this.corners[2][1] += -diffY;
+                this.corners[3][1] += diffY;
+
+                // if (this.corners[0][0] === centerX || this.corners[1][0] === centerX) isReverseX *= -1;
+                // if (this.corners[0][1] === centerY || this.corners[3][1] === centerY) isReverseY *= -1;
+
                 this.#isRotating = true;
                 this.canvas.invokeChange();
             }
@@ -454,7 +544,7 @@ export class Block extends Node {
                     this.#isResizing = false;
                 }
             }
-            if (isMouseDown) {
+            if (isMouseDown && !this.#isRotating) {
                 let diffX = x - initX;
                 let diffY = y - initY;
                 this.beforeInit.x = this.canvasInit.x;
