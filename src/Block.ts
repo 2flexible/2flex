@@ -1,5 +1,5 @@
 import { Node } from "./Tree";
-import { checkInBound } from "./Utils";
+import { checkInBound, fromCm, fromEm, fromIn, fromMm, fromPc, fromPercentage, fromPt, fromQ, fromRem, fromVH, fromVW } from "./Utils";
 
 import {
     BlockElements,
@@ -659,6 +659,7 @@ export class Block extends Node {
         this.__adjustCordinates();
         this.__adjustSpaces();
     }
+
     __adjustSpaces() {
         let boundaryX = this.canvasInit.x;
         let boundaryY = this.canvasInit.y;
@@ -703,6 +704,19 @@ export class Block extends Node {
                 item.__adjustCordinates(before);
             }
         });
+    }
+    __unitConverter(unit: string, val: number, parentS: number){
+        if(unit.endsWith("%")) fromPercentage(val, parentS)
+        if(unit.endsWith("vh")) fromVH(val, this.canvas.height)
+        if(unit.endsWith("vw")) fromVW(val, this.canvas.width)
+        if(unit.endsWith("rem")) fromRem(val, parentS)
+        if(unit.endsWith("em")) fromEm(val, parentS)
+        if(unit.endsWith("cm")) fromCm(val)
+        if(unit.endsWith("mm")) fromMm(val)
+        if(unit.endsWith("q")) fromQ(val)
+        if(unit.endsWith("in")) fromIn(val)
+        if(unit.endsWith("pc")) fromPc(val)
+        if(unit.endsWith("pt")) fromPt(val)
     }
 
     x(opt?: number): number {
