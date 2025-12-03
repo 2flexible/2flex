@@ -267,18 +267,14 @@ export class Block extends Node {
         let isReverseX = 2;
         let isReverseY = 2;
 
-        let startRotX =
-            this.canvasInit.width / 2 +
-            this.canvasInit.x +
-            this.canvas.__positionCords.x;
-        let startRotY =
-            this.canvasInit.height / 2 +
-            this.canvasInit.y +
-            this.canvas.__positionCords.y;
+        let startRotX = 0;
+        let startRotY = 0;
+
+        let otherStartX = 0;
+        let otherStartY = 0;
 
         const mousemove = (event: MouseEvent) => {
             let { x, y } = this.canvas.getCursorPosition(event);
-            // console.log(x, y);
             if (event.buttons == 0) {
                 isMouseDown = false;
             }
@@ -311,47 +307,91 @@ export class Block extends Node {
                 const rbx = this.corners[3][0] + this.canvas.__positionCords.x;
                 const rby = this.corners[3][1] + this.canvas.__positionCords.y;
 
-                console.log(isReverseX, isReverseY);
-                console.log(centerY, rty, ltx);
-
-                const lttx = ltx - isReverseX * areaGap + gap;
-                const ltty = lty - isReverseY * areaGap + gap;
+                const lttx = ltx - isReverseX * areaGap - gap;
+                const ltty = lty - isReverseY * areaGap - gap;
 
                 const rttx = rtx + isReverseX * areaGap + gap;
-                const rtty = rty + isReverseY * areaGap + gap;
+                const rtty = rty - isReverseY * areaGap - gap;
 
-                const lbbx = lbx - isReverseX * areaGap + gap;
-                const lbby = lby - isReverseY * areaGap + gap;
+                const lbbx = lbx - isReverseX * areaGap - gap;
+                const lbby = lby + isReverseY * areaGap + gap;
 
                 const rbbx = rbx + isReverseX * areaGap + gap;
                 const rbby = rby + isReverseY * areaGap + gap;
+                console.log(this.corners[3][0], this.corners[3][1]);
 
-                if (y <= lty && y >= ltty && x <= ltx && x >= lttx) {
+                if (
+                    (y <= lty &&
+                        y >= ltty &&
+                        x <= ltx + isReverseX * areaGap + gap &&
+                        x >= lttx) ||
+                    (y <= lty + isReverseX * areaGap + gap &&
+                        y >= ltty &&
+                        x >= lttx &&
+                        x <= ltx)
+                ) {
                     topMove = true;
                     leftMove = true;
                     grap = true;
-                } else if (y <= rty && y >= rtty && x >= rtx && x <= rttx) {
+                    startRotX = this.canvasInit.x;
+                    startRotY = this.canvasInit.y;
+                    otherStartX = this.canvasInit.x;
+                    otherStartY = this.canvasInit.y + this.canvasInit.height;
+                } else if (
+                    (y <= rty &&
+                        y >= rtty &&
+                        x >= rtx - isReverseX * areaGap - gap &&
+                        x <= rttx) ||
+                    (y <= rty + isReverseX * areaGap + gap &&
+                        y >= rtty &&
+                        x <= rttx &&
+                        x >= rtx)
+                ) {
                     topMove = true;
                     leftMove = false;
                     grap = true;
-                } else if (y >= lby && y <= lbby && x <= lbx && x >= lbbx) {
+                    startRotX = this.canvasInit.x + this.canvasInit.width;
+                    startRotY = this.canvasInit.y;
+                    otherStartX = this.canvasInit.x;
+                    otherStartY = this.canvasInit.y;
+                } else if (
+                    (y >= lby &&
+                        y <= lbby &&
+                        x <= lbx + isReverseX * areaGap + gap &&
+                        x >= lbbx) ||
+                    (y <= lbby &&
+                        y >= lby - isReverseX * areaGap - gap &&
+                        x >= lbbx &&
+                        x <= lbx)
+                ) {
                     topMove = false;
                     leftMove = true;
                     grap = true;
+                    startRotX = this.canvasInit.x;
+                    startRotY = this.canvasInit.y + this.canvasInit.height;
+                    otherStartX = this.canvasInit.x + this.canvasInit.width;
+                    otherStartY = this.canvasInit.y + this.canvasInit.height;
                 } else if (
-                    ((y >= rby && y <= rbby) ||
-                        (y <= rby && y >= rby - areaGap - gap)) &&
-                    ((x >= rbx && x <= rbbx) ||
-                        (x <= rbx && x >= rbx - areaGap - gap))
+                    (y >= rby &&
+                        y <= rbby &&
+                        x >= rbx - isReverseX * areaGap - gap &&
+                        x <= rbbx) ||
+                    (y <= rbby &&
+                        y >= rby - isReverseX * areaGap - gap &&
+                        x <= rbbx &&
+                        x >= rbx)
                 ) {
                     topMove = false;
                     leftMove = false;
                     grap = true;
+                    startRotX = this.canvasInit.x + this.canvasInit.width;
+                    startRotY = this.canvasInit.y + this.canvasInit.height;
+                    otherStartX = this.canvasInit.x + this.canvasInit.width;
+                    otherStartY = this.canvasInit.y;
                 } else {
                     grap = false;
                     isMouseDown = false;
                 }
-                console.log(x <= rbx && x >= rbx - areaGap - gap);
                 if (grap) this.canvas.chageCursor("grab");
                 else this.canvas.chageCursor();
             }
@@ -359,39 +399,76 @@ export class Block extends Node {
                 this.#rotateDegree =
                     (Math.atan2(y - centerY, x - centerX) * 180) / Math.PI;
                 const rad = (this.#rotateDegree * Math.PI) / 180;
+                const endX = centerX + R * Math.cos(rad);
+                const endY = centerY + R * Math.sin(rad);
+
+                const diffX = endX - startRotX;
+                const diffY = endY - startRotY;
+
+                const rr = this.#rotateDegree - 90;
+                const Rrad = (rr * Math.PI) / 180;
+
+                const e1X = centerX + R * Math.cos(Rrad);
+                const e1Y = centerY + R * Math.sin(Rrad);
+
+                const eDiffX = e1X - otherStartX;
+                const eDiffY = e1Y - otherStartY;
 
                 if (this.#rotateDegree >= -180) {
                     if (topMove && leftMove) {
+                        this.corners[0][0] += diffX;
+                        this.corners[1][0] += -eDiffX;
+                        this.corners[2][0] += eDiffX;
+                        this.corners[3][0] += -diffX;
+
+                        this.corners[0][1] += diffY;
+                        this.corners[1][1] += -eDiffY;
+                        this.corners[2][1] += eDiffY;
+                        this.corners[3][1] += -diffY;
                         this.#rotateDegree += 135;
                     } else if (topMove && !leftMove) {
+                        this.corners[0][0] += eDiffX;
+                        this.corners[1][0] += diffX;
+                        this.corners[2][0] += -diffX;
+                        this.corners[3][0] += -eDiffX;
+
+                        this.corners[0][1] += eDiffY;
+                        this.corners[1][1] += diffY;
+                        this.corners[2][1] += -diffY;
+                        this.corners[3][1] += -eDiffY;
                         this.#rotateDegree += 45;
                     } else if (!topMove && !leftMove) {
+                        this.corners[0][0] += -diffX;
+                        this.corners[1][0] += eDiffX;
+                        this.corners[2][0] += -eDiffX;
+                        this.corners[3][0] += diffX;
+
+                        this.corners[0][1] += -diffY;
+                        this.corners[1][1] += eDiffY;
+                        this.corners[2][1] += -eDiffY;
+                        this.corners[3][1] += diffY;
+
                         this.#rotateDegree -= 45;
                     } else if (!topMove && leftMove) {
+                        this.corners[0][0] += -eDiffX;
+                        this.corners[1][0] += -diffX;
+                        this.corners[2][0] += diffX;
+                        this.corners[3][0] += eDiffX;
+
+                        this.corners[0][1] += -eDiffY;
+                        this.corners[1][1] += -diffY;
+                        this.corners[2][1] += diffY;
+                        this.corners[3][1] += eDiffY;
+
                         this.#rotateDegree -= 135;
                     }
                 }
 
-                const endX = this.canvasInit.x + R * Math.cos(rad);
-                const diffX = endX - startRotX;
+                startRotY = endY;
                 startRotX = endX;
 
-                this.corners[0][0] += -diffX;
-                this.corners[1][0] += -diffX;
-                this.corners[2][0] += diffX;
-                this.corners[3][0] += diffX;
-
-                const endY = this.canvasInit.y + R * Math.sin(rad);
-                const diffY = endY - startRotY;
-                startRotY = endY;
-
-                this.corners[0][1] += -diffY;
-                this.corners[1][1] += diffY;
-                this.corners[2][1] += -diffY;
-                this.corners[3][1] += diffY;
-
-                // if (this.corners[0][0] === centerX || this.corners[1][0] === centerX) isReverseX *= -1;
-                // if (this.corners[0][1] === centerY || this.corners[3][1] === centerY) isReverseY *= -1;
+                otherStartX = e1X;
+                otherStartY = e1Y;
 
                 this.#isRotating = true;
                 this.canvas.invokeChange();
