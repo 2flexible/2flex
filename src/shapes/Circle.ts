@@ -10,11 +10,11 @@ interface CircleOptions {
 }
 
 export class Circle extends Shape {
-    constructor(options: IBlock<CircleOptions>) {
+    constructor(options?: IBlock<CircleOptions>) {
         super(options);
-        this.options = options;
+        this.options = options || {};
     }
-    draw(_func?: ((context: this) => void) | undefined): void {
+    draw(_func?: ((context: CanvasRenderingContext2D) => void) | undefined): void {
         this.beginPath();
         this.backgroundColor();
 

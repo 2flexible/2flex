@@ -2,12 +2,12 @@ import { Shape } from "../Shape";
 import { IBlock, BorderStyle, RoundRectOpt, Position } from "../types";
 
 export class Rectangle extends Shape {
-    constructor(options: IBlock<RoundRectOpt>) {
+    constructor(options?: IBlock<RoundRectOpt>) {
         super(options);
-        this.options = options;
+        this.options = options || {};
     }
 
-    draw(_func?: ((context: this) => void) | undefined): void {
+    draw(_func?: ((context: CanvasRenderingContext2D) => void) | undefined): void {
         this.beginPath();
 
         this.backgroundColor();

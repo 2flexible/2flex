@@ -55,17 +55,17 @@ export interface IShapeOptions {
 }
 // each shape extends form common shape
 export class Shape extends Block {
-    constructor(options: IBlock<IShapeOptions>) {
+    constructor(options?: IBlock<IShapeOptions>) {
         super(options);
-        this.options = options;
+        this.options = options || {};
     }
     __initSet(): void {
         super.__initSet();
         this.draw();
     }
 
-    draw(_func?: (context: this) => void) {
-        if (_func) _func(this);
+    draw(_func?: (context: CanvasRenderingContext2D) => void) {
+        if (_func) _func(this.context);
     }
 
     beginPath() {

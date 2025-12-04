@@ -35,14 +35,14 @@ export class Line extends Shape {
     path?: Path;
     #startCords = { x: 0, y: 0 };
 
-    constructor(options: IBlock<LineOptions>) {
+    constructor(options?: IBlock<LineOptions>) {
         super(options);
-        this.options = options;
+        this.options = options || {};
         this.path = new Path();
         this.#startCords = { x: this.x(), y: this.y() };
     }
 
-    draw(_func?: (context: this) => void): void {
+    draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         this.beginPath();
         this.path?.createPath();
         this.path?.path.moveTo(this.#startCords.x, this.#startCords.y);
