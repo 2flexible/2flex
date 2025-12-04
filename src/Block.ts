@@ -1258,6 +1258,50 @@ export class Block extends Node {
     rotate(opt?: number): number {
         const rotate = this.__cacheOption(opt, "rotate", 0);
         this.#rotateDegree = rotate;
+        const centerX =
+            this.canvasInit.x -
+            this.canvas.__positionCords.x +
+            this.canvasInit.width / 2;
+        const centerY =
+            this.canvasInit.y -
+            this.canvas.__positionCords.y +
+            this.canvasInit.height / 2;
+        const R =
+            Math.sqrt(
+                this.canvasInit.height ** 2 + this.canvasInit.width ** 2
+            ) / 2;
+        const rad = ((this.#rotateDegree - 135) * Math.PI) / 180;
+        const endX = centerX + R * Math.cos(rad);
+        const endY = centerY + R * Math.sin(rad);
+
+        const startRotX = this.corners[0][0];
+        const startRotY = this.corners[0][1];
+        const otherStartX = this.corners[2][0];
+        const otherStartY = this.corners[2][1];
+
+        const diffX = endX - startRotX;
+        const diffY = endY - startRotY;
+
+        const rr = (this.#rotateDegree - 135) - 90;
+        const Rrad = (rr * Math.PI) / 180;
+
+        const e1X = centerX + R * Math.cos(Rrad);
+        const e1Y = centerY + R * Math.sin(Rrad);
+
+        const eDiffX = e1X - otherStartX;
+        const eDiffY = e1Y - otherStartY;
+
+        console.log(diffX, diffY, eDiffX, eDiffY)
+
+        this.corners[0][0] += diffX;
+        this.corners[1][0] += -eDiffX;
+        this.corners[2][0] += eDiffX;
+        this.corners[3][0] += -diffX;
+
+        this.corners[0][1] += diffY;
+        this.corners[1][1] += -eDiffY;
+        this.corners[2][1] += eDiffY;
+        this.corners[3][1] += -diffY;
         return rotate;
     }
     // had to come first for block scaling
