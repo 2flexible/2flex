@@ -453,7 +453,49 @@ export class Block extends Node {
         }
     }
 
-    #rotateCords() {}
+    rotationCenterX(opt?: number) {
+        return this.__cacheOption(opt, "rotationCenterX", undefined);
+    }
+    rotationCenterY(opt?: number) {
+        return this.__cacheOption(opt, "rotationCenterY", undefined);
+    }
+    rotationTopLeft(opt?: boolean) {
+        return this.__cacheOption(opt, "rotationTopLeft", true);
+    }
+    rotationTopRight(opt?: boolean) {
+        return this.__cacheOption(opt, "rotationTopRight", true);
+    }
+    rotationBottomLeft(opt?: boolean) {
+        return this.__cacheOption(opt, "rotationBottomLeft", true);
+    }
+    rotationBottomRight(opt?: boolean) {
+        return this.__cacheOption(opt, "rotationBottomRight", true);
+    }
+
+    resizeTopLeft(opt?: boolean) {
+        return this.__cacheOption(opt, "resizeTopLeft", true);
+    }
+    resizeTopRight(opt?: boolean) {
+        return this.__cacheOption(opt, "resizeTopRight", true);
+    }
+    resizeBottomLeft(opt?: boolean) {
+        return this.__cacheOption(opt, "resizeBottomLeft", true);
+    }
+    resizeBottomRight(opt?: boolean) {
+        return this.__cacheOption(opt, "resizeBottomRight", true);
+    }
+    resizeTop(opt?: boolean) {
+        return this.__cacheOption(opt, "resizeTop", true);
+    }
+    resizeLeft(opt?: boolean) {
+        return this.__cacheOption(opt, "resizeLeft", true);
+    }
+    resizeRight(opt?: boolean) {
+        return this.__cacheOption(opt, "resizeRight", true);
+    }
+    resizeBottom(opt?: boolean) {
+        return this.__cacheOption(opt, "resizeBottom", true);
+    }
 
     rotatable(opt?: boolean) {
         const rotatable = this.__cacheOption(opt, "rotatable", true);
@@ -484,14 +526,21 @@ export class Block extends Node {
                 isMouseDown = false;
                 this.#runningEvents.rotate = false;
             }
+            const rotCenterX = this.rotationCenterX();
             const centerX =
-                this.canvasInit.x -
-                this.canvas.__positionCords.x +
-                this.canvasInit.width / 2;
+                rotCenterX !== undefined
+                    ? rotCenterX
+                    : this.canvasInit.x -
+                      this.canvas.__positionCords.x +
+                      this.canvasInit.width / 2;
+
+            const rotCenterY = this.rotationCenterY();
             const centerY =
-                this.canvasInit.y -
-                this.canvas.__positionCords.y +
-                this.canvasInit.height / 2;
+                rotCenterY !== undefined
+                    ? rotCenterY
+                    : this.canvasInit.y -
+                      this.canvas.__positionCords.y +
+                      this.canvasInit.height / 2;
             const R =
                 Math.sqrt(
                     this.canvasInit.height ** 2 + this.canvasInit.width ** 2
@@ -524,16 +573,17 @@ export class Block extends Node {
 
                 const rbbx = rbx + isReverseX * areaGap + gap;
                 const rbby = rby + isReverseY * areaGap + gap;
-
+                console.log(this.rotationBottomLeft());
                 if (
-                    (y <= lty &&
+                    ((y <= lty &&
                         y >= ltty &&
                         x <= ltx + isReverseX * areaGap + gap &&
                         x >= lttx) ||
-                    (y <= lty + isReverseX * areaGap + gap &&
-                        y >= ltty &&
-                        x >= lttx &&
-                        x <= ltx)
+                        (y <= lty + isReverseX * areaGap + gap &&
+                            y >= ltty &&
+                            x >= lttx &&
+                            x <= ltx)) &&
+                    this.rotationTopLeft()
                 ) {
                     topMove = true;
                     leftMove = true;
@@ -543,14 +593,15 @@ export class Block extends Node {
                     otherStartX = this.corners[2][0];
                     otherStartY = this.corners[2][1];
                 } else if (
-                    (y <= rty &&
+                    ((y <= rty &&
                         y >= rtty &&
                         x >= rtx - isReverseX * areaGap - gap &&
                         x <= rttx) ||
-                    (y <= rty + isReverseX * areaGap + gap &&
-                        y >= rtty &&
-                        x <= rttx &&
-                        x >= rtx)
+                        (y <= rty + isReverseX * areaGap + gap &&
+                            y >= rtty &&
+                            x <= rttx &&
+                            x >= rtx)) &&
+                    this.rotationTopRight()
                 ) {
                     topMove = true;
                     leftMove = false;
@@ -560,14 +611,15 @@ export class Block extends Node {
                     otherStartX = this.corners[0][0];
                     otherStartY = this.corners[0][1];
                 } else if (
-                    (y >= lby &&
+                    ((y >= lby &&
                         y <= lbby &&
                         x <= lbx + isReverseX * areaGap + gap &&
                         x >= lbbx) ||
-                    (y <= lbby &&
-                        y >= lby - isReverseX * areaGap - gap &&
-                        x >= lbbx &&
-                        x <= lbx)
+                        (y <= lbby &&
+                            y >= lby - isReverseX * areaGap - gap &&
+                            x >= lbbx &&
+                            x <= lbx)) &&
+                    this.rotationBottomLeft()
                 ) {
                     topMove = false;
                     leftMove = true;
@@ -577,14 +629,15 @@ export class Block extends Node {
                     otherStartX = this.corners[3][0];
                     otherStartY = this.corners[3][1];
                 } else if (
-                    (y >= rby &&
+                    ((y >= rby &&
                         y <= rbby &&
                         x >= rbx - isReverseX * areaGap - gap &&
                         x <= rbbx) ||
-                    (y <= rbby &&
-                        y >= rby - isReverseX * areaGap - gap &&
-                        x <= rbbx &&
-                        x >= rbx)
+                        (y <= rbby &&
+                            y >= rby - isReverseX * areaGap - gap &&
+                            x <= rbbx &&
+                            x >= rbx)) &&
+                    this.rotationBottomRight()
                 ) {
                     topMove = false;
                     leftMove = false;
@@ -653,7 +706,11 @@ export class Block extends Node {
                         this.corners[3][1] += diffY;
 
                         this.#rotateDegree -= 45;
-                    } else if (!topMove && leftMove) {
+                    } else if (
+                        !topMove &&
+                        leftMove &&
+                        this.rotationBottomLeft()
+                    ) {
                         this.corners[0][0] += -eDiffX;
                         this.corners[1][0] += -diffX;
                         this.corners[2][0] += diffX;
@@ -1282,7 +1339,7 @@ export class Block extends Node {
         const diffX = endX - startRotX;
         const diffY = endY - startRotY;
 
-        const rr = (this.#rotateDegree - 135) - 90;
+        const rr = this.#rotateDegree - 135 - 90;
         const Rrad = (rr * Math.PI) / 180;
 
         const e1X = centerX + R * Math.cos(Rrad);
@@ -1290,8 +1347,6 @@ export class Block extends Node {
 
         const eDiffX = e1X - otherStartX;
         const eDiffY = e1Y - otherStartY;
-
-        console.log(diffX, diffY, eDiffX, eDiffY)
 
         this.corners[0][0] += diffX;
         this.corners[1][0] += -eDiffX;

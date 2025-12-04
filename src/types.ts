@@ -80,6 +80,7 @@ export interface BlockOptions {
     flexShrink?: FlexShrink;
     flexBasis?: FlexBasis;
     flexGrow?: FlexGrow;
+
     // grid-row: grid-row-start / grid-row-end;
     gridRow?: number[];
     gridRowStart?: number;
@@ -91,8 +92,26 @@ export interface BlockOptions {
     // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end | itemname
     gridArea?: number[];
     hotAreaGap?: number;
-    // can be also object {width: number: height: number}
     hotCornerSize?: number;
+    hotCornerRadius?: number;
+    hotCornerStrokeWidth?: number;
+    hotCornerStrokeColor?: number;
+    hotCornerBackgroundColor?: number;
+    hotLineStrokeWidth?: number;
+    hotLineStrokeColor?: number;
+    rotationRadius?: number;
+    rotationTopLeft?: boolean;
+    rotationTopRight?: boolean;
+    rotationBottomLeft?: boolean;
+    rotationBottomRight?: boolean;
+    resizeTopLeft?: boolean;
+    resizeTopRight?: boolean;
+    resizeBottomLeft?: boolean;
+    resizeBottomRight?: boolean;
+    resizeTop?: boolean;
+    resizeLeft?: boolean;
+    resizeRight?: boolean;
+    resizeBottom?: boolean;
     resizable?: boolean;
 }
 // extend margin as seperate margin top, left, bottom
