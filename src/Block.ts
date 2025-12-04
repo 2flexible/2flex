@@ -1,5 +1,18 @@
 import { Node } from "./Tree";
-import { checkInBound, fromCm, fromEm, fromIn, fromMm, fromPc, fromPercentage, fromPt, fromQ, fromRem, fromVH, fromVW } from "./Utils";
+import {
+    checkInBound,
+    fromCm,
+    fromEm,
+    fromIn,
+    fromMm,
+    fromPc,
+    fromPercentage,
+    fromPt,
+    fromQ,
+    fromRem,
+    fromVH,
+    fromVW,
+} from "./Utils";
 
 import {
     BlockElements,
@@ -23,6 +36,9 @@ interface CanvasInit {
     width: number;
     height: number;
     zIndex?: number;
+}
+interface HotAreas {
+    top: CanvasInit;
 }
 type Corners = [XY, XY, XY, XY];
 // Each element in the canvas is block
@@ -60,14 +76,55 @@ export class Block extends Node {
     beforeInit = this.canvasInit;
     #boundries = this.canvasInit;
     #isPosApplied = false;
-    #isResizing = false;
-    #isRotating = false;
+    #runningEvents = { drag: false, rotate: false, resize: false };
+    hotAreas: any = {
+        hotCornerTopLeft: {
+            _func: null,
+            x: 0,
+            y: 0,
+        },
+        hotCornerTopRight: {
+            _func: null,
+            x: 0,
+            y: 0,
+        },
+        hotCornerBottomLeft: {
+            _func: null,
+            x: 0,
+            y: 0,
+        },
+        hotCornerBottomRight: {
+            _func: null,
+            x: 0,
+            y: 0,
+        },
+        hotTop: {
+            _func: null,
+            x: 0,
+            y: 0,
+        },
+        hotLeft: {
+            _func: null,
+            x: 0,
+            y: 0,
+        },
+        hotRight: {
+            _func: null,
+            x: 0,
+            y: 0,
+        },
+        hotBottom: {
+            _func: null,
+            x: 0,
+            y: 0,
+        },
+    };
     #rotateDegree = 0;
     __filters: string[] = [];
 
-    constructor(options: BlockOptions) {
+    constructor(options?: BlockOptions) {
         super();
-        this.options = options;
+        this.options = options || {};
         this.padding();
         this.margin();
 
@@ -199,7 +256,7 @@ export class Block extends Node {
                 this.canvasInit.x + this.canvasInit.width / 2,
                 this.canvasInit.y + this.canvasInit.height / 2
             );
-            this.rotate((this.#rotateDegree * Math.PI) / 180);
+            this.context.rotate((this.#rotateDegree * Math.PI) / 180);
             this.context.translate(
                 -(this.canvasInit.x + this.canvasInit.width / 2),
                 -(this.canvasInit.y + this.canvasInit.height / 2)
@@ -210,47 +267,193 @@ export class Block extends Node {
         this.hotLines();
     }
 
-    get context() {
+    get context(): CanvasRenderingContext2D {
         return this.canvas?.context;
     }
 
-    hotLines(resizable: boolean = true) {
-        const width = this.hotCornerSize();
-        const height = this.hotCornerSize();
-        const gap = this.hotAreaGap();
-        let cornerX = this.canvasInit.x - gap;
-        let cornerY = this.canvasInit.y - gap;
+    hotTop(_func: (context: CanvasRenderingContext2D) => void) {
+        this.hotAreas["hotTop"]["_func"] = _func;
+    }
+    hotLeft(_func: (context: CanvasRenderingContext2D) => void) {
+        this.hotAreas["hotLeft"]["_func"] = _func;
+    }
+    hotRight(_func: (context: CanvasRenderingContext2D) => void) {
+        this.hotAreas["hotRight"]["_func"] = _func;
+    }
+    hotBottom(_func: (context: CanvasRenderingContext2D) => void) {
+        this.hotAreas["hotBottom"]["_func"] = _func;
+    }
 
-        let up = 1;
-        let turn = 1;
+    hotCornerTopLeft(_func: (context: CanvasRenderingContext2D) => void) {
+        this.hotAreas["hotCornerTopLeft"]["_func"] = _func;
+    }
+    hotCornerTopRight(_func: (context: CanvasRenderingContext2D) => void) {
+        this.hotAreas["hotCornerTopRight"]["_func"] = _func;
+    }
+    hotCornerBottomLeft(_func: (context: CanvasRenderingContext2D) => void) {
+        this.hotAreas["hotCornerBottomLeft"]["_func"] = _func;
+    }
+    hotCornerBottomRight(_func: (context: CanvasRenderingContext2D) => void) {
+        this.hotAreas["hotCornerBottomRight"]["_func"] = _func;
+    }
+
+    hotLines() {
+        const size = this.hotCornerSize();
+        const gap = this.hotAreaGap();
+        const radius = this.hotCornerRadius();
+        const strokeWidth = this.hotCornerStrokeWidth();
+        const strokeColor = this.hotCornerStrokeColor();
+        const background = this.hotCornerBackgroundColor();
+        const lineWidth = this.hotLineStrokeWidth();
+        const lineColor = this.hotLineStrokeColor();
+
+        this.hotAreas["hotCornerTopLeft"]["x"] = this.canvasInit.x - gap;
+        this.hotAreas["hotCornerTopLeft"]["y"] = this.canvasInit.y - gap;
+        this.hotAreas["hotCornerTopRight"]["x"] =
+            this.canvasInit.x + this.canvasInit.width + gap;
+        this.hotAreas["hotCornerTopRight"]["y"] = this.canvasInit.y - gap;
+        this.hotAreas["hotCornerBottomLeft"]["x"] = this.canvasInit.x - gap;
+        this.hotAreas["hotCornerBottomLeft"]["y"] =
+            this.canvasInit.y + this.canvasInit.height + gap;
+        this.hotAreas["hotCornerBottomRight"]["x"] =
+            this.canvasInit.x + this.canvasInit.width + gap;
+        this.hotAreas["hotCornerBottomRight"]["y"] =
+            this.canvasInit.y + this.canvasInit.height + gap;
 
         this.context.beginPath();
-        for (let i = 0; i < 4; i++) {
-            if (resizable)
-                this.context.roundRect(
-                    cornerX - width / 2,
-                    cornerY - height / 2,
-                    width,
-                    height,
-                    [0]
-                );
-            this.context.moveTo(cornerX, cornerY);
-            if (i % 2 == 0) {
-                cornerX += up * this.canvasInit.width + 2 * gap * up;
-                up = -1;
-            } else {
-                cornerY += turn * this.canvasInit.height + 2 * gap * turn;
-                turn = -1;
-            }
-            this.context.lineTo(cornerX, cornerY);
+        this.context.moveTo(
+            this.hotAreas["hotCornerTopLeft"]["x"],
+            this.hotAreas["hotCornerTopLeft"]["y"]
+        );
+        if (!this.hotAreas["hotTop"]["_func"]) {
+            this.context.lineTo(
+                this.hotAreas["hotCornerTopRight"]["x"],
+                this.hotAreas["hotCornerTopRight"]["y"]
+            );
+            this.context.lineWidth = lineWidth;
+            this.context.strokeStyle = lineColor;
+            this.context.stroke();
         }
-        if (resizable) {
-            this.context.fillStyle = "white";
+
+        this.context.beginPath();
+        this.context.moveTo(
+            this.hotAreas["hotCornerTopLeft"]["x"],
+            this.hotAreas["hotCornerTopLeft"]["y"]
+        );
+        if (!this.hotAreas["hotLeft"]["_func"]) {
+            this.context.lineTo(
+                this.hotAreas["hotCornerBottomLeft"]["x"],
+                this.hotAreas["hotCornerBottomLeft"]["y"]
+            );
+            this.context.lineWidth = lineWidth;
+            this.context.strokeStyle = lineColor;
+            this.context.stroke();
+        }
+
+        this.context.beginPath();
+        this.context.moveTo(
+            this.hotAreas["hotCornerBottomLeft"]["x"],
+            this.hotAreas["hotCornerBottomLeft"]["y"]
+        );
+        if (!this.hotAreas["hotBottom"]["_func"]) {
+            this.context.lineTo(
+                this.hotAreas["hotCornerBottomRight"]["x"],
+                this.hotAreas["hotCornerBottomRight"]["y"]
+            );
+            this.context.lineWidth = lineWidth;
+            this.context.strokeStyle = lineColor;
+            this.context.stroke();
+        }
+
+        this.context.beginPath();
+        this.context.moveTo(
+            this.hotAreas["hotCornerBottomRight"]["x"],
+            this.hotAreas["hotCornerBottomRight"]["y"]
+        );
+        if (!this.hotAreas["hotRight"]["_func"]) {
+            this.context.lineTo(
+                this.hotAreas["hotCornerTopRight"]["x"],
+                this.hotAreas["hotCornerTopRight"]["y"]
+            );
+            this.context.lineWidth = lineWidth;
+            this.context.strokeStyle = lineColor;
+            this.context.stroke();
+        }
+
+        this.context.beginPath();
+        if (!this.hotAreas["hotCornerTopLeft"]["_func"]) {
+            this.context.roundRect(
+                this.hotAreas["hotCornerTopLeft"]["x"] - size / 2,
+                this.hotAreas["hotCornerTopLeft"]["y"] - size / 2,
+                size,
+                size,
+                radius
+            );
+            this.context.lineWidth = strokeWidth;
+            this.context.strokeStyle = strokeColor;
+            this.context.fillStyle = background;
             this.context.fill();
+            this.context.stroke();
+        } else {
+            this.hotAreas["hotCornerTopLeft"]["_func"](this.context);
         }
-        this.context.strokeStyle = "blue";
-        this.context.stroke();
+
+        this.context.beginPath();
+        if (!this.hotAreas["hotCornerTopRight"]["_func"]) {
+            this.context.roundRect(
+                this.hotAreas["hotCornerTopRight"]["x"] - size / 2,
+                this.hotAreas["hotCornerTopRight"]["y"] - size / 2,
+                size,
+                size,
+                radius
+            );
+            this.context.lineWidth = strokeWidth;
+            this.context.strokeStyle = strokeColor;
+            this.context.fillStyle = background;
+            this.context.fill();
+            this.context.stroke();
+        } else {
+            this.hotAreas["hotCornerTopRight"]["_func"](this.context);
+        }
+
+        this.context.beginPath();
+        if (!this.hotAreas["hotCornerBottomLeft"]["_func"]) {
+            this.context.roundRect(
+                this.hotAreas["hotCornerBottomLeft"]["x"] - size / 2,
+                this.hotAreas["hotCornerBottomLeft"]["y"] - size / 2,
+                size,
+                size,
+                radius
+            );
+            this.context.lineWidth = strokeWidth;
+            this.context.strokeStyle = strokeColor;
+            this.context.fillStyle = background;
+            this.context.fill();
+            this.context.stroke();
+        } else {
+            this.hotAreas["hotCornerBottomLeft"]["_func"](this.context);
+        }
+
+        this.context.beginPath();
+        if (!this.hotAreas["hotCornerBottomRight"]["_func"]) {
+            this.context.roundRect(
+                this.hotAreas["hotCornerBottomRight"]["x"] - size / 2,
+                this.hotAreas["hotCornerBottomRight"]["y"] - size / 2,
+                size,
+                size,
+                radius
+            );
+            this.context.lineWidth = strokeWidth;
+            this.context.strokeStyle = strokeColor;
+            this.context.fillStyle = background;
+            this.context.fill();
+            this.context.stroke();
+        } else {
+            this.hotAreas["hotCornerBottomRight"]["_func"](this.context);
+        }
     }
+
+    #rotateCords() {}
 
     rotatable(opt?: boolean) {
         const rotatable = this.__cacheOption(opt, "rotatable", true);
@@ -274,9 +477,12 @@ export class Block extends Node {
         let otherStartY = 0;
 
         const mousemove = (event: MouseEvent) => {
+            if (this.#runningEvents.drag || this.#runningEvents.resize) return;
+
             let { x, y } = this.canvas.getCursorPosition(event);
             if (event.buttons == 0) {
                 isMouseDown = false;
+                this.#runningEvents.rotate = false;
             }
             const centerX =
                 this.canvasInit.x -
@@ -293,7 +499,7 @@ export class Block extends Node {
             if (!isMouseDown) {
                 if (event.buttons === 1) {
                     isMouseDown = true;
-                    this.#isRotating = false;
+                    this.#runningEvents.rotate = true;
                 }
                 const ltx = this.corners[0][0] - this.canvas.__positionCords.x;
                 const lty = this.corners[0][1] - this.canvas.__positionCords.y;
@@ -318,7 +524,6 @@ export class Block extends Node {
 
                 const rbbx = rbx + isReverseX * areaGap + gap;
                 const rbby = rby + isReverseY * areaGap + gap;
-                console.log(this.corners[3][0], this.corners[3][1]);
 
                 if (
                     (y <= lty &&
@@ -333,10 +538,10 @@ export class Block extends Node {
                     topMove = true;
                     leftMove = true;
                     grap = true;
-                    startRotX = this.canvasInit.x;
-                    startRotY = this.canvasInit.y;
-                    otherStartX = this.canvasInit.x;
-                    otherStartY = this.canvasInit.y + this.canvasInit.height;
+                    startRotX = this.corners[0][0];
+                    startRotY = this.corners[0][1];
+                    otherStartX = this.corners[2][0];
+                    otherStartY = this.corners[2][1];
                 } else if (
                     (y <= rty &&
                         y >= rtty &&
@@ -350,10 +555,10 @@ export class Block extends Node {
                     topMove = true;
                     leftMove = false;
                     grap = true;
-                    startRotX = this.canvasInit.x + this.canvasInit.width;
-                    startRotY = this.canvasInit.y;
-                    otherStartX = this.canvasInit.x;
-                    otherStartY = this.canvasInit.y;
+                    startRotX = this.corners[1][0];
+                    startRotY = this.corners[1][1];
+                    otherStartX = this.corners[0][0];
+                    otherStartY = this.corners[0][1];
                 } else if (
                     (y >= lby &&
                         y <= lbby &&
@@ -367,10 +572,10 @@ export class Block extends Node {
                     topMove = false;
                     leftMove = true;
                     grap = true;
-                    startRotX = this.canvasInit.x;
-                    startRotY = this.canvasInit.y + this.canvasInit.height;
-                    otherStartX = this.canvasInit.x + this.canvasInit.width;
-                    otherStartY = this.canvasInit.y + this.canvasInit.height;
+                    startRotX = this.corners[2][0];
+                    startRotY = this.corners[2][1];
+                    otherStartX = this.corners[3][0];
+                    otherStartY = this.corners[3][1];
                 } else if (
                     (y >= rby &&
                         y <= rbby &&
@@ -384,10 +589,10 @@ export class Block extends Node {
                     topMove = false;
                     leftMove = false;
                     grap = true;
-                    startRotX = this.canvasInit.x + this.canvasInit.width;
-                    startRotY = this.canvasInit.y + this.canvasInit.height;
-                    otherStartX = this.canvasInit.x + this.canvasInit.width;
-                    otherStartY = this.canvasInit.y;
+                    startRotX = this.corners[3][0];
+                    startRotY = this.corners[3][1];
+                    otherStartX = this.corners[1][0];
+                    otherStartY = this.corners[1][1];
                 } else {
                     grap = false;
                     isMouseDown = false;
@@ -413,7 +618,6 @@ export class Block extends Node {
 
                 const eDiffX = e1X - otherStartX;
                 const eDiffY = e1Y - otherStartY;
-
                 if (this.#rotateDegree >= -180) {
                     if (topMove && leftMove) {
                         this.corners[0][0] += diffX;
@@ -463,14 +667,12 @@ export class Block extends Node {
                         this.#rotateDegree -= 135;
                     }
                 }
-
                 startRotY = endY;
                 startRotX = endX;
 
                 otherStartX = e1X;
                 otherStartY = e1Y;
 
-                this.#isRotating = true;
                 this.canvas.invokeChange();
             }
         };
@@ -502,6 +704,8 @@ export class Block extends Node {
         let cornerResize = false;
 
         const mousemove = (event: MouseEvent) => {
+            if (this.#runningEvents.drag || this.#runningEvents.rotate) return;
+
             const { x, y } = this.canvas.getCursorPosition(event);
             const l = this.canvasInit.x - this.canvas.__positionCords.x;
             const r =
@@ -525,6 +729,7 @@ export class Block extends Node {
 
             if (event.buttons == 0) {
                 isMouseDown = false;
+                this.#runningEvents.resize = false;
             }
             if (!isMouseDown) {
                 if (event.buttons == 1) {
@@ -533,6 +738,7 @@ export class Block extends Node {
                     beforeX = 0;
                     beforeY = 0;
                     isMouseDown = true;
+                    this.#runningEvents.resize = true;
                 }
 
                 if (x >= ll && x <= l && y >= t && y <= b) {
@@ -610,7 +816,6 @@ export class Block extends Node {
                             cursor = "nesw-resize";
                     }
                     this.canvas.chageCursor(cursor);
-                    this.#isResizing = true;
                 } else {
                     this.canvas.chageCursor();
                     topResize = false;
@@ -618,10 +823,9 @@ export class Block extends Node {
                     xResize = false;
                     yResize = false;
                     cornerResize = false;
-                    this.#isResizing = false;
                 }
             }
-            if (isMouseDown && !this.#isRotating) {
+            if (isMouseDown) {
                 let diffX = x - initX;
                 let diffY = y - initY;
                 this.beforeInit.x = this.canvasInit.x;
@@ -637,11 +841,20 @@ export class Block extends Node {
                     beforeX = diffX;
                 }
                 if (diffY !== 0 && this.dragY() && yResize) {
+                    const diff = diffY - beforeY;
                     if (topResize) {
-                        this.canvasInit.height -= diffY - beforeY;
-                        this.canvasInit.y += diffY - beforeY;
+                        if (this.canvasInit.height - diff < 0) {
+                            this.canvasInit.height = 0;
+                            return;
+                        }
+                        this.canvasInit.height -= diff;
+                        this.canvasInit.y += diff;
                     } else {
-                        this.canvasInit.height += diffY - beforeY;
+                        if (this.canvasInit.height + diff < 0) {
+                            this.canvasInit.height = 0;
+                            return;
+                        }
+                        this.canvasInit.height += diff;
                     }
                     beforeY = diffY;
                 }
@@ -705,18 +918,18 @@ export class Block extends Node {
             }
         });
     }
-    __unitConverter(unit: string, val: number, parentS: number){
-        if(unit.endsWith("%")) fromPercentage(val, parentS)
-        if(unit.endsWith("vh")) fromVH(val, this.canvas.height)
-        if(unit.endsWith("vw")) fromVW(val, this.canvas.width)
-        if(unit.endsWith("rem")) fromRem(val, parentS)
-        if(unit.endsWith("em")) fromEm(val, parentS)
-        if(unit.endsWith("cm")) fromCm(val)
-        if(unit.endsWith("mm")) fromMm(val)
-        if(unit.endsWith("q")) fromQ(val)
-        if(unit.endsWith("in")) fromIn(val)
-        if(unit.endsWith("pc")) fromPc(val)
-        if(unit.endsWith("pt")) fromPt(val)
+    __unitConverter(unit: string, val: number, parentS: number) {
+        if (unit.endsWith("%")) fromPercentage(val, parentS);
+        if (unit.endsWith("vh")) fromVH(val, this.canvas.height);
+        if (unit.endsWith("vw")) fromVW(val, this.canvas.width);
+        if (unit.endsWith("rem")) fromRem(val, parentS);
+        if (unit.endsWith("em")) fromEm(val, parentS);
+        if (unit.endsWith("cm")) fromCm(val);
+        if (unit.endsWith("mm")) fromMm(val);
+        if (unit.endsWith("q")) fromQ(val);
+        if (unit.endsWith("in")) fromIn(val);
+        if (unit.endsWith("pc")) fromPc(val);
+        if (unit.endsWith("pt")) fromPt(val);
     }
 
     x(opt?: number): number {
@@ -763,6 +976,24 @@ export class Block extends Node {
     }
     hotCornerSize(opt?: number) {
         return this.__cacheOption(opt, "hotCornerSize", 5);
+    }
+    hotCornerRadius(opt?: number[]) {
+        return this.__cacheOption(opt, "hotCornerRadius", [0]);
+    }
+    hotCornerStrokeWidth(opt?: number) {
+        return this.__cacheOption(opt, "hotCornerStrokeWidth", 0);
+    }
+    hotCornerStrokeColor(opt?: string) {
+        return this.__cacheOption(opt, "hotCornerStrokeColor", "black");
+    }
+    hotCornerBackgroundColor(opt?: string) {
+        return this.__cacheOption(opt, "hotCornerBackgroundColor", "white");
+    }
+    hotLineStrokeWidth(opt?: number) {
+        return this.__cacheOption(opt, "hotTopStrokeWidth", 1);
+    }
+    hotLineStrokeColor(opt?: string) {
+        return this.__cacheOption(opt, "hotTopStrokeColor", "blue");
     }
     hotAreaGap(opt?: number) {
         return this.__cacheOption(opt, "hotAreaGap", 5);
@@ -980,7 +1211,7 @@ export class Block extends Node {
         return clip;
     }
 
-    fillRule(opt?: string) {
+    fillRule(opt?: CanvasFillRule): CanvasFillRule {
         return this.__cacheOption(opt, "fillRule", "nonzero");
     }
 
@@ -997,7 +1228,7 @@ export class Block extends Node {
 
                 const beforeOption = this.options[key];
 
-                if (value) {
+                if (value !== undefined) {
                     if (value !== beforeOption) {
                         obj?.value.call(this, value);
                     } else {
@@ -1026,7 +1257,7 @@ export class Block extends Node {
 
     rotate(opt?: number): number {
         const rotate = this.__cacheOption(opt, "rotate", 0);
-        this.context.rotate(rotate);
+        this.#rotateDegree = rotate;
         return rotate;
     }
     // had to come first for block scaling
@@ -1042,22 +1273,20 @@ export class Block extends Node {
     checkInBound(_event: any): boolean {
         const { x, y } = this.canvas.getCursorPosition(_event);
         const borderWidth = this.options.borderWidth || 0;
-        const startX =
-            this.canvasInit.x - borderWidth + this.canvas.__positionCords.x;
-        const endX =
-            this.canvasInit.x +
-            this.canvasInit.width +
-            borderWidth +
-            this.canvas.__positionCords.x;
 
-        const startY =
-            this.canvasInit.y - borderWidth + this.canvas.__positionCords.y;
-        const endY =
-            this.canvasInit.y +
-            this.canvasInit.height +
-            borderWidth +
-            this.canvas.__positionCords.y;
-        return checkInBound(x, y, startX, startY, endX, endY);
+        const x1 = this.corners[0][0] + this.canvas.__positionCords.x;
+        const y1 = this.corners[0][1] + this.canvas.__positionCords.y;
+
+        const x2 = this.corners[1][0] + this.canvas.__positionCords.x;
+        const y2 = this.corners[1][1] + this.canvas.__positionCords.y;
+
+        const x3 = this.corners[2][0] + this.canvas.__positionCords.x;
+        const y3 = this.corners[2][1] + this.canvas.__positionCords.y;
+
+        const x4 = this.corners[3][0] + this.canvas.__positionCords.x;
+        const y4 = this.corners[3][1] + this.canvas.__positionCords.y;
+
+        return checkInBound(x, y, x1, y1, x2, y2, x3, y3, x4, y4);
     }
 
     click(_func: (event: MouseEvent) => void) {
@@ -1114,14 +1343,15 @@ export class Block extends Node {
         const enter = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
             if (
-                checkInBound(
-                    x,
-                    y,
-                    this.#boundries.x,
-                    this.#boundries.y,
-                    this.#boundries.x + this.#boundries.width,
-                    this.#boundries.y + this.#boundries.height
-                )
+                true
+                // checkInBound(
+                //     x,
+                //     y,
+                //     this.#boundries.x,
+                //     this.#boundries.y,
+                //     this.#boundries.x + this.#boundries.width,
+                //     this.#boundries.y + this.#boundries.height
+                // )
             ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
@@ -1134,14 +1364,15 @@ export class Block extends Node {
         const leave = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
             if (
-                !checkInBound(
-                    x,
-                    y,
-                    this.#boundries.x,
-                    this.#boundries.y,
-                    this.#boundries.width,
-                    this.#boundries.height
-                )
+                true
+                // !checkInBound(
+                //     x,
+                //     y,
+                //     this.#boundries.x,
+                //     this.#boundries.y,
+                //     this.#boundries.width,
+                //     this.#boundries.height
+                // )
             ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
@@ -1192,8 +1423,14 @@ export class Block extends Node {
         let beforeY = 0;
 
         const mousemove = (event: MouseEvent) => {
-            if (event.buttons == 0) isMouseDown = false;
-            if (event.buttons == 1 && !this.#isResizing && !this.#isRotating) {
+            if (this.#runningEvents.resize || this.#runningEvents.rotate)
+                return;
+
+            if (event.buttons == 0) {
+                isMouseDown = false;
+                this.#runningEvents.drag = false;
+            }
+            if (event.buttons == 1) {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 if (!isMouseDown && this.checkInBound(event)) {
                     initX = x;
@@ -1201,6 +1438,7 @@ export class Block extends Node {
                     beforeX = 0;
                     beforeY = 0;
                     isMouseDown = true;
+                    this.#runningEvents.drag = true;
                 }
                 if (isMouseDown) {
                     let diffX = x - initX;
@@ -1208,11 +1446,19 @@ export class Block extends Node {
                     this.beforeInit.x = this.canvasInit.x;
                     if (diffX !== 0 && this.dragX()) {
                         this.canvasInit.x += diffX - beforeX;
+                        this.corners[0][0] += diffX - beforeX;
+                        this.corners[1][0] += diffX - beforeX;
+                        this.corners[2][0] += diffX - beforeX;
+                        this.corners[3][0] += diffX - beforeX;
                         beforeX = diffX;
                     }
                     this.beforeInit.y = this.canvasInit.y;
                     if (diffY !== 0 && this.dragY()) {
                         this.canvasInit.y += diffY - beforeY;
+                        this.corners[0][1] += diffY - beforeY;
+                        this.corners[1][1] += diffY - beforeY;
+                        this.corners[2][1] += diffY - beforeY;
+                        this.corners[3][1] += diffY - beforeY;
                         beforeY = diffY;
                     }
                     this.__adjustCordinates();

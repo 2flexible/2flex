@@ -191,6 +191,7 @@ export class Canvas {
             "draggable",
             "selectable",
             "rotatable",
+            "rotate"
         ];
 
         this.#tree.checkNodes((element: any) => {
