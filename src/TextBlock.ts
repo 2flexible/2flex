@@ -248,7 +248,7 @@ export class TextBlock extends Block {
     }
     textAlign(opt?: TextAlign) {
         const textAlign = this.__cacheOption(opt, "textAlign", "start");
-        this.context.align = textAlign;
+        this.context.textAlign = textAlign;
         return textAlign;
     }
     textBaseline(opt?: TextBaseline) {
@@ -257,7 +257,7 @@ export class TextBlock extends Block {
             "textBaseline",
             "alphabetic"
         );
-        this.context.baseline = textBaseline;
+        this.context.textBaseline = textBaseline;
         return textBaseline;
     }
     blur(opt?: number): number {

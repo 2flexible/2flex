@@ -117,13 +117,15 @@ type CanvasContext<T> = T extends CanvasRenderingContext2D
     : CanvasRenderingContext2D | null;
 
 export interface CursorPos {
-    x?: number;
-    y?: number;
+    x: number;
+    y: number;
 }
 
 export type XY = [number, number];
 
 export interface RectOpt extends CursorPos {
+    x: number;
+    y: number;
     width: number;
     height: number;
 }
@@ -144,7 +146,6 @@ export type IMouseEvents =
     | "mouseover"
     | "draggable"
     | "selectable";
-
 
 export interface IStyle {
     styleType: string;
