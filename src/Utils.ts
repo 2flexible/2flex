@@ -46,10 +46,16 @@ export function checkInBound(
     px4: number,
     py4: number
 ): boolean {
-    const top = (pointX - px1) * (py2 - py1) - (pointY - py1) * (px2 - px1);
-    const bottom = (pointX - px3) * (py4 - py3) - (pointY - py3) * (px4 - px3);
-    const left = (pointX - px1) * (py3 - py1) - (pointY - py1) * (px3 - px1);
-    const right = (pointX - px2) * (py4 - py2) - (pointY - py2) * (px4 - px2);
-    if (top <= 0 && bottom >= 0 && left >= 0 && right <= 0) return true;
+    if (
+        // top
+        (pointX - px1) * (py2 - py1) - (pointY - py1) * (px2 - px1) <= 0 &&
+        // bottom
+        (pointX - px3) * (py4 - py3) - (pointY - py3) * (px4 - px3) >= 0 &&
+        // left
+        (pointX - px1) * (py3 - py1) - (pointY - py1) * (px3 - px1) >= 0 &&
+        // right
+        (pointX - px2) * (py4 - py2) - (pointY - py2) * (px4 - px2) <= 0
+    )
+        return true;
     return false;
 }
