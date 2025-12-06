@@ -28,6 +28,7 @@ import {
     Position,
     IMouseEvents,
     XY,
+    CursorPos,
 } from "./types";
 
 interface CanvasInit {
@@ -76,7 +77,15 @@ export class Block extends Node {
     beforeInit = this.canvasInit;
     #boundries = this.canvasInit;
     #isPosApplied = false;
+    #center: CursorPos = { x: 0, y: 0 };
     #runningEvents = { drag: false, rotate: false, resize: false };
+
+    hotAreaCorners: Corners = [
+        [0, 0],
+        [0, 0],
+        [0, 0],
+        [0, 0],
+    ];
     hotAreas: any = {
         hotCornerTopLeft: {
             _func: null,
@@ -135,18 +144,17 @@ export class Block extends Node {
         this.canvasInit["height"] =
             this.height() + this.paddingTop() + this.paddingBottom();
 
-        this.corners[0][0] = this.corners[2][0] = this.canvasInit.x;
-        this.corners[1][1] = this.corners[0][1] = this.canvasInit.y;
-        this.corners[1][0] = this.corners[3][0] =
-            this.canvasInit.x + this.canvasInit.width;
-        this.corners[3][1] = this.corners[2][1] =
-            this.canvasInit.y + this.canvasInit.height;
+        this.__updateCornerCords();
 
         this.beforeInit = {
             x: this.canvasInit.x,
             y: this.canvasInit.y,
             width: this.canvasInit.width,
             height: this.canvasInit.height,
+        };
+        this.#center = {
+            x: this.canvasInit.x + this.canvasInit.width / 2,
+            y: this.canvasInit.y + this.canvasInit.height / 2,
         };
         this.#boundries = this.beforeInit;
     }
@@ -252,15 +260,9 @@ export class Block extends Node {
             this.#isPosApplied = true;
         }
         if (this.#rotateDegree !== 0) {
-            this.context.translate(
-                this.canvasInit.x + this.canvasInit.width / 2,
-                this.canvasInit.y + this.canvasInit.height / 2
-            );
+            this.context.translate(this.#center.x, this.#center.y);
             this.context.rotate((this.#rotateDegree * Math.PI) / 180);
-            this.context.translate(
-                -(this.canvasInit.x + this.canvasInit.width / 2),
-                -(this.canvasInit.y + this.canvasInit.height / 2)
-            );
+            this.context.translate(-this.#center.x, -this.#center.y);
         } else {
             this.context.setTransform(1, 0, 0, 1, 0, 0);
         }
@@ -269,6 +271,30 @@ export class Block extends Node {
 
     get context(): CanvasRenderingContext2D {
         return this.canvas?.context;
+    }
+
+    __updateCornerCords() {
+        const gap = this.hotAreaGap();
+
+        this.corners[0][0] = this.corners[2][0] = this.canvasInit.x;
+        this.corners[1][1] = this.corners[0][1] = this.canvasInit.y;
+        this.corners[1][0] = this.corners[3][0] =
+            this.canvasInit.x + this.canvasInit.width;
+        this.corners[3][1] = this.corners[2][1] =
+            this.canvasInit.y + this.canvasInit.height;
+
+        this.hotAreaCorners[0][0] = this.canvasInit.x - gap;
+        this.hotAreaCorners[0][1] = this.canvasInit.y - gap;
+        this.hotAreaCorners[1][0] =
+            this.canvasInit.x + this.canvasInit.width + gap;
+        this.hotAreaCorners[1][1] = this.canvasInit.y - gap;
+        this.hotAreaCorners[2][0] = this.canvasInit.x - gap;
+        this.hotAreaCorners[2][1] =
+            this.canvasInit.y + this.canvasInit.height + gap;
+        this.hotAreaCorners[3][0] =
+            this.canvasInit.x + this.canvasInit.width + gap;
+        this.hotAreaCorners[3][1] =
+            this.canvasInit.y + this.canvasInit.height + gap;
     }
 
     hotTop(_func: (context: CanvasRenderingContext2D) => void) {
@@ -504,7 +530,7 @@ export class Block extends Node {
         let isMouseDown = false;
 
         const areaGap = this.hotAreaGap();
-        const cornerSize = this.hotCornerSize();
+
         const gap = 10;
         let grap = false;
         let topMove = false;
@@ -550,17 +576,17 @@ export class Block extends Node {
                     isMouseDown = true;
                     this.#runningEvents.rotate = true;
                 }
-                const ltx = this.corners[0][0] - this.canvas.__positionCords.x;
-                const lty = this.corners[0][1] - this.canvas.__positionCords.y;
+                const ltx = this.corners[0][0];
+                const lty = this.corners[0][1];
 
-                const rtx = this.corners[1][0] + this.canvas.__positionCords.x;
-                const rty = this.corners[1][1] + this.canvas.__positionCords.y;
+                const rtx = this.corners[1][0];
+                const rty = this.corners[1][1];
 
-                const lbx = this.corners[2][0] - this.canvas.__positionCords.x;
-                const lby = this.corners[2][1] - this.canvas.__positionCords.y;
+                const lbx = this.corners[2][0];
+                const lby = this.corners[2][1];
 
-                const rbx = this.corners[3][0] + this.canvas.__positionCords.x;
-                const rby = this.corners[3][1] + this.canvas.__positionCords.y;
+                const rbx = this.corners[3][0];
+                const rby = this.corners[3][1];
 
                 const lttx = ltx - isReverseX * areaGap - gap;
                 const ltty = lty - isReverseY * areaGap - gap;
@@ -573,7 +599,7 @@ export class Block extends Node {
 
                 const rbbx = rbx + isReverseX * areaGap + gap;
                 const rbby = rby + isReverseY * areaGap + gap;
-                console.log(this.rotationBottomLeft());
+
                 if (
                     ((y <= lty &&
                         y >= ltty &&
@@ -682,6 +708,16 @@ export class Block extends Node {
                         this.corners[1][1] += -eDiffY;
                         this.corners[2][1] += eDiffY;
                         this.corners[3][1] += -diffY;
+
+                        this.hotAreaCorners[0][0] += diffX;
+                        this.hotAreaCorners[1][0] += -eDiffX;
+                        this.hotAreaCorners[2][0] += eDiffX;
+                        this.hotAreaCorners[3][0] += -diffX;
+
+                        this.hotAreaCorners[0][1] += diffY;
+                        this.hotAreaCorners[1][1] += -eDiffY;
+                        this.hotAreaCorners[2][1] += eDiffY;
+                        this.hotAreaCorners[3][1] += -diffY;
                         this.#rotateDegree += 135;
                     } else if (topMove && !leftMove) {
                         this.corners[0][0] += eDiffX;
@@ -693,6 +729,16 @@ export class Block extends Node {
                         this.corners[1][1] += diffY;
                         this.corners[2][1] += -diffY;
                         this.corners[3][1] += -eDiffY;
+
+                        this.hotAreaCorners[0][0] += eDiffX;
+                        this.hotAreaCorners[1][0] += diffX;
+                        this.hotAreaCorners[2][0] += -diffX;
+                        this.hotAreaCorners[3][0] += -eDiffX;
+
+                        this.hotAreaCorners[0][1] += eDiffY;
+                        this.hotAreaCorners[1][1] += diffY;
+                        this.hotAreaCorners[2][1] += -diffY;
+                        this.hotAreaCorners[3][1] += -eDiffY;
                         this.#rotateDegree += 45;
                     } else if (!topMove && !leftMove) {
                         this.corners[0][0] += -diffX;
@@ -704,6 +750,16 @@ export class Block extends Node {
                         this.corners[1][1] += eDiffY;
                         this.corners[2][1] += -eDiffY;
                         this.corners[3][1] += diffY;
+
+                        this.hotAreaCorners[0][0] += -diffX;
+                        this.hotAreaCorners[1][0] += eDiffX;
+                        this.hotAreaCorners[2][0] += -eDiffX;
+                        this.hotAreaCorners[3][0] += diffX;
+
+                        this.hotAreaCorners[0][1] += -diffY;
+                        this.hotAreaCorners[1][1] += eDiffY;
+                        this.hotAreaCorners[2][1] += -eDiffY;
+                        this.hotAreaCorners[3][1] += diffY;
 
                         this.#rotateDegree -= 45;
                     } else if (
@@ -720,6 +776,16 @@ export class Block extends Node {
                         this.corners[1][1] += -diffY;
                         this.corners[2][1] += diffY;
                         this.corners[3][1] += eDiffY;
+
+                        this.hotAreaCorners[0][0] += -eDiffX;
+                        this.hotAreaCorners[1][0] += -diffX;
+                        this.hotAreaCorners[2][0] += diffX;
+                        this.hotAreaCorners[3][0] += eDiffX;
+
+                        this.hotAreaCorners[0][1] += -eDiffY;
+                        this.hotAreaCorners[1][1] += -diffY;
+                        this.hotAreaCorners[2][1] += diffY;
+                        this.hotAreaCorners[3][1] += eDiffY;
 
                         this.#rotateDegree -= 135;
                     }
@@ -744,49 +810,51 @@ export class Block extends Node {
         if (!resizable) return false;
 
         let isMouseDown = false;
-
         let initX = 0;
         let initY = 0;
-
         let beforeX = 0;
         let beforeY = 0;
 
-        const areaGap = this.hotAreaGap();
-        const cornerSize = this.hotCornerSize();
-
-        let topResize = true;
-        let leftResize = true;
-        let xResize = false;
-        let yResize = false;
-        let cornerResize = false;
+        let topResize = false;
+        let leftResize = false;
+        let widthResize = false;
+        let heightResize = false;
+        let isLeft = false;
+        let isTop = false;
 
         const mousemove = (event: MouseEvent) => {
             if (this.#runningEvents.drag || this.#runningEvents.rotate) return;
+            let cursor: undefined | string = undefined;
 
             const { x, y } = this.canvas.getCursorPosition(event);
-            const l = this.canvasInit.x - this.canvas.__positionCords.x;
-            const r =
-                this.canvasInit.x +
-                this.canvasInit.width +
-                this.canvas.__positionCords.x;
 
-            const t = this.canvasInit.y - this.canvas.__positionCords.y;
-            const b =
-                this.canvasInit.y +
-                this.canvasInit.height +
-                this.canvas.__positionCords.y;
+            let ltx = this.corners[0][0];
+            let lty = this.corners[0][1];
+            let rtx = this.corners[1][0];
+            let rty = this.corners[1][1];
+            let lbx = this.corners[2][0];
+            let lby = this.corners[2][1];
+            let rbx = this.corners[3][0];
+            let rby = this.corners[3][1];
 
-            // left left, right right
-            const ll = l - areaGap * 2;
-            const rr = r + areaGap * 2;
-            const tt = t - areaGap * 2;
-            const bb = b + areaGap * 2;
-
-            let inBound = false;
+            let hltx = this.hotAreaCorners[0][0];
+            let hlty = this.hotAreaCorners[0][1];
+            let hrtx = this.hotAreaCorners[1][0];
+            let hrty = this.hotAreaCorners[1][1];
+            let hlbx = this.hotAreaCorners[2][0];
+            let hlby = this.hotAreaCorners[2][1];
+            let hrbx = this.hotAreaCorners[3][0];
+            let hrby = this.hotAreaCorners[3][1];
 
             if (event.buttons == 0) {
                 isMouseDown = false;
                 this.#runningEvents.resize = false;
+                topResize = false;
+                leftResize = false;
+                widthResize = false;
+                heightResize = false;
+                isLeft = false;
+                isTop = false;
             }
             if (!isMouseDown) {
                 if (event.buttons == 1) {
@@ -797,124 +865,174 @@ export class Block extends Node {
                     isMouseDown = true;
                     this.#runningEvents.resize = true;
                 }
-
-                if (x >= ll && x <= l && y >= t && y <= b) {
+                if (
+                    checkInBound(
+                        x,
+                        y,
+                        hltx,
+                        hlty,
+                        ltx,
+                        lty,
+                        hlbx,
+                        hlby,
+                        lbx,
+                        lby
+                    )
+                ) {
+                    isLeft = ltx >= hltx || lbx >= hlby ? true : false;
+                    widthResize = true;
                     leftResize = true;
-                    xResize = true;
-                    yResize = false;
-                    cornerResize = false;
-                    inBound = true;
-                }
-
-                if (x <= rr && x >= r && y >= t && y <= b) {
-                    leftResize = false;
-                    xResize = true;
-                    yResize = false;
-                    cornerResize = false;
-                    inBound = true;
-                }
-
-                if (y >= tt && y <= t && x >= l && x <= r) {
+                    cursor = "w-resize";
+                } else if (
+                    checkInBound(
+                        x,
+                        y,
+                        rtx,
+                        rty,
+                        hrtx,
+                        hrty,
+                        rbx,
+                        rby,
+                        hrbx,
+                        hrby
+                    )
+                ) {
+                    isLeft = rtx >= hrtx || rbx >= hrbx ? true : false;
+                    widthResize = true;
+                    cursor = "w-resize";
+                } else if (
+                    checkInBound(
+                        x,
+                        y,
+                        hltx,
+                        hlty,
+                        hrtx,
+                        hrty,
+                        ltx,
+                        lty,
+                        rtx,
+                        rty
+                    )
+                ) {
+                    isTop = lty >= hlty || rty >= hrty ? true : false;
+                    heightResize = true;
                     topResize = true;
-                    xResize = false;
-                    yResize = true;
-                    cornerResize = false;
-                    inBound = true;
+                    cursor = "n-resize";
+                } else if (
+                    checkInBound(
+                        x,
+                        y,
+                        lbx,
+                        lby,
+                        rbx,
+                        rby,
+                        hlbx,
+                        hlby,
+                        hrbx,
+                        hrby
+                    )
+                ) {
+                    isTop = lby >= hlby || rby >= hrby ? true : false;
+                    heightResize = true;
+                    cursor = "n-resize";
                 }
 
-                if (y <= bb && y >= b && x >= l && x <= r) {
-                    topResize = false;
-                    xResize = false;
-                    yResize = true;
-                    cornerResize = false;
-                    inBound = true;
-                }
-
-                if (y <= t && y >= tt && x <= l && x >= ll) {
+                if (checkInBound(x, y, hltx, hlty, ltx, lty, 0, 0, 0, 0)) {
+                    isLeft = ltx >= hltx ? true : false;
+                    isTop = lty >= hlty ? true : false;
                     topResize = true;
                     leftResize = true;
-                    cornerResize = true;
-                    inBound = true;
-                }
-                if (y <= t && y >= tt && x >= r && x <= rr) {
+                    widthResize = true;
+                    heightResize = true;
+                    cursor = "nw-resize";
+                } else if (
+                    checkInBound(x, y, hrtx, hrty, rtx, rty, 0, 0, 0, 0)
+                ) {
+                    isLeft = rtx >= hrtx ? true : false;
+                    isTop = rty >= hrty ? true : false;
                     topResize = true;
                     leftResize = false;
-                    cornerResize = true;
-                    inBound = true;
-                }
-                if (y >= b && y <= bb && x <= l && x >= ll) {
+                    widthResize = true;
+                    heightResize = true;
+                    cursor = "nesw-resize";
+                } else if (
+                    checkInBound(x, y, lbx, lby, hlbx, hlby, 0, 0, 0, 0)
+                ) {
+                    isLeft = lbx >= hlbx ? true : false;
+                    isTop = lby >= hlby ? true : false;
                     topResize = false;
                     leftResize = true;
-                    cornerResize = true;
-                    inBound = true;
-                }
-                if (y >= b && y <= bb && x >= r && x <= rr) {
+                    widthResize = true;
+                    heightResize = true;
+                    cursor = "nesw-resize";
+                } else if (
+                    checkInBound(x, y, rbx, rby, hrbx, hrby, 0, 0, 0, 0)
+                ) {
+                    isLeft = rbx >= hrbx ? true : false;
+                    isTop = rby >= hrby ? true : false;
                     topResize = false;
                     leftResize = false;
-                    cornerResize = true;
-                    inBound = true;
+                    widthResize = true;
+                    heightResize = true;
+                    cursor = "nw-resize";
                 }
-                if (inBound) {
-                    let cursor;
-                    if (!cornerResize)
-                        cursor = xResize ? "w-resize" : "n-resize";
-                    else {
-                        xResize = true;
-                        yResize = true;
-                        if (
-                            (topResize && leftResize) ||
-                            (!topResize && !leftResize)
-                        )
-                            cursor = "nw-resize";
-                        if (
-                            (topResize && !leftResize) ||
-                            (!topResize && leftResize)
-                        )
-                            cursor = "nesw-resize";
-                    }
-                    this.canvas.chageCursor(cursor);
-                } else {
-                    this.canvas.chageCursor();
-                    topResize = false;
-                    leftResize = false;
-                    xResize = false;
-                    yResize = false;
-                    cornerResize = false;
-                }
+                this.canvas.chageCursor(cursor);
             }
+
             if (isMouseDown) {
                 let diffX = x - initX;
                 let diffY = y - initY;
                 this.beforeInit.x = this.canvasInit.x;
                 this.beforeInit.y = this.canvasInit.y;
+                if (diffX !== 0 && widthResize) {
+                    const diff = diffX - beforeX;
+                    if (isLeft && this.canvasInit.width - diff > 0) {
+                        this.canvasInit.width -= diff;
+                        this.canvasInit.x += diff;
+                    } else if (!isLeft && this.canvasInit.width + diff > 0)
+                        this.canvasInit.width += diff;
+                    else this.canvasInit.width = 0;
 
-                if (diffX !== 0 && this.dragX() && xResize) {
-                    if (leftResize) {
-                        this.canvasInit.width -= diffX - beforeX;
-                        this.canvasInit.x += diffX - beforeX;
-                    } else {
-                        this.canvasInit.width += diffX - beforeX;
-                    }
-                    beforeX = diffX;
-                }
-                if (diffY !== 0 && this.dragY() && yResize) {
-                    const diff = diffY - beforeY;
-                    if (topResize) {
-                        if (this.canvasInit.height - diff < 0) {
-                            this.canvasInit.height = 0;
-                            return;
+                    if (this.canvasInit.width !== 0) {
+                        if (leftResize) {
+                            this.corners[0][0] += diff;
+                            this.corners[2][0] += diff;
+                            this.hotAreaCorners[0][0] += diff;
+                            this.hotAreaCorners[2][0] += diff;
+                        } else {
+                            this.corners[1][0] += diff;
+                            this.corners[3][0] += diff;
+                            this.hotAreaCorners[1][0] += diff;
+                            this.hotAreaCorners[3][0] += diff;
                         }
+                        beforeX = diffX;
+                    }
+                }
+                if (diffY !== 0 && heightResize) {
+                    const diff = diffY - beforeY;
+                    if (isTop && this.canvasInit.height - diff > 0) {
                         this.canvasInit.height -= diff;
                         this.canvasInit.y += diff;
-                    } else {
-                        if (this.canvasInit.height + diff < 0) {
-                            this.canvasInit.height = 0;
-                            return;
-                        }
+                    } else if (!isTop && this.canvasInit.height + diff > 0)
                         this.canvasInit.height += diff;
+                    else this.canvasInit.height = 0;
+
+                    if (this.canvasInit.height !== 0) {
+                        if (topResize) {
+                            this.corners[0][1] += diff;
+                            this.corners[1][1] += diff;
+                            this.hotAreaCorners[0][1] += diff;
+                            this.hotAreaCorners[1][1] += diff;
+                        } else {
+                            this.corners[2][1] += diff;
+                            this.corners[3][1] += diff;
+                            this.hotAreaCorners[2][1] += diff;
+                            this.hotAreaCorners[3][1] += diff;
+                        }
+                        beforeY = diffY;
                     }
-                    beforeY = diffY;
                 }
+
                 this.__adjustCordinates();
                 this.canvas.invokeChange();
             }
@@ -1313,40 +1431,35 @@ export class Block extends Node {
     reset() {}
 
     rotate(opt?: number): number {
-        const rotate = this.__cacheOption(opt, "rotate", 0);
-        this.#rotateDegree = rotate;
-        const centerX =
-            this.canvasInit.x -
-            this.canvas.__positionCords.x +
-            this.canvasInit.width / 2;
-        const centerY =
-            this.canvasInit.y -
-            this.canvas.__positionCords.y +
-            this.canvasInit.height / 2;
+        this.#rotateDegree = this.__cacheOption(opt, "rotate", 0);
+        const gap = this.hotAreaGap();
+
         const R =
             Math.sqrt(
                 this.canvasInit.height ** 2 + this.canvasInit.width ** 2
             ) / 2;
         const rad = ((this.#rotateDegree - 135) * Math.PI) / 180;
-        const endX = centerX + R * Math.cos(rad);
-        const endY = centerY + R * Math.sin(rad);
 
-        const startRotX = this.corners[0][0];
-        const startRotY = this.corners[0][1];
-        const otherStartX = this.corners[2][0];
-        const otherStartY = this.corners[2][1];
+        const diffX = this.#center.x + R * Math.cos(rad) - this.corners[0][0];
+        const diffY = this.#center.y + R * Math.sin(rad) - this.corners[0][1];
 
-        const diffX = endX - startRotX;
-        const diffY = endY - startRotY;
+        const Rrad = ((this.#rotateDegree - 225) * Math.PI) / 180;
+        const eDiffX = this.#center.x + R * Math.cos(Rrad) - this.corners[2][0];
+        const eDiffY = this.#center.y + R * Math.sin(Rrad) - this.corners[2][1];
 
-        const rr = this.#rotateDegree - 135 - 90;
-        const Rrad = (rr * Math.PI) / 180;
-
-        const e1X = centerX + R * Math.cos(Rrad);
-        const e1Y = centerY + R * Math.sin(Rrad);
-
-        const eDiffX = e1X - otherStartX;
-        const eDiffY = e1Y - otherStartY;
+        const RR =
+            Math.sqrt(
+                (this.canvasInit.height + gap) ** 2 +
+                    (this.canvasInit.width + gap) ** 2
+            ) / 2;
+        const diffRX =
+            this.#center.x + RR * Math.cos(rad) - this.hotAreaCorners[0][0];
+        const diffRY =
+            this.#center.y + RR * Math.sin(rad) - this.hotAreaCorners[0][1];
+        const eDiffRX =
+            this.#center.x + RR * Math.cos(Rrad) - this.hotAreaCorners[2][0];
+        const eDiffRY =
+            this.#center.y + RR * Math.sin(Rrad) - this.hotAreaCorners[2][1];
 
         this.corners[0][0] += diffX;
         this.corners[1][0] += -eDiffX;
@@ -1357,7 +1470,18 @@ export class Block extends Node {
         this.corners[1][1] += -eDiffY;
         this.corners[2][1] += eDiffY;
         this.corners[3][1] += -diffY;
-        return rotate;
+
+        this.hotAreaCorners[0][0] += diffRX;
+        this.hotAreaCorners[1][0] += -eDiffRX;
+        this.hotAreaCorners[2][0] += eDiffRX;
+        this.hotAreaCorners[3][0] += -diffRX;
+
+        this.hotAreaCorners[0][1] += diffRY;
+        this.hotAreaCorners[1][1] += -eDiffRY;
+        this.hotAreaCorners[2][1] += eDiffRY;
+        this.hotAreaCorners[3][1] += -diffRY;
+
+        return this.#rotateDegree;
     }
     // had to come first for block scaling
     scale(x: number, y: number) {
@@ -1549,6 +1673,11 @@ export class Block extends Node {
                         this.corners[1][0] += diffX - beforeX;
                         this.corners[2][0] += diffX - beforeX;
                         this.corners[3][0] += diffX - beforeX;
+
+                        this.hotAreaCorners[0][0] += diffX - beforeX;
+                        this.hotAreaCorners[1][0] += diffX - beforeX;
+                        this.hotAreaCorners[2][0] += diffX - beforeX;
+                        this.hotAreaCorners[3][0] += diffX - beforeX;
                         beforeX = diffX;
                     }
                     this.beforeInit.y = this.canvasInit.y;
@@ -1558,6 +1687,11 @@ export class Block extends Node {
                         this.corners[1][1] += diffY - beforeY;
                         this.corners[2][1] += diffY - beforeY;
                         this.corners[3][1] += diffY - beforeY;
+
+                        this.hotAreaCorners[0][1] += diffY - beforeY;
+                        this.hotAreaCorners[1][1] += diffY - beforeY;
+                        this.hotAreaCorners[2][1] += diffY - beforeY;
+                        this.hotAreaCorners[3][1] += diffY - beforeY;
                         beforeY = diffY;
                     }
                     this.__adjustCordinates();

@@ -1180,6 +1180,7 @@ export class Layout extends Block {
             block.canvasInit.x = startX;
             block.canvasInit.y = startY;
             block.canvasInit.width = endX;
+            block.__updateCornerCords()
 
             if (block.flexBasis() !== "auto")
                 block.canvasInit.width = block.flexBasis() as number;
@@ -1413,7 +1414,7 @@ export class Layout extends Block {
             block.canvasInit.y = startY;
             block.canvasInit.x = startX;
             block.canvasInit.height = endY;
-
+            block.__updateCornerCords()
             if (block.flexBasis() !== "auto")
                 block.canvasInit.height = block.flexBasis() as number;
 
