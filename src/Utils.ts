@@ -59,3 +59,15 @@ export function checkInBound(
         return true;
     return false;
 }
+
+export function getRadiusByWH(width: number, height: number): number {
+    return Math.sqrt(height ** 2 + width ** 2) / 2;
+}
+
+export function radianToDegree(rad: number): number {
+    return (rad * 180) / Math.PI;
+}
+
+export function degreeToRadian(rad: number): number {
+    return (rad * Math.PI) / 180;
+}
