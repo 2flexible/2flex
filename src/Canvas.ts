@@ -149,6 +149,12 @@ export class Canvas {
 
     #handleOptions(block: BlockElements, ignore?: string[]): void {
         if (!block.options) return;
+        if (block.options["hidden"]) {
+            const proto = Object.getPrototypeOf(block);
+            const obj = Object.getOwnPropertyDescriptor(proto, "hidden");
+            obj?.value.call(block, block.options["hidden"]);
+            return;
+        }
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
@@ -191,7 +197,7 @@ export class Canvas {
             "draggable",
             "selectable",
             "rotatable",
-            "rotate"
+            "rotate",
         ];
 
         this.#tree.checkNodes((element: any) => {

@@ -75,7 +75,9 @@ export class Shape extends Block {
     closePath(): void {
         this.context.closePath();
     }
-
+    hidden(opt?: boolean) {
+        return super.hidden(opt);
+    }
     fill(opt?: Fill) {
         const fill = this.__cacheOption(opt, "fill", false);
         if (fill) this.context.fill();

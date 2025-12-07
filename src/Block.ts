@@ -41,9 +41,6 @@ interface CanvasInit {
     height: number;
     zIndex?: number;
 }
-interface HotAreas {
-    top: CanvasInit;
-}
 type Corners = [XY, XY, XY, XY];
 // Each element in the canvas is block
 // each Block is Node
@@ -173,6 +170,8 @@ export class Block extends Node {
     }
 
     __initSet() {
+        if (this.hidden()) return;
+        
         this.context.filter = this.__filters.join(" ");
         const pos = this.position();
         if (pos === "fixed" && !this.options.draggable) {
@@ -1186,6 +1185,16 @@ export class Block extends Node {
         return sepia;
     }
 
+    hidden(opt?: boolean) {
+        const hidden = this.__cacheOption(opt, "hidden", false);
+        if (hidden) {
+            (this._childs as Block[]).forEach(
+                (item) => ((item.options.hidden = true), item.options.hidden)
+            );
+        }
+        return hidden;
+    }
+
     padding(opt?: number[]) {
         const padding = this.__cacheOption(opt, "padding", undefined);
         if (!padding) return padding;
@@ -1397,12 +1406,12 @@ export class Block extends Node {
         const gap = this.hotAreaGap();
 
         const R = getRadiusByWH(this.canvasInit.width, this.canvasInit.height);
-        const rad = ((this.#rotateDegree - 135) * Math.PI) / 180;
+        const rad = degreeToRadian(this.#rotateDegree - 135);
 
         const diffX = this.#center.x + R * Math.cos(rad) - this.corners[0][0];
         const diffY = this.#center.y + R * Math.sin(rad) - this.corners[0][1];
 
-        const Rrad = ((this.#rotateDegree - 225) * Math.PI) / 180;
+        const Rrad = degreeToRadian(this.#rotateDegree - 225);
         const eDiffX = this.#center.x + R * Math.cos(Rrad) - this.corners[2][0];
         const eDiffY = this.#center.y + R * Math.sin(Rrad) - this.corners[2][1];
 

@@ -131,7 +131,9 @@ export class Line extends Shape {
         if (this.fill()) this.context.fill(this.path!.path);
         if (this.stroke()) this.context.stroke(this.path!.path);
     }
-
+    hidden(opt?: boolean) {
+        return super.hidden(opt);
+    }
     fill(opt?: Fill): boolean {
         return this.__cacheOption(opt, "fill", false);
     }

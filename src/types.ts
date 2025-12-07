@@ -113,6 +113,7 @@ export interface BlockOptions {
     resizeRight?: boolean;
     resizeBottom?: boolean;
     resizable?: boolean;
+    hidden?: boolean;
 }
 // extend margin as seperate margin top, left, bottom
 export interface DefaultBlockOpt {

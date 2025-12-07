@@ -7,7 +7,9 @@ export class Rectangle extends Shape {
         this.options = options || {};
     }
 
-    draw(_func?: ((context: CanvasRenderingContext2D) => void) | undefined): void {
+    draw(
+        _func?: ((context: CanvasRenderingContext2D) => void) | undefined
+    ): void {
         this.beginPath();
 
         this.backgroundColor();
@@ -69,7 +71,9 @@ export class Rectangle extends Shape {
     rotate(opt?: number): number {
         return super.rotate(opt);
     }
-
+    hidden(opt?: boolean) {
+        return super.hidden(opt);
+    }
     borderTop(opt?: string) {
         const borderTop = this.__cacheOption(opt, "borderRight", "");
         this.options.stroke = true;

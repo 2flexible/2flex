@@ -14,7 +14,9 @@ export class Circle extends Shape {
         super(options);
         this.options = options || {};
     }
-    draw(_func?: ((context: CanvasRenderingContext2D) => void) | undefined): void {
+    draw(
+        _func?: ((context: CanvasRenderingContext2D) => void) | undefined
+    ): void {
         this.beginPath();
         this.backgroundColor();
 
@@ -63,6 +65,9 @@ export class Circle extends Shape {
         );
         super.fillStyle(backgroundColor);
         return backgroundColor;
+    }
+    hidden(opt?: boolean) {
+        return super.hidden(opt);
     }
     borderWidth(opt?: number) {
         const borderWidth = this.__cacheOption(opt, "backgroundColor", 0);
