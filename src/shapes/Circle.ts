@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import { IBlock, Position } from "../types";
+import { GradientStops, IBlock, Position } from "../types";
 
 interface CircleOptions {
     radius?: number;
@@ -68,6 +68,42 @@ export class Circle extends Shape {
     }
     hidden(opt?: boolean) {
         return super.hidden(opt);
+    }
+    radialGradient({
+        x0,
+        y0,
+        r0,
+        x1,
+        y1,
+        r1,
+    }: {
+        x0: number;
+        y0: number;
+        r0: number;
+        x1: number;
+        y1: number;
+        r1: number;
+    }) {
+        return super.radialGradient({ x0, y0, r0, x1, y1, r1 });
+    }
+    linearGradient({
+        x0,
+        y0,
+        x1,
+        y1,
+    }: {
+        x0: number;
+        y0: number;
+        x1: number;
+        y1: number;
+    }) {
+        return super.linearGradient({ x0, y0, x1, y1 });
+    }
+    conicGradient({ angle, x, y }: { angle: number; x: number; y: number }) {
+        return super.conicGradient({ angle, x, y });
+    }
+    colorStops(opt: GradientStops[]): GradientStops[] {
+        return super.colorStops(opt);
     }
     borderWidth(opt?: number) {
         const borderWidth = this.__cacheOption(opt, "backgroundColor", 0);

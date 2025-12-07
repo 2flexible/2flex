@@ -1,5 +1,12 @@
 import { Shape } from "../Shape";
-import { IBlock, BorderStyle, RoundRectOpt, Position } from "../types";
+import {
+    IBlock,
+    BorderStyle,
+    RoundRectOpt,
+    Position,
+    FillStyle,
+    GradientStops,
+} from "../types";
 
 export class Rectangle extends Shape {
     constructor(options?: IBlock<RoundRectOpt>) {
@@ -29,7 +36,7 @@ export class Rectangle extends Shape {
     borderRadius(opt?: number[]): number[] | undefined {
         return this.__cacheOption(opt, "borderRadius", undefined);
     }
-    backgroundColor(opt?: string) {
+    backgroundColor(opt?: FillStyle) {
         super.fillStyle(opt);
         return this.__cacheOption(opt, "backgroundColor", "black");
     }
@@ -58,7 +65,42 @@ export class Rectangle extends Shape {
     borderStyle(opt?: "solid" | "dotted"): string {
         return this.__cacheOption(opt, "borderStyle", "dotted");
     }
-
+    radialGradient({
+        x0,
+        y0,
+        r0,
+        x1,
+        y1,
+        r1,
+    }: {
+        x0: number;
+        y0: number;
+        r0: number;
+        x1: number;
+        y1: number;
+        r1: number;
+    }) {
+        return super.radialGradient({ x0, y0, r0, x1, y1, r1 });
+    }
+    linearGradient({
+        x0,
+        y0,
+        x1,
+        y1,
+    }: {
+        x0: number;
+        y0: number;
+        x1: number;
+        y1: number;
+    }) {
+        return super.linearGradient({ x0, y0, x1, y1 });
+    }
+    conicGradient({ angle, x, y }: { angle: number; x: number; y: number }) {
+        return super.conicGradient({ angle, x, y });
+    }
+    colorStops(opt: GradientStops[]): GradientStops[] {
+        return super.colorStops(opt);
+    }
     resizable(opt?: boolean): boolean {
         return super.resizable(opt);
     }

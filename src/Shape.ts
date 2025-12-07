@@ -1,34 +1,26 @@
 import { Block } from "./Block";
-import { IBlock, CursorPos, RectOpt, RoundRectOpt } from "./types";
+import {
+    IBlock,
+    CursorPos,
+    RectOpt,
+    RoundRectOpt,
+    FillRule,
+    FillStyle,
+    Fill,
+    strokeStyle,
+    Storke,
+    LineWidth,
+    LineDash,
+    LineCapOpt,
+    GradientStops,
+    LineJoinOpt,
+    LineDashOffset,
+    BezierCurveToOpt,
+    QuadraticCurveToOpt,
+    PointInPath,
+    PointInStroke,
+} from "./types";
 
-export interface QuadraticCurveToOpt {
-    cpx1: number;
-    cpy1: number;
-    endX: number;
-    endY: number;
-}
-export interface BezierCurveToOpt extends QuadraticCurveToOpt {
-    cpx2: number;
-    cpy2: number;
-}
-export type LineJoinOpt = "miter" | "round" | "bevel";
-export type LineDashOffset = number;
-export type LineDash = number[];
-export type LineWidth = number;
-export type LineCapOpt = "butt" | "round" | "square";
-export type FillRule = "nonzero" | "evenodd";
-export type strokeStyle = string;
-export type FillStyle = string;
-export type Fill = boolean;
-export type Storke = boolean;
-
-interface PointInPath extends CursorPos {
-    path?: Path2D;
-    fillRule?: FillRule;
-}
-interface PointInStroke extends CursorPos {
-    path?: Path2D;
-}
 export interface IShapeOptions {
     fill?: Fill;
     fillStyle?: FillStyle;
@@ -55,6 +47,7 @@ export interface IShapeOptions {
 }
 // each shape extends form common shape
 export class Shape extends Block {
+    #gradient: any = null;
     constructor(options?: IBlock<IShapeOptions>) {
         super(options);
         this.options = options || {};
@@ -90,6 +83,56 @@ export class Shape extends Block {
         return fillStyle;
     }
 
+    conicGradient({ angle, x, y }: { angle: number; x: number; y: number }) {
+        this.#gradient = this.context.createConicGradient(angle, x, y);
+        return this.#gradient;
+    }
+    radialGradient({
+        x0,
+        y0,
+        r0,
+        x1,
+        y1,
+        r1,
+    }: {
+        x0: number;
+        y0: number;
+        r0: number;
+        x1: number;
+        y1: number;
+        r1: number;
+    }) {
+        this.#gradient = this.context.createRadialGradient(
+            x0,
+            y0,
+            r0,
+            x1,
+            y1,
+            r1
+        );
+        return this.#gradient;
+    }
+    linearGradient({
+        x0,
+        y0,
+        x1,
+        y1,
+    }: {
+        x0: number;
+        y0: number;
+        x1: number;
+        y1: number;
+    }) {
+        this.#gradient = this.context.createLinearGradient(x0, y0, x1, y1);
+        return this.#gradient;
+    }
+    colorStops(opt: GradientStops[]) {
+        const stops = this.__cacheOption(opt, "colorStops", []);
+        for (let stop of stops) {
+            this.#gradient.addColorStop(stop.stop, stop.color);
+        }
+        return stops;
+    }
     stroke(opt?: Storke) {
         const stroke = this.__cacheOption(opt, "stroke", false);
         if (stroke) this.context.stroke();

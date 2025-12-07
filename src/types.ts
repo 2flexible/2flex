@@ -191,4 +191,39 @@ export interface InitialShapes {
     borderColor?: string;
     borderWidth?: number;
 }
+export interface GradientStops {
+    stop: number;
+    color: string;
+}
+
 export type RepeatOption = "repeat" | "repeat-x" | "repeat-y" | "no-repeat";
+
+export type GradientType = "linear" | "conic" | "radial";
+export type LineJoinOpt = "miter" | "round" | "bevel";
+export type LineDashOffset = number;
+export type LineDash = number[];
+export type LineWidth = number;
+export type LineCapOpt = "butt" | "round" | "square";
+export type FillRule = "nonzero" | "evenodd";
+export type strokeStyle = string;
+export type FillStyle = string;
+export type Fill = boolean;
+export type Storke = boolean;
+export interface QuadraticCurveToOpt {
+    cpx1: number;
+    cpy1: number;
+    endX: number;
+    endY: number;
+}
+export interface BezierCurveToOpt extends QuadraticCurveToOpt {
+    cpx2: number;
+    cpy2: number;
+}
+
+export interface PointInPath extends CursorPos {
+    path?: Path2D;
+    fillRule?: FillRule;
+}
+export interface PointInStroke extends CursorPos {
+    path?: Path2D;
+}
