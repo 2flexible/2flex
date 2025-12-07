@@ -191,3 +191,4 @@ export interface InitialShapes {
     borderColor?: string;
     borderWidth?: number;
 }
+export type RepeatOption = "repeat" | "repeat-x" | "repeat-y" | "no-repeat";
