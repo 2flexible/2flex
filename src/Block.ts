@@ -1454,7 +1454,11 @@ export class Block extends Node {
     scale(x: number, y: number) {
         this.context.scale(x, y);
     }
-    bind(block: BlockElements[], options?: IBlock<BlockOptions>) {}
+    bind(block: Block, options: string[]) {
+        for (let opt of options) {
+            this.options[opt] = block.options[opt];
+        }
+    }
 
     find(queries?: IBlock<BlockOptions>) {
         return this.filterNodes(queries);
