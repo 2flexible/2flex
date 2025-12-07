@@ -19,6 +19,7 @@ import {
     QuadraticCurveToOpt,
     PointInPath,
     PointInStroke,
+    RepeatOption,
 } from "./types";
 
 export interface IShapeOptions {
@@ -48,6 +49,7 @@ export interface IShapeOptions {
 // each shape extends form common shape
 export class Shape extends Block {
     #gradient: any = null;
+    #cachePattern: any = null;
     constructor(options?: IBlock<IShapeOptions>) {
         super(options);
         this.options = options || {};
@@ -126,6 +128,40 @@ export class Shape extends Block {
         this.#gradient = this.context.createLinearGradient(x0, y0, x1, y1);
         return this.#gradient;
     }
+    createPattern({
+        imageSource,
+        repeat,
+        x,
+        y,
+        width,
+        height,
+    }: {
+        imageSource: string;
+        repeat: RepeatOption;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    }) {
+        let pattern = null;
+        if (!this.#cachePattern) {
+            this.#cachePattern = new Image();
+            this.#cachePattern.src = imageSource;
+            this.#cachePattern.addEventListener(
+                "load",
+                () =>
+                    (pattern = this.context.createPattern(
+                        this.#cachePattern,
+                        repeat
+                    ))
+            );
+        } else {
+            pattern = this.context.createPattern(this.#cachePattern, repeat);
+            this.fillStyle(pattern as any);
+            this.fillRect({ x, y, width, height });
+        }
+    }
+
     colorStops(opt: GradientStops[]) {
         const stops = this.__cacheOption(opt, "colorStops", []);
         for (let stop of stops) {
@@ -231,7 +267,9 @@ export class Shape extends Block {
     }: BezierCurveToOpt): void {
         this.context.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
     }
-
+    fillRect({ x, y, width, height }: RectOpt) {
+        this.context.fillRect(x, y, width, height);
+    }
     rect({ x, y, width, height }: RectOpt): void {
         this.context.rect(x, y, width, height);
     }
