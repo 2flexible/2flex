@@ -81,6 +81,9 @@ export class ImageBlock extends Block {
     clip(opt?: boolean): boolean {
         return super.clip(opt);
     }
+    hidden(opt?: boolean): boolean {
+        return super.hidden(opt);
+    }
     dragX(opt?: boolean): boolean {
         return super.dragX(opt);
     }

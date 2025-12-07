@@ -60,6 +60,7 @@ export class Shape extends Block {
         this.options = options || {};
     }
     __initSet(): void {
+        if (this.hidden()) return;
         super.__initSet();
         this.draw();
     }

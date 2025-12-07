@@ -171,7 +171,6 @@ export class Block extends Node {
 
     __initSet() {
         if (this.hidden()) return;
-        
         this.context.filter = this.__filters.join(" ");
         const pos = this.position();
         if (pos === "fixed" && !this.options.draggable) {

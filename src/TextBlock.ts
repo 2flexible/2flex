@@ -294,7 +294,9 @@ export class TextBlock extends Block {
     clip(opt?: boolean) {
         return super.clip(opt);
     }
-
+    hidden(opt?: boolean): boolean {
+        return super.hidden(opt);
+    }
     dragX(opt?: boolean) {
         return super.dragX(opt);
     }

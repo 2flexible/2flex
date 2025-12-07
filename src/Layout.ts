@@ -381,6 +381,9 @@ export class Layout extends Block {
         }
         return alignItems;
     }
+    hidden(opt?: boolean): boolean {
+        return super.hidden(opt);
+    }
     get #isFlexCol() {
         if (
             this.options.flexDirection === "column" ||
@@ -1180,7 +1183,7 @@ export class Layout extends Block {
             block.canvasInit.x = startX;
             block.canvasInit.y = startY;
             block.canvasInit.width = endX;
-            block.__updateCornerCords()
+            block.__updateCornerCords();
 
             if (block.flexBasis() !== "auto")
                 block.canvasInit.width = block.flexBasis() as number;
@@ -1414,7 +1417,7 @@ export class Layout extends Block {
             block.canvasInit.y = startY;
             block.canvasInit.x = startX;
             block.canvasInit.height = endY;
-            block.__updateCornerCords()
+            block.__updateCornerCords();
             if (block.flexBasis() !== "auto")
                 block.canvasInit.height = block.flexBasis() as number;
 
