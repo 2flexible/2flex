@@ -71,3 +71,64 @@ export function radianToDegree(rad: number): number {
 export function degreeToRadian(rad: number): number {
     return (rad * Math.PI) / 180;
 }
+
+// This is based on `WebCore/platform/graphics/UnitBezier.h` in WebKit.
+export function cubicBezier(
+    p1x: number,
+    p1y: number,
+    p2x: number,
+    p2y: number,
+    t: number,
+    duration: number
+) {
+    const cx = 3 * p1x,
+        bx = 3 * (p2x - p1x) - cx,
+        ax = 1 - cx - bx,
+        cy = 3 * p1y,
+        by = 3 * (p2y - p1y) - cy,
+        ay = 1 - cy - by;
+    function sampleCurveX(t: number) {
+        return ((ax * t + bx) * t + cx) * t;
+    }
+    function solve(x: number, epsilon: number) {
+        let t = solveCurveX(x, epsilon);
+        return ((ay * t + by) * t + cy) * t;
+    }
+    function solveCurveX(x: number, epsilon: number) {
+        let t0, t1, t2, x2, d2, i;
+        for (t2 = x, i = 0; i < 8; i++) {
+            x2 = sampleCurveX(t2) - x;
+            if (Math.abs(x2) < epsilon) {
+                return t2;
+            }
+            d2 = (3 * ax * t2 + 2 * bx) * t2 + cx;
+            if (Math.abs(d2) < 1e-6) {
+                break;
+            }
+            t2 = t2 - x2 / d2;
+        }
+        t0 = 0;
+        t1 = 1;
+        t2 = x;
+        if (t2 < t0) {
+            return t0;
+        }
+        if (t2 > t1) {
+            return t1;
+        }
+        while (t0 < t1) {
+            x2 = sampleCurveX(t2);
+            if (Math.abs(x2 - x) < epsilon) {
+                return t2;
+            }
+            if (x > x2) {
+                t0 = t2;
+            } else {
+                t1 = t2;
+            }
+            t2 = (t1 - t0) / 2 + t0;
+        }
+        return t2;
+    }
+    return solve(t, duration);
+}

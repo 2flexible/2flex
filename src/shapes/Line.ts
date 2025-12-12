@@ -1,12 +1,12 @@
 import {
-    Shape,
     QuadraticCurveToOpt,
     BezierCurveToOpt,
     LineCapOpt,
     LineJoinOpt,
     LineDashOffset,
     Fill,
-} from "../Shape";
+} from "../types";
+import { Shape } from "../Shape";
 import { IBlock, Position } from "../types";
 import { Path } from "../Path";
 

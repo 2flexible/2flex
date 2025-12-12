@@ -15,6 +15,7 @@ import {
     fromVW,
     getRadiusByWH,
     radianToDegree,
+    cubicBezier,
 } from "./Utils";
 
 import {
@@ -32,6 +33,16 @@ import {
     IMouseEvents,
     XY,
     CursorPos,
+    KeyFrame,
+    Easing,
+    Delay,
+    PlayBackRate,
+    Direction,
+    FrameRate,
+    Duration,
+    IterationStart,
+    Composite,
+    Iterations,
 } from "./types";
 
 interface CanvasInit {
@@ -76,6 +87,10 @@ export class Block extends Node {
     styleChanges: IStyle[] = [];
     beforeInit = this.canvasInit;
     #boundries = this.canvasInit;
+
+    #keyframeIterations: any = {};
+    #lastAnimationId: number = 0;
+    __animationOn: any = [];
     #isPosApplied = false;
     #center: CursorPos = { x: 0, y: 0 };
     #runningEvents = { drag: false, rotate: false, resize: false };
@@ -1449,6 +1464,281 @@ export class Block extends Node {
         this.hotAreaCorners[3][1] += -diffRY;
 
         return this.#rotateDegree;
+    }
+    animate(keyframes: KeyFrame[], callback?: (timestemps: number) => void) {
+        /*
+        @property: keyframe 
+        [
+            {x: [1,2,3], duration: 2000, ease: "ease-in"},
+            etc.
+        ]
+        */
+        const animationId = (this.#lastAnimationId += 1);
+        this.#keyframeIterations[animationId] = {
+            isRunning: true,
+            isFinished: false,
+            isReverse: false,
+        };
+        for (let [index, keyframe] of keyframes.entries()) {
+            const essentials = {
+                time: 0,
+                iter: 0,
+            };
+            const composite = keyframe.composite || "replace";
+
+            let maxLen = 0;
+            for (let [key, value] of Object.entries(keyframe)) {
+                if (key in this.options) {
+                    if (composite === "add" && maxLen < value.length)
+                        maxLen = value.length;
+                    else if (composite === "accumulate") {
+                        let prevVal = 0;
+                        (keyframe as any)[key] = value.map(
+                            (item: number, index: number) => {
+                                if (!(index in [0, 1])) {
+                                    item += prevVal;
+                                } else {
+                                    prevVal += item;
+                                }
+                                return item;
+                            }
+                        );
+                    }
+                }
+            }
+
+            for (let [key, value] of Object.entries(keyframe)) {
+                if (key in this.options) {
+                    const proto = Object.getPrototypeOf(this);
+                    const obj = Object.getOwnPropertyDescriptor(proto, key);
+                    this.#keyframeIterations[animationId][index] = {
+                        ...essentials,
+                        initValues: { key: obj?.value.call(this) },
+                    };
+                    for (
+                        let i = value.length, maxVal = value[i - 1];
+                        i < maxLen;
+                        i++
+                    )
+                        value.push(maxVal);
+
+                    this.#keyframeIterations[animationId][index][key] = {
+                        currentIdx: 0,
+                        currentVal: 0,
+                        breakPoints: value,
+                    };
+                } else {
+                    this.#keyframeIterations[animationId][index][key] = value;
+                }
+            }
+            const animator = (timestemps: number) => {
+                const anime = this.#keyframeIterations[animationId];
+                const keyF = anime[index];
+                let isFinished = keyF["isFinished"];
+                const delay = keyF.delay || 0;
+                const playBackRate = keyF.playBackRate || 0;
+                const frameRate = keyF.frameRate || 0;
+                const direction = keyF.direction || "normal";
+                const duration = keyF.duration || 0;
+                const iterationStart = keyF.iterationStart || 0.0;
+                const iterations = keyF.iterations || undefined;
+                
+                if (!anime["isRunning"]) return;
+
+                if (keyF["iter"] === iterations)
+                    isFinished = this.#keyframeIterations[animationId][index][
+                        "isFinished"
+                    ] = true;
+                if (isFinished) {
+                    if (keyF.onFinish) keyF.onFinish();
+                    for (let [key, value] of Object.entries(
+                        keyF["initValues"]
+                    )) {
+                        const proto = Object.getPrototypeOf(this);
+                        const obj = Object.getOwnPropertyDescriptor(proto, key);
+                        obj?.value.call(this, value);
+                        this.#keyframeIterations[animationId][index][
+                            "time"
+                        ] = 0;
+                    }
+                    return;
+                }
+                if (callback) callback(timestemps);
+
+                if (keyF["iterations"])
+                    this.#keyframeIterations[animationId][index]["iter"] += 1;
+
+                const t = keyF["time"];
+                const easing = this.easingHanndler(keyF.easing, t, duration);
+                for (let [key, value] of Object.entries(keyF)) {
+                    if (!(key in this.options)) continue;
+                    let valueT = value as any;
+
+                    let currentIdx = valueT["currentIdx"];
+                    let iterDirection = valueT["iterDirection"];
+                    let nextIdx = currentIdx + iterDirection;
+
+                    let startVal = valueT["breakPoints"][currentIdx];
+                    let endVal = valueT["breakPoints"][nextIdx];
+                    let currentVal = keyF["currentVal"];
+
+                    const proto = Object.getPrototypeOf(this);
+                    const obj = Object.getOwnPropertyDescriptor(proto, key);
+
+                    // [0, 100, 50]
+                    if (delay <= timestemps / 1000) {
+                        const modifiedVal =
+                            currentVal + easing * (endVal - startVal);
+                        this.#keyframeIterations[animationId][index]["time"] +=
+                            1 / (60 * (duration / 1000));
+                        if (
+                            (startVal <= endVal &&
+                                !(startVal <= modifiedVal <= endVal)) ||
+                            (startVal >= endVal &&
+                                !(startVal >= modifiedVal >= endVal))
+                        ) {
+                            currentIdx += 1;
+                            if (
+                                iterDirection === valueT.length &&
+                                iterDirection === 0
+                            ) {
+                                if (direction == "normal") {
+                                    currentIdx = 0;
+                                } else if (direction == "reverse") {
+                                    currentIdx = valueT.length - 1;
+                                    iterDirection = -1;
+                                } else if (
+                                    direction == "alternate" ||
+                                    direction == "alternate-reverse"
+                                ) {
+                                    iterDirection *= -1;
+                                }
+                            }
+                            this.#keyframeIterations[animationId][index][
+                                "currentIdx"
+                            ] = currentIdx;
+                        }
+
+                        this.#keyframeIterations[animationId][index][
+                            "currentVal"
+                        ] = modifiedVal;
+                        this.#keyframeIterations[animationId][index][
+                            "iterDirection"
+                        ] = iterDirection;
+
+                        if (
+                            iterationStart <=
+                            currentVal / (startVal + endVal)
+                        ) {
+                            obj?.value.call(this, modifiedVal);
+                        }
+                    }
+                }
+            };
+            this.__animationOn.push(animator);
+        }
+        return animationId;
+    }
+
+    animationStart(animationId: number) {
+        this.#keyframeIterations[animationId]["isFinished"] = false;
+        this.#keyframeIterations[animationId]["isRunning"] = true;
+    }
+    animationStop(animationId: number) {
+        this.#keyframeIterations[animationId]["isRunning"] = false;
+    }
+    animationFinish(animationId: number) {
+        this.#keyframeIterations[animationId]["isFinished"] = true;
+    }
+    animationReverse(animationId: number) {
+        this.#keyframeIterations[animationId]["isFinished"] = false;
+        this.#keyframeIterations[animationId]["isReverse"] = true;
+    }
+    animationUpdateDelay(
+        animationId: number,
+        keyFrameCount: number,
+        value: Delay
+    ) {
+        this.#keyframeIterations[animationId][keyFrameCount]["updateDelay"] =
+            value;
+    }
+    animationPlayBackRate(
+        animationId: number,
+        keyFrameCount: number,
+        value: PlayBackRate
+    ) {
+        this.#keyframeIterations[animationId][keyFrameCount]["playBackRate"] =
+            value;
+    }
+    animationFrameRate(
+        animationId: number,
+        keyFrameCount: number,
+        value: FrameRate
+    ) {
+        this.#keyframeIterations[animationId][keyFrameCount]["frameRate"] =
+            value;
+    }
+    animationDirection(
+        animationId: number,
+        keyFrameCount: number,
+        value: Direction
+    ) {
+        this.#keyframeIterations[animationId][keyFrameCount]["direction"] =
+            value;
+    }
+    animationDuration(
+        animationId: number,
+        keyFrameCount: number,
+        value: Duration
+    ) {
+        this.#keyframeIterations[animationId][keyFrameCount]["duration"] =
+            value;
+    }
+    animationIterationStart(
+        animationId: number,
+        keyFrameCount: number,
+        value: IterationStart
+    ) {
+        this.#keyframeIterations[animationId][keyFrameCount]["iterationStart"] =
+            value;
+    }
+    animationComposite(
+        animationId: number,
+        keyFrameCount: number,
+        value: Composite
+    ) {
+        this.#keyframeIterations[animationId][keyFrameCount]["composite"] =
+            value;
+    }
+    animationIterations(
+        animationId: number,
+        keyFrameCount: number,
+        value: Iterations
+    ) {
+        this.#keyframeIterations[animationId][keyFrameCount]["iterations"] =
+            value;
+    }
+
+    easingHanndler(
+        easing: Easing = "linear",
+        t: number,
+        duration: number
+    ): number {
+        if (easing instanceof String) {
+            if (easing == "ease")
+                return cubicBezier(0.25, 0.1, 0.25, 1, t, duration);
+            else if (easing == "ease-in")
+                return cubicBezier(0.42, 0, 1, 1, t, duration);
+            else if (easing == "ease-out")
+                return cubicBezier(0, 0, 0.58, 1, t, duration);
+            else if (easing == "ease-in-out")
+                return cubicBezier(0.42, 0, 0.58, 1, t, duration);
+        } else if (easing instanceof Array) {
+            if (easing.length == 4)
+                return cubicBezier(0.42, 0, 0.58, 1, t, duration);
+            // if (easing.length == 4) return cubicBezier(0.42, 0, 0.58, 1, t, duration);
+        }
+        return 0;
     }
     // had to come first for block scaling
     scale(x: number, y: number) {

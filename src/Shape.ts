@@ -147,14 +147,14 @@ export class Shape extends Block {
         if (!this.#cachePattern) {
             this.#cachePattern = new Image();
             this.#cachePattern.src = imageSource;
-            this.#cachePattern.addEventListener(
-                "load",
-                () =>
-                    (pattern = this.context.createPattern(
-                        this.#cachePattern,
-                        repeat
-                    ))
-            );
+            this.#cachePattern.addEventListener("load", () => {
+                pattern = this.context.createPattern(
+                    this.#cachePattern,
+                    repeat
+                );
+                this.fillStyle(pattern as any);
+                this.fillRect({ x, y, width, height });
+            });
         } else {
             pattern = this.context.createPattern(this.#cachePattern, repeat);
             this.fillStyle(pattern as any);

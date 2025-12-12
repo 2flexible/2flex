@@ -48,12 +48,12 @@ export interface BlockOptions {
     left?: number;
     right?: number;
     selectable?: boolean;
-    padding?: number[];
+    padding?: [number, number, number, number];
     paddingTop?: number;
     paddingRight?: number;
     paddingBottom?: number;
     paddingLeft?: number;
-    margin?: string;
+    margin?: [number, number, number, number];
     marginTop?: number;
     marginRight?: number;
     marginBottom?: number;
@@ -95,10 +95,10 @@ export interface BlockOptions {
     hotCornerSize?: number;
     hotCornerRadius?: number;
     hotCornerStrokeWidth?: number;
-    hotCornerStrokeColor?: number;
-    hotCornerBackgroundColor?: number;
+    hotCornerStrokeColor?: string;
+    hotCornerBackgroundColor?: string;
     hotLineStrokeWidth?: number;
-    hotLineStrokeColor?: number;
+    hotLineStrokeColor?: string;
     rotationRadius?: number;
     rotationTopLeft?: boolean;
     rotationTopRight?: boolean;
@@ -226,4 +226,43 @@ export interface PointInPath extends CursorPos {
 }
 export interface PointInStroke extends CursorPos {
     path?: Path2D;
+}
+
+export type Easing =
+    | "linear"
+    | "ease"
+    | "ease-in"
+    | "ease-out"
+    | "ease-in-out"
+    | "step-start"
+    | "step-end"
+    | [number, number, number, number]
+    | [number, number];
+
+export type Direction =
+    | "normal"
+    | "reverse"
+    | "alternate"
+    | "alternate-reverse";
+
+export type Composite = "replace" | "add" | "accumulate";
+
+export type Delay = number;
+export type Iterations = number | "Infinity";
+export type Duration = number;
+export type IterationStart = number;
+export type PlayBackRate = number;
+export type FrameRate = number;
+
+export interface KeyFrame {
+    iterations?: Iterations;
+    delay?: Delay;
+    direction?: Direction;
+    duration?: Duration;
+    easing?: Easing;
+    composite?: Composite;
+    iterationStart?: IterationStart;
+    playBackRate?: PlayBackRate;
+    frameRate?: FrameRate;
+    onFinish?: () => void;
 }

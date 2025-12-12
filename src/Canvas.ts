@@ -9,6 +9,7 @@ import {
 import { CanvasDOMManager } from "./DOMManager";
 import { Path } from "./Path";
 import { Layout } from "./Layout";
+import { Block } from "./Block";
 
 /*
 @Todo
@@ -46,9 +47,10 @@ export class Canvas {
     #zoomSpeed = 1.2;
     #zoomInvSpeed = 0.8;
     #moveSpeed = 10;
+    #animationStarted = false;
     currentCursor: string = "auto";
     __positionCords = { x: 0, y: 0 };
-
+    #animations: any = [];
     constructor(
         canvasId?: string,
         width?: number,
@@ -102,15 +104,17 @@ export class Canvas {
 
     add(...block: BlockElements[]) {
         this.#tree.addNodes(block);
-
         this.#tree.preOrderTraversal((element: any) => {
             element.canvas = this;
             this.#handleOptions(element);
             element.__initSet();
+            this.#animations.push(...element.__animationOn);
             for (const key in element.__events) {
                 this.#canvasEvents[key].push(...element.__events[key]);
             }
         });
+        if (this.#animations.length !== 0)
+            this.animationInvoker(this.#animations);
 
         let zIndex = 0;
         this.#tree.checkNodes((el: any) => {
@@ -166,7 +170,7 @@ export class Canvas {
             }
         }
     }
-
+    // not need to invoke every options, need to take a considiration of the mouse events also
     invokeChange(_func?: (element: any) => void) {
         // need to make for invidiual change rather than creating this path
         this.clipping_path.createPath();
@@ -202,9 +206,21 @@ export class Canvas {
 
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);
-            this.#handleOptions(element, ignore);
+            // this.#handleOptions(element, ignore);
             element.__initSet();
         });
+
+        // if (!this.#animationStarted) this.animator();
+    }
+
+    animationInvoker(animations: any) {
+        function framer(timestemps: number) {
+            for (let anime of animations) {
+                anime(timestemps);
+            }
+            requestAnimationFrame(framer);
+        }
+        requestAnimationFrame(framer);
     }
     // we can do this later as and || or
     find(queries: IBlock<BlockOptions>) {
