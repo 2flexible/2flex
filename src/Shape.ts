@@ -63,7 +63,9 @@ export class Shape extends Block {
     draw(_func?: (context: CanvasRenderingContext2D) => void) {
         if (_func) _func(this.context);
     }
-
+    x(opt?: number): number {
+        return super.x(opt);
+    }
     beginPath() {
         this.context.beginPath();
     }

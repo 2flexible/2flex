@@ -1,11 +1,11 @@
+import { CubicBezier, JumpPosition, LinearEasing, StepsEasing } from "./types";
+
 export function fromPercentage(from: number, parentS: number) {
     return (from * parentS) / 100;
 }
-
 export function fromVW(from: number, canvasW: number) {
     return (from * canvasW) / 100;
 }
-
 export function fromVH(from: number, canvasH: number) {
     return (from * canvasH) / 100;
 }
@@ -77,10 +77,8 @@ export function cubicBezier(
     p1x: number,
     p1y: number,
     p2x: number,
-    p2y: number,
-    t: number,
-    duration: number
-) {
+    p2y: number
+): CubicBezier {
     const cx = 3 * p1x,
         bx = 3 * (p2x - p1x) - cx,
         ax = 1 - cx - bx,
@@ -90,10 +88,7 @@ export function cubicBezier(
     function sampleCurveX(t: number) {
         return ((ax * t + bx) * t + cx) * t;
     }
-    function solve(x: number, epsilon: number) {
-        let t = solveCurveX(x, epsilon);
-        return ((ay * t + by) * t + cy) * t;
-    }
+
     function solveCurveX(x: number, epsilon: number) {
         let t0, t1, t2, x2, d2, i;
         for (t2 = x, i = 0; i < 8; i++) {
@@ -130,5 +125,52 @@ export function cubicBezier(
         }
         return t2;
     }
-    return solve(t, duration);
+
+    return (x: number, duration: number) => {
+        let t = solveCurveX(x, duration);
+        return ((ay * t + by) * t + cy) * t;
+    };
+}
+
+export function lerp(start: number, end: number, t: number) {
+    return start + (end - start) * t;
+}
+
+export function linear(...args: number[]): LinearEasing {
+    const nTimes = 1 / (args.length - 1);
+    return (t: number) => {
+        const step = Math.ceil(t / nTimes);
+        const stepB = Math.floor(t / nTimes);
+
+        let x0 = stepB * nTimes;
+        let x1 = step * nTimes;
+        let y0 = args[stepB];
+        let y1 = args[stepB + 1];
+
+        if (typeof args[stepB] == "string") {
+            const indicator = (args[stepB] as any).split(" ");
+            y0 = Number(indicator[0]);
+            x0 = Number(indicator[1].split("%")[0]) / 100;
+            if (indicator[2]) x0 = Number(indicator[2].split("%")[0]) / 100;
+        }
+
+        if (typeof args[stepB + 1] == "string") {
+            const indicator = (args[stepB + 1] as any).split(" ");
+            y1 = Number(indicator[0]);
+            x1 = Number(indicator[1].split("%")[0]) / 100;
+            if (indicator[3]) x1 = Number(indicator[3].split("%")[0]) / 100;
+        }
+
+        const x = x0 + t * (x1 - x0);
+        const y = y0 + x * (y1 - y0);
+        return y;
+    };
+}
+
+export function steps(step: number, position: JumpPosition): StepsEasing {
+    const x = 1 / step;
+    return (t: number) => {
+        const stepness = Math.ceil(t / x);
+        return x * t + x * stepness;
+    };
 }

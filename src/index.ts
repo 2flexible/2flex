@@ -6,7 +6,6 @@ import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
 import { ImageBlock } from "./ImageBlock";
 import { Rectangle, Circle, Line } from "./shapes/index";
-
 export {
     Canvas,
     Block,

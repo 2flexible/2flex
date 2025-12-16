@@ -227,6 +227,9 @@ export interface PointInPath extends CursorPos {
 export interface PointInStroke extends CursorPos {
     path?: Path2D;
 }
+export type LinearEasing = (t: number) => number;
+export type CubicBezier = (t: number, duration: number) => number;
+export type StepsEasing = (t: number) => number;
 
 export type Easing =
     | "linear"
@@ -236,8 +239,9 @@ export type Easing =
     | "ease-in-out"
     | "step-start"
     | "step-end"
-    | [number, number, number, number]
-    | [number, number];
+    | LinearEasing
+    | CubicBezier
+    | StepsEasing;
 
 export type Direction =
     | "normal"
@@ -248,11 +252,10 @@ export type Direction =
 export type Composite = "replace" | "add" | "accumulate";
 
 export type Delay = number;
-export type Iterations = number | "Infinity";
+export type Iterations = number;
 export type Duration = number;
 export type IterationStart = number;
-export type PlayBackRate = number;
-export type FrameRate = number;
+export type PlaybackRate = number;
 
 export interface KeyFrame {
     iterations?: Iterations;
@@ -262,7 +265,12 @@ export interface KeyFrame {
     easing?: Easing;
     composite?: Composite;
     iterationStart?: IterationStart;
-    playBackRate?: PlayBackRate;
-    frameRate?: FrameRate;
+    playbackRate?: PlaybackRate;
     onFinish?: () => void;
 }
+
+export type JumpPosition =
+    | "jump-start"
+    | "jump-end"
+    | "jump-none"
+    | "jump-both";

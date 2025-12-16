@@ -6,6 +6,7 @@ import {
     Position,
     FillStyle,
     GradientStops,
+    PlaybackRate,
 } from "../types";
 
 export class Rectangle extends Shape {
@@ -32,7 +33,10 @@ export class Rectangle extends Shape {
         this.fill();
         this.stroke();
     }
-
+    x(opt?: number): number {
+        return super.x(opt);
+    }
+    
     borderRadius(opt?: number[]): number[] | undefined {
         return this.__cacheOption(opt, "borderRadius", undefined);
     }
