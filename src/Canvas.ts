@@ -24,6 +24,7 @@ interface CanvasOptions {
     moveSpeed?: number;
     zoom?: "center" | "point";
     move?: "auto" | "keyboard" | "mouse";
+    fps: number;
 }
 export class Canvas {
     __domCanvas: CanvasDOMManager;
@@ -51,6 +52,8 @@ export class Canvas {
     currentCursor: string = "auto";
     __positionCords = { x: 0, y: 0 };
     #animations: any = [];
+    #fps = 60;
+
     constructor(
         canvasId?: string,
         width?: number,
@@ -209,17 +212,25 @@ export class Canvas {
             // this.#handleOptions(element, ignore);
             element.__initSet();
         });
-
-        // if (!this.#animationStarted) this.animator();
     }
 
     animationInvoker(animations: any) {
-        function framer(timestemps: number) {
-            for (let anime of animations) {
-                anime(timestemps);
-            }
+        let lastFrame = 0;
+        const framer = (timestamp: number) => {
             requestAnimationFrame(framer);
-        }
+            // getting true frame per second
+            const delta = timestamp - lastFrame;
+            if (lastFrame && delta < this.#fps/1000)
+                return
+            this.context.restore();
+            this.context.save();
+            this.clearRect();
+            for (let anime of animations) {
+                anime(timestamp);
+            }
+            const execTime = delta % this.#fps
+            lastFrame = timestamp - execTime;
+        };
         requestAnimationFrame(framer);
     }
     // we can do this later as and || or
