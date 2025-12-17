@@ -274,3 +274,7 @@ export type JumpPosition =
     | "jump-end"
     | "jump-none"
     | "jump-both";
+
+
+
+export type RGBA = [number, number, number, number] 

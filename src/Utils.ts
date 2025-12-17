@@ -1,4 +1,10 @@
-import { CubicBezier, JumpPosition, LinearEasing, StepsEasing } from "./types";
+import {
+    CubicBezier,
+    JumpPosition,
+    LinearEasing,
+    RGBA,
+    StepsEasing,
+} from "./types";
 
 export function fromPercentage(from: number, parentS: number) {
     return (from * parentS) / 100;
@@ -173,4 +179,49 @@ export function steps(step: number, position: JumpPosition): StepsEasing {
         const stepness = Math.ceil(t / x);
         return x * t + x * stepness;
     };
+}
+export const namedColors: { [key: string]: string } = {
+    black: "#000000",
+    silver: "#c0c0c0",
+    gray: "#808080",
+    white: "#ffffff",
+    maroon: "#800000",
+    red: "#ff0000",
+    purple: "#800080",
+    fuchsia: "#ff00ff",
+    green: "#008000",
+    lime: "#00ff00",
+    olive: "#808000",
+    yellow: "#ffff00",
+    navy: "#000080",
+    blue: "#0000ff",
+    teal: "#008080",
+    aqua: "#00ffff",
+};
+export function hexToRgba(hex: string): RGBA {
+    hex = hex.substring(1);
+    let RR = hex.slice(0, 2) as any;
+    let GG = hex.slice(2, 4) as any;
+    let BB = hex.slice(4, 6) as any;
+    let AA = 1;
+    if (hex.length === 8) AA = parseInt(hex.slice(7, 9));
+    if (hex.length === 2) {
+        RR += RR;
+        GG += GG;
+        BB += BB;
+    }
+    RR = parseInt(RR, 16);
+    GG = parseInt(GG, 16);
+    BB = parseInt(BB, 16);
+    return [RR, GG, BB, AA];
+}
+
+export function hslToRgba() {}
+
+export function colorToRgba(color: string): RGBA {
+    console.log(color, namedColors[color])
+    return hexToRgba(namedColors[color]);
+}
+export function rgbaRepresenter(rgba: string): string {
+    return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] || 1})`;
 }

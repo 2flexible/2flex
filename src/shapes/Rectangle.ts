@@ -36,13 +36,14 @@ export class Rectangle extends Shape {
     x(opt?: number): number {
         return super.x(opt);
     }
-    
+
     borderRadius(opt?: number[]): number[] | undefined {
         return this.__cacheOption(opt, "borderRadius", undefined);
     }
     backgroundColor(opt?: FillStyle) {
-        super.fillStyle(opt);
-        return this.__cacheOption(opt, "backgroundColor", "black");
+        const bg = this.__cacheOption(opt, "backgroundColor", "black");
+        super.fillStyle(bg);
+        return bg;
     }
 
     border(opt?: string) {

@@ -19,6 +19,9 @@ import {
     lerp,
     linear,
     steps,
+    hexToRgba,
+    colorToRgba,
+    rgbaRepresenter,
 } from "./Utils";
 
 import {
@@ -45,6 +48,7 @@ import {
     IterationStart,
     Composite,
     Iterations,
+    RGBA,
 } from "./types";
 
 interface CanvasInit {
@@ -1535,6 +1539,9 @@ export class Block extends Node {
                         currentVal = value[idx];
                         if (idx === value.length - 1) iterDirection *= -1;
                     }
+                    if (key.includes("color") || key.includes("Color")) {
+                        value = value.map((i: string) => this.#colorHandler(i));
+                    }
                     this.#keyframeIterations[animationId][index][key] = {
                         currentIdx: idx,
                         currentVal: currentVal,
@@ -1607,15 +1614,57 @@ export class Block extends Node {
                         let startVal = valueT["breakPoints"][currentIdx];
                         let endVal = valueT["breakPoints"][nextIdx];
                         let currentVal = valueT["currentVal"];
+                        let statement = null;
 
-                        currentVal +=
-                            (lerp(startVal, endVal, easing) - startVal) *
-                            playBackRate;
+                        if (key.includes("color") || key.includes("Color")) {
+                            currentVal = this.#colorHandler(currentVal);
 
-                        if (
-                            (startVal <= endVal && currentVal >= endVal) ||
-                            (startVal >= endVal && currentVal <= endVal)
-                        ) {
+                            const R =
+                                lerp(startVal[0], endVal[0], easing) -
+                                startVal[0];
+                            const G =
+                                lerp(startVal[1], endVal[1], easing) -
+                                startVal[1];
+                            const B =
+                                lerp(startVal[2], endVal[2], easing) -
+                                startVal[2];
+                            const A =
+                                lerp(startVal[3], endVal[3], easing) -
+                                startVal[3];
+
+                            currentVal = [
+                                currentVal[0] + R,
+                                currentVal[1] + G,
+                                currentVal[2] + B,
+                                currentVal[3] + A,
+                            ];
+                            statement =
+                                ((startVal[0] <= endVal[0] &&
+                                    currentVal[0] >= endVal[0]) ||
+                                    (startVal[0] >= endVal[0] &&
+                                        currentVal[0] <= endVal[0])) &&
+                                ((startVal[1] <= endVal[1] &&
+                                    currentVal[1] >= endVal[1]) ||
+                                    (startVal[1] >= endVal[1] &&
+                                        currentVal[1] <= endVal[1])) &&
+                                ((startVal[2] <= endVal[2] &&
+                                    currentVal[2] >= endVal[2]) ||
+                                    (startVal[2] >= endVal[2] &&
+                                        currentVal[2] <= endVal[2])) &&
+                                ((startVal[3] <= endVal[3] &&
+                                    currentVal[3] >= endVal[3]) ||
+                                    (startVal[3] >= endVal[3] &&
+                                        currentVal[3] <= endVal[3]));
+                        } else {
+                            currentVal +=
+                                (lerp(startVal, endVal, easing) - startVal) *
+                                playBackRate;
+                            statement =
+                                (startVal <= endVal && currentVal >= endVal) ||
+                                (startVal >= endVal && currentVal <= endVal);
+                        }
+
+                        if (statement) {
                             currentIdx += iterDirection;
                             if (
                                 nextIdx === valueT["breakPoints"].length - 1 ||
@@ -1644,13 +1693,15 @@ export class Block extends Node {
                                 "currentIdx"
                             ] = currentIdx;
                         }
+                        if (key.includes("color") || key.includes("Color"))
+                            currentVal = rgbaRepresenter(currentVal);
                         this.#keyframeIterations[animationId][index][key][
                             "currentVal"
                         ] = currentVal;
                         this.#keyframeIterations[animationId][index][key][
                             "iterDirection"
                         ] = iterDirection;
-
+                        // console.log(currentVal)
                         valueT.invoker?.value.call(this, currentVal);
                     }
                 }
@@ -1659,6 +1710,25 @@ export class Block extends Node {
             this.__animationOn.push(animator);
         }
         return animationId;
+    }
+
+    #colorHandler(color: string): RGBA {
+        if (color.startsWith("rgb") || color.startsWith("rgba")) {
+            const splitted = color.split(/[,()\s]+/);
+            return [
+                Number(splitted[1]),
+                Number(splitted[2]),
+                Number(splitted[3]),
+                Number(splitted[4]),
+            ];
+        } else if (color.startsWith("#")) {
+            return hexToRgba(color);
+        } else if (color.startsWith("hsl")) {
+        } else {
+            console.log(colorToRgba(color));
+            return colorToRgba(color);
+        }
+        return [0, 0, 0, 0];
     }
 
     animationStart(animationId: number) {
@@ -1733,14 +1803,14 @@ export class Block extends Node {
     }
 
     easingHanndler(easing: Easing): (t: number, duration: number) => number {
-        if(easing === "linear") return linear(0, 1)
-        else if(easing == "step-start") return steps(1, "jump-start")
-        else if(easing == "step-end") return steps(1, "jump-end")
+        if (easing === "linear") return linear(0, 1);
+        else if (easing == "step-start") return steps(1, "jump-start");
+        else if (easing == "step-end") return steps(1, "jump-end");
         else if (easing == "ease") return cubicBezier(0.25, 0.1, 0.25, 1);
         else if (easing == "ease-in") return cubicBezier(0.42, 0, 1, 1);
         else if (easing == "ease-out") return cubicBezier(0, 0, 0.58, 1);
         else if (easing == "ease-in-out") return cubicBezier(0.42, 0, 0.58, 1);
-        else return easing
+        else return easing;
     }
     // had to come first for block scaling
     scale(x: number, y: number) {

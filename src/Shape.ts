@@ -83,7 +83,7 @@ export class Shape extends Block {
     }
     fillStyle(opt?: FillStyle) {
         const fillStyle = this.__cacheOption(opt, "fillStyle", "black");
-        this.context.fillStyle = fillStyle;
+        if(this.context) this.context.fillStyle = fillStyle;
         return fillStyle;
     }
 
