@@ -1,17 +1,29 @@
+import { BlockOptions } from "./types";
+
 export class Node {
     child_nodes: Node[];
     next: undefined | Node;
     #listed_child_nodes: Node[];
     _childs: Node[] = [];
+    parentNode: undefined | Node;
+    nodeId: number;
 
-    constructor() {
+    constructor(id?: number) {
         this.child_nodes = [];
         this.next = undefined;
         this.#listed_child_nodes = [];
+        this.nodeId = id || 0;
     }
 
     addChild(node: Node[]) {
         this._childs.push(...node);
+        let startId = this.nodeId;
+        node.forEach((i) => {
+            i.parentNode = this;
+            startId += 1;
+            i.nodeId = startId;
+        });
+
         this.next = node.shift();
         this.child_nodes.push(...node);
     }
@@ -58,46 +70,38 @@ export class Node {
         this.#listed_child_nodes.shift();
     }
 }
+export type Snapshot = { timestamp: { nodeId: BlockOptions } };
 
 export class Tree {
-    #nodes: Node[];
-    #head: Node;
+    head: Node;
     #listed_nodes: Node[] = [];
+    #currentSnapshot = 0;
+    #snapshots: Snapshot | any = {};
+    snapshotSize: number | undefined;
 
-    constructor() {
-        this.#nodes = [];
-        this.#head = new Node();
+    constructor(snapshotSize?: number) {
+        this.head = new Node(0);
+        this.snapshotSize = snapshotSize;
     }
 
     addNodes(node: Node[]) {
-        if (this.#head.next === undefined) {
-            this.#head.addChild(node);
-        }
-        this.#nodes.push(...node);
+        this.head.addChild(node);
     }
 
-    // need a change
-    preOrderTraversal(_func: (element: any) => void) {
-        const Q = [];
-        Q.push(this.#head);
+    preOrderTraversal(head: undefined | Node, _func: (element: any) => void) {
+        const Q = [head || this.head];
         while (Q.length > 0) {
             let current: Node | undefined = Q.shift();
-            if (Object.getPrototypeOf(current).constructor.name !== "Node") {
-                if (current) {
-                    _func(current);
-                    this.#listed_nodes.push(current);
-                }
+            if (
+                current &&
+                Object.getPrototypeOf(current).constructor.name !== "Node"
+            ) {
+                _func(current);
+                if (this.head === head) this.#listed_nodes.push(current);
             }
-
-            if (current?.child_nodes) {
-                Q.unshift(...current.child_nodes);
-            }
-
-            if (current?.next) {
-                Q.unshift(current.next);
-            }
+            if (current?.child_nodes) Q.unshift(...current.child_nodes);
+            if (current?.next) Q.unshift(current.next);
         }
-        console.log(this.#listed_nodes);
     }
 
     checkNodes(_func: (element: any) => void, reverse?: boolean) {
@@ -106,6 +110,42 @@ export class Tree {
         nodes.forEach((item) => {
             _func(item);
         });
+    }
+
+    takeSanpshot(timestamp: number, change: any) {
+        // this.#snapshots.splice(this.#currentSnapshot + 1, this.snapshotSize);
+        for (const [key, value] of Object.entries(this.#snapshots)) {
+            if (Number(key) > this.#currentSnapshot)
+                delete this.#snapshots[key];
+        }
+        if (this.#snapshots[timestamp])
+            this.#snapshots[timestamp] = {
+                ...this.#snapshots[timestamp],
+                ...change,
+            };
+        else this.#snapshots[timestamp] = change;
+        console.log(this.#snapshots);
+        this.#currentSnapshot = timestamp;
+    }
+
+    snapshotInBack() {
+        for (const [key, value] of Object.entries(this.#snapshots).reverse()) {
+            if (Number(key) < this.#currentSnapshot) {
+                this.#currentSnapshot = Number(key);
+                break;
+            }
+        }
+        return this.#snapshots[this.#currentSnapshot];
+    }
+
+    snapshotInFuture() {
+        for (const [key, value] of Object.entries(this.#snapshots)) {
+            if (Number(key) > this.#currentSnapshot) {
+                this.#currentSnapshot = Number(key);
+                break;
+            }
+        }
+        return this.#snapshots[this.#currentSnapshot];
     }
 
     filterNodes(queries: any) {

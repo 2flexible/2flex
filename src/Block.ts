@@ -93,6 +93,7 @@ export class Block extends Node {
     styleChanges: IStyle[] = [];
     beforeInit = this.canvasInit;
     #boundries = this.canvasInit;
+    #isSnapshotTaken: boolean = false;
 
     #keyframeIterations: any = {};
     #lastAnimationId: number = 0;
@@ -1385,27 +1386,20 @@ export class Block extends Node {
         return this.__cacheOption(opt, "zIndex", undefined);
     }
 
-    set(options?: IBlock<BlockOptions>): void {
-        let cached = false;
-        if (options)
-            for (const [key, value] of Object.entries(options)) {
-                const proto = Object.getPrototypeOf(this);
-                const obj = Object.getOwnPropertyDescriptor(proto, key);
+    set(options: IBlock<BlockOptions>): void {
+        for (const [key, value] of Object.entries(options)) {
+            const proto = Object.getPrototypeOf(this);
+            const obj = Object.getOwnPropertyDescriptor(proto, key);
 
-                const beforeOption = this.options[key];
-
-                if (value !== undefined) {
-                    if (value !== beforeOption) {
-                        obj?.value.call(this, value);
-                    } else {
-                        cached = true;
-                    }
-                }
+            if (obj && obj?.value.call(this) !== value) {
+                obj?.value.call(this, value);
+                let dummy: any = {};
+                dummy[this.nodeId] = options;
+                this.canvas?.takeSanpshot(new Date().getTime(), dummy);
             }
-
-        if (!cached) {
-            this.canvas?.invokeChange.call(this.canvas);
         }
+
+        this.canvas?.invokeChange.call(this.canvas);
     }
 
     __cacheOption<T>(opt: T | undefined, option: string, defaultOpt: T): T {
@@ -1982,10 +1976,6 @@ export class Block extends Node {
             if (this.#runningEvents.resize || this.#runningEvents.rotate)
                 return;
 
-            if (event.buttons == 0) {
-                isMouseDown = false;
-                this.#runningEvents.drag = false;
-            }
             if (event.buttons == 1) {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 if (!isMouseDown && this.checkInBound(event)) {
@@ -2003,6 +1993,7 @@ export class Block extends Node {
                     if (diffX !== 0 && this.dragX()) {
                         const diff = diffX - beforeX;
                         this.canvasInit.x += diff;
+
                         this.corners[0][0] += diff;
                         this.corners[1][0] += diff;
                         this.corners[2][0] += diff;
@@ -2014,11 +2005,13 @@ export class Block extends Node {
                         this.hotAreaCorners[3][0] += diff;
                         this.#center.x += diff;
                         beforeX = diffX;
+                        this.#isSnapshotTaken = false;
                     }
                     this.beforeInit.y = this.canvasInit.y;
                     if (diffY !== 0 && this.dragY()) {
                         const diff = diffY - beforeY;
                         this.canvasInit.y += diff;
+
                         this.corners[0][1] += diff;
                         this.corners[1][1] += diff;
                         this.corners[2][1] += diff;
@@ -2031,14 +2024,30 @@ export class Block extends Node {
 
                         this.#center.y += diff;
                         beforeY = diffY;
+                        this.#isSnapshotTaken = false;
                     }
+
                     this.__adjustCordinates();
                     this.canvas?.invokeChange();
                 }
             }
         };
+        const mouseup = () => {
+            isMouseDown = false;
+            this.#runningEvents.drag = false;
+            if (!this.#isSnapshotTaken) {
+                let dummy: any = {};
+                dummy[this.nodeId] = {
+                    x: this.canvasInit.x,
+                    y: this.canvasInit.y,
+                };
+                this.canvas?.takeSnapshot(new Date().getTime(), dummy);
+                this.#isSnapshotTaken = true;
+            }
+        };
 
         this.__eventHandler<MouseEvent>("mousemove", mousemove);
+        this.__eventHandler<MouseEvent>("mouseup", mouseup);
 
         return draggable;
     }

@@ -1,7 +1,5 @@
 import { Shape } from "./Shape";
 import { TextBlock } from "./TextBlock";
-import { Rectangle } from "./shapes/index";
-import { Node } from "./Tree";
 import { Block } from "./Block";
 
 // export type ShapeElements = Rectangle;

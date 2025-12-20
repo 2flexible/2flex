@@ -36,7 +36,9 @@ export class Rectangle extends Shape {
     x(opt?: number): number {
         return super.x(opt);
     }
-
+    y(opt?: number): number {
+        return super.y(opt);
+    }
     borderRadius(opt?: number[]): number[] | undefined {
         return this.__cacheOption(opt, "borderRadius", undefined);
     }

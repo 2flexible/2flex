@@ -1,22 +1,7 @@
 import { Tree } from "./Tree";
-import {
-    BlockElements,
-    CursorPos,
-    ICssProperties,
-    BlockOptions,
-    IBlock,
-} from "./types";
+import { BlockElements, ICssProperties, BlockOptions, IBlock } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
 import { Path } from "./Path";
-import { Layout } from "./Layout";
-import { Block } from "./Block";
-
-/*
-@Todo
-make checkpoint for canvas to load
-export canvas model
-make import model for canvas
-*/
 
 interface CanvasOptions {
     zoomSpeed?: number;
@@ -24,7 +9,9 @@ interface CanvasOptions {
     moveSpeed?: number;
     zoom?: "center" | "point";
     move?: "auto" | "keyboard" | "mouse";
+    takeSnapshot: boolean;
     fps: number;
+    snapshotSize: number;
 }
 export class Canvas {
     __domCanvas: CanvasDOMManager;
@@ -44,7 +31,7 @@ export class Canvas {
     width: number;
     height: number;
     clipping_path: Path;
-    #tree = new Tree();
+    #tree: Tree;
     #zoomSpeed = 1.2;
     #zoomInvSpeed = 0.8;
     #moveSpeed = 10;
@@ -52,7 +39,10 @@ export class Canvas {
     currentCursor: string = "auto";
     __positionCords = { x: 0, y: 0 };
     #animations: any = [];
+    #takeSnapshot = true;
+    #snapshotSize = 50;
     #fps = 60;
+    #elements = [];
 
     constructor(
         canvasId?: string,
@@ -65,7 +55,9 @@ export class Canvas {
         this.width = width || 300;
         this.height = height || 300;
         this.clipping_path = new Path();
-
+        this.#snapshotSize = this.options?.snapshotSize || 50;
+        this.#takeSnapshot = this.options?.takeSnapshot || true;
+        this.#tree = new Tree(this.#snapshotSize);
         this.__domCanvas = new CanvasDOMManager(
             this.canvasId,
             this.width,
@@ -88,6 +80,8 @@ export class Canvas {
 
         window.onload = () => {
             if (this.options) {
+                if (this.#takeSnapshot) this.#snapshotHandler();
+
                 this.__domCanvas.changeStyle(this.options);
                 if (this.options.move == "mouse") {
                     this.#handMove();
@@ -107,7 +101,7 @@ export class Canvas {
 
     add(...block: BlockElements[]) {
         this.#tree.addNodes(block);
-        this.#tree.preOrderTraversal((element: any) => {
+        this.#tree.preOrderTraversal(this.#tree.head, (element: any) => {
             element.canvas = this;
             this.#handleOptions(element);
             element.__initSet();
@@ -120,9 +114,14 @@ export class Canvas {
             this.animationInvoker(this.#animations);
 
         let zIndex = 0;
+        let time = new Date().getTime();
         this.#tree.checkNodes((el: any) => {
             if (el.options) {
                 el.canvasInit.zIndex = el.options.zIndex || 0 + zIndex;
+                el.nodeId = zIndex;
+                const dummy: any = {};
+                dummy[el.nodeId] = {...el.options};
+                this.takeSnapshot(time, dummy);
                 zIndex += 1;
             }
         }, true);
@@ -154,7 +153,7 @@ export class Canvas {
         }
     }
 
-    #handleOptions(block: BlockElements, ignore?: string[]): void {
+    #handleOptions(block: BlockElements, opt?: BlockOptions): void {
         if (!block.options) return;
         if (block.options["hidden"]) {
             const proto = Object.getPrototypeOf(block);
@@ -165,7 +164,6 @@ export class Canvas {
         for (const [key, value] of Object.entries(block.options)) {
             const proto = Object.getPrototypeOf(block);
             const obj = Object.getOwnPropertyDescriptor(proto, key);
-            if (ignore && ignore.includes(key)) return;
             if (obj) {
                 obj.value.call(block, value);
             } else {
@@ -174,44 +172,32 @@ export class Canvas {
         }
     }
     // not need to invoke every options, need to take a considiration of the mouse events also
-    invokeChange(_func?: (element: any) => void) {
+    invokeChange(obj?: any, _func?: (element: any) => void) {
         // need to make for invidiual change rather than creating this path
-        this.clipping_path.createPath();
+        this.clipping_path?.createPath();
         this.context.restore();
         this.context.save();
 
         this.clearRect();
         this.context.translate(this.__positionCords.x, this.__positionCords.y);
 
-        const ignore = [
-            "layout",
-            "alignItems",
-            "justifyContent",
-            "justifyItems",
-            "alignContent",
-            "gridTemplateColumns",
-            "gridTemplateRows",
-            "resizable",
-            "click",
-            "dblclick",
-            "mousedown",
-            "mouseup",
-            "mousemove",
-            "mouseenter",
-            "mouseleave",
-            "mouseout",
-            "mouseover",
-            "draggable",
-            "selectable",
-            "rotatable",
-            "rotate",
-        ];
-
         this.#tree.checkNodes((element: any) => {
             if (_func) _func(element);
-            // this.#handleOptions(element, ignore);
+            if (obj && Object.keys(obj).includes(String(element.nodeId))) {
+                for (const [key, value] of Object.entries(
+                    obj[element.nodeId]
+                )) {
+                    const proto = Object.getPrototypeOf(element);
+                    const obj = Object.getOwnPropertyDescriptor(proto, key);
+                    if (obj) obj?.value.call(element, value);
+                }
+            }
             element.__initSet();
         });
+    }
+
+    takeSnapshot(timestamp: number, change: any) {
+        this.#tree.takeSanpshot(timestamp, change);
     }
 
     animationInvoker(animations: any) {
@@ -220,15 +206,14 @@ export class Canvas {
             requestAnimationFrame(framer);
             // getting true frame per second
             const delta = timestamp - lastFrame;
-            if (lastFrame && delta < this.#fps/1000)
-                return
+            if (lastFrame && delta < this.#fps / 1000) return;
             this.context.restore();
             this.context.save();
             this.clearRect();
             for (let anime of animations) {
                 anime(timestamp);
             }
-            const execTime = delta % this.#fps
+            const execTime = delta % this.#fps;
             lastFrame = timestamp - execTime;
         };
         requestAnimationFrame(framer);
@@ -245,12 +230,12 @@ export class Canvas {
                 let scale = this.options?.zoomSpeed || this.#zoomSpeed;
                 let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
                 if (event.deltaY < 0) {
-                    this.invokeChange((elem) => {
+                    this.invokeChange(undefined, (elem) => {
                         elem.canvasInit.width *= scale;
                         elem.canvasInit.height *= scale;
                     });
                 } else {
-                    this.invokeChange((elem) => {
+                    this.invokeChange(undefined, (elem) => {
                         elem.canvasInit.width *= invScale;
                         elem.canvasInit.height *= invScale;
                     });
@@ -275,14 +260,14 @@ export class Canvas {
                 if (event.deltaY < 0) {
                     this.__positionCords.x -= moveSpeed;
                     this.__positionCords.y -= moveSpeed;
-                    this.invokeChange((elem) => {
+                    this.invokeChange(undefined, (elem) => {
                         elem.canvasInit.width *= scale;
                         elem.canvasInit.height *= scale;
                     });
                 } else {
                     this.__positionCords.x += moveSpeed;
                     this.__positionCords.y += moveSpeed;
-                    this.invokeChange((elem) => {
+                    this.invokeChange(undefined, (elem) => {
                         elem.canvasInit.width *= invScale;
                         elem.canvasInit.height *= invScale;
                     });
@@ -381,6 +366,16 @@ export class Canvas {
                 }
             }
             this.invokeChange();
+        });
+    }
+
+    #snapshotHandler() {
+        this.__domCanvas.addEventListener("keydown", (e: KeyboardEvent) => {
+            let obj;
+            if (e.key === "Z" && e.ctrlKey) obj = this.#tree.snapshotInFuture();
+            else if (e.key === "z" && e.ctrlKey)
+                obj = this.#tree.snapshotInBack();
+            if (obj) this.invokeChange(obj);
         });
     }
 }

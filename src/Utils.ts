@@ -219,7 +219,6 @@ export function hexToRgba(hex: string): RGBA {
 export function hslToRgba() {}
 
 export function colorToRgba(color: string): RGBA {
-    console.log(color, namedColors[color])
     return hexToRgba(namedColors[color]);
 }
 export function rgbaRepresenter(rgba: string): string {
