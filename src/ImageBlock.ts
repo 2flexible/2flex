@@ -33,8 +33,8 @@ export class ImageBlock extends Block {
         const fit = this.objectFit();
         let width = this.#cacheImage.width;
         let height = this.#cacheImage.height;
-        let x = this.canvasInit.x;
-        let y = this.canvasInit.y;
+        let x = this.x();
+        let y = this.y();
         const repeat = this.repeat();
         if (repeat === "no-repeat") {
             if (fit === "contain") {
@@ -68,30 +68,26 @@ export class ImageBlock extends Block {
                 height,
                 x,
                 y,
-                this.canvasInit.width,
-                this.canvasInit.height
+                this.width(),
+                this.height()
             );
             if (repeat === "repeat") {
-                if (sizeW > this.canvasInit.width) {
-                    x = this.canvasInit.x;
+                if (sizeW > this.width()) {
+                    x = this.x();
                     y *= 2;
                     sizeW = width;
                 } else {
                     sizeW *= 2;
                     x += sizeW;
                 }
-                if (
-                    sizeH > this.canvasInit.height &&
-                    sizeW > this.canvasInit.width
-                )
-                    break;
+                if (sizeH > this.height() && sizeW > this.width()) break;
             } else if (repeat === "repeat-x") {
-                if (sizeW > this.canvasInit.width) break;
+                if (sizeW > this.width()) break;
                 sizeW *= 2;
                 x += sizeW;
                 break;
             } else if (repeat === "repeat-y") {
-                if (sizeH > this.canvasInit.height) break;
+                if (sizeH > this.height()) break;
                 sizeH *= 2;
                 y += sizeH;
             }

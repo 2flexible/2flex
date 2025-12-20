@@ -88,12 +88,12 @@ export class Line extends Shape {
                 let endX = point.endX;
                 let endY = point.endY;
 
-                if (startX1 !== undefined) startX1 += this.canvasInit.x;
-                if (startY1 !== undefined) startY1 += this.canvasInit.y;
-                if (startX2 !== undefined) startX2 += this.canvasInit.x;
-                if (startY2 !== undefined) startY2 += this.canvasInit.y;
-                if (endX !== undefined) endX += this.canvasInit.x;
-                if (endY !== undefined) endY += this.canvasInit.y;
+                if (startX1 !== undefined) startX1 += this.x();
+                if (startY1 !== undefined) startY1 += this.y();
+                if (startX2 !== undefined) startX2 += this.x();
+                if (startY2 !== undefined) startY2 += this.y();
+                if (endX !== undefined) endX += this.x();
+                if (endY !== undefined) endY += this.y();
 
                 if (
                     startX1 !== undefined &&
@@ -226,8 +226,8 @@ export class Line extends Shape {
     }
     lineWidth(opt?: number): number {
         const lineWidth = this.__cacheOption(opt, "lineWidth", 0);
-        if (this.canvasInit.width === 0) this.canvasInit.width = lineWidth;
-        this.context.lineWidth = this.canvasInit.width;
+        if (this.width() === 0) this.width(lineWidth);
+        this.context.lineWidth = this.width();
         return lineWidth;
     }
     lineCap(opt?: LineCapOpt): LineCapOpt {
@@ -331,16 +331,16 @@ export class Line extends Shape {
                 //     endY + 20 > y &&
                 //     y > endY + this.#startCords.y;
 
-                this.beforeInit.x = this.canvasInit.x;
+                this.beforeInit.x = this.x();
                 if (diffX !== 0 && this.dragX()) {
-                    if (this.dragStartX()) this.canvasInit.x += diffX - beforeX;
+                    if (this.dragStartX()) this.x(this.x() + (diffX - beforeX));
                     // if (dragX1 || dragX2 || dragEndX)
                     this.#startCords.x += diffX - beforeX;
                     beforeX = diffX;
                 }
-                this.beforeInit.y = this.canvasInit.y;
+                this.beforeInit.y = this.y();
                 if (diffY !== 0 && this.dragY()) {
-                    if (this.dragStartY()) this.canvasInit.y += diffY - beforeY;
+                    if (this.dragStartY()) this.y(this.y() + (diffY - beforeY));
                     // if (dragEndY)
                     this.#startCords.y += diffY - beforeY;
                     beforeY = diffY;

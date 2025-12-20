@@ -51,13 +51,6 @@ import {
     RGBA,
 } from "./types";
 
-interface CanvasInit {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    zIndex?: number;
-}
 type Corners = [XY, XY, XY, XY];
 // Each element in the canvas is block
 // each Block is Node
@@ -83,16 +76,10 @@ export class Block extends Node {
         [0, 0],
     ];
 
-    canvasInit: CanvasInit = {
-        x: 0,
-        y: 0,
-        width: 0,
-        height: 0,
-        zIndex: 0,
-    };
     styleChanges: IStyle[] = [];
-    beforeInit = this.canvasInit;
-    #boundries = this.canvasInit;
+    beforeInit = { x: 0, y: 0, width: 0, height: 0 };
+    #boundries = { x: 0, y: 0, width: 0, height: 0 };
+
     #isSnapshotTaken: boolean = false;
 
     #keyframeIterations: any = {};
@@ -167,28 +154,32 @@ export class Block extends Node {
         this.padding();
         this.margin();
 
-        this.canvasInit["x"] = this.x() + this.marginLeft();
-        this.canvasInit["y"] = this.y() + this.marginTop();
-        this.canvasInit["width"] =
-            this.width() + this.paddingLeft() + this.paddingRight();
-        this.canvasInit["height"] =
-            this.height() + this.paddingTop() + this.paddingBottom();
+        this.x(this.x() + this.marginLeft());
+        this.y(this.y() + this.marginTop());
+        this.width(this.width() + this.paddingLeft() + this.paddingRight());
+        this.height(this.height() + this.paddingTop() + this.paddingBottom());
 
         this.__updateCornerCords();
 
         this.beforeInit = {
-            x: this.canvasInit.x,
-            y: this.canvasInit.y,
-            width: this.canvasInit.width,
-            height: this.canvasInit.height,
+            x: 0,
+            y: 0,
+            width: this.width(),
+            height: this.height(),
         };
-        const centerX = this.rotationCenterX() || this.canvasInit.width / 2;
-        const centerY = this.rotationCenterY() || this.canvasInit.height / 2;
+
+        const centerX = this.rotationCenterX() || this.width() / 2;
+        const centerY = this.rotationCenterY() || this.width() / 2;
         this.#center = {
-            x: this.canvasInit.x + centerX,
-            y: this.canvasInit.y + centerY,
+            x: this.x() + centerX,
+            y: this.x() + centerY,
         };
+
         this.#boundries = this.beforeInit;
+    }
+
+    get context(): CanvasRenderingContext2D {
+        return this.canvas?.context;
     }
 
     __initSet() {
@@ -196,24 +187,24 @@ export class Block extends Node {
         this.context.filter = this.__filters.join(" ");
         const pos = this.position();
         if (pos === "fixed" && !this.options.draggable) {
-            if (this.options.top) {
-                this.canvasInit.y =
-                    -this.canvas.__positionCords.y + this.options.top;
-            } else if (this.options.bottom) {
-                this.canvasInit.y =
+            if (this.top()) {
+                this.y(-this.canvas.__positionCords.y + this.top());
+            } else if (this.bottom()) {
+                this.y(
                     -this.canvas.__positionCords.y +
-                    Math.abs(this.canvas.height - this.canvasInit.height);
-                -this.options.bottom;
+                        Math.abs(this.canvas.height - this.height()) -
+                        this.bottom()
+                );
             }
 
             if (this.options.left) {
-                this.canvasInit.x =
-                    -this.canvas.__positionCords.x + this.left();
+                this.x(-this.canvas.__positionCords.x + this.left());
             } else if (this.options.right) {
-                this.canvasInit.x =
+                this.x(
                     -this.canvas.__positionCords.x +
-                    Math.abs(this.canvas.width - this.canvasInit.width) -
-                    this.options.right;
+                        Math.abs(this.canvas.width - this.width()) -
+                        this.right()
+                );
             }
         }
         if (pos === "sticky" && !this.options.draggable) {
@@ -221,75 +212,65 @@ export class Block extends Node {
                 if (
                     this.options.top &&
                     this.canvas.__positionCords.y <=
-                        Math.abs(this.canvas.height - this.canvasInit.height) -
-                            this.canvasInit.y
+                        Math.abs(this.canvas.height - this.height()) - this.y()
                 ) {
-                    this.canvasInit.y =
-                        -this.canvas.__positionCords.y + this.options.top;
+                    this.y(-this.canvas.__positionCords.y + this.top());
                 }
             } else {
                 if (
                     this.options.bottom &&
                     this.canvas.__positionCords.y + this.options.bottom >=
-                        Math.abs(this.canvas.height - this.canvasInit.height) -
-                            Math.abs(this.canvasInit.y)
+                        Math.abs(this.canvas.height - this.height()) -
+                            Math.abs(this.y())
                 ) {
-                    this.canvasInit.y =
+                    this.y(
                         -this.canvas.__positionCords.y +
-                        Math.abs(this.canvas.height - this.canvasInit.height) -
-                        this.options.bottom;
+                            Math.abs(this.canvas.height - this.height()) -
+                            this.bottom()
+                    );
                 }
             }
             if (this.canvas.__positionCords.x < 0) {
                 if (
                     this.options.left &&
                     this.canvas.__positionCords.x <=
-                        Math.abs(this.canvas.width - this.canvasInit.width) -
-                            this.canvasInit.x
+                        Math.abs(this.canvas.width - this.width()) - this.x()
                 ) {
-                    this.canvasInit.x =
-                        -this.canvas.__positionCords.x + this.options.left;
+                    this.x(-this.canvas.__positionCords.x + this.left());
                 }
             } else {
-                const diffX = Math.abs(
-                    this.canvas.width - this.canvasInit.width
-                );
+                const diffX = Math.abs(this.canvas.width - this.width());
                 if (
                     this.options.right &&
                     this.canvas.__positionCords.x + this.options.right >=
-                        diffX - Math.abs(this.canvasInit.x)
+                        diffX - Math.abs(this.x())
                 ) {
-                    this.canvasInit.x =
-                        -this.canvas.__positionCords.x +
-                        diffX -
-                        this.options.right;
+                    this.x(
+                        -this.canvas.__positionCords.x + diffX - this.right()
+                    );
                 }
             }
         }
         if (pos === "absolute" && !this.#isPosApplied) {
-            if (this.options.left !== undefined)
-                this.canvasInit.x = this.options.left;
+            if (this.options.left !== undefined) this.x(this.left());
             else if (this.options.right !== undefined)
-                this.canvasInit.x =
-                    Math.abs(this.canvas.width - this.width()) -
-                    this.options.right;
-            if (this.options.top !== undefined)
-                this.canvasInit.y = this.options.top;
+                this.x(
+                    Math.abs(this.canvas.width - this.width()) - this.right()
+                );
+            if (this.options.top !== undefined) this.y(this.top());
             else if (this.options.bottom !== undefined)
-                this.canvasInit.y =
-                    Math.abs(this.canvas.height - this.height()) -
-                    this.options.bottom;
+                this.y(
+                    Math.abs(this.canvas.height - this.height()) - this.bottom()
+                );
             this.#isPosApplied = true;
         }
         if (pos === "relative" && !this.#isPosApplied) {
-            if (this.options.left !== undefined)
-                this.canvasInit.x += this.options.left;
+            if (this.options.left !== undefined) this.x(this.x() + this.left());
             else if (this.options.right !== undefined)
-                this.canvasInit.x -= this.options.right;
-            if (this.options.top !== undefined)
-                this.canvasInit.y += this.options.top;
+                this.x(this.x() - this.right());
+            if (this.options.top !== undefined) this.y(this.y() + this.top());
             else if (this.options.bottom !== undefined)
-                this.canvasInit.y -= this.options.bottom;
+                this.y(this.y() + this.bottom());
             this.#isPosApplied = true;
         }
         if (this.#rotateDegree !== 0) {
@@ -302,28 +283,72 @@ export class Block extends Node {
         this.hotLines();
     }
 
-    get context(): CanvasRenderingContext2D {
-        return this.canvas?.context;
+    add(...block: BlockElements[]): void {
+        this.addChild(block);
+        this.__adjustCordinates();
+        this.__adjustSpaces();
+    }
+
+    __adjustSpaces() {
+        let boundaryX = this.x();
+        let boundaryY = this.y();
+        let boundaryWidth = boundaryX + this.width();
+        let boundaryHeight = boundaryY + this.height();
+        this._childs?.forEach((item: any) => {
+            if (item) {
+                item.x(
+                    this.x() +
+                        this.marginLeft() +
+                        this.paddingLeft() -
+                        this.paddingRight()
+                );
+                item.y(
+                    this.y() +
+                        this.marginTop() +
+                        this.paddingTop() -
+                        this.paddingBottom()
+                );
+
+                const w = item.width() + item.x();
+                const h = item.height() + item.y();
+                if (item.x() < boundaryX) boundaryX -= item.x();
+                if (item.y() < boundaryY) boundaryY -= item.y();
+                if (w > boundaryWidth) boundaryWidth += boundaryWidth - w;
+                if (h > boundaryHeight) boundaryHeight += boundaryHeight - h;
+            }
+        });
+        this.#boundries = {
+            x: boundaryX,
+            y: boundaryY,
+            width: boundaryWidth,
+            height: boundaryHeight,
+        };
+    }
+    __adjustCordinates(before?: any): void {
+        before = before || this.beforeInit;
+        this._childs?.forEach((item: any) => {
+            if (item) {
+                item.x(item.x() + (this.x() - before.x));
+                item.y(item.y() + (this.y() - before.y));
+                item.__adjustCordinates(before);
+            }
+        });
     }
 
     __updateCornerCords() {
         const gap = this.hotAreaGap();
         const ggap = 20;
-        this.corners[0][0] = this.corners[2][0] = this.canvasInit.x;
-        this.corners[1][1] = this.corners[0][1] = this.canvasInit.y;
-        this.corners[1][0] = this.corners[3][0] =
-            this.canvasInit.x + this.canvasInit.width;
-        this.corners[3][1] = this.corners[2][1] =
-            this.canvasInit.y + this.canvasInit.height;
+        this.corners[0][0] = this.corners[2][0] = this.x();
+        this.corners[1][1] = this.corners[0][1] = this.y();
+        this.corners[1][0] = this.corners[3][0] = this.x() + this.width();
+        this.corners[3][1] = this.corners[2][1] = this.y() + this.height();
 
-        this.hotAreaCorners[2][0] = this.hotAreaCorners[0][0] =
-            this.canvasInit.x - gap;
-        this.hotAreaCorners[1][1] = this.hotAreaCorners[0][1] =
-            this.canvasInit.y - gap;
+        this.hotAreaCorners[2][0] = this.hotAreaCorners[0][0] = this.x() - gap;
+        this.hotAreaCorners[1][1] = this.hotAreaCorners[0][1] = this.y() - gap;
         this.hotAreaCorners[3][0] = this.hotAreaCorners[1][0] =
-            this.canvasInit.x + this.canvasInit.width + gap;
+            this.x() + this.width() + gap;
         this.hotAreaCorners[3][1] = this.hotAreaCorners[2][1] =
-            this.canvasInit.y + this.canvasInit.height + gap;
+            this.y() + this.height() + gap;
 
         this.hotAreaRotCorners[2][0] = this.hotAreaRotCorners[0][0] =
             this.hotAreaCorners[0][0] - ggap;
@@ -373,19 +398,19 @@ export class Block extends Node {
 
         this.hotAreas["hotCornerBottomLeft"]["x"] = this.hotAreas[
             "hotCornerTopLeft"
-        ]["x"] = this.canvasInit.x - gap;
+        ]["x"] = this.x() - gap;
 
         this.hotAreas["hotCornerTopRight"]["y"] = this.hotAreas[
             "hotCornerTopLeft"
-        ]["y"] = this.canvasInit.y - gap;
+        ]["y"] = this.y() - gap;
 
         this.hotAreas["hotCornerBottomRight"]["x"] = this.hotAreas[
             "hotCornerTopRight"
-        ]["x"] = this.canvasInit.x + this.canvasInit.width + gap;
+        ]["x"] = this.x() + this.width() + gap;
 
         this.hotAreas["hotCornerBottomRight"]["y"] = this.hotAreas[
             "hotCornerBottomLeft"
-        ]["y"] = this.canvasInit.y + this.canvasInit.height + gap;
+        ]["y"] = this.y() + this.height() + gap;
 
         this.context.beginPath();
         this.context.moveTo(
@@ -584,9 +609,9 @@ export class Block extends Node {
 
             if (inBound) {
                 this.#runningEvents.rotate = true;
-                this.canvas?.takeRegister({ in: this.canvasInit.zIndex });
+                this.canvas?.takeRegister({ in: this.zIndex() });
             } else {
-                this.canvas?.takeRegister({ out: this.canvasInit.zIndex });
+                this.canvas?.takeRegister({ out: this.zIndex() });
             }
         };
 
@@ -702,17 +727,14 @@ export class Block extends Node {
                     otherStartY = this.corners[1][1];
                 }
                 if (cursor) inBound = true;
-                else inBound = false
+                else inBound = false;
                 this.canvas.chageCursor(cursor);
             }
             if (
                 this.#runningEvents.rotate &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
-                const R = getRadiusByWH(
-                    this.canvasInit.width,
-                    this.canvasInit.height
-                );
+                const R = getRadiusByWH(this.width(), this.height());
                 const radianRot = Math.atan2(
                     y - this.#center.y,
                     x - this.#center.x
@@ -831,13 +853,13 @@ export class Block extends Node {
             if (inBound) {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 this.#runningEvents.resize = true;
-                this.canvas?.takeRegister({ in: this.canvasInit.zIndex });
+                this.canvas?.takeRegister({ in: this.zIndex() });
                 initX = x;
                 initY = y;
                 beforeX = 0;
                 beforeY = 0;
             } else {
-                this.canvas?.takeRegister({ out: this.canvasInit.zIndex });
+                this.canvas?.takeRegister({ out: this.zIndex() });
             }
         };
 
@@ -984,22 +1006,22 @@ export class Block extends Node {
 
             if (
                 this.#runningEvents.resize &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 let diffX = x - initX;
                 let diffY = y - initY;
-                this.beforeInit.x = this.canvasInit.x;
-                this.beforeInit.y = this.canvasInit.y;
+                this.beforeInit.x = this.x();
+                this.beforeInit.y = this.y();
                 if (diffX !== 0 && widthResize) {
                     const diff = diffX - beforeX;
-                    if (isLeft && this.canvasInit.width - diff > 0) {
-                        this.canvasInit.width -= diff;
-                        this.canvasInit.x += diff;
-                    } else if (!isLeft && this.canvasInit.width + diff > 0)
-                        this.canvasInit.width += diff;
-                    else this.canvasInit.width = 0;
+                    if (isLeft && this.width() - diff > 0) {
+                        this.width(this.width() - diff);
+                        this.x(this.x() + diff);
+                    } else if (!isLeft && this.width() + diff > 0)
+                        this.width(this.width() + diff);
+                    else this.width(0);
 
-                    if (this.canvasInit.width !== 0) {
+                    if (this.width() !== 0) {
                         if (leftResize) {
                             this.corners[0][0] += diff;
                             this.corners[2][0] += diff;
@@ -1016,14 +1038,14 @@ export class Block extends Node {
                 }
                 if (diffY !== 0 && heightResize) {
                     const diff = diffY - beforeY;
-                    if (isTop && this.canvasInit.height - diff > 0) {
-                        this.canvasInit.height -= diff;
-                        this.canvasInit.y += diff;
-                    } else if (!isTop && this.canvasInit.height + diff > 0)
-                        this.canvasInit.height += diff;
-                    else this.canvasInit.height = 0;
+                    if (isTop && this.height() - diff > 0) {
+                        this.height(this.height() - diff);
+                        this.y(this.y() + diff);
+                    } else if (!isTop && this.height() + diff > 0)
+                        this.height(this.height() + diff);
+                    else this.height(0);
 
-                    if (this.canvasInit.height !== 0) {
+                    if (this.height() !== 0) {
                         if (topResize) {
                             this.corners[0][1] += diff;
                             this.corners[1][1] += diff;
@@ -1067,57 +1089,6 @@ export class Block extends Node {
         return resizable;
     }
 
-    add(...block: BlockElements[]): void {
-        this.addChild(block);
-        this.__adjustCordinates();
-        this.__adjustSpaces();
-    }
-
-    __adjustSpaces() {
-        let boundaryX = this.canvasInit.x;
-        let boundaryY = this.canvasInit.y;
-        let boundaryWidth = boundaryX + this.canvasInit.width;
-        let boundaryHeight = boundaryY + this.canvasInit.height;
-        this._childs?.forEach((item: any) => {
-            if (item) {
-                item.canvasInit.x +=
-                    this.x() +
-                    this.marginLeft() +
-                    this.paddingLeft() -
-                    this.paddingRight();
-                item.canvasInit.y +=
-                    this.y() +
-                    this.marginTop() +
-                    this.paddingTop() -
-                    this.paddingBottom();
-
-                const w = item.canvasInit.width + item.canvasInit.x;
-                const h = item.canvasInit.height + item.canvasInit.y;
-                if (item.canvasInit.x < boundaryX)
-                    boundaryX -= item.canvasInit.x;
-                if (item.canvasInit.y < boundaryY)
-                    boundaryY -= item.canvasInit.y;
-                if (w > boundaryWidth) boundaryWidth += boundaryWidth - w;
-                if (h > boundaryHeight) boundaryHeight += boundaryHeight - h;
-            }
-        });
-        this.#boundries = {
-            x: boundaryX,
-            y: boundaryY,
-            width: boundaryWidth,
-            height: boundaryHeight,
-        };
-    }
-    __adjustCordinates(before?: any): void {
-        before = before || this.beforeInit;
-        this._childs?.forEach((item: any) => {
-            if (item) {
-                item.canvasInit.x += this.canvasInit.x - before.x;
-                item.canvasInit.y += this.canvasInit.y - before.y;
-                item.__adjustCordinates(before);
-            }
-        });
-    }
     __unitConverter(unit: string, val: number, parentS: number) {
         if (unit.endsWith("%")) fromPercentage(val, parentS);
         if (unit.endsWith("vh")) fromVH(val, this.canvas.height);
@@ -1133,27 +1104,19 @@ export class Block extends Node {
     }
 
     x(opt?: number): number {
-        const x = this.__cacheOption(opt, "x", 0);
-        if (opt !== undefined) this.canvasInit.x = x;
-        return x;
+        return this.__cacheOption(opt, "x", 0);
     }
 
     y(opt?: number): number {
-        const y = this.__cacheOption(opt, "y", 0);
-        if (opt !== undefined) this.canvasInit.y = y;
-        return y;
+        return this.__cacheOption(opt, "y", 0);
     }
 
     width(opt?: number): number {
-        const width = this.__cacheOption(opt, "width", 0);
-        if (opt) this.canvasInit.width = width;
-        return width;
+        return this.__cacheOption(opt, "width", 0);
     }
 
     height(opt?: number): number {
-        const height = this.__cacheOption(opt, "height", 0);
-        if (opt) this.canvasInit.height = height;
-        return height;
+        return this.__cacheOption(opt, "height", 0);
     }
     position(opt?: Position) {
         return this.__cacheOption(opt, "position", "static");
@@ -1401,8 +1364,8 @@ export class Block extends Node {
     }
     clip_path() {
         this.canvas.clipping_path.addRect(
-            this.canvasInit.x,
-            this.canvasInit.y,
+            this.x(),
+            this.y(),
             this.width(),
             this.height()
             // this.borderRadius()
@@ -1462,7 +1425,7 @@ export class Block extends Node {
         this.#rotateDegree = this.__cacheOption(opt, "rotate", 0);
         const gap = this.hotAreaGap();
 
-        const R = getRadiusByWH(this.canvasInit.width, this.canvasInit.height);
+        const R = getRadiusByWH(this.width(), this.height());
         const rad = degreeToRadian(this.#rotateDegree - 135);
 
         const diffX = this.#center.x + R * Math.cos(rad) - this.corners[0][0];
@@ -1472,10 +1435,7 @@ export class Block extends Node {
         const eDiffX = this.#center.x + R * Math.cos(Rrad) - this.corners[2][0];
         const eDiffY = this.#center.y + R * Math.sin(Rrad) - this.corners[2][1];
 
-        const RR = getRadiusByWH(
-            this.canvasInit.width + gap,
-            this.canvasInit.height + gap
-        );
+        const RR = getRadiusByWH(this.width() + gap, this.height() + gap);
 
         const diffRX =
             this.#center.x + RR * Math.cos(rad) - this.hotAreaCorners[0][0];
@@ -1879,8 +1839,8 @@ export class Block extends Node {
         const y4 = this.corners[3][1] + this.canvas.__positionCords.y;
 
         const inbound = checkInBound(x, y, x1, y1, x2, y2, x3, y3, x4, y4);
-        if (inbound) this.canvas?.takeRegister({ in: this.canvasInit.zIndex });
-        else this.canvas?.takeRegister({ out: this.canvasInit.zIndex });
+        if (inbound) this.canvas?.takeRegister({ in: this.zIndex() });
+        else this.canvas?.takeRegister({ out: this.zIndex() });
         return inbound;
     }
 
@@ -1888,7 +1848,7 @@ export class Block extends Node {
         const out = (event: MouseEvent) => {
             if (
                 this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
@@ -1901,7 +1861,7 @@ export class Block extends Node {
         const out = (event: MouseEvent) => {
             if (
                 this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
@@ -1914,7 +1874,7 @@ export class Block extends Node {
         const out = (event: MouseEvent) => {
             if (
                 this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
@@ -1927,7 +1887,7 @@ export class Block extends Node {
         const out = (event: MouseEvent) => {
             if (
                 this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
@@ -1940,7 +1900,7 @@ export class Block extends Node {
         const out = (event: MouseEvent) => {
             if (
                 this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
@@ -1953,7 +1913,7 @@ export class Block extends Node {
         const enter = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
             if (
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
                 // checkInBound(
                 //     x,
                 //     y,
@@ -1974,7 +1934,7 @@ export class Block extends Node {
         const leave = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
             if (
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
                 // !checkInBound(
                 //     x,
                 //     y,
@@ -1995,7 +1955,7 @@ export class Block extends Node {
         const out = (event: MouseEvent) => {
             if (
                 !this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
@@ -2008,7 +1968,7 @@ export class Block extends Node {
         const over = (event: MouseEvent) => {
             if (
                 this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
@@ -2056,15 +2016,15 @@ export class Block extends Node {
 
             if (
                 this.#runningEvents.drag &&
-                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+                this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 const { x, y } = this.canvas.getCursorPosition(event);
                 let diffX = x - initX;
                 let diffY = y - initY;
-                this.beforeInit.x = this.canvasInit.x;
+                this.beforeInit.x = this.x();
                 if (diffX !== 0 && this.dragX()) {
                     const diff = diffX - beforeX;
-                    this.canvasInit.x += diff;
+                    this.x(this.x() + diff);
 
                     this.corners[0][0] += diff;
                     this.corners[1][0] += diff;
@@ -2079,10 +2039,10 @@ export class Block extends Node {
                     beforeX = diffX;
                     this.#isSnapshotTaken = false;
                 }
-                this.beforeInit.y = this.canvasInit.y;
+                this.beforeInit.y = this.y();
                 if (diffY !== 0 && this.dragY()) {
                     const diff = diffY - beforeY;
-                    this.canvasInit.y += diff;
+                    this.y(this.y() + diff);
 
                     this.corners[0][1] += diff;
                     this.corners[1][1] += diff;
@@ -2108,8 +2068,8 @@ export class Block extends Node {
             if (!this.#isSnapshotTaken) {
                 let dummy: any = {};
                 dummy[this.nodeId] = {
-                    x: this.canvasInit.x,
-                    y: this.canvasInit.y,
+                    x: this.x(),
+                    y: this.y(),
                 };
                 this.canvas?.takeSnapshot(new Date().getTime(), dummy);
                 this.#isSnapshotTaken = true;

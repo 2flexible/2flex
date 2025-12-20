@@ -23,10 +23,10 @@ export class Rectangle extends Shape {
         this.backgroundColor();
 
         this.roundRect({
-            x: this.canvasInit.x,
-            y: this.canvasInit.y,
-            width: this.canvasInit.width,
-            height: this.canvasInit.height,
+            x: this.x(),
+            y: this.y(),
+            width: this.width(),
+            height: this.height(),
             borderRadius: this.borderRadius() || [0],
         });
 
@@ -131,12 +131,12 @@ export class Rectangle extends Shape {
         if (this.borderStyle() === "dotted") {
             this.lineDash([
                 ...borderStyleArrWidth,
-                this.canvasInit.height * 2 + this.canvasInit.width,
+                this.height() * 2 + this.width(),
             ]);
         } else {
             this.lineDash([
-                this.canvasInit.width,
-                this.canvasInit.width + 2 * this.canvasInit.height,
+                this.width(),
+                this.width() + 2 * this.height(),
                 0,
                 0,
             ]);
@@ -154,16 +154,16 @@ export class Rectangle extends Shape {
         if (this.borderStyle() === "dotted") {
             this.lineDash([
                 0,
-                this.canvasInit.width,
+                this.width(),
                 ...borderStyleArrHeight,
-                this.canvasInit.width + this.canvasInit.height,
+                this.width() + this.height(),
             ]);
         } else if (this.borderStyle() === "solid") {
             this.lineDash([
                 0,
-                this.canvasInit.width,
-                this.canvasInit.height,
-                this.canvasInit.width + this.canvasInit.height,
+                this.width(),
+                this.height(),
+                this.width() + this.height(),
             ]);
         }
         return borderRight;
@@ -176,16 +176,11 @@ export class Rectangle extends Shape {
         if (this.borderStyle() === "dotted") {
             this.lineDash([
                 0,
-                this.canvasInit.width + this.canvasInit.height,
+                this.width() + this.height(),
                 ...borderStyleArrWidth,
             ]);
         } else if (this.borderStyle() === "solid") {
-            this.lineDash([
-                0,
-                this.canvasInit.width + this.canvasInit.height,
-                this.canvasInit.width,
-                0,
-            ]);
+            this.lineDash([0, this.width() + this.height(), this.width(), 0]);
         }
 
         return borderBottom;
@@ -198,15 +193,15 @@ export class Rectangle extends Shape {
         if (this.borderStyle() === "dotted") {
             this.lineDash([
                 0,
-                this.canvasInit.width * 2 + this.canvasInit.height,
+                this.width() * 2 + this.height(),
                 ...borderStyleArrHeight,
             ]);
         } else if (this.borderStyle() === "solid") {
             this.lineDash([
                 0,
-                this.canvasInit.width * 2 + this.canvasInit.height,
-                this.canvasInit.height,
-                this.canvasInit.width,
+                this.width() * 2 + this.height(),
+                this.height(),
+                this.width(),
             ]);
         }
         return borderLeft;
@@ -224,16 +219,15 @@ export class Rectangle extends Shape {
         const borderStyleArrHeight = [];
         if (borderStyle === "dotted") {
             let total = 0;
-            const step = this.canvasInit.width / (this.canvasInit.width / 4);
-            while (total < this.canvasInit.width) {
+            const step = this.width() / (this.width() / 4);
+            while (total < this.width()) {
                 borderStyleArrWidth.push(step, step);
                 total += step * 2;
             }
 
             total = 0;
-            const stepHeight =
-                this.canvasInit.height / (this.canvasInit.height / 4);
-            while (total < this.canvasInit.height) {
+            const stepHeight = this.height() / (this.height() / 4);
+            while (total < this.height()) {
                 borderStyleArrHeight.push(
                     stepHeight,
                     stepHeight,

@@ -20,13 +20,13 @@ export class Circle extends Shape {
         this.beginPath();
         this.backgroundColor();
 
-        this.canvasInit.width = this.canvasInit.width || this.radiusX();
-        this.canvasInit.height = this.canvasInit.height || this.radiusY();
+        this.width(this.width() || this.radiusX());
+        this.height(this.height() || this.radiusY());
         this.context.ellipse(
-            this.canvasInit.x + this.canvasInit.width + this.lineWidth(),
-            this.canvasInit.y + this.canvasInit.height + this.lineWidth(),
-            this.canvasInit.width,
-            this.canvasInit.height,
+            this.x() + this.width() + this.lineWidth(),
+            this.y() + this.height() + this.lineWidth(),
+            this.width(),
+            this.height(),
             this.rotation(),
             this.startAngle(),
             this.endAngle()

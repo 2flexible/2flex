@@ -113,7 +113,6 @@ export class Tree {
     }
 
     takeSanpshot(timestamp: number, change: any) {
-        // this.#snapshots.splice(this.#currentSnapshot + 1, this.snapshotSize);
         for (const [key, value] of Object.entries(this.#snapshots)) {
             if (Number(key) > this.#currentSnapshot)
                 delete this.#snapshots[key];

@@ -118,7 +118,7 @@ export class Canvas {
         let time = new Date().getTime();
         this.#tree.checkNodes((el: any) => {
             if (el.options) {
-                el.canvasInit.zIndex = el.options.zIndex || 0 + zIndex;
+                el.zIndex(zIndex);
                 el.nodeId = zIndex;
                 const dummy: any = {};
                 dummy[el.nodeId] = { ...el.options };
@@ -254,13 +254,13 @@ export class Canvas {
                 let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
                 if (event.deltaY < 0) {
                     this.invokeChange(undefined, (elem) => {
-                        elem.canvasInit.width *= scale;
-                        elem.canvasInit.height *= scale;
+                        elem.width(elem.width() * scale);
+                        elem.height(elem.height() * scale);
                     });
                 } else {
                     this.invokeChange(undefined, (elem) => {
-                        elem.canvasInit.width *= invScale;
-                        elem.canvasInit.height *= invScale;
+                        elem.width(elem.width() * invScale);
+                        elem.height(elem.height() * invScale);
                     });
                 }
                 if (this.canvas.width / 2 < x && this.__positionCords.x < x)
@@ -284,15 +284,15 @@ export class Canvas {
                     this.__positionCords.x -= moveSpeed;
                     this.__positionCords.y -= moveSpeed;
                     this.invokeChange(undefined, (elem) => {
-                        elem.canvasInit.width *= scale;
-                        elem.canvasInit.height *= scale;
+                        elem.width(elem.width()* scale);
+                        elem.height(elem.height()* scale);
                     });
                 } else {
                     this.__positionCords.x += moveSpeed;
                     this.__positionCords.y += moveSpeed;
                     this.invokeChange(undefined, (elem) => {
-                        elem.canvasInit.width *= invScale;
-                        elem.canvasInit.height *= invScale;
+                        elem.width(elem.width()* invScale);
+                        elem.height(elem.height()* invScale);
                     });
                 }
             }

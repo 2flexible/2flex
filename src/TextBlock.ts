@@ -100,11 +100,11 @@ export class TextBlock extends Block {
 
         this.options.height = this.height();
 
-        const fontY = this.height() + this.canvasInit.y;
+        const fontY = this.height() + this.y();
 
         this.context.fillText(
             this.text,
-            this.canvasInit.x,
+            this.x(),
             fontY,
             this.options.maxWidth
         );
@@ -217,11 +217,11 @@ export class TextBlock extends Block {
             this.strokeWidth();
 
             this.options.height = this.height();
-            const fontY = this.height() + this.canvasInit.y;
+            const fontY = this.height() + this.y();
 
             this.context.strokeText(
                 this.text,
-                this.canvasInit.x,
+                this.x(),
                 fontY,
                 this.options?.maxWidth
             );
