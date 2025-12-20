@@ -2,6 +2,7 @@ import { Tree } from "./Tree";
 import { BlockElements, ICssProperties, BlockOptions, IBlock } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
 import { Path } from "./Path";
+import { Block } from "./Block";
 
 interface CanvasOptions {
     zoomSpeed?: number;
@@ -104,7 +105,7 @@ export class Canvas {
         this.#tree.preOrderTraversal(this.#tree.head, (element: any) => {
             element.canvas = this;
             this.#handleOptions(element);
-            element.__initSet();
+            if (this.inBoundElement(element)) element.__initSet();
             this.#animations.push(...element.__animationOn);
             for (const key in element.__events) {
                 this.#canvasEvents[key].push(...element.__events[key]);
@@ -120,7 +121,7 @@ export class Canvas {
                 el.canvasInit.zIndex = el.options.zIndex || 0 + zIndex;
                 el.nodeId = zIndex;
                 const dummy: any = {};
-                dummy[el.nodeId] = {...el.options};
+                dummy[el.nodeId] = { ...el.options };
                 this.takeSnapshot(time, dummy);
                 zIndex += 1;
             }
@@ -192,12 +193,26 @@ export class Canvas {
                     if (obj) obj?.value.call(element, value);
                 }
             }
-            element.__initSet();
+
+            if (this.inBoundElement(element)) element.__initSet();
         });
     }
 
     takeSnapshot(timestamp: number, change: any) {
         this.#tree.takeSanpshot(timestamp, change);
+    }
+
+    inBoundElement(element: Block) {
+        if (
+            element.x() >= this.canvasBounding.width ||
+            element.y() >= this.canvasBounding.height ||
+            element.x() + element.width() <= 0 ||
+            element.y() + element.height() <= 0
+        ) {
+            console.log(false);
+            return false;
+        }
+        return true;
     }
 
     animationInvoker(animations: any) {
