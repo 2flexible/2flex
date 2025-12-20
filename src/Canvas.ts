@@ -43,7 +43,7 @@ export class Canvas {
     #takeSnapshot = true;
     #snapshotSize = 50;
     #fps = 60;
-    #elements = [];
+    #elements: number[] = [];
 
     constructor(
         canvasId?: string,
@@ -146,12 +146,20 @@ export class Canvas {
         for (const key in this.#canvasEvents) {
             if (this.#canvasEvents[key].length !== 0) {
                 this.__domCanvas.addEventListener(key, (event) => {
-                    for (const func of this.#canvasEvents[key]) {
-                        func(event);
-                    }
+                    for (const func of this.#canvasEvents[key]) func(event);
                 });
             }
         }
+    }
+
+    whoIsTheFirst(zIndex: number) {
+        return Math.max(...this.#elements) === zIndex;
+    }
+
+    takeRegister(inOutZ: any) {
+        let m = inOutZ["in"];
+        if (m && !this.#elements.includes(m)) this.#elements.push(m);
+        else this.#elements = this.#elements.filter((i) => i !== inOutZ["out"]);
     }
 
     #handleOptions(block: BlockElements, opt?: BlockOptions): void {

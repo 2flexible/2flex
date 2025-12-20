@@ -568,8 +568,6 @@ export class Block extends Node {
         const rotatable = this.__cacheOption(opt, "rotatable", true);
         if (!rotatable) return false;
 
-        let isMouseDown = false;
-
         let topMove = false;
         let leftMove = false;
 
@@ -579,23 +577,24 @@ export class Block extends Node {
         let otherStartX = 0;
         let otherStartY = 0;
 
+        let inBound = false;
+
+        const mousedown = (event: MouseEvent) => {
+            if (this.#runningEvents.resize || this.#runningEvents.drag) return;
+
+            if (inBound) {
+                this.#runningEvents.rotate = true;
+                this.canvas?.takeRegister({ in: this.canvasInit.zIndex });
+            } else {
+                this.canvas?.takeRegister({ out: this.canvasInit.zIndex });
+            }
+        };
+
         const mousemove = (event: MouseEvent) => {
             if (this.#runningEvents.drag || this.#runningEvents.resize) return;
-            let cursor = undefined;
+            let cursor: string | undefined;
             let { x, y } = this.canvas.getCursorPosition(event);
-            if (event.buttons == 0) {
-                isMouseDown = false;
-                this.#runningEvents.rotate = false;
-            }
-            const R = getRadiusByWH(
-                this.canvasInit.width,
-                this.canvasInit.height
-            );
-            if (!isMouseDown) {
-                if (event.buttons === 1) {
-                    isMouseDown = true;
-                    this.#runningEvents.rotate = true;
-                }
+            if (!this.#runningEvents.rotate) {
                 const ltx = this.hotAreaCorners[0][0];
                 const lty = this.hotAreaCorners[0][1];
                 const rtx = this.hotAreaCorners[1][0];
@@ -702,10 +701,18 @@ export class Block extends Node {
                     otherStartX = this.corners[1][0];
                     otherStartY = this.corners[1][1];
                 }
-                if (cursor) this.#runningEvents.rotate = true;
+                if (cursor) inBound = true;
+                else inBound = false
                 this.canvas.chageCursor(cursor);
             }
-            if (isMouseDown) {
+            if (
+                this.#runningEvents.rotate &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
+                const R = getRadiusByWH(
+                    this.canvasInit.width,
+                    this.canvasInit.height
+                );
                 const radianRot = Math.atan2(
                     y - this.#center.y,
                     x - this.#center.x
@@ -749,7 +756,20 @@ export class Block extends Node {
             }
         };
 
+        const mouseup = () => {
+            this.#runningEvents.rotate = false;
+
+            if (!this.#isSnapshotTaken) {
+                let dummy: any = {};
+                dummy[this.nodeId] = {};
+                this.canvas?.takeSnapshot(new Date().getTime(), dummy);
+                this.#isSnapshotTaken = true;
+            }
+        };
+
+        this.__eventHandler("mousedown", mousedown);
         this.__eventHandler("mousemove", mousemove);
+        this.__eventHandler("mouseup", mouseup);
 
         return rotatable;
     }
@@ -791,7 +811,6 @@ export class Block extends Node {
         const resizable = this.__cacheOption(opt, "resizable", true);
         if (!resizable) return false;
 
-        let isMouseDown = false;
         let initX = 0;
         let initY = 0;
         let beforeX = 0;
@@ -804,48 +823,48 @@ export class Block extends Node {
         let isLeft = false;
         let isTop = false;
 
-        const mousemove = (event: MouseEvent) => {
-            if (this.#runningEvents.drag || this.#runningEvents.rotate) return;
-            let cursor: undefined | string = undefined;
+        let inBound = false;
 
+        const mousedown = (event: MouseEvent) => {
+            if (this.#runningEvents.drag || this.#runningEvents.rotate) return;
+
+            if (inBound) {
+                const { x, y } = this.canvas.getCursorPosition(event);
+                this.#runningEvents.resize = true;
+                this.canvas?.takeRegister({ in: this.canvasInit.zIndex });
+                initX = x;
+                initY = y;
+                beforeX = 0;
+                beforeY = 0;
+            } else {
+                this.canvas?.takeRegister({ out: this.canvasInit.zIndex });
+            }
+        };
+
+        const mousemove = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
 
-            let ltx = this.corners[0][0];
-            let lty = this.corners[0][1];
-            let rtx = this.corners[1][0];
-            let rty = this.corners[1][1];
-            let lbx = this.corners[2][0];
-            let lby = this.corners[2][1];
-            let rbx = this.corners[3][0];
-            let rby = this.corners[3][1];
+            if (!this.#runningEvents.resize) {
+                let cursor: undefined | string = undefined;
 
-            let hltx = this.hotAreaCorners[0][0];
-            let hlty = this.hotAreaCorners[0][1];
-            let hrtx = this.hotAreaCorners[1][0];
-            let hrty = this.hotAreaCorners[1][1];
-            let hlbx = this.hotAreaCorners[2][0];
-            let hlby = this.hotAreaCorners[2][1];
-            let hrbx = this.hotAreaCorners[3][0];
-            let hrby = this.hotAreaCorners[3][1];
+                let ltx = this.corners[0][0];
+                let lty = this.corners[0][1];
+                let rtx = this.corners[1][0];
+                let rty = this.corners[1][1];
+                let lbx = this.corners[2][0];
+                let lby = this.corners[2][1];
+                let rbx = this.corners[3][0];
+                let rby = this.corners[3][1];
 
-            if (event.buttons == 0) {
-                isMouseDown = false;
-                this.#runningEvents.resize = false;
-                topResize = false;
-                leftResize = false;
-                widthResize = false;
-                heightResize = false;
-                isLeft = false;
-                isTop = false;
-            }
-            if (!isMouseDown) {
-                if (event.buttons == 1) {
-                    initX = x;
-                    initY = y;
-                    beforeX = 0;
-                    beforeY = 0;
-                    isMouseDown = true;
-                }
+                let hltx = this.hotAreaCorners[0][0];
+                let hlty = this.hotAreaCorners[0][1];
+                let hrtx = this.hotAreaCorners[1][0];
+                let hrty = this.hotAreaCorners[1][1];
+                let hlbx = this.hotAreaCorners[2][0];
+                let hlby = this.hotAreaCorners[2][1];
+                let hrbx = this.hotAreaCorners[3][0];
+                let hrby = this.hotAreaCorners[3][1];
+
                 if (
                     checkInBound(
                         x,
@@ -957,11 +976,16 @@ export class Block extends Node {
                     heightResize = true;
                     cursor = "nw-resize";
                 }
-                if (cursor) this.#runningEvents.resize = true;
+                if (cursor) inBound = true;
+                else inBound = false;
+
                 this.canvas.chageCursor(cursor);
             }
 
-            if (isMouseDown) {
+            if (
+                this.#runningEvents.resize &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
                 let diffX = x - initX;
                 let diffY = y - initY;
                 this.beforeInit.x = this.canvasInit.x;
@@ -1020,7 +1044,26 @@ export class Block extends Node {
             }
         };
 
+        const mouseup = () => {
+            this.#runningEvents.resize = false;
+            isTop =
+                isLeft =
+                widthResize =
+                heightResize =
+                leftResize =
+                topResize =
+                    false;
+            if (!this.#isSnapshotTaken) {
+                let dummy: any = {};
+                dummy[this.nodeId] = {};
+                this.canvas?.takeSnapshot(new Date().getTime(), dummy);
+                this.#isSnapshotTaken = true;
+            }
+        };
+
+        this.__eventHandler("mousedown", mousedown);
         this.__eventHandler("mousemove", mousemove);
+        this.__eventHandler("mouseup", mouseup);
         return resizable;
     }
 
@@ -1695,7 +1738,6 @@ export class Block extends Node {
                         this.#keyframeIterations[animationId][index][key][
                             "iterDirection"
                         ] = iterDirection;
-                        // console.log(currentVal)
                         valueT.invoker?.value.call(this, currentVal);
                     }
                 }
@@ -1836,12 +1878,18 @@ export class Block extends Node {
         const x4 = this.corners[3][0] + this.canvas.__positionCords.x;
         const y4 = this.corners[3][1] + this.canvas.__positionCords.y;
 
-        return checkInBound(x, y, x1, y1, x2, y2, x3, y3, x4, y4);
+        const inbound = checkInBound(x, y, x1, y1, x2, y2, x3, y3, x4, y4);
+        if (inbound) this.canvas?.takeRegister({ in: this.canvasInit.zIndex });
+        else this.canvas?.takeRegister({ out: this.canvasInit.zIndex });
+        return inbound;
     }
 
     click(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event)) {
+            if (
+                this.checkInBound(event) &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
             }
@@ -1851,7 +1899,10 @@ export class Block extends Node {
 
     dbclick(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event)) {
+            if (
+                this.checkInBound(event) &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
             }
@@ -1861,7 +1912,10 @@ export class Block extends Node {
 
     mousedown(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event)) {
+            if (
+                this.checkInBound(event) &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
             }
@@ -1871,7 +1925,10 @@ export class Block extends Node {
 
     mouseup(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event)) {
+            if (
+                this.checkInBound(event) &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
             }
@@ -1881,7 +1938,10 @@ export class Block extends Node {
 
     mousemove(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event)) {
+            if (
+                this.checkInBound(event) &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
             }
@@ -1893,7 +1953,7 @@ export class Block extends Node {
         const enter = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
             if (
-                true
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
                 // checkInBound(
                 //     x,
                 //     y,
@@ -1914,7 +1974,7 @@ export class Block extends Node {
         const leave = (event: MouseEvent) => {
             const { x, y } = this.canvas.getCursorPosition(event);
             if (
-                true
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
                 // !checkInBound(
                 //     x,
                 //     y,
@@ -1933,7 +1993,10 @@ export class Block extends Node {
 
     mouseout(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (!this.checkInBound(event)) {
+            if (
+                !this.checkInBound(event) &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
             }
@@ -1943,7 +2006,10 @@ export class Block extends Node {
 
     mouseover(_func: (event: MouseEvent) => void) {
         const over = (event: MouseEvent) => {
-            if (this.checkInBound(event)) {
+            if (
+                this.checkInBound(event) &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
             }
@@ -1964,76 +2030,80 @@ export class Block extends Node {
         const draggable = this.__cacheOption(opt, "draggable", true);
         if (!draggable) return false;
 
-        let isMouseDown = false;
-
         let initX = 0;
         let initY = 0;
 
         let beforeX = 0;
         let beforeY = 0;
 
+        this.mousedown((event) => {
+            if (this.#runningEvents.resize || this.#runningEvents.rotate)
+                return;
+
+            if (this.checkInBound(event)) {
+                const { x, y } = this.canvas.getCursorPosition(event);
+                initX = x;
+                initY = y;
+                beforeX = 0;
+                beforeY = 0;
+                this.#runningEvents.drag = true;
+            }
+        });
+
         const mousemove = (event: MouseEvent) => {
             if (this.#runningEvents.resize || this.#runningEvents.rotate)
                 return;
 
-            if (event.buttons == 1) {
+            if (
+                this.#runningEvents.drag &&
+                this.canvas?.whoIsTheFirst(this.canvasInit.zIndex)
+            ) {
                 const { x, y } = this.canvas.getCursorPosition(event);
-                if (!isMouseDown && this.checkInBound(event)) {
-                    initX = x;
-                    initY = y;
-                    beforeX = 0;
-                    beforeY = 0;
-                    isMouseDown = true;
-                    this.#runningEvents.drag = true;
+                let diffX = x - initX;
+                let diffY = y - initY;
+                this.beforeInit.x = this.canvasInit.x;
+                if (diffX !== 0 && this.dragX()) {
+                    const diff = diffX - beforeX;
+                    this.canvasInit.x += diff;
+
+                    this.corners[0][0] += diff;
+                    this.corners[1][0] += diff;
+                    this.corners[2][0] += diff;
+                    this.corners[3][0] += diff;
+
+                    this.hotAreaCorners[0][0] += diff;
+                    this.hotAreaCorners[1][0] += diff;
+                    this.hotAreaCorners[2][0] += diff;
+                    this.hotAreaCorners[3][0] += diff;
+                    this.#center.x += diff;
+                    beforeX = diffX;
+                    this.#isSnapshotTaken = false;
                 }
-                if (isMouseDown) {
-                    let diffX = x - initX;
-                    let diffY = y - initY;
-                    this.beforeInit.x = this.canvasInit.x;
-                    if (diffX !== 0 && this.dragX()) {
-                        const diff = diffX - beforeX;
-                        this.canvasInit.x += diff;
+                this.beforeInit.y = this.canvasInit.y;
+                if (diffY !== 0 && this.dragY()) {
+                    const diff = diffY - beforeY;
+                    this.canvasInit.y += diff;
 
-                        this.corners[0][0] += diff;
-                        this.corners[1][0] += diff;
-                        this.corners[2][0] += diff;
-                        this.corners[3][0] += diff;
+                    this.corners[0][1] += diff;
+                    this.corners[1][1] += diff;
+                    this.corners[2][1] += diff;
+                    this.corners[3][1] += diff;
 
-                        this.hotAreaCorners[0][0] += diff;
-                        this.hotAreaCorners[1][0] += diff;
-                        this.hotAreaCorners[2][0] += diff;
-                        this.hotAreaCorners[3][0] += diff;
-                        this.#center.x += diff;
-                        beforeX = diffX;
-                        this.#isSnapshotTaken = false;
-                    }
-                    this.beforeInit.y = this.canvasInit.y;
-                    if (diffY !== 0 && this.dragY()) {
-                        const diff = diffY - beforeY;
-                        this.canvasInit.y += diff;
+                    this.hotAreaCorners[0][1] += diff;
+                    this.hotAreaCorners[1][1] += diff;
+                    this.hotAreaCorners[2][1] += diff;
+                    this.hotAreaCorners[3][1] += diff;
 
-                        this.corners[0][1] += diff;
-                        this.corners[1][1] += diff;
-                        this.corners[2][1] += diff;
-                        this.corners[3][1] += diff;
-
-                        this.hotAreaCorners[0][1] += diff;
-                        this.hotAreaCorners[1][1] += diff;
-                        this.hotAreaCorners[2][1] += diff;
-                        this.hotAreaCorners[3][1] += diff;
-
-                        this.#center.y += diff;
-                        beforeY = diffY;
-                        this.#isSnapshotTaken = false;
-                    }
-
-                    this.__adjustCordinates();
-                    this.canvas?.invokeChange();
+                    this.#center.y += diff;
+                    beforeY = diffY;
+                    this.#isSnapshotTaken = false;
                 }
+
+                this.__adjustCordinates();
+                this.canvas?.invokeChange();
             }
         };
         const mouseup = () => {
-            isMouseDown = false;
             this.#runningEvents.drag = false;
             if (!this.#isSnapshotTaken) {
                 let dummy: any = {};
