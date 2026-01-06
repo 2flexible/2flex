@@ -1,134 +1,123 @@
-import { BlockOptions } from "./types";
+import type { Block } from "./Block";
+import { SnapshotObject, Timestamp } from "./types";
 
 export class Node {
     child_nodes: Node[];
-    next: undefined | Node;
-    #listed_child_nodes: Node[];
-    _childs: Node[] = [];
-    parentNode: undefined | Node;
-    nodeId: number;
+    parentNode?: Node;
+    nodeId?: number;
 
-    constructor(id?: number) {
+    constructor() {
         this.child_nodes = [];
-        this.next = undefined;
-        this.#listed_child_nodes = [];
-        this.nodeId = id || 0;
+        this.nodeId = undefined;
     }
 
-    addChild(node: Node[]) {
-        this._childs.push(...node);
-        let startId = this.nodeId;
-        node.forEach((i) => {
-            i.parentNode = this;
-            startId += 1;
-            i.nodeId = startId;
-        });
-
-        this.next = node.shift();
+    addChild(...node: Node[]) {
         this.child_nodes.push(...node);
+        this.listOnlyChilds((n: Node) => {
+            n.parentNode = this;
+        });
     }
 
-    filterNodes(queries: any) {
-        if (this.#listed_child_nodes.length === 0) {
-            this.#listNodes();
-        }
-        if (queries) {
-            this.#listed_child_nodes.filter((item: any) => {
-                for (const [key, query] of Object.entries(queries)) {
-                    if (
-                        item.options.hasOwnProperty(key) &&
-                        Object.values(item.options).includes(query)
-                    ) {
-                        return item;
-                    }
-                }
-            });
-        } else {
-            return this.#listed_child_nodes;
-        }
-    }
-
-    #listNodes() {
-        const Q = [];
-        Q.push(this);
-
+    listAllChilds<T>(_func: (element: T) => void) {
+        const Q: Node[] = [this];
         while (Q.length > 0) {
             let current: Node | undefined = Q.shift();
-
-            if (current) {
-                this.#listed_child_nodes.push(current);
-            }
-
-            if (current?.child_nodes) {
-                Q.unshift(...current.child_nodes);
-            }
-
-            if (current?.next) {
-                Q.unshift(current.next);
-            }
+            if (current && current !== this) _func(current as T);
+            if (current?.child_nodes) Q.unshift(...current.child_nodes);
         }
-        this.#listed_child_nodes.shift();
+    }
+
+    listOnlyChilds(
+        _func: (element: Block, currIdx: number, arrLen: number) => void
+    ) {
+        for (let i = 0, len = this.child_nodes.length; i < len; i++) {
+            _func(this.child_nodes[i] as Block, i, this.child_nodes.length);
+        }
+    }
+
+    removeChild<T>(child: T) {
+        const getChild = (topNode: Node, child: T) => {
+            topNode.listOnlyChilds((n: Node) => {
+                if (n.nodeId === (child as Node).nodeId) {
+                    topNode.child_nodes = topNode.child_nodes.filter(
+                        (n) => n.nodeId !== (child as Node).nodeId
+                    );
+                    return;
+                }
+                getChild(n, child);
+            });
+        };
+        getChild(this, child);
     }
 }
-export type Snapshot = { timestamp: { nodeId: BlockOptions } };
+export type Snapshots = { timestamp: SnapshotObject };
 
 export class Tree {
     head: Node;
-    #listed_nodes: Node[] = [];
     #currentSnapshot = 0;
-    #snapshots: Snapshot | any = {};
+    #snapshots: Snapshots | any = {};
     snapshotSize: number | undefined;
 
     constructor(snapshotSize?: number) {
-        this.head = new Node(0);
+        this.head = new Node();
         this.snapshotSize = snapshotSize;
     }
 
     addNodes(node: Node[]) {
-        this.head.addChild(node);
+        this.head.addChild(...node);
     }
 
-    preOrderTraversal(head: undefined | Node, _func: (element: any) => void) {
+    preOrderTraversal<T>(head: undefined | Node, _func: (node: T) => void) {
         const Q = [head || this.head];
+        let nodeId = 1;
         while (Q.length > 0) {
             let current: Node | undefined = Q.shift();
             if (
                 current &&
                 Object.getPrototypeOf(current).constructor.name !== "Node"
             ) {
-                _func(current);
-                if (this.head === head) this.#listed_nodes.push(current);
+                _func(current as T);
+                if (!current.nodeId) {
+                    current.nodeId = nodeId;
+                    nodeId += 1;
+                } else nodeId = current.nodeId;
             }
             if (current?.child_nodes) Q.unshift(...current.child_nodes);
-            if (current?.next) Q.unshift(current.next);
         }
     }
 
-    checkNodes(_func: (element: any) => void, reverse?: boolean) {
-        let nodes = this.#listed_nodes;
-        if (reverse) nodes = [...this.#listed_nodes].reverse();
-        nodes.forEach((item) => {
-            _func(item);
-        });
-    }
-
-    takeSanpshot(timestamp: number, change: any) {
-        for (const [key, value] of Object.entries(this.#snapshots)) {
+    takeSanpshot(
+        timestamp: Timestamp,
+        before: SnapshotObject,
+        after: SnapshotObject
+    ) {
+        for (const key of Object.keys(this.#snapshots)) {
             if (Number(key) > this.#currentSnapshot)
                 delete this.#snapshots[key];
         }
         if (this.#snapshots[timestamp])
             this.#snapshots[timestamp] = {
                 ...this.#snapshots[timestamp],
-                ...change,
+                ...after,
             };
-        else this.#snapshots[timestamp] = change;
-        console.log(this.#snapshots);
+        else this.#snapshots[timestamp] = after;
+
         this.#currentSnapshot = timestamp;
+        for (const key of Object.keys(this.#snapshots).reverse()) {
+            if (Number(key) < this.#currentSnapshot) {
+                for (let [kk, value] of Object.entries(before)) {
+                    this.#snapshots[Number(key)][kk] = {
+                        ...this.#snapshots[Number(key)][kk],
+                        ...value,
+                    };
+                }
+                break;
+            }
+        }
     }
 
     snapshotInBack() {
-        for (const [key, value] of Object.entries(this.#snapshots).reverse()) {
+        for (const key of Object.keys(this.#snapshots).reverse()) {
             if (Number(key) < this.#currentSnapshot) {
                 this.#currentSnapshot = Number(key);
                 break;
@@ -138,24 +127,12 @@ export class Tree {
     }
 
     snapshotInFuture() {
-        for (const [key, value] of Object.entries(this.#snapshots)) {
+        for (const key of Object.keys(this.#snapshots)) {
             if (Number(key) > this.#currentSnapshot) {
                 this.#currentSnapshot = Number(key);
                 break;
             }
         }
         return this.#snapshots[this.#currentSnapshot];
-    }
-
-    filterNodes(queries: any) {
-        return this.#listed_nodes.filter((item: any) => {
-            for (const [key, query] of Object.entries(queries)) {
-                if (
-                    item.options.hasOwnProperty(key) &&
-                    Object.values(item.options).includes(query)
-                )
-                    return item;
-            }
-        });
     }
 }

@@ -6,9 +6,8 @@ import { Block } from "./Block";
 import { IBlock } from "./types";
 
 interface IHtmlOptions {}
-class HtmlBlock extends Block {
-    constructor(options?: IBlock<IHtmlOptions>) {
+class HtmlBlock extends Block<IHtmlOptions> {
+    constructor(options: IBlock<IHtmlOptions>) {
         super(options);
-        this.options = options || {};
     }
 }

@@ -1,19 +1,29 @@
 import { ICssProperties } from "./types";
 
+interface ContextParamas {
+    alpha?: boolean;
+    colorSpace?: "srgb" | "display-p3";
+    colorType?: "unorm8" | "float16";
+    desynchronized?: boolean;
+    willReadFrequently?: boolean;
+}
+
 export class CanvasDOMManager {
     canvasId: string;
     width: number;
     height: number;
-    #isTransparent = false;
+    contextParams: ContextParamas = {
+        alpha: true,
+        colorSpace: "srgb",
+        colorType: "unorm8",
+        desynchronized: false,
+        willReadFrequently: false,
+    };
 
     constructor(canvasId: string, width: number, height: number) {
         this.canvasId = canvasId;
         this.width = width;
         this.height = height;
-    }
-
-    get context(): CanvasRenderingContext2D {
-        return this.canvas.getContext("2d", { alpha: this.#isTransparent })!;
     }
 
     get canvas(): HTMLCanvasElement {
@@ -26,29 +36,30 @@ export class CanvasDOMManager {
         return canvas;
     }
 
-    // set canvas(canvas: HTMLCanvasElement) {
-    //     const body = document.querySelector("body") as HTMLElement;
-    //     body.appendChild(canvas);
-    // }
+    get context(): CanvasRenderingContext2D {
+        return this.canvas.getContext("2d", this.contextParams)!;
+    }
+
+    get pixelRatio() {
+        return window.devicePixelRatio || 1;
+    }
 
     createCanvas() {
         const canvas = document.createElement("canvas") as HTMLCanvasElement;
         canvas.id = this.canvasId;
-        canvas.width = 800;
-        canvas.height = 400;
-        canvas.tabIndex = 0
-        const body = document.querySelector("body") as HTMLElement;
-        body.appendChild(canvas);
+        canvas.tabIndex = 0;
+        canvas.width = this.width * this.pixelRatio;
+        canvas.height = this.height * this.pixelRatio;
+        canvas.style.width = this.width + "px";
+        canvas.style.height = this.height + "px";
+        document.querySelector("body")?.appendChild(canvas);
     }
 
-    changeStyle(options: ICssProperties | undefined) {
-        if (options !== undefined)
-            for (const [key, value] of Object.entries(options)) {
-                if (key === "backgroundColor" && value === "transparent")
-                    this.#isTransparent = true;
-                if (Object.hasOwn(this.canvas.style, key))
-                    this.canvas.style.setProperty(key, `${value}`);
-            }
+    changeStyle(options: ICssProperties) {
+        for (const [key, value] of Object.entries(options)) {
+            if (Object.hasOwn(this.canvas.style, key))
+                this.canvas.style.setProperty(key, value as string);
+        }
     }
 
     addEventListener(_type: string, _func: (event: any) => void) {

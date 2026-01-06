@@ -78,6 +78,25 @@ export function degreeToRadian(rad: number): number {
     return (rad * Math.PI) / 180;
 }
 
+export function rotateCordinates(
+    x: number,
+    y: number,
+    centerX: number,
+    centerY: number,
+    radian: number
+) {
+    return {
+        x:
+            (x - centerX) * Math.cos(radian) -
+            (y - centerY) * Math.sin(radian) +
+            centerX,
+        y:
+            (x - centerX) * Math.sin(radian) +
+            (y - centerY) * Math.cos(radian) +
+            centerY,
+    };
+}
+
 // This is based on `WebCore/platform/graphics/UnitBezier.h` in WebKit.
 export function cubicBezier(
     p1x: number,
@@ -223,4 +242,7 @@ export function colorToRgba(color: string): RGBA {
 }
 export function rgbaRepresenter(rgba: string): string {
     return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] || 1})`;
+}
+export function getProperty(obj: any, key: string) {
+    return Object.getOwnPropertyDescriptor(Object.getPrototypeOf(obj), key);
 }

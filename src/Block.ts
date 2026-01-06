@@ -1,3 +1,4 @@
+import type { Canvas } from "./Canvas";
 import { Node } from "./Tree";
 import {
     checkInBound,
@@ -22,41 +23,233 @@ import {
     hexToRgba,
     colorToRgba,
     rgbaRepresenter,
+    getProperty,
+    rotateCordinates,
 } from "./Utils";
+import { CubicBezier, IBlock, LinearEasing, RGBA, StepsEasing } from "./types";
 
-import {
-    BlockElements,
-    IBlock,
-    BlockOptions,
-    IStyle,
-    AlignSelf,
-    JustifySelf,
-    Flex,
-    FlexGrow,
-    FlexShrink,
-    FlexBasis,
-    Position,
-    IMouseEvents,
-    XY,
-    CursorPos,
-    KeyFrame,
-    Easing,
-    Delay,
-    PlaybackRate,
-    Direction,
-    Duration,
-    IterationStart,
-    Composite,
-    Iterations,
-    RGBA,
-} from "./types";
+export type IMouseEvents =
+    | "click"
+    | "dblclick"
+    | "mousedown"
+    | "mouseup"
+    | "mousemove"
+    | "mouseenter"
+    | "mouseleave"
+    | "mouseout"
+    | "mouseover"
+    | "draggable"
+    | "selectable";
 
-type Corners = [XY, XY, XY, XY];
-// Each element in the canvas is block
-// each Block is Node
-export class Block extends Node {
-    canvas: any;
-    options: BlockOptions;
+export type Easing =
+    | "linear"
+    | "ease"
+    | "ease-in"
+    | "ease-out"
+    | "ease-in-out"
+    | "step-start"
+    | "step-end"
+    | LinearEasing
+    | CubicBezier
+    | StepsEasing;
+
+export type Direction =
+    | "normal"
+    | "reverse"
+    | "alternate"
+    | "alternate-reverse";
+
+export type Composite = "replace" | "add" | "accumulate";
+export type Delay = number;
+export type Iterations = number;
+export type Duration = number;
+export type IterationStart = number;
+export type PlaybackRate = number;
+export type AutoStart = boolean;
+
+export interface KeyFrame {
+    autoStart: AutoStart;
+    iterations?: Iterations;
+    delay?: Delay;
+    direction?: Direction;
+    duration?: Duration;
+    easing?: Easing;
+    composite?: Composite;
+    iterationStart?: IterationStart;
+    playbackRate?: PlaybackRate;
+    onFinish?: () => void;
+}
+
+interface BlockFilters {
+    [key: string]: string | undefined;
+    blur?: string;
+    brightness?: string;
+    contrast?: string;
+    dropShadow?: string;
+    grayscale?: string;
+    hueRotate?: string;
+    saturate?: string;
+    sepia?: string;
+}
+
+export type AlignSelf =
+    | "normal"
+    | "auto"
+    | "center"
+    | "start"
+    | "end"
+    | "stertch";
+export type JustifySelf =
+    | "normal"
+    | "auto"
+    | "center"
+    | "start"
+    | "end"
+    | "stertch"
+    // for rtl, ltr writind mode
+    | "left"
+    | "right";
+export type FlexGrow = number;
+export type FlexShrink = number;
+export type FlexBasis = number | string;
+export type Flex = [FlexGrow, FlexShrink, FlexBasis];
+export type PlaceSelf = AlignSelf & JustifySelf;
+export type Position = "static" | "relative" | "absolute" | "sticky" | "fixed";
+
+export type BaseFilters =
+    | "blur"
+    | "brightness"
+    | "contrast"
+    | "drop-shadow"
+    | "grayscale"
+    | "hue-rotate"
+    | "opacity"
+    | "saturate"
+    | "sepia";
+
+export interface BlockOptions {
+    [key: string]: any;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    minWidth?: number;
+    minHeight?: number;
+    maxWidth?: number;
+    maxHeight?: number;
+    position?: Position;
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
+    selectable?: boolean;
+    padding?: [number, number, number, number];
+    paddingTop?: number;
+    paddingRight?: number;
+    paddingBottom?: number;
+    paddingLeft?: number;
+    margin?: [number, number, number, number];
+    marginTop?: number;
+    marginRight?: number;
+    marginBottom?: number;
+    marginLeft?: number;
+    fillRule?: string;
+    zIndex?: number;
+    draggable?: boolean;
+    onDrag?: (event: MouseEvent) => void;
+    dragX?: boolean;
+    dragY?: boolean;
+    visible?: boolean;
+    rotate?: number;
+    onRotate?: (event: MouseEvent) => void;
+    order?: number;
+    blur?: number;
+    brightness?: number;
+    contrast?: number;
+    dropShadow?: number;
+    grayscale?: number;
+    hueRotate?: number;
+    saturate?: number;
+    sepia?: number;
+    alignSelf?: AlignSelf;
+    justifySelf?: JustifySelf;
+    flexShrink?: FlexShrink;
+    flexBasis?: FlexBasis;
+    flexGrow?: FlexGrow;
+    // grid-row: grid-row-start / grid-row-end;
+    gridRow?: number[];
+    gridRowStart?: number;
+    gridRowEnd?: number;
+    // grid-column: grid-column-start / grid-column-end
+    gridColumn?: number[];
+    gridColumnStart?: number;
+    gridColumnEnd?: number;
+    // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end | itemname
+    gridArea?: number[];
+    hotAreaGap?: number;
+    hotCornerSize?: number;
+    hotCornerRadius?: number;
+    hotCornerStrokeWidth?: number;
+    hotCornerStrokeColor?: string;
+    hotCornerBackgroundColor?: string;
+    hotLineStrokeWidth?: number;
+    hotLineStrokeColor?: string;
+    rotationRadius?: number;
+    rotationTopLeft?: boolean;
+    rotationTopRight?: boolean;
+    rotationBottomLeft?: boolean;
+    rotationBottomRight?: boolean;
+    resizeTopLeft?: boolean;
+    resizeTopRight?: boolean;
+    resizeBottomLeft?: boolean;
+    resizeBottomRight?: boolean;
+    resizeTop?: boolean;
+    resizeLeft?: boolean;
+    resizeRight?: boolean;
+    resizeBottom?: boolean;
+    horizontalFlipResize?: boolean;
+    verticalFlipResize?: boolean;
+    resizable?: boolean;
+    onResize?: (event: MouseEvent) => void;
+    hidden?: boolean;
+    cornerX1?: number;
+    cornerY1?: number;
+    cornerX2?: number;
+    cornerY2?: number;
+    cornerX3?: number;
+    cornerY3?: number;
+    cornerX4?: number;
+    cornerY4?: number;
+    hotCornerX1?: number;
+    hotCornerY1?: number;
+    hotCornerX2?: number;
+    hotCornerY2?: number;
+    hotCornerX3?: number;
+    hotCornerY3?: number;
+    hotCornerX4?: number;
+    hotCornerY4?: number;
+    hotRotCornerX1?: number;
+    hotRotCornerY1?: number;
+    hotRotCornerX2?: number;
+    hotRotCornerY2?: number;
+    hotRotCornerX3?: number;
+    hotRotCornerY3?: number;
+    hotRotCornerX4?: number;
+    hotRotCornerY4?: number;
+}
+
+export class Block<T = BlockOptions> extends Node {
+    canvas: Canvas | any;
+    parent: Block | undefined = this.parentNode as Block;
+    ownOptions: IBlock<T>;
+    options: IBlock<T>;
+    __bindOptions: { bindTo: Block; options: (keyof BlockOptions)[] }[] = [];
+    #runningEvents = {
+        drag: false,
+        rotate: false,
+        resize: false,
+        selected: false,
+    };
     __events: any = {
         click: [],
         dbclick: [],
@@ -68,327 +261,66 @@ export class Block extends Node {
         mouseout: [],
         mouseover: [],
     };
-    // (x,y) as top left, top right, bottom left, bottom right.
-    corners: Corners = [
-        [0, 0],
-        [0, 0],
-        [0, 0],
-        [0, 0],
-    ];
-
-    styleChanges: IStyle[] = [];
-    beforeInit = { x: 0, y: 0, width: 0, height: 0 };
-    #boundries = { x: 0, y: 0, width: 0, height: 0 };
-
-    #isSnapshotTaken: boolean = false;
-
-    #keyframeIterations: any = {};
-    #lastAnimationId: number = 0;
-    __animationOn: any = [];
-    #isPosApplied = false;
-    #center: CursorPos = { x: 0, y: 0 };
-    #runningEvents = { drag: false, rotate: false, resize: false };
-
-    hotAreaCorners: Corners = [
-        [0, 0],
-        [0, 0],
-        [0, 0],
-        [0, 0],
-    ];
-
-    hotAreaRotCorners: Corners = [
-        [0, 0],
-        [0, 0],
-        [0, 0],
-        [0, 0],
-    ];
-
-    hotAreas: any = {
-        hotCornerTopLeft: {
-            _func: null,
-            x: 0,
-            y: 0,
-        },
-        hotCornerTopRight: {
-            _func: null,
-            x: 0,
-            y: 0,
-        },
-        hotCornerBottomLeft: {
-            _func: null,
-            x: 0,
-            y: 0,
-        },
-        hotCornerBottomRight: {
-            _func: null,
-            x: 0,
-            y: 0,
-        },
-        hotTop: {
-            _func: null,
-            x: 0,
-            y: 0,
-        },
-        hotLeft: {
-            _func: null,
-            x: 0,
-            y: 0,
-        },
-        hotRight: {
-            _func: null,
-            x: 0,
-            y: 0,
-        },
-        hotBottom: {
-            _func: null,
-            x: 0,
-            y: 0,
-        },
+    __filters: BlockFilters = {
+        blur: undefined,
+        brightness: undefined,
+        contrast: undefined,
+        dropShadow: undefined,
+        grayscale: undefined,
+        hueRotate: undefined,
+        saturate: undefined,
+        sepia: undefined,
     };
-    #rotateDegree = 0;
-    __filters: string[] = [];
+    __animationOn: any = [];
+    #keyframeIterations: any = {};
 
-    constructor(options?: BlockOptions) {
+    #beforeRotDegree: number = 0;
+
+    constructor(options: IBlock<T>) {
         super();
-        this.options = options || {};
-        this.padding();
-        this.margin();
+        this.options = { ...options };
+        this.ownOptions = { ...options };
 
-        this.x(this.x() + this.marginLeft());
-        this.y(this.y() + this.marginTop());
-        this.width(this.width() + this.paddingLeft() + this.paddingRight());
-        this.height(this.height() + this.paddingTop() + this.paddingBottom());
-
-        this.__updateCornerCords();
-
-        this.beforeInit = {
-            x: 0,
-            y: 0,
-            width: this.width(),
-            height: this.height(),
-        };
-
-        const centerX = this.rotationCenterX() || this.width() / 2;
-        const centerY = this.rotationCenterY() || this.width() / 2;
-        this.#center = {
-            x: this.x() + centerX,
-            y: this.x() + centerY,
-        };
-
-        this.#boundries = this.beforeInit;
+        this.__initCorners();
     }
 
     get context(): CanvasRenderingContext2D {
         return this.canvas?.context;
     }
 
-    __initSet() {
-        if (this.hidden()) return;
-        this.context.filter = this.__filters.join(" ");
-        const pos = this.position();
-        if (pos === "fixed" && !this.options.draggable) {
-            if (this.top()) {
-                this.y(-this.canvas.__positionCords.y + this.top());
-            } else if (this.bottom()) {
-                this.y(
-                    -this.canvas.__positionCords.y +
-                        Math.abs(this.canvas.height - this.height()) -
-                        this.bottom()
-                );
-            }
-
-            if (this.options.left) {
-                this.x(-this.canvas.__positionCords.x + this.left());
-            } else if (this.options.right) {
-                this.x(
-                    -this.canvas.__positionCords.x +
-                        Math.abs(this.canvas.width - this.width()) -
-                        this.right()
-                );
-            }
+    render() {
+        if (this.hidden()) {
+            this.listAllChilds((n: Block) => {
+                n.hidden(true);
+            });
+            return;
         }
-        if (pos === "sticky" && !this.options.draggable) {
-            if (this.canvas.__positionCords.y < 0) {
-                if (
-                    this.options.top &&
-                    this.canvas.__positionCords.y <=
-                        Math.abs(this.canvas.height - this.height()) - this.y()
-                ) {
-                    this.y(-this.canvas.__positionCords.y + this.top());
-                }
-            } else {
-                if (
-                    this.options.bottom &&
-                    this.canvas.__positionCords.y + this.options.bottom >=
-                        Math.abs(this.canvas.height - this.height()) -
-                            Math.abs(this.y())
-                ) {
-                    this.y(
-                        -this.canvas.__positionCords.y +
-                            Math.abs(this.canvas.height - this.height()) -
-                            this.bottom()
-                    );
-                }
-            }
-            if (this.canvas.__positionCords.x < 0) {
-                if (
-                    this.options.left &&
-                    this.canvas.__positionCords.x <=
-                        Math.abs(this.canvas.width - this.width()) - this.x()
-                ) {
-                    this.x(-this.canvas.__positionCords.x + this.left());
-                }
-            } else {
-                const diffX = Math.abs(this.canvas.width - this.width());
-                if (
-                    this.options.right &&
-                    this.canvas.__positionCords.x + this.options.right >=
-                        diffX - Math.abs(this.x())
-                ) {
-                    this.x(
-                        -this.canvas.__positionCords.x + diffX - this.right()
-                    );
-                }
-            }
-        }
-        if (pos === "absolute" && !this.#isPosApplied) {
-            if (this.options.left !== undefined) this.x(this.left());
-            else if (this.options.right !== undefined)
-                this.x(
-                    Math.abs(this.canvas.width - this.width()) - this.right()
-                );
-            if (this.options.top !== undefined) this.y(this.top());
-            else if (this.options.bottom !== undefined)
-                this.y(
-                    Math.abs(this.canvas.height - this.height()) - this.bottom()
-                );
-            this.#isPosApplied = true;
-        }
-        if (pos === "relative" && !this.#isPosApplied) {
-            if (this.options.left !== undefined) this.x(this.x() + this.left());
-            else if (this.options.right !== undefined)
-                this.x(this.x() - this.right());
-            if (this.options.top !== undefined) this.y(this.y() + this.top());
-            else if (this.options.bottom !== undefined)
-                this.y(this.y() + this.bottom());
-            this.#isPosApplied = true;
-        }
-        if (this.#rotateDegree !== 0) {
-            this.context.translate(this.#center.x, this.#center.y);
-            this.context.rotate((this.#rotateDegree * Math.PI) / 180);
-            this.context.translate(-this.#center.x, -this.#center.y);
-        } else {
-            this.context.setTransform(1, 0, 0, 1, 0, 0);
-        }
-        this.hotLines();
+        this.#contextFilter();
+        this.__handleRotation()
+        if (this.#runningEvents.selected) this.__hotLines();
     }
 
-    add(...block: BlockElements[]): void {
-        this.addChild(block);
-        this.__adjustCordinates();
-        this.__adjustSpaces();
+    addChild(...node: Node[]): void {
+        super.addChild(...node);
     }
 
-    __adjustSpaces() {
-        let boundaryX = this.x();
-        let boundaryY = this.y();
-        let boundaryWidth = boundaryX + this.width();
-        let boundaryHeight = boundaryY + this.height();
-        this._childs?.forEach((item: any) => {
-            if (item) {
-                item.x(
-                    this.x() +
-                        this.marginLeft() +
-                        this.paddingLeft() -
-                        this.paddingRight()
-                );
-                item.y(
-                    this.y() +
-                        this.marginTop() +
-                        this.paddingTop() -
-                        this.paddingBottom()
-                );
+    removeChild<T>(child: T): void {
+        super.removeChild(child);
+        this.canvas.invokeChange(this.canvas);
+    }
 
-                const w = item.width() + item.x();
-                const h = item.height() + item.y();
-                if (item.x() < boundaryX) boundaryX -= item.x();
-                if (item.y() < boundaryY) boundaryY -= item.y();
-                if (w > boundaryWidth) boundaryWidth += boundaryWidth - w;
-                if (h > boundaryHeight) boundaryHeight += boundaryHeight - h;
+    findChilds(queries: BlockOptions) {
+        let blocks: Block[] = [];
+        this.listAllChilds((block: Block) => {
+            for (const [k, v] of Object.entries(queries)) {
+                if (block.ownOptions[k] === v) blocks.push(block);
             }
         });
-        this.#boundries = {
-            x: boundaryX,
-            y: boundaryY,
-            width: boundaryWidth,
-            height: boundaryHeight,
-        };
-    }
-    __adjustCordinates(before?: any): void {
-        before = before || this.beforeInit;
-        this._childs?.forEach((item: any) => {
-            if (item) {
-                item.x(item.x() + (this.x() - before.x));
-                item.y(item.y() + (this.y() - before.y));
-                item.__adjustCordinates(before);
-            }
-        });
+        return blocks;
     }
 
-    __updateCornerCords() {
-        const gap = this.hotAreaGap();
-        const ggap = 20;
-        this.corners[0][0] = this.corners[2][0] = this.x();
-        this.corners[1][1] = this.corners[0][1] = this.y();
-        this.corners[1][0] = this.corners[3][0] = this.x() + this.width();
-        this.corners[3][1] = this.corners[2][1] = this.y() + this.height();
-
-        this.hotAreaCorners[2][0] = this.hotAreaCorners[0][0] = this.x() - gap;
-        this.hotAreaCorners[1][1] = this.hotAreaCorners[0][1] = this.y() - gap;
-        this.hotAreaCorners[3][0] = this.hotAreaCorners[1][0] =
-            this.x() + this.width() + gap;
-        this.hotAreaCorners[3][1] = this.hotAreaCorners[2][1] =
-            this.y() + this.height() + gap;
-
-        this.hotAreaRotCorners[2][0] = this.hotAreaRotCorners[0][0] =
-            this.hotAreaCorners[0][0] - ggap;
-        this.hotAreaRotCorners[1][1] = this.hotAreaRotCorners[0][1] =
-            this.hotAreaCorners[0][1] - ggap;
-        this.hotAreaRotCorners[3][0] = this.hotAreaRotCorners[1][0] =
-            this.hotAreaCorners[1][0] + ggap;
-        this.hotAreaRotCorners[3][1] = this.hotAreaRotCorners[2][1] =
-            this.hotAreaCorners[2][1] + ggap;
-    }
-
-    hotTop(_func: (context: CanvasRenderingContext2D) => void) {
-        this.hotAreas["hotTop"]["_func"] = _func;
-    }
-    hotLeft(_func: (context: CanvasRenderingContext2D) => void) {
-        this.hotAreas["hotLeft"]["_func"] = _func;
-    }
-    hotRight(_func: (context: CanvasRenderingContext2D) => void) {
-        this.hotAreas["hotRight"]["_func"] = _func;
-    }
-    hotBottom(_func: (context: CanvasRenderingContext2D) => void) {
-        this.hotAreas["hotBottom"]["_func"] = _func;
-    }
-
-    hotCornerTopLeft(_func: (context: CanvasRenderingContext2D) => void) {
-        this.hotAreas["hotCornerTopLeft"]["_func"] = _func;
-    }
-    hotCornerTopRight(_func: (context: CanvasRenderingContext2D) => void) {
-        this.hotAreas["hotCornerTopRight"]["_func"] = _func;
-    }
-    hotCornerBottomLeft(_func: (context: CanvasRenderingContext2D) => void) {
-        this.hotAreas["hotCornerBottomLeft"]["_func"] = _func;
-    }
-    hotCornerBottomRight(_func: (context: CanvasRenderingContext2D) => void) {
-        this.hotAreas["hotCornerBottomRight"]["_func"] = _func;
-    }
-
-    hotLines() {
+    __hotLines() {
         const size = this.hotCornerSize();
-        const gap = this.hotAreaGap();
         const radius = this.hotCornerRadius();
         const strokeWidth = this.hotCornerStrokeWidth();
         const strokeColor = this.hotCornerStrokeColor();
@@ -396,87 +328,47 @@ export class Block extends Node {
         const lineWidth = this.hotLineStrokeWidth();
         const lineColor = this.hotLineStrokeColor();
 
-        this.hotAreas["hotCornerBottomLeft"]["x"] = this.hotAreas[
-            "hotCornerTopLeft"
-        ]["x"] = this.x() - gap;
-
-        this.hotAreas["hotCornerTopRight"]["y"] = this.hotAreas[
-            "hotCornerTopLeft"
-        ]["y"] = this.y() - gap;
-
-        this.hotAreas["hotCornerBottomRight"]["x"] = this.hotAreas[
-            "hotCornerTopRight"
-        ]["x"] = this.x() + this.width() + gap;
-
-        this.hotAreas["hotCornerBottomRight"]["y"] = this.hotAreas[
-            "hotCornerBottomLeft"
-        ]["y"] = this.y() + this.height() + gap;
-
         this.context.beginPath();
-        this.context.moveTo(
-            this.hotAreas["hotCornerTopLeft"]["x"],
-            this.hotAreas["hotCornerTopLeft"]["y"]
-        );
-        if (!this.hotAreas["hotTop"]["_func"]) {
-            this.context.lineTo(
-                this.hotAreas["hotCornerTopRight"]["x"],
-                this.hotAreas["hotCornerTopRight"]["y"]
-            );
+        this.context.moveTo(this.hotCornerX1(), this.hotCornerY1());
+        if (!this.hotTop()) {
+            this.context.lineTo(this.hotCornerX2(), this.hotCornerY2());
             this.context.lineWidth = lineWidth;
             this.context.strokeStyle = lineColor;
             this.context.stroke();
-        }
+        } else this.hotTop()?.(this.context);
 
         this.context.beginPath();
-        this.context.moveTo(
-            this.hotAreas["hotCornerTopLeft"]["x"],
-            this.hotAreas["hotCornerTopLeft"]["y"]
-        );
-        if (!this.hotAreas["hotLeft"]["_func"]) {
-            this.context.lineTo(
-                this.hotAreas["hotCornerBottomLeft"]["x"],
-                this.hotAreas["hotCornerBottomLeft"]["y"]
-            );
+        this.context.moveTo(this.hotCornerX1(), this.hotCornerY1());
+        if (!this.hotLeft()) {
+            this.context.lineTo(this.hotCornerX3(), this.hotCornerY3());
             this.context.lineWidth = lineWidth;
             this.context.strokeStyle = lineColor;
             this.context.stroke();
-        }
+        } else this.hotLeft()?.(this.context);
 
         this.context.beginPath();
-        this.context.moveTo(
-            this.hotAreas["hotCornerBottomLeft"]["x"],
-            this.hotAreas["hotCornerBottomLeft"]["y"]
-        );
-        if (!this.hotAreas["hotBottom"]["_func"]) {
-            this.context.lineTo(
-                this.hotAreas["hotCornerBottomRight"]["x"],
-                this.hotAreas["hotCornerBottomRight"]["y"]
-            );
+        this.context.moveTo(this.hotCornerX3(), this.hotCornerY3());
+        if (!this.hotBottom()) {
+            this.context.lineTo(this.hotCornerX4(), this.hotCornerY4());
             this.context.lineWidth = lineWidth;
             this.context.strokeStyle = lineColor;
             this.context.stroke();
-        }
+        } else this.hotBottom()?.(this.context);
 
         this.context.beginPath();
-        this.context.moveTo(
-            this.hotAreas["hotCornerBottomRight"]["x"],
-            this.hotAreas["hotCornerBottomRight"]["y"]
-        );
-        if (!this.hotAreas["hotRight"]["_func"]) {
-            this.context.lineTo(
-                this.hotAreas["hotCornerTopRight"]["x"],
-                this.hotAreas["hotCornerTopRight"]["y"]
-            );
+        this.context.moveTo(this.hotCornerX4(), this.hotCornerY4());
+        if (!this.hotRight()) {
+            this.context.lineTo(this.hotCornerX2(), this.hotCornerY2());
             this.context.lineWidth = lineWidth;
             this.context.strokeStyle = lineColor;
             this.context.stroke();
-        }
+        } else this.hotRight()?.(this.context);
 
         this.context.beginPath();
-        if (!this.hotAreas["hotCornerTopLeft"]["_func"]) {
+        if (!this.hotCornerTopLeft()) {
             this.context.roundRect(
-                this.hotAreas["hotCornerTopLeft"]["x"] - size / 2,
-                this.hotAreas["hotCornerTopLeft"]["y"] - size / 2,
+                this.hotCornerX1() - size / 2,
+                this.hotCornerY1() - size / 2,
                 size,
                 size,
                 radius
@@ -487,14 +379,14 @@ export class Block extends Node {
             this.context.fill();
             this.context.stroke();
         } else {
-            this.hotAreas["hotCornerTopLeft"]["_func"](this.context);
+            this.hotCornerTopLeft()?.(this.context);
         }
 
         this.context.beginPath();
-        if (!this.hotAreas["hotCornerTopRight"]["_func"]) {
+        if (!this.hotCornerTopRight()) {
             this.context.roundRect(
-                this.hotAreas["hotCornerTopRight"]["x"] - size / 2,
-                this.hotAreas["hotCornerTopRight"]["y"] - size / 2,
+                this.hotCornerX2() - size / 2,
+                this.hotCornerY2() - size / 2,
                 size,
                 size,
                 radius
@@ -505,14 +397,14 @@ export class Block extends Node {
             this.context.fill();
             this.context.stroke();
         } else {
-            this.hotAreas["hotCornerTopRight"]["_func"](this.context);
+            this.hotCornerTopRight()?.(this.context);
         }
 
         this.context.beginPath();
-        if (!this.hotAreas["hotCornerBottomLeft"]["_func"]) {
+        if (!this.hotCornerBottomLeft()) {
             this.context.roundRect(
-                this.hotAreas["hotCornerBottomLeft"]["x"] - size / 2,
-                this.hotAreas["hotCornerBottomLeft"]["y"] - size / 2,
+                this.hotCornerX3() - size / 2,
+                this.hotCornerY3() - size / 2,
                 size,
                 size,
                 radius
@@ -523,14 +415,14 @@ export class Block extends Node {
             this.context.fill();
             this.context.stroke();
         } else {
-            this.hotAreas["hotCornerBottomLeft"]["_func"](this.context);
+            this.hotCornerBottomLeft()?.(this.context);
         }
 
         this.context.beginPath();
-        if (!this.hotAreas["hotCornerBottomRight"]["_func"]) {
+        if (!this.hotCornerBottomRight()) {
             this.context.roundRect(
-                this.hotAreas["hotCornerBottomRight"]["x"] - size / 2,
-                this.hotAreas["hotCornerBottomRight"]["y"] - size / 2,
+                this.hotCornerX4() - size / 2,
+                this.hotCornerY4() - size / 2,
                 size,
                 size,
                 radius
@@ -541,691 +433,361 @@ export class Block extends Node {
             this.context.fill();
             this.context.stroke();
         } else {
-            this.hotAreas["hotCornerBottomRight"]["_func"](this.context);
+            this.hotCornerBottomRight()?.(this.context);
         }
     }
 
-    rotationCenterX(opt?: number) {
-        return this.__cacheOption(opt, "rotationCenterX", undefined);
-    }
-    rotationCenterY(opt?: number) {
-        return this.__cacheOption(opt, "rotationCenterY", undefined);
-    }
-    rotationTopLeft(opt?: boolean) {
-        return this.__cacheOption(opt, "rotationTopLeft", true);
-    }
-    rotationTopRight(opt?: boolean) {
-        return this.__cacheOption(opt, "rotationTopRight", true);
-    }
-    rotationBottomLeft(opt?: boolean) {
-        return this.__cacheOption(opt, "rotationBottomLeft", true);
-    }
-    rotationBottomRight(opt?: boolean) {
-        return this.__cacheOption(opt, "rotationBottomRight", true);
-    }
+    __handlePosition() {
+        if (this.#runningEvents.resize || this.#runningEvents.drag) return;
+        const pos = this.position();
 
-    resizeTopLeft(opt?: boolean) {
-        return this.__cacheOption(opt, "resizeTopLeft", true);
-    }
-    resizeTopRight(opt?: boolean) {
-        return this.__cacheOption(opt, "resizeTopRight", true);
-    }
-    resizeBottomLeft(opt?: boolean) {
-        return this.__cacheOption(opt, "resizeBottomLeft", true);
-    }
-    resizeBottomRight(opt?: boolean) {
-        return this.__cacheOption(opt, "resizeBottomRight", true);
-    }
-    resizeTop(opt?: boolean) {
-        return this.__cacheOption(opt, "resizeTop", true);
-    }
-    resizeLeft(opt?: boolean) {
-        return this.__cacheOption(opt, "resizeLeft", true);
-    }
-    resizeRight(opt?: boolean) {
-        return this.__cacheOption(opt, "resizeRight", true);
-    }
-    resizeBottom(opt?: boolean) {
-        return this.__cacheOption(opt, "resizeBottom", true);
-    }
-
-    rotatable(opt?: boolean) {
-        const rotatable = this.__cacheOption(opt, "rotatable", true);
-        if (!rotatable) return false;
-
-        let topMove = false;
-        let leftMove = false;
-
-        let startRotX = 0;
-        let startRotY = 0;
-
-        let otherStartX = 0;
-        let otherStartY = 0;
-
-        let inBound = false;
-
-        const mousedown = (event: MouseEvent) => {
-            if (this.#runningEvents.resize || this.#runningEvents.drag) return;
-
-            if (inBound) {
-                this.#runningEvents.rotate = true;
-                this.canvas?.takeRegister({ in: this.zIndex() });
-            } else {
-                this.canvas?.takeRegister({ out: this.zIndex() });
-            }
-        };
-
-        const mousemove = (event: MouseEvent) => {
-            if (this.#runningEvents.drag || this.#runningEvents.resize) return;
-            let cursor: string | undefined;
-            let { x, y } = this.canvas.getCursorPosition(event);
-            if (!this.#runningEvents.rotate) {
-                const ltx = this.hotAreaCorners[0][0];
-                const lty = this.hotAreaCorners[0][1];
-                const rtx = this.hotAreaCorners[1][0];
-                const rty = this.hotAreaCorners[1][1];
-                const lbx = this.hotAreaCorners[2][0];
-                const lby = this.hotAreaCorners[2][1];
-                const rbx = this.hotAreaCorners[3][0];
-                const rby = this.hotAreaCorners[3][1];
-
-                const hltx = this.hotAreaRotCorners[0][0];
-                const hlty = this.hotAreaRotCorners[0][1];
-                const hrtx = this.hotAreaRotCorners[1][0];
-                const hrty = this.hotAreaRotCorners[1][1];
-                const hlbx = this.hotAreaRotCorners[2][0];
-                const hlby = this.hotAreaRotCorners[2][1];
-                const hrbx = this.hotAreaRotCorners[3][0];
-                const hrby = this.hotAreaRotCorners[3][1];
-                if (
-                    checkInBound(
-                        x,
-                        y,
-                        hltx,
-                        hlty,
-                        ltx,
-                        hlty,
-                        hltx,
-                        lty,
-                        ltx,
-                        lty
-                    ) &&
-                    this.rotationTopLeft()
-                ) {
-                    cursor = "cell";
-                    topMove = true;
-                    leftMove = true;
-                    startRotX = this.corners[0][0];
-                    startRotY = this.corners[0][1];
-                    otherStartX = this.corners[2][0];
-                    otherStartY = this.corners[2][1];
-                } else if (
-                    checkInBound(
-                        x,
-                        y,
-                        rtx,
-                        hrty,
-                        hrtx,
-                        hrty,
-                        rtx,
-                        rty,
-                        hrtx,
-                        rty
-                    ) &&
-                    this.rotationTopRight()
-                ) {
-                    cursor = "cell";
-                    topMove = true;
-                    leftMove = false;
-                    startRotX = this.corners[1][0];
-                    startRotY = this.corners[1][1];
-                    otherStartX = this.corners[0][0];
-                    otherStartY = this.corners[0][1];
-                } else if (
-                    checkInBound(
-                        x,
-                        y,
-                        hlbx,
-                        lby,
-                        lbx,
-                        lby,
-                        hlbx,
-                        hlby,
-                        lbx,
-                        lby
-                    ) &&
-                    this.rotationBottomLeft()
-                ) {
-                    cursor = "cell";
-                    topMove = false;
-                    leftMove = true;
-                    startRotX = this.corners[2][0];
-                    startRotY = this.corners[2][1];
-                    otherStartX = this.corners[3][0];
-                    otherStartY = this.corners[3][1];
-                } else if (
-                    checkInBound(
-                        x,
-                        y,
-                        rbx,
-                        rby,
-                        hrbx,
-                        rby,
-                        rbx,
-                        hrby,
-                        hrbx,
-                        hrby
-                    ) &&
-                    this.rotationBottomRight()
-                ) {
-                    cursor = "cell";
-                    topMove = false;
-                    leftMove = false;
-                    startRotX = this.corners[3][0];
-                    startRotY = this.corners[3][1];
-                    otherStartX = this.corners[1][0];
-                    otherStartY = this.corners[1][1];
-                }
-                if (cursor) inBound = true;
-                else inBound = false;
-                this.canvas.chageCursor(cursor);
-            }
-            if (
-                this.#runningEvents.rotate &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
-                const R = getRadiusByWH(this.width(), this.height());
-                const radianRot = Math.atan2(
-                    y - this.#center.y,
-                    x - this.#center.x
+        if (pos === "fixed") {
+            if (this.top() !== undefined)
+                this.y(-this.canvas.__positionCords.y + this.top()!);
+            else if (this.bottom() !== undefined)
+                this.y(
+                    -this.canvas.__positionCords.y +
+                        Math.abs(this.canvas.height - this.height()) -
+                        this.bottom()!
                 );
-                this.#rotateDegree = radianToDegree(radianRot);
-                const endX = this.#center.x + R * Math.cos(radianRot);
-                const endY = this.#center.y + R * Math.sin(radianRot);
-
-                const diffX = endX - startRotX;
-                const diffY = endY - startRotY;
-
-                const Rrad = radianRot - degreeToRadian(90);
-
-                const e1X = this.#center.x + R * Math.cos(Rrad);
-                const e1Y = this.#center.y + R * Math.sin(Rrad);
-
-                const eDiffX = e1X - otherStartX;
-                const eDiffY = e1Y - otherStartY;
-                if (this.#rotateDegree >= -180) {
-                    if (topMove && leftMove) {
-                        this.#updateCorners(diffX, diffY, eDiffX, eDiffY);
-                        this.#rotateDegree += 135;
-                    } else if (topMove && !leftMove) {
-                        this.#updateCorners(eDiffX, eDiffY, -diffX, -diffY);
-                        this.#rotateDegree += 45;
-                    } else if (!topMove && !leftMove) {
-                        this.#updateCorners(-diffX, -diffY, -eDiffX, -eDiffY);
-                        this.#rotateDegree -= 45;
-                    } else if (!topMove && leftMove) {
-                        this.#updateCorners(-eDiffX, -eDiffY, diffX, diffY);
-                        this.#rotateDegree -= 135;
-                    }
-                }
-                startRotY = endY;
-                startRotX = endX;
-
-                otherStartX = e1X;
-                otherStartY = e1Y;
-
-                this.canvas.invokeChange();
-            }
-        };
-
-        const mouseup = () => {
-            this.#runningEvents.rotate = false;
-
-            if (!this.#isSnapshotTaken) {
-                let dummy: any = {};
-                dummy[this.nodeId] = {};
-                this.canvas?.takeSnapshot(new Date().getTime(), dummy);
-                this.#isSnapshotTaken = true;
-            }
-        };
-
-        this.__eventHandler("mousedown", mousedown);
-        this.__eventHandler("mousemove", mousemove);
-        this.__eventHandler("mouseup", mouseup);
-
-        return rotatable;
-    }
-    #updateCorners(
-        diffX: number,
-        diffY: number,
-        eDiffX: number,
-        eDiffY: number
-    ) {
-        this.corners[0][0] += diffX;
-        this.corners[1][0] += -eDiffX;
-        this.corners[2][0] += eDiffX;
-        this.corners[3][0] += -diffX;
-
-        this.corners[0][1] += diffY;
-        this.corners[1][1] += -eDiffY;
-        this.corners[2][1] += eDiffY;
-        this.corners[3][1] += -diffY;
-
-        this.hotAreaCorners[0][0] += diffX;
-        this.hotAreaCorners[1][0] += -eDiffX;
-        this.hotAreaCorners[2][0] += eDiffX;
-        this.hotAreaCorners[3][0] += -diffX;
-        this.hotAreaCorners[0][1] += diffY;
-        this.hotAreaCorners[1][1] += -eDiffY;
-        this.hotAreaCorners[2][1] += eDiffY;
-        this.hotAreaCorners[3][1] += -diffY;
-
-        this.hotAreaRotCorners[0][0] += diffX;
-        this.hotAreaRotCorners[1][0] += -eDiffX;
-        this.hotAreaRotCorners[2][0] += eDiffX;
-        this.hotAreaRotCorners[3][0] += -diffX;
-        this.hotAreaRotCorners[0][1] += diffY;
-        this.hotAreaRotCorners[1][1] += -eDiffY;
-        this.hotAreaRotCorners[2][1] += eDiffY;
-        this.hotAreaRotCorners[3][1] += -diffY;
-    }
-    resizable(opt?: boolean): boolean {
-        const resizable = this.__cacheOption(opt, "resizable", true);
-        if (!resizable) return false;
-
-        let initX = 0;
-        let initY = 0;
-        let beforeX = 0;
-        let beforeY = 0;
-
-        let topResize = false;
-        let leftResize = false;
-        let widthResize = false;
-        let heightResize = false;
-        let isLeft = false;
-        let isTop = false;
-
-        let inBound = false;
-
-        const mousedown = (event: MouseEvent) => {
-            if (this.#runningEvents.drag || this.#runningEvents.rotate) return;
-
-            if (inBound) {
-                const { x, y } = this.canvas.getCursorPosition(event);
-                this.#runningEvents.resize = true;
-                this.canvas?.takeRegister({ in: this.zIndex() });
-                initX = x;
-                initY = y;
-                beforeX = 0;
-                beforeY = 0;
-            } else {
-                this.canvas?.takeRegister({ out: this.zIndex() });
-            }
-        };
-
-        const mousemove = (event: MouseEvent) => {
-            const { x, y } = this.canvas.getCursorPosition(event);
-
-            if (!this.#runningEvents.resize) {
-                let cursor: undefined | string = undefined;
-
-                let ltx = this.corners[0][0];
-                let lty = this.corners[0][1];
-                let rtx = this.corners[1][0];
-                let rty = this.corners[1][1];
-                let lbx = this.corners[2][0];
-                let lby = this.corners[2][1];
-                let rbx = this.corners[3][0];
-                let rby = this.corners[3][1];
-
-                let hltx = this.hotAreaCorners[0][0];
-                let hlty = this.hotAreaCorners[0][1];
-                let hrtx = this.hotAreaCorners[1][0];
-                let hrty = this.hotAreaCorners[1][1];
-                let hlbx = this.hotAreaCorners[2][0];
-                let hlby = this.hotAreaCorners[2][1];
-                let hrbx = this.hotAreaCorners[3][0];
-                let hrby = this.hotAreaCorners[3][1];
-
+            if (this.left() !== undefined)
+                this.x(-this.canvas.__positionCords.x + this.left()!);
+            else if (this.right())
+                this.x(
+                    -this.canvas.__positionCords.x +
+                        Math.abs(this.canvas.width - this.width()) -
+                        this.right()!
+                );
+        } else if (pos === "sticky") {
+            if (this.canvas.__positionCords.y < 0) {
                 if (
-                    checkInBound(
-                        x,
-                        y,
-                        hltx,
-                        hlty,
-                        ltx,
-                        lty,
-                        hlbx,
-                        hlby,
-                        lbx,
-                        lby
-                    )
+                    this.top() &&
+                    this.canvas.__positionCords.y <=
+                        Math.abs(this.canvas.height - this.height()) - this.y()
                 ) {
-                    isLeft = ltx >= hltx || lbx >= hlby ? true : false;
-                    widthResize = true;
-                    leftResize = true;
-                    cursor = "w-resize";
-                } else if (
-                    checkInBound(
-                        x,
-                        y,
-                        rtx,
-                        rty,
-                        hrtx,
-                        hrty,
-                        rbx,
-                        rby,
-                        hrbx,
-                        hrby
-                    )
-                ) {
-                    isLeft = rtx >= hrtx || rbx >= hrbx ? true : false;
-                    widthResize = true;
-                    cursor = "w-resize";
-                } else if (
-                    checkInBound(
-                        x,
-                        y,
-                        hltx,
-                        hlty,
-                        hrtx,
-                        hrty,
-                        ltx,
-                        lty,
-                        rtx,
-                        rty
-                    )
-                ) {
-                    isTop = lty >= hlty || rty >= hrty ? true : false;
-                    heightResize = true;
-                    topResize = true;
-                    cursor = "n-resize";
-                } else if (
-                    checkInBound(
-                        x,
-                        y,
-                        lbx,
-                        lby,
-                        rbx,
-                        rby,
-                        hlbx,
-                        hlby,
-                        hrbx,
-                        hrby
-                    )
-                ) {
-                    isTop = lby >= hlby || rby >= hrby ? true : false;
-                    heightResize = true;
-                    cursor = "n-resize";
+                    this.y(-this.canvas.__positionCords.y + this.top()!);
                 }
-
-                if (checkInBound(x, y, hltx, hlty, ltx, lty, 0, 0, 0, 0)) {
-                    isLeft = ltx >= hltx ? true : false;
-                    isTop = lty >= hlty ? true : false;
-                    topResize = true;
-                    leftResize = true;
-                    widthResize = true;
-                    heightResize = true;
-                    cursor = "nw-resize";
-                } else if (
-                    checkInBound(x, y, hrtx, hrty, rtx, rty, 0, 0, 0, 0)
+            } else {
+                if (
+                    this.bottom() &&
+                    this.canvas.__positionCords.y + this.bottom() >=
+                        Math.abs(this.canvas.height - this.height()) -
+                            Math.abs(this.y())
                 ) {
-                    isLeft = rtx >= hrtx ? true : false;
-                    isTop = rty >= hrty ? true : false;
-                    topResize = true;
-                    leftResize = false;
-                    widthResize = true;
-                    heightResize = true;
-                    cursor = "nesw-resize";
-                } else if (
-                    checkInBound(x, y, lbx, lby, hlbx, hlby, 0, 0, 0, 0)
-                ) {
-                    isLeft = lbx >= hlbx ? true : false;
-                    isTop = lby >= hlby ? true : false;
-                    topResize = false;
-                    leftResize = true;
-                    widthResize = true;
-                    heightResize = true;
-                    cursor = "nesw-resize";
-                } else if (
-                    checkInBound(x, y, rbx, rby, hrbx, hrby, 0, 0, 0, 0)
-                ) {
-                    isLeft = rbx >= hrbx ? true : false;
-                    isTop = rby >= hrby ? true : false;
-                    topResize = false;
-                    leftResize = false;
-                    widthResize = true;
-                    heightResize = true;
-                    cursor = "nw-resize";
+                    this.y(
+                        -this.canvas.__positionCords.y +
+                            Math.abs(this.canvas.height - this.height()) -
+                            this.bottom()!
+                    );
                 }
-                if (cursor) inBound = true;
-                else inBound = false;
-
-                this.canvas.chageCursor(cursor);
             }
+            if (this.canvas.__positionCords.x < 0) {
+                if (
+                    this.left() &&
+                    this.canvas.__positionCords.x <=
+                        Math.abs(this.canvas.width - this.width()) - this.x()
+                ) {
+                    this.x(-this.canvas.__positionCords.x + this.left()!);
+                }
+            } else {
+                const diffX = Math.abs(this.canvas.width - this.width());
+                if (
+                    this.right() &&
+                    this.canvas.__positionCords.x + this.right() >=
+                        diffX - Math.abs(this.x())
+                ) {
+                    this.x(
+                        -this.canvas.__positionCords.x + diffX - this.right()!
+                    );
+                }
+            }
+        } else if (pos === "absolute") {
+            this.x(0);
+            this.y(0);
+            if (this.left() !== undefined) this.x(this.left());
+            else if (this.right() !== undefined)
+                this.x(
+                    Math.abs(this.canvas.width - this.width()) - this.right()!
+                );
+            if (this.top() !== undefined) {
+                this.y(this.top());
+            } else if (this.bottom() !== undefined)
+                this.y(
+                    Math.abs(this.canvas.height - this.height()) -
+                        this.bottom()!
+                );
+        } else if (pos === "relative") {
+            if (this.left() !== undefined) this.x(this.x() + this.left()!);
+            else if (this.right() !== undefined)
+                this.x(this.x() - this.right()!);
+            if (this.top() !== undefined) this.y(this.y() + this.top()!);
+            else if (this.bottom() !== undefined)
+                this.y(this.y() + this.bottom()!);
+        }
+    }
+
+    __adjustBlocks(): void {
+        this.__handlePosition();
+        this.listOnlyChilds((b: Block) => {
+            b.x(
+                (b.options.x || 0) +
+                    this.x() +
+                    this.marginLeft() +
+                    this.paddingLeft()
+            );
+            b.y(
+                (b.options.y || 0) +
+                    this.y() +
+                    this.marginTop() +
+                    this.paddingTop()
+            );
+            if (b.maxWidth() !== b.options.width!) b.width(b.maxWidth());
+            if (b.maxHeight() !== b.options.height!) b.width(b.maxHeight());
+            if (!this.__isHorizontalFlipped) {
+                if (
+                    this.width() - (this.paddingRight() + this.paddingLeft()) <
+                        b.width() ||
+                    b.width() < b.maxWidth()
+                )
+                    b.width(
+                        b.width() +
+                            -(
+                                b.width() -
+                                (this.width() -
+                                    (this.paddingRight() + this.paddingLeft()))
+                            )
+                    );
+            } else if (b.__isHorizontalFlipped) {
+                if (b.width() < b.maxWidth()) {
+                    b.width(
+                        b.width() +
+                            -(
+                                b.width() -
+                                (this.width() -
+                                    (this.paddingRight() + this.paddingLeft()))
+                            )
+                    );
+                }
+            } else b.width(0);
+
+            b.cornerX1(this.x());
+            b.cornerX2(this.x() + this.width());
+            b.cornerX3(this.x());
+            b.cornerX4(this.x() + this.width());
 
             if (
-                this.#runningEvents.resize &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
+                (!this.__isVerticalFlipped &&
+                    this.height() - (this.paddingTop() + this.paddingBottom()) <
+                        b.height()) ||
+                b.height() < b.maxHeight()
             ) {
-                let diffX = x - initX;
-                let diffY = y - initY;
-                this.beforeInit.x = this.x();
-                this.beforeInit.y = this.y();
-                if (diffX !== 0 && widthResize) {
-                    const diff = diffX - beforeX;
-                    if (isLeft && this.width() - diff > 0) {
-                        this.width(this.width() - diff);
-                        this.x(this.x() + diff);
-                    } else if (!isLeft && this.width() + diff > 0)
-                        this.width(this.width() + diff);
-                    else this.width(0);
-
-                    if (this.width() !== 0) {
-                        if (leftResize) {
-                            this.corners[0][0] += diff;
-                            this.corners[2][0] += diff;
-                            this.hotAreaCorners[0][0] += diff;
-                            this.hotAreaCorners[2][0] += diff;
-                        } else {
-                            this.corners[1][0] += diff;
-                            this.corners[3][0] += diff;
-                            this.hotAreaCorners[1][0] += diff;
-                            this.hotAreaCorners[3][0] += diff;
-                        }
-                        beforeX = diffX;
-                    }
-                }
-                if (diffY !== 0 && heightResize) {
-                    const diff = diffY - beforeY;
-                    if (isTop && this.height() - diff > 0) {
-                        this.height(this.height() - diff);
-                        this.y(this.y() + diff);
-                    } else if (!isTop && this.height() + diff > 0)
-                        this.height(this.height() + diff);
-                    else this.height(0);
-
-                    if (this.height() !== 0) {
-                        if (topResize) {
-                            this.corners[0][1] += diff;
-                            this.corners[1][1] += diff;
-                            this.hotAreaCorners[0][1] += diff;
-                            this.hotAreaCorners[1][1] += diff;
-                        } else {
-                            this.corners[2][1] += diff;
-                            this.corners[3][1] += diff;
-                            this.hotAreaCorners[2][1] += diff;
-                            this.hotAreaCorners[3][1] += diff;
-                        }
-                        beforeY = diffY;
-                    }
-                }
-
-                this.__adjustCordinates();
-                this.canvas.invokeChange();
+                let oldHeight = b.height();
+                b.height(
+                    b.height() +
+                        -(
+                            b.height() -
+                            (this.height() -
+                                (this.paddingTop() + this.paddingBottom()))
+                        )
+                );
+                if (b.minHeight() > b.height()) b.height(oldHeight);
             }
-        };
-
-        const mouseup = () => {
-            this.#runningEvents.resize = false;
-            isTop =
-                isLeft =
-                widthResize =
-                heightResize =
-                leftResize =
-                topResize =
-                    false;
-            if (!this.#isSnapshotTaken) {
-                let dummy: any = {};
-                dummy[this.nodeId] = {};
-                this.canvas?.takeSnapshot(new Date().getTime(), dummy);
-                this.#isSnapshotTaken = true;
-            }
-        };
-
-        this.__eventHandler("mousedown", mousedown);
-        this.__eventHandler("mousemove", mousemove);
-        this.__eventHandler("mouseup", mouseup);
-        return resizable;
+            b.__adjustBlocks();
+        });
     }
 
-    __unitConverter(unit: string, val: number, parentS: number) {
-        if (unit.endsWith("%")) fromPercentage(val, parentS);
-        if (unit.endsWith("vh")) fromVH(val, this.canvas.height);
-        if (unit.endsWith("vw")) fromVW(val, this.canvas.width);
-        if (unit.endsWith("rem")) fromRem(val, parentS);
-        if (unit.endsWith("em")) fromEm(val, parentS);
-        if (unit.endsWith("cm")) fromCm(val);
-        if (unit.endsWith("mm")) fromMm(val);
-        if (unit.endsWith("q")) fromQ(val);
-        if (unit.endsWith("in")) fromIn(val);
-        if (unit.endsWith("pc")) fromPc(val);
-        if (unit.endsWith("pt")) fromPt(val);
+    __initCorners() {
+        this.cornerX1(this.x());
+        this.cornerY1(this.y());
+        this.cornerX2(this.x() + this.width());
+        this.cornerY2(this.y());
+        this.cornerX3(this.x());
+        this.cornerY3(this.y() + this.height());
+        this.cornerX4(this.x() + this.width());
+        this.cornerY4(this.y() + this.height());
+
+        this.hotCornerX1(this.cornerX1() - this.hotAreaGap());
+        this.hotCornerY1(this.cornerY1() - this.hotAreaGap());
+        this.hotCornerX2(this.cornerX2() + this.hotAreaGap());
+        this.hotCornerY2(this.cornerY2() - this.hotAreaGap());
+        this.hotCornerX3(this.cornerX3() - this.hotAreaGap());
+        this.hotCornerY3(this.cornerY3() + this.hotAreaGap());
+        this.hotCornerX4(this.cornerX4() + this.hotAreaGap());
+        this.hotCornerY4(this.cornerY4() + this.hotAreaGap());
+
+        this.hotRotCornerX1(this.hotCornerX1() - this.hotAreaGap());
+        this.hotRotCornerY1(this.hotCornerY1() - this.hotAreaGap());
+        this.hotRotCornerX2(this.hotCornerX2() + this.hotAreaGap());
+        this.hotRotCornerY2(this.hotCornerY2() - this.hotAreaGap());
+        this.hotRotCornerX3(this.hotCornerX3() - this.hotAreaGap());
+        this.hotRotCornerY3(this.hotCornerY3() + this.hotAreaGap());
+        this.hotRotCornerX4(this.hotCornerX4() + this.hotAreaGap());
+        this.hotRotCornerY4(this.hotCornerY4() + this.hotAreaGap());
     }
 
-    x(opt?: number): number {
-        return this.__cacheOption(opt, "x", 0);
+    #contextFilter() {
+        let allStr = "";
+        for (const [key, value] of Object.entries(this.__filters)) {
+            if (value) allStr += ` ${key + value}`;
+        }
+        this.context.filter = allStr;
     }
 
-    y(opt?: number): number {
-        return this.__cacheOption(opt, "y", 0);
+    get __isHorizontalFlipped() {
+        if (
+            (this.horizontalFlipResize() &&
+                this.cornerX1() > this.cornerX2()) ||
+            this.cornerX3() > this.cornerX4()
+        )
+            return true;
+        return false;
+    }
+    get __isVerticalFlipped() {
+        if (
+            this.cornerY1() > this.cornerY3() ||
+            this.cornerY2() > this.cornerY4()
+        )
+            return true;
+        return false;
+    }
+    __unitConverter<T, O>({
+        val,
+        widthRelated,
+    }: {
+        val?: T;
+        widthRelated?: boolean;
+    }): O {
+        if (val && typeof val === "string") {
+            if (val.endsWith("px")) return Number(val.split("px")[0]) as O;
+            else if (val.endsWith("%"))
+                return fromPercentage(
+                    Number(val.split("%")[0]),
+                    this.parent?.width() || this.width()
+                ) as O;
+            else if (val.endsWith("rem"))
+                return fromRem(
+                    Number(val.split("rem")[0]),
+                    this.canvas.width
+                ) as O;
+            else if (val.endsWith("em"))
+                return fromEm(
+                    Number(val.split("em")[0]),
+                    this.parent?.width() || this.width()
+                ) as O;
+            else if (
+                val.endsWith("vh") &&
+                widthRelated !== undefined &&
+                widthRelated === false
+            )
+                return fromVH(
+                    Number(val.split("vh")[0]),
+                    this.canvas.height
+                ) as O;
+            else if (
+                val.endsWith("vw") &&
+                widthRelated !== undefined &&
+                widthRelated === true
+            )
+                return fromVW(
+                    Number(val.split("vw")[0]),
+                    this.canvas.width
+                ) as O;
+            else if (val.endsWith("cm"))
+                return fromCm(Number(val.split("cm")[0])) as O;
+            else if (val.endsWith("mm"))
+                return fromMm(Number(val.split("mm")[0])) as O;
+            else if (val.endsWith("q"))
+                return fromQ(Number(val.split("q")[0])) as O;
+            else if (val.endsWith("in"))
+                return fromIn(Number(val.split("in")[0])) as O;
+            else if (val.endsWith("pc"))
+                return fromPc(Number(val.split("pc")[0])) as O;
+            else if (val.endsWith("pt"))
+                return fromPt(Number(val.split("pt")[0])) as O;
+        }
+        return val as O;
     }
 
-    width(opt?: number): number {
-        return this.__cacheOption(opt, "width", 0);
+    __valueHandler<T, O>(
+        opt: T | undefined,
+        option: string,
+        defaultOpt: O,
+        widthRelated?: boolean
+    ): O {
+        const val = this.__unitConverter<T, O>({
+            val: opt,
+            widthRelated: widthRelated,
+        });
+        return this.__cacheOptions(val, option, defaultOpt);
     }
 
-    height(opt?: number): number {
-        return this.__cacheOption(opt, "height", 0);
+    __cacheOptions<T>(
+        opt: T | undefined,
+        option: keyof IBlock<BlockOptions>,
+        defaultOpt: T
+    ): T {
+        // @Todo: fix type issue over the generic readonly
+        if (opt !== undefined) (this.ownOptions[option] as any) = opt;
+        else if (this.ownOptions[option] === undefined)
+            (this.ownOptions[option] as any) = defaultOpt;
+        return this.ownOptions[option];
+    }
+
+    x(opt?: number | string) {
+        return this.__valueHandler(opt, "x", 0, true);
+    }
+
+    y(opt?: number | string): number {
+        return this.__valueHandler(opt, "y", 0, true);
+    }
+
+    width(opt?: number | string): number {
+        return this.__valueHandler(opt, "width", 0, true);
+    }
+
+    height(opt?: number | string): number {
+        return this.__valueHandler(opt, "height", 0, false);
+    }
+    minWidth(opt?: number | string): number {
+        return this.__valueHandler(opt, "minWidth", 0, true);
+    }
+    minHeight(opt?: number | string): number {
+        return this.__valueHandler(opt, "minHeight", 0, true);
+    }
+    maxWidth(opt?: number | string): number {
+        return this.__valueHandler(
+            opt,
+            "maxWidth",
+            this.options.width || 0,
+            true
+        );
+    }
+    maxHeight(opt?: number | string): number {
+        return this.__valueHandler(
+            opt,
+            "maxHeight",
+            this.options.height || 0,
+            false
+        );
     }
     position(opt?: Position) {
-        return this.__cacheOption(opt, "position", "static");
+        return this.__valueHandler(opt, "position", "static");
     }
-    top(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "top", 0);
+    top(opt?: number | string) {
+        return this.__valueHandler(opt, "top", undefined, false);
     }
-    bottom(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "bottom", 0);
+    bottom(opt?: number | string) {
+        return this.__valueHandler(opt, "bottom", undefined, false);
     }
-    left(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "left", 0);
+    left(opt?: number | string) {
+        return this.__valueHandler(opt, "left", undefined, true);
     }
-    right(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "right", 0);
+    right(opt?: number | string) {
+        return this.__valueHandler(opt, "right", undefined, true);
     }
-    hotCornerSize(opt?: number) {
-        return this.__cacheOption(opt, "hotCornerSize", 5);
-    }
-    hotCornerRadius(opt?: number[]) {
-        return this.__cacheOption(opt, "hotCornerRadius", [0]);
-    }
-    hotCornerStrokeWidth(opt?: number) {
-        return this.__cacheOption(opt, "hotCornerStrokeWidth", 0);
-    }
-    hotCornerStrokeColor(opt?: string) {
-        return this.__cacheOption(opt, "hotCornerStrokeColor", "black");
-    }
-    hotCornerBackgroundColor(opt?: string) {
-        return this.__cacheOption(opt, "hotCornerBackgroundColor", "white");
-    }
-    hotLineStrokeWidth(opt?: number) {
-        return this.__cacheOption(opt, "hotTopStrokeWidth", 1);
-    }
-    hotLineStrokeColor(opt?: string) {
-        return this.__cacheOption(opt, "hotTopStrokeColor", "blue");
-    }
-    hotAreaGap(opt?: number) {
-        return this.__cacheOption(opt, "hotAreaGap", 5);
-    }
-    blur(opt?: number) {
-        const blur = this.__cacheOption(opt, "blur", 0);
-        if (blur) this.__filters.push(`blur(${blur}px)`);
-        return blur;
-    }
-    brightness(opt?: number) {
-        const brightness = this.__cacheOption(opt, "brightness", 0);
-        if (brightness) this.__filters.push(`brightness(${brightness}%)`);
-        return brightness;
-    }
-    contrast(opt?: number) {
-        const contrast = this.__cacheOption(opt, "contrast", 0);
-        if (contrast) this.__filters.push(`contrast(${contrast}%)`);
-        return contrast;
-    }
-    dropShadow(opt?: [number, number, number, string][]) {
-        const dropShadow = this.__cacheOption(opt, "dropShadow", []);
-        let _s = "";
-        dropShadow.forEach((i) => {
-            if (i instanceof Number) _s += `${i}px`;
-            else _s += i;
-        });
-        if (dropShadow) this.__filters.push(`drop-shadow(${_s})`);
-        return dropShadow;
-    }
-    grayscale(opt?: number) {
-        const grayscale = this.__cacheOption(opt, "grayscale", 0);
-        if (grayscale) this.__filters.push(`grayscale(${grayscale}%)`);
-        return grayscale;
-    }
-    hueRotate(opt?: number) {
-        const hueRotate = this.__cacheOption(opt, "hueRotate", 0);
-        if (hueRotate) this.__filters.push(`hue-rotate(${hueRotate}deg)`);
-        return hueRotate;
-    }
-    opacity(opt?: number) {
-        const opacity = this.__cacheOption(opt, "opacity", 0);
-        if (opacity) this.__filters.push(`opacity(${opacity}%)`);
-        return opacity;
-    }
-    saturate(opt?: number) {
-        const saturate = this.__cacheOption(opt, "saturate", 0);
-        if (saturate) this.__filters.push(`saturate(${saturate}%)`);
-        return saturate;
-    }
-    sepia(opt?: number) {
-        const sepia = this.__cacheOption(opt, "sepia", 0);
-        if (sepia) this.__filters.push(`sepia(${sepia}%)`);
-        return sepia;
-    }
-
-    hidden(opt?: boolean) {
-        const hidden = this.__cacheOption(opt, "hidden", false);
-        if (hidden) {
-            (this._childs as Block[]).forEach(
-                (item) => ((item.options.hidden = true), item.options.hidden)
-            );
-        }
-        return hidden;
-    }
-
-    padding(opt?: number[]) {
-        const padding = this.__cacheOption(opt, "padding", undefined);
-        if (!padding) return padding;
-        this.paddingTop(padding[0]);
+    padding(opt?: number[]): number[] {
+        const padding = this.__valueHandler(opt, "padding", []);
+        this.paddingTop(padding[0] || 0);
         switch (padding.length) {
             case 1:
                 this.paddingBottom(padding[0]);
@@ -1250,22 +812,21 @@ export class Block extends Node {
         }
         return padding;
     }
-    paddingTop(opt?: number) {
-        return this.__cacheOption(opt, "paddingTop", 0);
+    paddingTop(opt?: number | string) {
+        return this.__valueHandler(opt, "paddingTop", 0, false);
     }
-    paddingBottom(opt?: number) {
-        return this.__cacheOption(opt, "paddingBottom", 0);
+    paddingBottom(opt?: number | string) {
+        return this.__valueHandler(opt, "paddingBottom", 0, false);
     }
-    paddingLeft(opt?: number) {
-        return this.__cacheOption(opt, "paddingLeft", 0);
+    paddingLeft(opt?: number | string) {
+        return this.__valueHandler(opt, "paddingLeft", 0, true);
     }
-    paddingRight(opt?: number) {
-        return this.__cacheOption(opt, "paddingRight", 0);
+    paddingRight(opt?: number | string) {
+        return this.__valueHandler(opt, "paddingRight", 0, true);
     }
-    margin(opt?: number[]) {
-        const margin = this.__cacheOption(opt, "margin", undefined);
-        if (!margin) return margin;
-        this.marginTop(margin[0]);
+    margin(opt?: number[]): number[] {
+        const margin = this.__valueHandler(opt, "margin", []);
+        this.marginTop(margin[0] || 0);
         switch (margin.length) {
             case 1:
                 this.marginBottom(margin[0]);
@@ -1290,20 +851,333 @@ export class Block extends Node {
         }
         return margin;
     }
-    marginTop(opt?: number) {
-        return this.__cacheOption(opt, "marginTop", 0);
+    marginTop(opt?: number | string) {
+        return this.__valueHandler(opt, "marginTop", 0, false);
     }
-    marginBottom(opt?: number) {
-        return this.__cacheOption(opt, "marginBottom", 0);
+    marginBottom(opt?: number | string) {
+        return this.__valueHandler(opt, "marginBottom", 0, false);
     }
-    marginLeft(opt?: number) {
-        return this.__cacheOption(opt, "marginLeft", 0);
+    marginLeft(opt?: number | string) {
+        return this.__valueHandler(opt, "marginLeft", 0, true);
     }
-    marginRight(opt?: number) {
-        return this.__cacheOption(opt, "marginRight", 0);
+    marginRight(opt?: number | string) {
+        return this.__valueHandler(opt, "marginRight", 0, true);
     }
+    cornerX1(opt?: number | string) {
+        return this.__valueHandler(opt, "cornerX1", 0, true);
+    }
+    cornerY1(opt?: number | string) {
+        return this.__valueHandler(opt, "cornerY1", 0, false);
+    }
+    cornerX2(opt?: number | string) {
+        return this.__valueHandler(opt, "cornerX2", 0, true);
+    }
+    cornerY2(opt?: number | string) {
+        return this.__valueHandler(opt, "cornerY2", 0, false);
+    }
+    cornerX3(opt?: number | string) {
+        return this.__valueHandler(opt, "cornerX3", 0, true);
+    }
+    cornerY3(opt?: number | string) {
+        return this.__valueHandler(opt, "cornerY3", 0, false);
+    }
+    cornerX4(opt?: number | string) {
+        return this.__valueHandler(opt, "cornerX4", 0, true);
+    }
+    cornerY4(opt?: number | string) {
+        return this.__valueHandler(opt, "cornerY4", 0, false);
+    }
+
+    hotCornerX1(opt?: number | string) {
+        return this.__valueHandler(opt, "hotCornerX1", 0, true);
+    }
+    hotCornerY1(opt?: number | string) {
+        return this.__valueHandler(opt, "hotCornerY1", 0, false);
+    }
+    hotCornerX2(opt?: number | string) {
+        return this.__valueHandler(opt, "hotCornerX2", 0, true);
+    }
+    hotCornerY2(opt?: number | string) {
+        return this.__valueHandler(opt, "hotCornerY2", 0, false);
+    }
+    hotCornerX3(opt?: number | string) {
+        return this.__valueHandler(opt, "hotCornerX3", 0, true);
+    }
+    hotCornerY3(opt?: number | string) {
+        return this.__valueHandler(opt, "hotCornerY3", 0, false);
+    }
+    hotCornerX4(opt?: number | string) {
+        return this.__valueHandler(opt, "hotCornerX4", 0, true);
+    }
+    hotCornerY4(opt?: number | string) {
+        return this.__valueHandler(opt, "hotCornerY4", 0, false);
+    }
+    hotRotCornerX1(opt?: number | string) {
+        return this.__valueHandler(opt, "hotRotCornerX1", 0, true);
+    }
+    hotRotCornerY1(opt?: number | string) {
+        return this.__valueHandler(opt, "hotRotCornerY1", 0, false);
+    }
+    hotRotCornerX2(opt?: number | string) {
+        return this.__valueHandler(opt, "hotRotCornerX2", 0, true);
+    }
+    hotRotCornerY2(opt?: number | string) {
+        return this.__valueHandler(opt, "hotRotCornerY2", 0, false);
+    }
+    hotRotCornerX3(opt?: number | string) {
+        return this.__valueHandler(opt, "hotRotCornerX3", 0, true);
+    }
+    hotRotCornerY3(opt?: number | string) {
+        return this.__valueHandler(opt, "hotRotCornerY3", 0, false);
+    }
+    hotRotCornerX4(opt?: number | string) {
+        return this.__valueHandler(opt, "hotRotCornerX4", 0, true);
+    }
+    hotRotCornerY4(opt?: number | string) {
+        return this.__valueHandler(opt, "hotRotCornerY4", 0, false);
+    }
+
+    hotTop(opt?: (context: CanvasRenderingContext2D) => void) {
+        return this.__valueHandler<typeof opt, typeof opt>(
+            opt,
+            "hotTop",
+            undefined
+        );
+    }
+    hotLeft(opt?: (context: CanvasRenderingContext2D) => void) {
+        return this.__valueHandler<typeof opt, typeof opt>(
+            opt,
+            "hotLeft",
+            undefined
+        );
+    }
+    hotRight(opt?: (context: CanvasRenderingContext2D) => void) {
+        return this.__valueHandler<typeof opt, typeof opt>(
+            opt,
+            "hotRight",
+            undefined
+        );
+    }
+    hotBottom(opt?: (context: CanvasRenderingContext2D) => void) {
+        return this.__valueHandler<typeof opt, typeof opt>(
+            opt,
+            "hotBottom",
+            undefined
+        );
+    }
+    hotCornerTopLeft(opt?: (context: CanvasRenderingContext2D) => void) {
+        return this.__valueHandler<typeof opt, typeof opt>(
+            opt,
+            "hotCornerTopLeft",
+            undefined
+        );
+    }
+    hotCornerTopRight(opt?: (context: CanvasRenderingContext2D) => void) {
+        return this.__valueHandler<typeof opt, typeof opt>(
+            opt,
+            "hotCornerTopRight",
+            undefined
+        );
+    }
+    hotCornerBottomLeft(opt?: (context: CanvasRenderingContext2D) => void) {
+        return this.__valueHandler<typeof opt, typeof opt>(
+            opt,
+            "hotCornerBottomLeft",
+            undefined
+        );
+    }
+    hotCornerBottomRight(opt?: (context: CanvasRenderingContext2D) => void) {
+        return this.__valueHandler<typeof opt, typeof opt>(
+            opt,
+            "hotCornerBottomRight",
+            undefined
+        );
+    }
+
+    rotationCenterX(opt?: number | string) {
+        return this.__valueHandler(
+            opt,
+            "rotationCenterX",
+            this.x() + this.width() / 2,
+            true
+        );
+    }
+    rotationCenterY(opt?: number | string) {
+        return this.__valueHandler(
+            opt,
+            "rotationCenterY",
+            this.y() + this.height() / 2,
+            false
+        );
+    }
+    rotationTopLeft(opt?: boolean) {
+        return this.__valueHandler(opt, "rotationTopLeft", true);
+    }
+    rotationTopRight(opt?: boolean) {
+        return this.__valueHandler(opt, "rotationTopRight", true);
+    }
+    rotationBottomLeft(opt?: boolean) {
+        return this.__valueHandler(opt, "rotationBottomLeft", true);
+    }
+    rotationBottomRight(opt?: boolean) {
+        return this.__valueHandler(opt, "rotationBottomRight", true);
+    }
+
+    resizeTopLeft(opt?: boolean) {
+        return this.__valueHandler(opt, "resizeTopLeft", true);
+    }
+    resizeTopRight(opt?: boolean) {
+        return this.__valueHandler(opt, "resizeTopRight", true);
+    }
+    resizeBottomLeft(opt?: boolean) {
+        return this.__valueHandler(opt, "resizeBottomLeft", true);
+    }
+    resizeBottomRight(opt?: boolean) {
+        return this.__valueHandler(opt, "resizeBottomRight", true);
+    }
+    resizeTop(opt?: boolean) {
+        return this.__valueHandler(opt, "resizeTop", true);
+    }
+    resizeLeft(opt?: boolean) {
+        return this.__valueHandler(opt, "resizeLeft", true);
+    }
+    resizeRight(opt?: boolean) {
+        return this.__valueHandler(opt, "resizeRight", true);
+    }
+    resizeBottom(opt?: boolean) {
+        return this.__valueHandler(opt, "resizeBottom", true);
+    }
+    horizontalFlipResize(opt?: boolean) {
+        return this.__valueHandler(opt, "horizontalFlipResize", false);
+    }
+    verticalFlipResize(opt?: boolean) {
+        return this.__valueHandler(opt, "verticalFlipResize", false);
+    }
+    dragX(opt?: boolean) {
+        return this.__valueHandler(opt, "dragX", true);
+    }
+    dragY(opt?: boolean): boolean {
+        return this.__valueHandler(opt, "dragY", true);
+    }
+
+    hotCornerSize(opt?: number) {
+        return this.__valueHandler(opt, "hotCornerSize", 5);
+    }
+    hotCornerRadius(opt?: number[]) {
+        return this.__valueHandler(opt, "hotCornerRadius", [0]);
+    }
+    hotCornerStrokeWidth(opt?: number) {
+        return this.__valueHandler(opt, "hotCornerStrokeWidth", 0);
+    }
+    hotCornerStrokeColor(opt?: string) {
+        return this.__valueHandler(opt, "hotCornerStrokeColor", "black");
+    }
+    hotCornerBackgroundColor(opt?: string) {
+        return this.__valueHandler(opt, "hotCornerBackgroundColor", "white");
+    }
+    hotLineStrokeWidth(opt?: number) {
+        return this.__valueHandler(opt, "hotTopStrokeWidth", 1);
+    }
+    hotLineStrokeColor(opt?: string) {
+        return this.__valueHandler(opt, "hotTopStrokeColor", "blue");
+    }
+    hotAreaGap(opt?: number) {
+        return this.__valueHandler(opt, "hotAreaGap", 5);
+    }
+
+    #filterHandler(filter?: BaseFilters, value?: string | number | number[]) {
+        if (value === undefined || filter == undefined) return;
+        switch (filter) {
+            case "blur":
+                value = value + "px";
+                break;
+            case "brightness":
+                value = value + "%";
+                break;
+            case "contrast":
+                value = value + "%";
+                break;
+            case "drop-shadow":
+                let _s = "";
+                (value as number[]).forEach((i) => {
+                    if (typeof i == "string") _s += `${i}px`;
+                    else _s += i;
+                });
+                value = _s;
+                break;
+            case "grayscale":
+                value = value + "%";
+                break;
+            case "hue-rotate":
+                value = value + "deg";
+                break;
+            case "opacity":
+                value = value + "%";
+                break;
+            case "saturate":
+                value = value + "%";
+                break;
+            case "sepia":
+                value = value + "%";
+                break;
+        }
+        this.__filters[filter] = `(${value})`;
+    }
+
+    blur(opt?: number) {
+        const blur = this.__valueHandler(opt, "blur", undefined);
+        this.#filterHandler("blur", blur);
+        return blur;
+    }
+    brightness(opt?: number) {
+        const brightness = this.__valueHandler(opt, "brightness", undefined);
+        this.#filterHandler("brightness", brightness);
+        return brightness;
+    }
+    contrast(opt?: number) {
+        const contrast = this.__valueHandler(opt, "contrast", undefined);
+        this.#filterHandler("contrast", contrast);
+        return contrast;
+    }
+    dropShadow(opt?: [number, number, number, string][]) {
+        const dropShadow = this.__valueHandler(opt, "dropShadow", []);
+        this.#filterHandler("drop-shadow", dropShadow);
+        return dropShadow;
+    }
+    grayscale(opt?: number) {
+        const grayscale = this.__valueHandler(opt, "grayscale", undefined);
+        this.#filterHandler("grayscale", grayscale);
+        return grayscale;
+    }
+    hueRotate(opt?: number) {
+        const hueRotate = this.__valueHandler(opt, "hueRotate", undefined);
+        this.#filterHandler("hue-rotate", hueRotate);
+        return hueRotate;
+    }
+    opacity(opt?: number) {
+        const opacity = this.__valueHandler(opt, "opacity", undefined);
+
+        this.#filterHandler("opacity", opacity);
+        return opacity;
+    }
+    saturate(opt?: number) {
+        const saturate = this.__valueHandler(opt, "saturate", undefined);
+
+        this.#filterHandler("saturate", saturate);
+        return saturate;
+    }
+    sepia(opt?: number) {
+        const sepia = this.__valueHandler(opt, "sepia", undefined);
+        this.#filterHandler("sepia", sepia);
+        return sepia;
+    }
+
+    hidden(opt?: boolean) {
+        return this.__valueHandler(opt, "hidden", false);
+    }
+
     flex(opt?: Flex) {
-        const flex = this.__cacheOption(opt, "flex", [
+        const flex = this.__valueHandler(opt, "flex", [
             this.flexGrow(),
             this.flexShrink(),
             this.flexBasis(),
@@ -1315,167 +1189,103 @@ export class Block extends Node {
     }
 
     flexBasis(opt?: FlexBasis): FlexBasis {
-        return this.__cacheOption(opt, "flexBasis", "auto");
+        return this.__valueHandler(opt, "flexBasis", "auto");
     }
 
     flexShrink(opt?: FlexShrink): FlexShrink {
-        return this.__cacheOption(opt, "flexShrink", 0);
+        return this.__valueHandler(opt, "flexShrink", 0);
     }
 
     flexGrow(opt?: FlexGrow) {
-        return this.__cacheOption(opt, "flexGrow", 0);
+        return this.__valueHandler(opt, "flexGrow", 0);
     }
 
-    order(opt?: number): undefined | number {
-        return this.__cacheOption(opt, "order", undefined);
+    order(opt?: number): number | undefined {
+        return this.__valueHandler(opt, "order", undefined);
     }
 
     alignSelf(opt?: AlignSelf) {
-        return this.__cacheOption(opt, "alignSelf", "auto");
+        return this.__valueHandler(opt, "alignSelf", "auto");
     }
     justifySelf(opt?: JustifySelf) {
-        return this.__cacheOption(opt, "justifySelf", "auto");
+        return this.__valueHandler(opt, "justifySelf", "auto");
     }
     gridRow(opt?: number[]) {
-        return this.__cacheOption(opt, "gridRow", []);
+        return this.__valueHandler(opt, "gridRow", []);
     }
     gridRowStart(opt?: number | string) {
-        return this.__cacheOption(opt, "gridRowStart", 0);
+        return this.__valueHandler(opt, "gridRowStart", 0);
     }
     gridRowEnd(opt?: number | string) {
-        return this.__cacheOption(opt, "gridRowEnd", 0);
+        return this.__valueHandler(opt, "gridRowEnd", 0);
     }
     gridColumn(opt?: number[]) {
-        return this.__cacheOption(opt, "gridColumn", []);
+        return this.__valueHandler(opt, "gridColumn", []);
     }
     gridColumnStart(opt?: number | string) {
-        return this.__cacheOption(opt, "gridColumnStart", 0);
+        return this.__valueHandler(opt, "gridColumnStart", 0);
     }
     gridColumnEnd(opt?: number | string) {
-        return this.__cacheOption(opt, "gridColumnEnd", 0);
+        return this.__valueHandler(opt, "gridColumnEnd", 0);
     }
     gridArea(opt?: number[] | string) {
-        const gridArea = this.__cacheOption(opt, "gridArea", []);
+        const gridArea = this.__valueHandler(opt, "gridArea", []);
         this.gridRowStart(gridArea[0] || "auto");
         this.gridColumnStart(gridArea[1] || "auto");
         this.gridRowEnd(gridArea[2] || "auto");
         this.gridColumnEnd(gridArea[3] || "auto");
         return gridArea;
     }
-    clip_path() {
-        this.canvas.clipping_path.addRect(
-            this.x(),
-            this.y(),
-            this.width(),
-            this.height()
-            // this.borderRadius()
-        );
-    }
-
-    clip(opt?: boolean) {
-        const clip = this.__cacheOption(opt, "clip", false);
-        if (clip) {
-            this.clip_path();
-
-            if (!this.fillRule()) this.fillRule();
-
-            this.context.clip(this.canvas.clipping_path.path, this.fillRule());
-        }
-        return clip;
-    }
 
     fillRule(opt?: CanvasFillRule): CanvasFillRule {
-        return this.__cacheOption(opt, "fillRule", "nonzero");
+        return this.__valueHandler(opt, "fillRule", "nonzero");
     }
 
-    zIndex(opt?: number): number | undefined {
-        return this.__cacheOption(opt, "zIndex", undefined);
+    zIndex(opt?: number): number {
+        return this.__valueHandler(opt, "zIndex", 1);
     }
 
     set(options: IBlock<BlockOptions>): void {
+        let before: any = {};
+        let after: any = {};
         for (const [key, value] of Object.entries(options)) {
-            const proto = Object.getPrototypeOf(this);
-            const obj = Object.getOwnPropertyDescriptor(proto, key);
-
-            if (obj && obj?.value.call(this) !== value) {
+            const obj = getProperty(this, key);
+            let beforeValue = obj?.value.call(this);
+            if (beforeValue !== value) {
                 obj?.value.call(this, value);
-                let dummy: any = {};
-                dummy[this.nodeId] = options;
-                this.canvas?.takeSanpshot(new Date().getTime(), dummy);
+                before[this.nodeId!] = {};
+                after[this.nodeId!] = {};
+                before[this.nodeId!][key] = beforeValue;
+                after[this.nodeId!][key] = value;
             }
         }
-
-        this.canvas?.invokeChange.call(this.canvas);
-    }
-
-    __cacheOption<T>(opt: T | undefined, option: string, defaultOpt: T): T {
-        if (this.options) {
-            if (opt !== undefined) this.options[option] = opt;
-            else if (this.options[option] !== undefined)
-                return this.options[option];
-            else this.options[option] = defaultOpt;
-            return this.options[option];
+        if (Object.keys(before).length !== 0) {
+            this.canvas?.takeSnapshot(new Date().getTime(), before, after);
+            this.canvas?.invokeChange.call(this.canvas);
         }
-        return undefined as T;
     }
-
-    reset() {}
-
+    scale(s: number) {
+        this.width(this.width() * s);
+        this.height(this.height() * s);
+    }
+    bind(block: Block, ...options: (keyof BlockOptions)[]) {
+        this.__bindOptions.push({ bindTo: block, options: options });
+    }
+    reset() {
+        this.ownOptions = this.options;
+    }
     rotate(opt?: number): number {
-        this.#rotateDegree = this.__cacheOption(opt, "rotate", 0);
-        const gap = this.hotAreaGap();
-
-        const R = getRadiusByWH(this.width(), this.height());
-        const rad = degreeToRadian(this.#rotateDegree - 135);
-
-        const diffX = this.#center.x + R * Math.cos(rad) - this.corners[0][0];
-        const diffY = this.#center.y + R * Math.sin(rad) - this.corners[0][1];
-
-        const Rrad = degreeToRadian(this.#rotateDegree - 225);
-        const eDiffX = this.#center.x + R * Math.cos(Rrad) - this.corners[2][0];
-        const eDiffY = this.#center.y + R * Math.sin(Rrad) - this.corners[2][1];
-
-        const RR = getRadiusByWH(this.width() + gap, this.height() + gap);
-
-        const diffRX =
-            this.#center.x + RR * Math.cos(rad) - this.hotAreaCorners[0][0];
-        const diffRY =
-            this.#center.y + RR * Math.sin(rad) - this.hotAreaCorners[0][1];
-        const eDiffRX =
-            this.#center.x + RR * Math.cos(Rrad) - this.hotAreaCorners[2][0];
-        const eDiffRY =
-            this.#center.y + RR * Math.sin(Rrad) - this.hotAreaCorners[2][1];
-
-        this.corners[0][0] += diffX;
-        this.corners[1][0] += -eDiffX;
-        this.corners[2][0] += eDiffX;
-        this.corners[3][0] += -diffX;
-
-        this.corners[0][1] += diffY;
-        this.corners[1][1] += -eDiffY;
-        this.corners[2][1] += eDiffY;
-        this.corners[3][1] += -diffY;
-
-        this.hotAreaCorners[0][0] += diffRX;
-        this.hotAreaCorners[1][0] += -eDiffRX;
-        this.hotAreaCorners[2][0] += eDiffRX;
-        this.hotAreaCorners[3][0] += -diffRX;
-
-        this.hotAreaCorners[0][1] += diffRY;
-        this.hotAreaCorners[1][1] += -eDiffRY;
-        this.hotAreaCorners[2][1] += eDiffRY;
-        this.hotAreaCorners[3][1] += -diffRY;
-
-        return this.#rotateDegree;
+        return this.__valueHandler(opt, "rotate", 0);
     }
+
     animate(keyframes: KeyFrame[], callback?: (timestamp: number) => void) {
-        const animationId = (this.#lastAnimationId += 1);
+        const animationId = new Date().getTime();
         this.#keyframeIterations[animationId] = {
             isRunning: true,
             isFinished: false,
             isReverse: false,
         };
-        for (let [index, keyframe] of keyframes.entries()) {
+        for (let [index, keyframe] of Object.entries(keyframes)) {
             const composite = keyframe.composite || "replace";
 
             let maxLen = 0;
@@ -1503,8 +1313,7 @@ export class Block extends Node {
 
             for (let [key, value] of Object.entries(keyframe)) {
                 if (key in this.options) {
-                    const proto = Object.getPrototypeOf(this);
-                    const obj = Object.getOwnPropertyDescriptor(proto, key);
+                    const obj = getProperty(this, key);
                     this.#keyframeIterations[animationId][index] = {
                         iter: 1,
                         initValues: {},
@@ -1553,6 +1362,7 @@ export class Block extends Node {
             const animator = (timestamp: number) => {
                 const anime = this.#keyframeIterations[animationId];
                 const keyF = anime[index];
+                if (keyF.auotStart && keyF.autoStart === false) return;
                 let isFinished = anime["isFinished"];
                 const delay = keyF.delay || 0;
 
@@ -1701,7 +1511,7 @@ export class Block extends Node {
                         valueT.invoker?.value.call(this, currentVal);
                     }
                 }
-                this.__initSet();
+                this.render();
             };
             this.__animationOn.push(animator);
         }
@@ -1721,7 +1531,6 @@ export class Block extends Node {
             return hexToRgba(color);
         } else if (color.startsWith("hsl")) {
         } else {
-            console.log(colorToRgba(color));
             return colorToRgba(color);
         }
         return [0, 0, 0, 0];
@@ -1798,6 +1607,15 @@ export class Block extends Node {
             value;
     }
 
+    animationAutoStart(
+        animationId: number,
+        keyFrameCount: number,
+        value: AutoStart
+    ) {
+        this.#keyframeIterations[animationId][keyFrameCount]["autoStart"] =
+            value;
+    }
+
     easingHanndler(easing: Easing): (t: number, duration: number) => number {
         if (easing === "linear") return linear(0, 1);
         else if (easing == "step-start") return steps(1, "jump-start");
@@ -1808,40 +1626,27 @@ export class Block extends Node {
         else if (easing == "ease-in-out") return cubicBezier(0.42, 0, 0.58, 1);
         else return easing;
     }
-    // had to come first for block scaling
-    scale(x: number, y: number) {
-        this.context.scale(x, y);
-    }
-    bind(block: Block, options: string[]) {
-        for (let opt of options) {
-            this.options[opt] = block.options[opt];
-        }
-    }
 
-    find(queries?: IBlock<BlockOptions>) {
-        return this.filterNodes(queries);
-    }
-    nthChild(opt?: number) {}
     checkInBound(_event: any): boolean {
-        const { x, y } = this.canvas.getCursorPosition(_event);
-        const borderWidth = this.options.borderWidth || 0;
-
-        const x1 = this.corners[0][0] + this.canvas.__positionCords.x;
-        const y1 = this.corners[0][1] + this.canvas.__positionCords.y;
-
-        const x2 = this.corners[1][0] + this.canvas.__positionCords.x;
-        const y2 = this.corners[1][1] + this.canvas.__positionCords.y;
-
-        const x3 = this.corners[2][0] + this.canvas.__positionCords.x;
-        const y3 = this.corners[2][1] + this.canvas.__positionCords.y;
-
-        const x4 = this.corners[3][0] + this.canvas.__positionCords.x;
-        const y4 = this.corners[3][1] + this.canvas.__positionCords.y;
-
-        const inbound = checkInBound(x, y, x1, y1, x2, y2, x3, y3, x4, y4);
-        if (inbound) this.canvas?.takeRegister({ in: this.zIndex() });
+        const { x, y } = this.canvas?.getCursorPosition(_event) || {
+            x: 0,
+            y: 0,
+        };
+        const inBound = checkInBound(
+            x,
+            y,
+            this.cornerX1(),
+            this.cornerY1(),
+            this.cornerX2(),
+            this.cornerY2(),
+            this.cornerX3(),
+            this.cornerY3(),
+            this.cornerX4(),
+            this.cornerY4()
+        );
+        if (inBound) this.canvas?.takeRegister({ in: this.zIndex() });
         else this.canvas?.takeRegister({ out: this.zIndex() });
-        return inbound;
+        return inBound;
     }
 
     click(_func: (event: MouseEvent) => void) {
@@ -1854,7 +1659,7 @@ export class Block extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.__eventHandler<MouseEvent>("click", out);
+        this.#eventHandler<MouseEvent>("click", out);
     }
 
     dbclick(_func: (event: MouseEvent) => void) {
@@ -1867,7 +1672,7 @@ export class Block extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.__eventHandler<MouseEvent>("dblclick", out);
+        this.#eventHandler<MouseEvent>("dblclick", out);
     }
 
     mousedown(_func: (event: MouseEvent) => void) {
@@ -1880,7 +1685,7 @@ export class Block extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.__eventHandler<MouseEvent>("mousedown", out);
+        this.#eventHandler<MouseEvent>("mousedown", out);
     }
 
     mouseup(_func: (event: MouseEvent) => void) {
@@ -1893,7 +1698,7 @@ export class Block extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.__eventHandler<MouseEvent>("mouseup", out);
+        this.#eventHandler<MouseEvent>("mouseup", out);
     }
 
     mousemove(_func: (event: MouseEvent) => void) {
@@ -1906,178 +1711,906 @@ export class Block extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.__eventHandler<MouseEvent>("mousemove", out);
+        this.#eventHandler<MouseEvent>("mousemove", out);
     }
 
     mouseenter(_func: (event: MouseEvent) => void) {
+        let isMouseEnter = false;
         const enter = (event: MouseEvent) => {
-            const { x, y } = this.canvas.getCursorPosition(event);
-            if (
-                this.canvas?.whoIsTheFirst(this.zIndex())
-                // checkInBound(
-                //     x,
-                //     y,
-                //     this.#boundries.x,
-                //     this.#boundries.y,
-                //     this.#boundries.x + this.#boundries.width,
-                //     this.#boundries.y + this.#boundries.height
-                // )
-            ) {
-                _func(event);
-                this.canvas?.invokeChange.call(this.canvas);
-            }
+            if (this.checkInBound(event)) {
+                if (
+                    this.canvas?.whoIsTheFirst(this.zIndex()) &&
+                    !isMouseEnter
+                ) {
+                    _func(event);
+                    this.canvas?.invokeChange.call(this.canvas);
+                    isMouseEnter = true;
+                }
+            } else isMouseEnter = false;
         };
-        this.__eventHandler<MouseEvent>("mousemove", enter);
+        this.#eventHandler<MouseEvent>("mousemove", enter);
     }
 
     mouseleave(_func: (event: MouseEvent) => void) {
+        let isMouseLeave = false;
         const leave = (event: MouseEvent) => {
-            const { x, y } = this.canvas.getCursorPosition(event);
-            if (
-                this.canvas?.whoIsTheFirst(this.zIndex())
-                // !checkInBound(
-                //     x,
-                //     y,
-                //     this.#boundries.x,
-                //     this.#boundries.y,
-                //     this.#boundries.width,
-                //     this.#boundries.height
-                // )
-            ) {
-                _func(event);
-                this.canvas?.invokeChange.call(this.canvas);
-            }
+            if (!this.checkInBound(event)) {
+                if (
+                    !this.canvas?.whoIsTheFirst(this.zIndex()) &&
+                    !isMouseLeave
+                ) {
+                    _func(event);
+                    this.canvas?.invokeChange.call(this.canvas);
+                    isMouseLeave = true;
+                }
+            } else isMouseLeave = false;
         };
-        this.__eventHandler<MouseEvent>("mousemove", leave);
+        this.#eventHandler<MouseEvent>("mousemove", leave);
     }
-
-    mouseout(_func: (event: MouseEvent) => void) {
-        const out = (event: MouseEvent) => {
-            if (
-                !this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
-                _func(event);
-                this.canvas?.invokeChange.call(this.canvas);
-            }
-        };
-        this.__eventHandler<MouseEvent>("mousemove", out);
-    }
-
+    /** @Todo
+     mouseover and mouseout
+     has little bug when two chidls cross each other there are isMouse over happens to be true but one is under so check in bound checks it under the higher z index element
+    */
     mouseover(_func: (event: MouseEvent) => void) {
+        const mouseOver: any = {};
+        let isMouseOver = false;
+        let inBound = false;
         const over = (event: MouseEvent) => {
-            if (
-                this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
+            this.listAllChilds((b: Block) => {
+                if (mouseOver[b.nodeId!] == undefined)
+                    mouseOver[b.nodeId!] = b.checkInBound(event);
+
+                if (!b.checkInBound(event)) {
+                    if (mouseOver[b.nodeId!]) {
+                        mouseOver[b.nodeId!] = false;
+                        isMouseOver = false;
+                    }
+                } else if (mouseOver[b.nodeId!] === false) {
+                    mouseOver[b.nodeId!] = true;
+                    isMouseOver = true;
+                }
+            });
+            if (this.checkInBound(event)) {
+                if (!inBound) {
+                    inBound = true;
+                    isMouseOver = true;
+                }
+            } else {
+                inBound = false;
+                isMouseOver = false;
+            }
+
+            if (isMouseOver) {
                 _func(event);
                 this.canvas?.invokeChange.call(this.canvas);
+                isMouseOver = false;
             }
         };
-        this.__eventHandler<MouseEvent>("mousemove", over);
+        this.#eventHandler<MouseEvent>("mousemove", over);
+    }
+    mouseout(_func: (event: MouseEvent) => void) {
+        const mouseLeave: any = {};
+        let isMouseLeave = false;
+        let outBound = false;
+        const out = (event: MouseEvent) => {
+            if (!this.checkInBound(event)) {
+                if (!outBound) {
+                    outBound = true;
+                    isMouseLeave = true;
+                }
+            } else {
+                outBound = false;
+                isMouseLeave = false;
+            }
+            this.listAllChilds((b: Block) => {
+                if (mouseLeave[b.nodeId!] == undefined)
+                    mouseLeave[b.nodeId!] = b.checkInBound(event);
+                if (b.checkInBound(event)) {
+                    if (mouseLeave[b.nodeId!]) {
+                        mouseLeave[b.nodeId!] = false;
+                        isMouseLeave = true;
+                    }
+                } else if (mouseLeave[b.nodeId!] == false) {
+                    mouseLeave[b.nodeId!] = true;
+                    isMouseLeave = true;
+                }
+            });
+
+            if (isMouseLeave) {
+                _func(event);
+                this.canvas?.invokeChange.call(this.canvas);
+                isMouseLeave = false;
+            }
+        };
+        this.#eventHandler<MouseEvent>("mousemove", out);
     }
 
-    __eventHandler<E>(type: IMouseEvents, _func: (event: E) => void) {
+    #eventHandler<E>(type: IMouseEvents, _func: (event: E) => void) {
         this.__events[type].push(_func);
     }
-    dragX(opt?: boolean) {
-        return this.__cacheOption(opt, "dragX", true);
+
+    selectable(opt?: boolean): boolean {
+        const selectable = this.__valueHandler(opt, "selectable", false);
+        if (
+            !selectable ||
+            this.position() === "fixed" ||
+            this.position() === "sticky"
+        )
+            return false;
+        const click = (e: MouseEvent) => {
+            const { x, y } = this.canvas?.getCursorPosition(e) || {
+                x: 0,
+                y: 0,
+            };
+            let inBound;
+            if (this.#runningEvents.selected) {
+                inBound = checkInBound(
+                    x,
+                    y,
+                    this.hotCornerX1(),
+                    this.hotCornerY1(),
+                    this.hotCornerX2(),
+                    this.hotCornerY2(),
+                    this.hotCornerX3(),
+                    this.hotCornerY3(),
+                    this.hotCornerX4(),
+                    this.hotCornerY4()
+                );
+                if (inBound) this.canvas?.takeRegister({ in: this.zIndex() });
+                else this.canvas?.takeRegister({ out: this.zIndex() });
+            } else inBound = this.checkInBound(e);
+
+            if (inBound && this.canvas?.whoIsTheFirst(this.zIndex())) {
+                this.#runningEvents.selected = true;
+            } else this.#runningEvents.selected = false;
+            this.canvas.invokeChange(this);
+        };
+        this.#eventHandler("click", click);
+        return selectable;
     }
-    dragY(opt?: boolean): boolean {
-        return this.__cacheOption(opt, "dragY", true);
+
+    onRotate(opt?: (event: MouseEvent) => void) {
+        const rotateE = this.__cacheOptions(opt, "onRotate", undefined);
+        return (event: MouseEvent) => {
+            rotateE?.(event);
+        };
     }
+
+    rotatable(opt?: boolean) {
+        const rotatable = this.__valueHandler(opt, "rotatable", false);
+        if (!rotatable) return false;
+
+        let topMove = false;
+        let leftMove = false;
+
+        let inBound = false;
+
+        const mousedown = (event: MouseEvent) => {
+            if (this.#runningEvents.resize || this.#runningEvents.drag) return;
+            console.log(inBound)
+            if (inBound) {
+                this.#runningEvents.rotate = true;
+                this.canvas?.takeRegister({ in: this.zIndex() });
+            } else {
+                this.canvas?.takeRegister({ out: this.zIndex() });
+            }
+        };
+
+        const mousemove = (event: MouseEvent) => {
+            if (
+                !this.#runningEvents.selected ||
+                this.#runningEvents.drag ||
+                this.#runningEvents.resize
+            )
+                return;
+
+            let cursor: string = "auto";
+            let { x, y } = this.canvas.getCursorPosition(event);
+            if (!this.#runningEvents.rotate) {
+                const ltx = this.hotCornerX1();
+                const lty = this.hotCornerY1();
+                const rtx = this.hotCornerX2();
+                const rty = this.hotCornerY2();
+                const lbx = this.hotCornerX3();
+                const lby = this.hotCornerY3();
+                const rbx = this.hotCornerX4();
+                const rby = this.hotCornerY4();
+
+                const hltx = this.hotRotCornerX1();
+                const hlty = this.hotRotCornerY1();
+                const hrtx = this.hotRotCornerX2();
+                const hrty = this.hotRotCornerY2();
+                const hlbx = this.hotRotCornerX3();
+                const hlby = this.hotRotCornerY3();
+                const hrbx = this.hotRotCornerX4();
+                const hrby = this.hotRotCornerY4();
+
+                if (
+                    checkInBound(
+                        x,
+                        y,
+                        hltx,
+                        hlty,
+                        ltx,
+                        hlty,
+                        hltx,
+                        lty,
+                        ltx,
+                        lty
+                    ) &&
+                    this.rotationTopLeft()
+                ) {
+                    cursor = "cell";
+                    topMove = true;
+                    leftMove = true;
+                } else if (
+                    checkInBound(
+                        x,
+                        y,
+                        rtx,
+                        hrty,
+                        hrtx,
+                        hrty,
+                        rtx,
+                        rty,
+                        hrtx,
+                        rty
+                    ) &&
+                    this.rotationTopRight()
+                ) {
+                    cursor = "cell";
+                    topMove = true;
+                    leftMove = false;
+                } else if (
+                    checkInBound(
+                        x,
+                        y,
+                        hlbx,
+                        lby,
+                        lbx,
+                        lby,
+                        hlbx,
+                        hlby,
+                        lbx,
+                        lby
+                    ) &&
+                    this.rotationBottomLeft()
+                ) {
+                    cursor = "cell";
+                    topMove = false;
+                    leftMove = true;
+                } else if (
+                    checkInBound(
+                        x,
+                        y,
+                        rbx,
+                        rby,
+                        hrbx,
+                        rby,
+                        rbx,
+                        hrby,
+                        hrbx,
+                        hrby
+                    ) &&
+                    this.rotationBottomRight()
+                ) {
+                    cursor = "cell";
+                    topMove = false;
+                    leftMove = false;
+                }
+                console.log(cursor)
+                if (cursor !== "auto") inBound = true;
+                else inBound = false;
+                this.canvas.changeCursor(cursor);
+            }
+            if (
+                this.#runningEvents.rotate &&
+                this.canvas?.whoIsTheFirst(this.zIndex())
+            ) {
+                let radian = Math.atan2(
+                    y - this.rotationCenterY(),
+                    x - this.rotationCenterX()
+                );
+                this.#beforeRotDegree = this.rotate()
+                if (topMove && leftMove) {
+                    this.rotate(radian + degreeToRadian(135));
+                } else if (topMove && !leftMove) {
+                    this.rotate(radian + degreeToRadian(45));
+                } else if (!topMove && !leftMove) {
+                    this.rotate(radian - degreeToRadian(45));
+                } else if (!topMove && leftMove) {
+                    this.rotate(radian - degreeToRadian(135));
+                }
+                this.onRotate()(event);
+                this.canvas.invokeChange();
+            }
+        };
+
+        const mouseup = () => {
+            if (this.#runningEvents.rotate) {
+                this.#runningEvents.rotate = false;
+                let dummy: any = {};
+                dummy[this.nodeId!] = {};
+                this.canvas?.takeSnapshot(new Date().getTime(), dummy);
+            }
+        };
+
+        this.#eventHandler("mousedown", mousedown);
+        this.#eventHandler("mousemove", mousemove);
+        this.#eventHandler("mouseup", mouseup);
+
+        return rotatable;
+    }
+
+    __handleRotation() {
+        const corner1 = this.__rotateCorners(this.cornerX1(), this.cornerY1());
+        const corner2 = this.__rotateCorners(this.cornerX2(), this.cornerY2());
+        const corner3 = this.__rotateCorners(this.cornerX3(), this.cornerY3());
+        const corner4 = this.__rotateCorners(this.cornerX4(), this.cornerY4());
+        this.cornerX1(corner1.x);
+        this.cornerY1(corner1.y);
+        this.cornerX2(corner2.x);
+        this.cornerY2(corner2.y);
+        this.cornerX3(corner3.x);
+        this.cornerY3(corner3.y);
+        this.cornerX4(corner4.x);
+        this.cornerY4(corner4.y);
+
+        const hotCorner1 = this.__rotateCorners(
+            this.hotCornerX1(),
+            this.hotCornerY1()
+        );
+        const hotCorner2 = this.__rotateCorners(
+            this.hotCornerX2(),
+            this.hotCornerY2()
+        );
+        const hotCorner3 = this.__rotateCorners(
+            this.hotCornerX3(),
+            this.hotCornerY3()
+        );
+        const hotCorner4 = this.__rotateCorners(
+            this.hotCornerX4(),
+            this.hotCornerY4()
+        );
+        this.hotCornerX1(hotCorner1.x);
+        this.hotCornerY1(hotCorner1.y);
+        this.hotCornerX2(hotCorner2.x);
+        this.hotCornerY2(hotCorner2.y);
+        this.hotCornerX3(hotCorner3.x);
+        this.hotCornerY3(hotCorner3.y);
+        this.hotCornerX4(hotCorner4.x);
+        this.hotCornerY4(hotCorner4.y);
+
+        const hotRotCorner1 = this.__rotateCorners(
+            this.hotRotCornerX1(),
+            this.hotRotCornerY1()
+        );
+        const hotRotCorner2 = this.__rotateCorners(
+            this.hotRotCornerX2(),
+            this.hotRotCornerY2()
+        );
+        const hotRotCorner3 = this.__rotateCorners(
+            this.hotRotCornerX3(),
+            this.hotRotCornerY3()
+        );
+        const hotRotCorner4 = this.__rotateCorners(
+            this.hotRotCornerX4(),
+            this.hotRotCornerY4()
+        );
+        this.hotRotCornerX1(hotRotCorner1.x);
+        this.hotRotCornerY1(hotRotCorner1.y);
+        this.hotRotCornerX2(hotRotCorner2.x);
+        this.hotRotCornerY2(hotRotCorner2.y);
+        this.hotRotCornerX3(hotRotCorner3.x);
+        this.hotRotCornerY3(hotRotCorner3.y);
+        this.hotRotCornerX4(hotRotCorner4.x);
+        this.hotRotCornerY4(hotRotCorner4.y);
+    }
+
+    __rotateCorners(x: number, y: number) {
+        return rotateCordinates(
+            x,
+            y,
+            this.rotationCenterX(),
+            this.rotationCenterY(),
+            this.rotate() - this.#beforeRotDegree
+        );
+    }
+
+    onResize(opt?: (event: MouseEvent) => void) {
+        const resizeE = this.__cacheOptions(opt, "onResize", undefined);
+        return (event: MouseEvent) => {
+            resizeE?.(event);
+        };
+    }
+
+    resizable(opt?: boolean): boolean {
+        const resizable = this.__valueHandler(opt, "resizable", false);
+        if (!resizable) return false;
+
+        let initCords = { x: 0, y: 0 };
+        let beforeCords = { x: 0, y: 0 };
+        let beforeValues: any = {};
+
+        let topResize = false;
+        let leftResize = false;
+        let widthResize = false;
+        let heightResize = false;
+        let isLeft = false;
+        let isTop = false;
+
+        let inBound = false;
+
+        let originX = this.x();
+        let originY = this.y();
+
+        const mousedown = (event: MouseEvent) => {
+            if (this.#runningEvents.drag || this.#runningEvents.rotate) return;
+
+            if (inBound) {
+                originX = this.x();
+                originY = this.y();
+                initCords = this.canvas.getCursorPosition(event);
+                this.#runningEvents.resize = true;
+                beforeCords = { x: 0, y: 0 };
+                beforeValues[this.nodeId!] = {
+                    x: this.x(),
+                    y: this.y(),
+                    width: this.width(),
+                    height: this.height(),
+                    cornerX1: this.cornerX1(),
+                    cornerX2: this.cornerX2(),
+                    cornerX3: this.cornerX3(),
+                    cornerX4: this.cornerX4(),
+                    cornerY1: this.cornerY1(),
+                    cornerY2: this.cornerY2(),
+                    cornerY3: this.cornerY3(),
+                    cornerY4: this.cornerY4(),
+                    hotCornerX1: this.hotCornerX1(),
+                    hotCornerX2: this.hotCornerX2(),
+                    hotCornerX3: this.hotCornerX3(),
+                    hotCornerX4: this.hotCornerX4(),
+                    hotCornerY1: this.hotCornerY1(),
+                    hotCornerY2: this.hotCornerY2(),
+                    hotCornerY3: this.hotCornerY3(),
+                    hotCornerY4: this.hotCornerY4(),
+                };
+            }
+        };
+
+        const mousemove = (event: MouseEvent) => {
+            if (!this.#runningEvents.selected) return;
+
+            const { x, y } = this.canvas.getCursorPosition(event);
+            if (!this.#runningEvents.resize) {
+                let cursor: string | undefined = undefined;
+                isTop =
+                    isLeft =
+                    widthResize =
+                    heightResize =
+                    leftResize =
+                    topResize =
+                        false;
+                let ltx = this.cornerX1();
+                let lty = this.cornerY1();
+                let rtx = this.cornerX2();
+                let rty = this.cornerY2();
+                let lbx = this.cornerX3();
+                let lby = this.cornerY3();
+                let rbx = this.cornerX4();
+                let rby = this.cornerY4();
+
+                let hltx = this.hotCornerX1();
+                let hlty = this.hotCornerY1();
+                let hrtx = this.hotCornerX2();
+                let hrty = this.hotCornerY2();
+                let hlbx = this.hotCornerX3();
+                let hlby = this.hotCornerY3();
+                let hrbx = this.hotCornerX4();
+                let hrby = this.hotCornerY4();
+                if (
+                    checkInBound(
+                        x,
+                        y,
+                        hltx,
+                        hlty,
+                        ltx,
+                        lty,
+                        hlbx,
+                        hlby,
+                        lbx,
+                        lby
+                    )
+                ) {
+                    isLeft = ltx >= hltx || lbx >= hlby ? true : false;
+                    widthResize = true;
+                    leftResize = true;
+                    cursor = "w-resize";
+                } else if (
+                    checkInBound(
+                        x,
+                        y,
+                        rtx,
+                        rty,
+                        hrtx,
+                        hrty,
+                        rbx,
+                        rby,
+                        hrbx,
+                        hrby
+                    )
+                ) {
+                    isLeft = rtx >= hrtx || rbx >= hrbx ? true : false;
+                    widthResize = true;
+                    cursor = "w-resize";
+                } else if (
+                    checkInBound(
+                        x,
+                        y,
+                        hltx,
+                        hlty,
+                        hrtx,
+                        hrty,
+                        ltx,
+                        lty,
+                        rtx,
+                        rty
+                    )
+                ) {
+                    isTop = lty >= hlty || rty >= hrty ? true : false;
+                    heightResize = true;
+                    topResize = true;
+                    cursor = "n-resize";
+                } else if (
+                    checkInBound(
+                        x,
+                        y,
+                        lbx,
+                        lby,
+                        rbx,
+                        rby,
+                        hlbx,
+                        hlby,
+                        hrbx,
+                        hrby
+                    )
+                ) {
+                    isTop = lby >= hlby || rby >= hrby ? true : false;
+                    heightResize = true;
+                    cursor = "n-resize";
+                }
+
+                if (checkInBound(x, y, hltx, hlty, ltx, lty, 0, 0, 0, 0)) {
+                    isLeft = ltx >= hltx ? true : false;
+                    isTop = lty >= hlty ? true : false;
+                    topResize = true;
+                    leftResize = true;
+                    widthResize = true;
+                    heightResize = true;
+                    cursor = "nw-resize";
+                }
+                if (checkInBound(x, y, hrtx, hrty, rtx, rty, 0, 0, 0, 0)) {
+                    isLeft = rtx >= hrtx ? true : false;
+                    isTop = rty >= hrty ? true : false;
+                    topResize = true;
+                    leftResize = false;
+                    widthResize = true;
+                    heightResize = true;
+                    cursor = "nesw-resize";
+                }
+                if (checkInBound(x, y, lbx, lby, hlbx, hlby, 0, 0, 0, 0)) {
+                    isLeft = lbx >= hlbx ? true : false;
+                    isTop = lby >= hlby ? true : false;
+                    topResize = false;
+                    leftResize = true;
+                    widthResize = true;
+                    heightResize = true;
+                    cursor = "nesw-resize";
+                }
+                if (checkInBound(x, y, rbx, rby, hrbx, hrby, 0, 0, 0, 0)) {
+                    isLeft = rbx >= hrbx ? true : false;
+                    isTop = rby >= hrby ? true : false;
+                    topResize = false;
+                    leftResize = false;
+                    widthResize = true;
+                    heightResize = true;
+                    cursor = "nw-resize";
+                }
+                if (cursor) inBound = true;
+                else inBound = false;
+                this.canvas.changeCursor(cursor);
+            }
+
+            if (this.#runningEvents.resize) {
+                let diffX = x - initCords.x;
+                let diffY = y - initCords.y;
+
+                if (diffX !== 0 && widthResize) {
+                    let diff = diffX - beforeCords.x;
+                    let fliped;
+
+                    if (isLeft) {
+                        fliped =
+                            this.width() - diff <= 0
+                                ? this.horizontalFlipResize()
+                                : true;
+                    } else {
+                        fliped =
+                            this.width() + diff <= 0
+                                ? this.horizontalFlipResize()
+                                : true;
+                    }
+                    if (fliped) {
+                        if (this.__isHorizontalFlipped) {
+                            if (isLeft) {
+                                this.x(this.x() + diff);
+                                this.width(this.width() - diff);
+                            } else {
+                                this.x(originX);
+                                this.width(this.width() + diff);
+                            }
+                        } else {
+                            if (isLeft) {
+                                this.x(this.x() + diff);
+                                this.width(this.width() - diff);
+                            } else {
+                                this.x(originX);
+                                this.width(this.width() + diff);
+                            }
+                        }
+
+                        // @BUG: when resizing inverse these cordinates not updating correctly
+                        if (leftResize) {
+                            this.cornerX1(this.cornerX1() + diff);
+                            this.cornerX3(this.cornerX3() + diff);
+                            this.hotCornerX1(this.hotCornerX1() + diff);
+                            this.hotCornerX3(this.hotCornerX3() + diff);
+                        } else {
+                            this.cornerX2(this.cornerX2() + diff);
+                            this.cornerX4(this.cornerX4() + diff);
+                            this.hotCornerX2(this.hotCornerX2() + diff);
+                            this.hotCornerX4(this.hotCornerX4() + diff);
+                        }
+                        beforeCords.x = diffX;
+                    }
+                }
+                if (diffY !== 0 && heightResize) {
+                    const diff = diffY - beforeCords.y;
+
+                    if (!this.__isVerticalFlipped) {
+                        if (isTop) {
+                            this.y(this.y() + diff);
+                            this.height(this.height() - diff);
+                        } else {
+                            this.y(originY);
+                            this.height(this.height() + diff);
+                        }
+                    } else {
+                        if (isTop) {
+                            this.y(this.y() - diff);
+                            this.height(this.height() + diff);
+                        } else {
+                            // this.y(originY);
+                            // this.height(this.height() + diff);
+                        }
+                    }
+
+                    if (topResize) {
+                        this.cornerY1(this.cornerY1() + diff);
+                        this.cornerY2(this.cornerY2() + diff);
+                        this.hotCornerY1(this.hotCornerY1() + diff);
+                        this.hotCornerY2(this.hotCornerY2() + diff);
+                    } else {
+                        this.cornerY4(this.cornerY4() + diff);
+                        this.cornerY3(this.cornerY3() + diff);
+                        this.hotCornerY4(this.hotCornerY4() + diff);
+                        this.hotCornerY3(this.hotCornerY3() + diff);
+                    }
+                    if (this.height() >= 0 || this.__isVerticalFlipped) {
+                        beforeCords.y = diffY;
+                    }
+                }
+                this.onResize()(event);
+                this.canvas.invokeChange();
+            }
+        };
+
+        const mouseup = () => {
+            if (this.#runningEvents.resize) {
+                this.canvas.changeCursor("auto");
+                this.#runningEvents.resize = false;
+                isTop =
+                    isLeft =
+                    widthResize =
+                    heightResize =
+                    leftResize =
+                    topResize =
+                        false;
+                if (beforeCords.x !== 0 || beforeCords.y !== 0) {
+                    let after: any = {};
+                    after[this.nodeId!] = {
+                        x: this.x(),
+                        y: this.y(),
+                        width: this.width(),
+                        height: this.height(),
+                        cornerX1: this.cornerX1(),
+                        cornerY1: this.cornerY1(),
+                        cornerX2: this.cornerX2(),
+                        cornerY2: this.cornerY2(),
+                        cornerX3: this.cornerX3(),
+                        cornerY3: this.cornerY3(),
+                        cornerX4: this.cornerX4(),
+                        cornerY4: this.cornerY4(),
+                        hotCornerY1: this.hotCornerY1(),
+                        hotCornerX2: this.hotCornerX2(),
+                        hotCornerY2: this.hotCornerY2(),
+                        hotCornerX3: this.hotCornerX3(),
+                        hotCornerY3: this.hotCornerY3(),
+                        hotCornerX4: this.hotCornerX4(),
+                        hotCornerY4: this.hotCornerY4(),
+                    };
+                    this.canvas?.takeSnapshot(
+                        new Date().getTime(),
+                        beforeValues,
+                        after
+                    );
+                    this.canvas.invokeChange();
+                }
+            }
+        };
+
+        this.#eventHandler("mousedown", mousedown);
+        this.#eventHandler("mousemove", mousemove);
+        this.#eventHandler("mouseup", mouseup);
+        return resizable;
+    }
+
+    onDrag(opt?: (event: MouseEvent) => void) {
+        const rotateE = this.__cacheOptions(opt, "onDrag", undefined);
+        return (event: MouseEvent) => {
+            rotateE?.(event);
+        };
+    }
+
     draggable(opt?: boolean): boolean {
-        const draggable = this.__cacheOption(opt, "draggable", true);
+        const draggable = this.__valueHandler(opt, "draggable", false);
         if (!draggable) return false;
 
-        let initX = 0;
-        let initY = 0;
-
-        let beforeX = 0;
-        let beforeY = 0;
+        let initCords = { x: 0, y: 0 };
+        let beforeCords = { x: 0, y: 0 };
+        let beforeValues: any = {};
 
         this.mousedown((event) => {
             if (this.#runningEvents.resize || this.#runningEvents.rotate)
                 return;
-
-            if (this.checkInBound(event)) {
-                const { x, y } = this.canvas.getCursorPosition(event);
-                initX = x;
-                initY = y;
-                beforeX = 0;
-                beforeY = 0;
-                this.#runningEvents.drag = true;
-            }
+            initCords = this.canvas.getCursorPosition(event);
+            beforeCords = { x: 0, y: 0 };
+            beforeValues[this.nodeId!] = {
+                x: this.x(),
+                y: this.y(),
+                cornerX1: this.cornerX1(),
+                cornerX2: this.cornerX2(),
+                cornerX3: this.cornerX3(),
+                cornerX4: this.cornerX4(),
+                cornerY1: this.cornerY1(),
+                cornerY2: this.cornerY2(),
+                cornerY3: this.cornerY3(),
+                cornerY4: this.cornerY4(),
+                hotCornerX1: this.hotCornerX1(),
+                hotCornerX2: this.hotCornerX2(),
+                hotCornerX3: this.hotCornerX3(),
+                hotCornerX4: this.hotCornerX4(),
+                hotCornerY1: this.hotCornerY1(),
+                hotCornerY2: this.hotCornerY2(),
+                hotCornerY3: this.hotCornerY3(),
+                hotCornerY4: this.hotCornerY4(),
+                rotationCenterX: this.rotationCenterX(),
+                rotationCenterY: this.rotationCenterY(),
+            };
+            this.#runningEvents.drag = true;
         });
 
         const mousemove = (event: MouseEvent) => {
-            if (this.#runningEvents.resize || this.#runningEvents.rotate)
-                return;
-
             if (
-                this.#runningEvents.drag &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
+                this.#runningEvents.resize ||
+                this.#runningEvents.rotate ||
+                !this.#runningEvents.drag ||
+                this.position() === "fixed" ||
+                this.position() === "sticky"
+            )
+                return;
+            if (this.canvas?.whoIsTheFirst(this.zIndex())) {
                 const { x, y } = this.canvas.getCursorPosition(event);
-                let diffX = x - initX;
-                let diffY = y - initY;
-                this.beforeInit.x = this.x();
+                let diffX = x - initCords.x;
+                let diffY = y - initCords.y;
                 if (diffX !== 0 && this.dragX()) {
-                    const diff = diffX - beforeX;
+                    const diff = diffX - beforeCords.x;
                     this.x(this.x() + diff);
 
-                    this.corners[0][0] += diff;
-                    this.corners[1][0] += diff;
-                    this.corners[2][0] += diff;
-                    this.corners[3][0] += diff;
+                    this.cornerX1(this.cornerX1() + diff);
+                    this.cornerX2(this.cornerX2() + diff);
+                    this.cornerX3(this.cornerX3() + diff);
+                    this.cornerX4(this.cornerX4() + diff);
 
-                    this.hotAreaCorners[0][0] += diff;
-                    this.hotAreaCorners[1][0] += diff;
-                    this.hotAreaCorners[2][0] += diff;
-                    this.hotAreaCorners[3][0] += diff;
-                    this.#center.x += diff;
-                    beforeX = diffX;
-                    this.#isSnapshotTaken = false;
+                    this.hotCornerX1(this.hotCornerX1() + diff);
+                    this.hotCornerX2(this.hotCornerX2() + diff);
+                    this.hotCornerX3(this.hotCornerX3() + diff);
+                    this.hotCornerX4(this.hotCornerX4() + diff);
+
+                    this.hotRotCornerX1(this.hotRotCornerX1() + diff);
+                    this.hotRotCornerX2(this.hotRotCornerX2() + diff);
+                    this.hotRotCornerX3(this.hotRotCornerX3() + diff);
+                    this.hotRotCornerX4(this.hotRotCornerX4() + diff);
+
+                    this.rotationCenterX(this.rotationCenterX() + diff);
+
+                    beforeCords.x = diffX;
                 }
-                this.beforeInit.y = this.y();
                 if (diffY !== 0 && this.dragY()) {
-                    const diff = diffY - beforeY;
+                    const diff = diffY - beforeCords.y;
                     this.y(this.y() + diff);
 
-                    this.corners[0][1] += diff;
-                    this.corners[1][1] += diff;
-                    this.corners[2][1] += diff;
-                    this.corners[3][1] += diff;
+                    this.cornerY1(this.cornerY1() + diff);
+                    this.cornerY2(this.cornerY2() + diff);
+                    this.cornerY3(this.cornerY3() + diff);
+                    this.cornerY4(this.cornerY4() + diff);
 
-                    this.hotAreaCorners[0][1] += diff;
-                    this.hotAreaCorners[1][1] += diff;
-                    this.hotAreaCorners[2][1] += diff;
-                    this.hotAreaCorners[3][1] += diff;
+                    this.hotCornerY1(this.hotCornerY1() + diff);
+                    this.hotCornerY2(this.hotCornerY2() + diff);
+                    this.hotCornerY3(this.hotCornerY3() + diff);
+                    this.hotCornerY4(this.hotCornerY4() + diff);
 
-                    this.#center.y += diff;
-                    beforeY = diffY;
-                    this.#isSnapshotTaken = false;
+                    this.hotRotCornerY1(this.hotRotCornerY1() + diff);
+                    this.hotRotCornerY2(this.hotRotCornerY2() + diff);
+                    this.hotRotCornerY3(this.hotRotCornerY3() + diff);
+                    this.hotRotCornerY4(this.hotRotCornerY4() + diff);
+
+                    this.rotationCenterY(this.rotationCenterY() + diff);
+
+                    beforeCords.y = diffY;
                 }
-
-                this.__adjustCordinates();
+                this.onDrag()(event);
                 this.canvas?.invokeChange();
             }
         };
         const mouseup = () => {
-            this.#runningEvents.drag = false;
-            if (!this.#isSnapshotTaken) {
-                let dummy: any = {};
-                dummy[this.nodeId] = {
-                    x: this.x(),
-                    y: this.y(),
-                };
-                this.canvas?.takeSnapshot(new Date().getTime(), dummy);
-                this.#isSnapshotTaken = true;
+            if (this.#runningEvents.drag) {
+                this.#runningEvents.drag = false;
+                if (beforeCords.x !== 0 || beforeCords.y !== 0) {
+                    const after: any = {};
+                    after[this.nodeId!] = {
+                        x: this.x(),
+                        y: this.y(),
+                        cornerX1: this.cornerX1(),
+                        cornerX2: this.cornerX2(),
+                        cornerX3: this.cornerX3(),
+                        cornerX4: this.cornerX4(),
+                        cornerY1: this.cornerY1(),
+                        cornerY2: this.cornerY2(),
+                        cornerY3: this.cornerY3(),
+                        cornerY4: this.cornerY4(),
+                        hotCornerX1: this.hotCornerX1(),
+                        hotCornerX2: this.hotCornerX2(),
+                        hotCornerX3: this.hotCornerX3(),
+                        hotCornerX4: this.hotCornerX4(),
+                        hotCornerY1: this.hotCornerY1(),
+                        hotCornerY2: this.hotCornerY2(),
+                        hotCornerY3: this.hotCornerY3(),
+                        hotCornerY4: this.hotCornerY4(),
+                        rotationCenterX: this.rotationCenterX(),
+                        rotationCenterY: this.rotationCenterY(),
+                    };
+                    this.canvas.takeSnapshot(
+                        new Date().getTime(),
+                        beforeValues,
+                        after
+                    );
+                    this.canvas.invokeChange();
+                }
             }
         };
-
-        this.__eventHandler<MouseEvent>("mousemove", mousemove);
-        this.__eventHandler<MouseEvent>("mouseup", mouseup);
+        this.#eventHandler<MouseEvent>("mousemove", mousemove);
+        this.#eventHandler<MouseEvent>("mouseup", mouseup);
 
         return draggable;
     }

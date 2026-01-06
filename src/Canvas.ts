@@ -1,8 +1,36 @@
 import { Tree } from "./Tree";
-import { BlockElements, ICssProperties, BlockOptions, IBlock } from "./types";
+import { ICssProperties, Timestamp, SnapshotObject } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
-import { Path } from "./Path";
-import { Block } from "./Block";
+import type { Block, BlockOptions } from "./Block";
+import { getProperty } from "./Utils";
+
+export type Composite =
+    | "source-over"
+    | "source-in"
+    | "source-out"
+    | "source-atop"
+    | "destination-over"
+    | "destination-in"
+    | "destination-out"
+    | "destination-atop"
+    | "lighter"
+    | "copy"
+    | "xor"
+    | "multiply"
+    | "screen"
+    | "overlay"
+    | "darken"
+    | "lighten"
+    | "color-dodge"
+    | "color-burn"
+    | "hard-light"
+    | "soft-light"
+    | "difference"
+    | "exclusion"
+    | "hue"
+    | "saturation"
+    | "color"
+    | "luminosity";
 
 interface CanvasOptions {
     zoomSpeed?: number;
@@ -13,6 +41,9 @@ interface CanvasOptions {
     takeSnapshot: boolean;
     fps: number;
     snapshotSize: number;
+    alpha?: number;
+    composite?: Composite;
+    history?: boolean;
 }
 export class Canvas {
     __domCanvas: CanvasDOMManager;
@@ -31,19 +62,18 @@ export class Canvas {
     canvasId: string;
     width: number;
     height: number;
-    clipping_path: Path;
     #tree: Tree;
     #zoomSpeed = 1.2;
     #zoomInvSpeed = 0.8;
     #moveSpeed = 10;
-    #animationStarted = false;
     currentCursor: string = "auto";
-    __positionCords = { x: 0, y: 0 };
     #animations: any = [];
     #takeSnapshot = true;
     #snapshotSize = 50;
     #fps = 60;
+    #history = true;
     #elements: number[] = [];
+    __positionCords: { x: number; y: number } = { x: 0, y: 0 };
 
     constructor(
         canvasId?: string,
@@ -55,7 +85,7 @@ export class Canvas {
         this.options = options;
         this.width = width || 300;
         this.height = height || 300;
-        this.clipping_path = new Path();
+        this.#history = this.options?.history || this.#history;
         this.#snapshotSize = this.options?.snapshotSize || 50;
         this.#takeSnapshot = this.options?.takeSnapshot || true;
         this.#tree = new Tree(this.#snapshotSize);
@@ -81,6 +111,10 @@ export class Canvas {
 
         window.onload = () => {
             if (this.options) {
+                this.context.globalCompositeOperation =
+                    this.options.composite || "source-over";
+                this.context.globalAlpha = this.options.alpha || 1.0;
+
                 if (this.#takeSnapshot) this.#snapshotHandler();
 
                 this.__domCanvas.changeStyle(this.options);
@@ -100,33 +134,44 @@ export class Canvas {
         };
     }
 
-    add(...block: BlockElements[]) {
+    add(...block: Block[]) {
+        let time = new Date().getTime();
+        let zIndex = 1;
         this.#tree.addNodes(block);
-        this.#tree.preOrderTraversal(this.#tree.head, (element: any) => {
-            element.canvas = this;
-            this.#handleOptions(element);
-            if (this.inBoundElement(element)) element.__initSet();
-            this.#animations.push(...element.__animationOn);
-            for (const key in element.__events) {
-                this.#canvasEvents[key].push(...element.__events[key]);
+        this.#tree.preOrderTraversal<Block>(this.#tree.head, (b: Block) => {
+            b.canvas = this;
+
+            b.zIndex(zIndex);
+            zIndex += 1;
+
+            this.#handleOptions(b);
+            b.__adjustBlocks();
+
+            if (this.inBoundElement(b)) b.render();
+
+            this.#animations.push(...b.__animationOn);
+
+            for (const key in b.__events) {
+                this.#canvasEvents[key].push(...b.__events[key]);
             }
+            const dummy: any = {};
+            dummy[b.nodeId!] = { ...b.ownOptions };
+            this.takeSnapshot(time, dummy, dummy);
         });
         if (this.#animations.length !== 0)
             this.animationInvoker(this.#animations);
 
-        let zIndex = 0;
-        let time = new Date().getTime();
-        this.#tree.checkNodes((el: any) => {
-            if (el.options) {
-                el.zIndex(zIndex);
-                el.nodeId = zIndex;
-                const dummy: any = {};
-                dummy[el.nodeId] = { ...el.options };
-                this.takeSnapshot(time, dummy);
-                zIndex += 1;
-            }
-        }, true);
         this.#handleEvents();
+    }
+
+    find(queries: BlockOptions) {
+        let blocks: Block[] = [];
+        this.#tree.preOrderTraversal(this.#tree.head, (block: Block) => {
+            for (const [k, v] of Object.entries(queries)) {
+                if (block.ownOptions[k] === v) blocks.push(block);
+            }
+        });
+        return blocks;
     }
 
     get canvasBounding() {
@@ -134,15 +179,13 @@ export class Canvas {
     }
 
     getCursorPosition(event: { clientX: number; clientY: number }) {
-        const rect = this.canvasBounding;
-
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        return { x, y };
+        return {
+            x: event.clientX - this.canvasBounding.left,
+            y: event.clientY - this.canvasBounding.top,
+        };
     }
 
     #handleEvents() {
-        // added unique events because canvas is same, but events changing
         for (const key in this.#canvasEvents) {
             if (this.#canvasEvents[key].length !== 0) {
                 this.__domCanvas.addEventListener(key, (event) => {
@@ -162,52 +205,61 @@ export class Canvas {
         else this.#elements = this.#elements.filter((i) => i !== inOutZ["out"]);
     }
 
-    #handleOptions(block: BlockElements, opt?: BlockOptions): void {
-        if (!block.options) return;
-        if (block.options["hidden"]) {
-            const proto = Object.getPrototypeOf(block);
-            const obj = Object.getOwnPropertyDescriptor(proto, "hidden");
-            obj?.value.call(block, block.options["hidden"]);
-            return;
-        }
-        for (const [key, value] of Object.entries(block.options)) {
-            const proto = Object.getPrototypeOf(block);
-            const obj = Object.getOwnPropertyDescriptor(proto, key);
-            if (obj) {
-                obj.value.call(block, value);
-            } else {
-                block.options[key] = value;
+    #handleOptions(block: Block): void {
+        if (!block.ownOptions) return;
+        for (const opt of block.__bindOptions) {
+            for (const key of opt.options) {
+                getProperty(block, key as string)?.value.call(
+                    block,
+                    opt.bindTo.ownOptions[key]
+                );
             }
         }
+        if (block.ownOptions["hidden"]) {
+            getProperty(block, "hidden")?.value.call(
+                block,
+                block.ownOptions["hidden"]
+            );
+            return;
+        }
+        for (const [key, value] of Object.entries(block.ownOptions)) {
+            getProperty(block, key)?.value.call(block, value);
+        }
     }
-    // not need to invoke every options, need to take a considiration of the mouse events also
-    invokeChange(obj?: any, _func?: (element: any) => void) {
-        // need to make for invidiual change rather than creating this path
-        this.clipping_path?.createPath();
+    invokeChange(obj?: any, _func?: (element: Block) => void) {
         this.context.restore();
         this.context.save();
 
         this.clearRect();
-        this.context.translate(this.__positionCords.x, this.__positionCords.y);
 
-        this.#tree.checkNodes((element: any) => {
-            if (_func) _func(element);
-            if (obj && Object.keys(obj).includes(String(element.nodeId))) {
-                for (const [key, value] of Object.entries(
-                    obj[element.nodeId]
-                )) {
-                    const proto = Object.getPrototypeOf(element);
-                    const obj = Object.getOwnPropertyDescriptor(proto, key);
-                    if (obj) obj?.value.call(element, value);
+        this.#tree.preOrderTraversal(undefined, (b: Block) => {
+            if (obj && Object.keys(obj).includes(String(b.nodeId))) {
+                for (const [key, value] of Object.entries(obj[b.nodeId!])) {
+                    getProperty(b, key)?.value.call(b, value);
                 }
             }
-
-            if (this.inBoundElement(element)) element.__initSet();
+            for (const opt of b.__bindOptions) {
+                for (const key of opt.options) {
+                    getProperty(b, key as string)?.value.call(
+                        b,
+                        opt.bindTo.ownOptions[key]
+                    );
+                }
+            }
+            b.__adjustBlocks();
+            if (_func) _func(b);
+            if (this.inBoundElement(b)) b.render();
         });
     }
 
-    takeSnapshot(timestamp: number, change: any) {
-        this.#tree.takeSanpshot(timestamp, change);
+    takeSnapshot(
+        timestamp: Timestamp,
+        before: SnapshotObject,
+        after: SnapshotObject
+    ) {
+        if (this.options?.history) {
+            this.#tree.takeSanpshot(timestamp, before, after);
+        }
     }
 
     inBoundElement(element: Block) {
@@ -216,10 +268,8 @@ export class Canvas {
             element.y() >= this.canvasBounding.height ||
             element.x() + element.width() <= 0 ||
             element.y() + element.height() <= 0
-        ) {
-            console.log(false);
+        )
             return false;
-        }
         return true;
     }
 
@@ -241,10 +291,6 @@ export class Canvas {
         };
         requestAnimationFrame(framer);
     }
-    // we can do this later as and || or
-    find(queries: IBlock<BlockOptions>) {
-        return this.#tree.filterNodes(queries);
-    }
     #pointZoom() {
         const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
         this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
@@ -263,12 +309,22 @@ export class Canvas {
                         elem.height(elem.height() * invScale);
                     });
                 }
-                if (this.canvas.width / 2 < x && this.__positionCords.x < x)
-                    this.__positionCords.x -= moveSpeed;
-                else this.__positionCords.x += moveSpeed;
-                if (this.canvas.height / 2 < y && this.__positionCords.y < y)
-                    this.__positionCords.y -= moveSpeed;
-                else this.__positionCords.y += moveSpeed;
+                if (this.canvas.width / 2 < x)
+                    this.invokeChange(undefined, (block: Block) =>
+                        block.x(block.x() - moveSpeed)
+                    );
+                else
+                    this.invokeChange(undefined, (block: Block) =>
+                        block.x(block.x() + moveSpeed)
+                    );
+                if (this.canvas.height / 2 < y)
+                    this.invokeChange(undefined, (block: Block) =>
+                        block.y(block.y() - moveSpeed)
+                    );
+                else
+                    this.invokeChange(undefined, (block: Block) =>
+                        block.y(block.y() + moveSpeed)
+                    );
             }
         });
     }
@@ -281,18 +337,18 @@ export class Canvas {
                 let scale = this.options?.zoomSpeed || this.#zoomSpeed;
                 let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
                 if (event.deltaY < 0) {
-                    this.__positionCords.x -= moveSpeed;
-                    this.__positionCords.y -= moveSpeed;
-                    this.invokeChange(undefined, (elem) => {
-                        elem.width(elem.width()* scale);
-                        elem.height(elem.height()* scale);
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.x(block.x() - moveSpeed);
+                        block.y(block.y() - moveSpeed);
+                        block.width(block.width() * scale);
+                        block.height(block.height() * scale);
                     });
                 } else {
-                    this.__positionCords.x += moveSpeed;
-                    this.__positionCords.y += moveSpeed;
-                    this.invokeChange(undefined, (elem) => {
-                        elem.width(elem.width()* invScale);
-                        elem.height(elem.height()* invScale);
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.x(block.x() + moveSpeed);
+                        block.y(block.y() + moveSpeed);
+                        block.width(block.width() * invScale);
+                        block.height(block.height() * invScale);
                     });
                 }
             }
@@ -302,7 +358,7 @@ export class Canvas {
         this.context.clearRect(0, 0, this.width, this.height);
     }
 
-    chageCursor(cur: string) {
+    changeCursor(cur: string) {
         cur = cur || "auto";
         return this.__domCanvas.changeStyle({
             cursor: cur,
@@ -317,8 +373,7 @@ export class Canvas {
         let isMouseDown = false;
         let isKeyDown = false;
 
-        this.__domCanvas.canvas.focus();
-        this.__domCanvas.addEventListener("keydown", (event) => {
+        window.addEventListener("keydown", (event) => {
             if (event.code == "Space") {
                 if (!isKeyDown) {
                     (this.__domCanvas as any).changeStyle({ cursor: "grab" });
@@ -348,16 +403,20 @@ export class Canvas {
                     });
                     let diffX = event.clientX - initX;
                     let diffY = event.clientY - initY;
+                    this.invokeChange();
+
                     if (diffX !== 0) {
-                        this.__positionCords.x += diffX - beforeX;
+                        this.invokeChange(undefined, (block: Block) =>
+                            block.x(block.x() + (diffX - beforeX))
+                        );
                         beforeX = diffX;
                     }
                     if (diffY !== 0) {
-                        this.__positionCords.y += diffY - beforeY;
+                        this.invokeChange(undefined, (block: Block) =>
+                            block.y(block.y() + (diffY - beforeY))
+                        );
                         beforeY = diffY;
                     }
-
-                    this.invokeChange();
                 }
             }
         });
@@ -377,27 +436,55 @@ export class Canvas {
             }
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.x(block.x() - moveSpeed);
+                        block.cornerX1(block.cornerX1() - moveSpeed);
+                        block.cornerX2(block.cornerX2() - moveSpeed);
+                        block.cornerX3(block.cornerX3() - moveSpeed);
+                        block.cornerX4(block.cornerX4() - moveSpeed);
+                    });
                     this.__positionCords.x -= moveSpeed;
                 } else {
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.x(block.x() + moveSpeed);
+                        block.cornerX1(block.cornerX1() + moveSpeed);
+                        block.cornerX2(block.cornerX2() + moveSpeed);
+                        block.cornerX3(block.cornerX3() + moveSpeed);
+                        block.cornerX4(block.cornerX4() + moveSpeed);
+                    });
                     this.__positionCords.x += moveSpeed;
                 }
             } else {
                 if (event.deltaY < 0) {
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.y(block.y() + moveSpeed);
+                        block.cornerY1(block.cornerY1() + moveSpeed);
+                        block.cornerY2(block.cornerY2() + moveSpeed);
+                        block.cornerY3(block.cornerY3() + moveSpeed);
+                        block.cornerY4(block.cornerY4() + moveSpeed);
+                    });
                     this.__positionCords.y += moveSpeed;
                 } else {
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.y(block.y() - moveSpeed);
+                        block.cornerY1(block.cornerY1() - moveSpeed);
+                        block.cornerY2(block.cornerY2() - moveSpeed);
+                        block.cornerY3(block.cornerY3() - moveSpeed);
+                        block.cornerY4(block.cornerY4() - moveSpeed);
+                    });
                     this.__positionCords.y -= moveSpeed;
                 }
             }
-            this.invokeChange();
         });
     }
 
     #snapshotHandler() {
-        this.__domCanvas.addEventListener("keydown", (e: KeyboardEvent) => {
+        window.addEventListener("keydown", (e: KeyboardEvent) => {
             let obj;
             if (e.key === "Z" && e.ctrlKey) obj = this.#tree.snapshotInFuture();
             else if (e.key === "z" && e.ctrlKey)
                 obj = this.#tree.snapshotInBack();
+
             if (obj) this.invokeChange(obj);
         });
     }
