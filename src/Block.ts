@@ -14,7 +14,6 @@ import {
     fromRem,
     fromVH,
     fromVW,
-    getRadiusByWH,
     radianToDegree,
     cubicBezier,
     lerp,
@@ -25,6 +24,7 @@ import {
     rgbaRepresenter,
     getProperty,
     rotateCordinates,
+    inRange,
 } from "./Utils";
 import { CubicBezier, IBlock, LinearEasing, RGBA, StepsEasing } from "./types";
 
@@ -127,12 +127,21 @@ export type BaseFilters =
     | "saturate"
     | "sepia";
 
+export type XY = { x: number; y: number };
+
+export interface HotCornerArea {
+    topLeft: XY;
+    topRight: XY;
+    bottomLeft: XY;
+    bottomRight: XY;
+}
+
 export interface BlockOptions {
     [key: string]: any;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
     minWidth?: number;
     minHeight?: number;
     maxWidth?: number;
@@ -212,30 +221,32 @@ export interface BlockOptions {
     resizable?: boolean;
     onResize?: (event: MouseEvent) => void;
     hidden?: boolean;
-    cornerX1?: number;
-    cornerY1?: number;
-    cornerX2?: number;
-    cornerY2?: number;
-    cornerX3?: number;
-    cornerY3?: number;
-    cornerX4?: number;
-    cornerY4?: number;
-    hotCornerX1?: number;
-    hotCornerY1?: number;
-    hotCornerX2?: number;
-    hotCornerY2?: number;
-    hotCornerX3?: number;
-    hotCornerY3?: number;
-    hotCornerX4?: number;
-    hotCornerY4?: number;
-    hotRotCornerX1?: number;
-    hotRotCornerY1?: number;
-    hotRotCornerX2?: number;
-    hotRotCornerY2?: number;
-    hotRotCornerX3?: number;
-    hotRotCornerY3?: number;
-    hotRotCornerX4?: number;
-    hotRotCornerY4?: number;
+    rotationCenterX?: number;
+    rotationCenterY?: number;
+    cornerTopLeft?: XY;
+    cornerTopRight?: XY;
+    cornerBottomLeft?: XY;
+    cornerBottomRight?: XY;
+    hotCornerTopLeft?: XY;
+    hotCornerTopRight?: XY;
+    hotCornerBottomLeft?: XY;
+    hotCornerBottomRight?: XY;
+    hotRotCornerTopLeft?: XY;
+    hotRotCornerTopRight?: XY;
+    hotRotCornerBottomLeft?: XY;
+    hotRotCornerBottomRight?: XY;
+    hotRotatableAreaTopLeft?: XY;
+    hotRotatableAreaTopRight?: XY;
+    hotRotatableAreaBottomLeft?: XY;
+    hotRotatableAreaBottomRight?: XY;
+    hotResizableAreaTopLeft?: XY;
+    hotResizableAreaTopRight?: XY;
+    hotResizableAreaBottomLeft?: XY;
+    hotResizableAreaBottomRight?: XY;
+    hotResizableAreaTop?: XY;
+    hotResizableAreaRight?: XY;
+    hotResizableAreaLeft?: XY;
+    hotResizableAreaBottom?: XY;
 }
 
 export class Block<T = BlockOptions> extends Node {
@@ -243,6 +254,7 @@ export class Block<T = BlockOptions> extends Node {
     parent: Block | undefined = this.parentNode as Block;
     ownOptions: IBlock<T>;
     options: IBlock<T>;
+    #HOT_AREA_SIZE = 15;
     __bindOptions: { bindTo: Block; options: (keyof BlockOptions)[] }[] = [];
     #runningEvents = {
         drag: false,
@@ -252,7 +264,7 @@ export class Block<T = BlockOptions> extends Node {
     };
     __events: any = {
         click: [],
-        dbclick: [],
+        dblclick: [],
         mousedown: [],
         mouseup: [],
         mousemove: [],
@@ -272,6 +284,9 @@ export class Block<T = BlockOptions> extends Node {
         sepia: undefined,
     };
     __animationOn: any = [];
+
+    #cursor: string | undefined;
+
     #keyframeIterations: any = {};
 
     #beforeRotDegree: number = 0;
@@ -280,8 +295,7 @@ export class Block<T = BlockOptions> extends Node {
         super();
         this.options = { ...options };
         this.ownOptions = { ...options };
-
-        this.__initCorners();
+        this.__initCordinates();
     }
 
     get context(): CanvasRenderingContext2D {
@@ -296,8 +310,328 @@ export class Block<T = BlockOptions> extends Node {
             return;
         }
         this.#contextFilter();
-        this.__handleRotation()
+        this.__handleRotation();
+        this.__updateHotCorners();
+        this.#showHotAreas();
+        // console.log(Math.abs(radianToDegree(this.rotate())));
         if (this.#runningEvents.selected) this.__hotLines();
+        this.#beforeRotDegree = this.rotate();
+    }
+
+    // @Todo remove this
+    #showHotAreas() {
+        this.context.beginPath();
+        this.context.moveTo(
+            this.hotResizableAreaTopLeft().topLeft.x,
+            this.hotResizableAreaTopLeft().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTopLeft().topRight.x,
+            this.hotResizableAreaTopLeft().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTopLeft().bottomRight.x,
+            this.hotResizableAreaTopLeft().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTopLeft().bottomLeft.x,
+            this.hotResizableAreaTopLeft().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTopLeft().topLeft.x,
+            this.hotResizableAreaTopLeft().topLeft.y
+        );
+
+        this.context.moveTo(
+            this.hotResizableAreaTopRight().topLeft.x,
+            this.hotResizableAreaTopRight().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTopRight().topRight.x,
+            this.hotResizableAreaTopRight().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTopRight().bottomRight.x,
+            this.hotResizableAreaTopRight().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTopRight().bottomLeft.x,
+            this.hotResizableAreaTopRight().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTopRight().topLeft.x,
+            this.hotResizableAreaTopRight().topLeft.y
+        );
+
+        this.context.moveTo(
+            this.hotResizableAreaBottomLeft().topLeft.x,
+            this.hotResizableAreaBottomLeft().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottomLeft().topRight.x,
+            this.hotResizableAreaBottomLeft().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottomLeft().bottomRight.x,
+            this.hotResizableAreaBottomLeft().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottomLeft().bottomLeft.x,
+            this.hotResizableAreaBottomLeft().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottomLeft().topLeft.x,
+            this.hotResizableAreaBottomLeft().topLeft.y
+        );
+
+        this.context.moveTo(
+            this.hotResizableAreaBottomRight().topLeft.x,
+            this.hotResizableAreaBottomRight().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottomRight().topRight.x,
+            this.hotResizableAreaBottomRight().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottomRight().bottomRight.x,
+            this.hotResizableAreaBottomRight().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottomRight().bottomLeft.x,
+            this.hotResizableAreaBottomRight().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottomRight().topLeft.x,
+            this.hotResizableAreaBottomRight().topLeft.y
+        );
+        this.context.fillStyle = "red";
+        this.context.fill();
+
+        this.context.beginPath();
+        this.context.moveTo(
+            this.hotResizableAreaTop().topLeft.x,
+            this.hotResizableAreaTop().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTop().topRight.x,
+            this.hotResizableAreaTop().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTop().bottomRight.x,
+            this.hotResizableAreaTop().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTop().bottomLeft.x,
+            this.hotResizableAreaTop().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaTop().topLeft.x,
+            this.hotResizableAreaTop().topLeft.y
+        );
+
+        //
+        this.context.moveTo(
+            this.hotResizableAreaLeft().topLeft.x,
+            this.hotResizableAreaLeft().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaLeft().topRight.x,
+            this.hotResizableAreaLeft().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaLeft().bottomRight.x,
+            this.hotResizableAreaLeft().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaLeft().bottomLeft.x,
+            this.hotResizableAreaLeft().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaLeft().topLeft.x,
+            this.hotResizableAreaLeft().topLeft.y
+        );
+
+        //
+        this.context.moveTo(
+            this.hotResizableAreaBottom().topLeft.x,
+            this.hotResizableAreaBottom().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottom().topRight.x,
+            this.hotResizableAreaBottom().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottom().bottomRight.x,
+            this.hotResizableAreaBottom().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottom().bottomLeft.x,
+            this.hotResizableAreaBottom().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaBottom().topLeft.x,
+            this.hotResizableAreaBottom().topLeft.y
+        );
+
+        //
+        this.context.moveTo(
+            this.hotResizableAreaRight().topLeft.x,
+            this.hotResizableAreaRight().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaRight().topRight.x,
+            this.hotResizableAreaRight().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaRight().bottomRight.x,
+            this.hotResizableAreaRight().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaRight().bottomLeft.x,
+            this.hotResizableAreaRight().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotResizableAreaRight().topLeft.x,
+            this.hotResizableAreaRight().topLeft.y
+        );
+
+        this.context.fillStyle = "aqua";
+        this.context.fill();
+
+        this.context.beginPath();
+        this.context.moveTo(
+            this.hotRotatableAreaTopLeft().topLeft.x,
+            this.hotRotatableAreaTopLeft().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaTopLeft().topRight.x,
+            this.hotRotatableAreaTopLeft().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaTopLeft().bottomRight.x,
+            this.hotRotatableAreaTopLeft().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaTopLeft().bottomLeft.x,
+            this.hotRotatableAreaTopLeft().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaTopLeft().topLeft.x,
+            this.hotRotatableAreaTopLeft().topLeft.y
+        );
+
+        this.context.moveTo(
+            this.hotRotatableAreaTopRight().topLeft.x,
+            this.hotRotatableAreaTopRight().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaTopRight().topRight.x,
+            this.hotRotatableAreaTopRight().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaTopRight().bottomRight.x,
+            this.hotRotatableAreaTopRight().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaTopRight().bottomLeft.x,
+            this.hotRotatableAreaTopRight().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaTopRight().topLeft.x,
+            this.hotRotatableAreaTopRight().topLeft.y
+        );
+
+        this.context.moveTo(
+            this.hotRotatableAreaBottomLeft().topLeft.x,
+            this.hotRotatableAreaBottomLeft().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaBottomLeft().topRight.x,
+            this.hotRotatableAreaBottomLeft().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaBottomLeft().bottomRight.x,
+            this.hotRotatableAreaBottomLeft().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaBottomLeft().bottomLeft.x,
+            this.hotRotatableAreaBottomLeft().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaBottomLeft().topLeft.x,
+            this.hotRotatableAreaBottomLeft().topLeft.y
+        );
+
+        this.context.moveTo(
+            this.hotRotatableAreaBottomRight().topLeft.x,
+            this.hotRotatableAreaBottomRight().topLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaBottomRight().topRight.x,
+            this.hotRotatableAreaBottomRight().topRight.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaBottomRight().bottomRight.x,
+            this.hotRotatableAreaBottomRight().bottomRight.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaBottomRight().bottomLeft.x,
+            this.hotRotatableAreaBottomRight().bottomLeft.y
+        );
+
+        this.context.lineTo(
+            this.hotRotatableAreaBottomRight().topLeft.x,
+            this.hotRotatableAreaBottomRight().topLeft.y
+        );
+        this.context.fillStyle = "yellow";
+        this.context.fill();
     }
 
     addChild(...node: Node[]): void {
@@ -319,6 +653,8 @@ export class Block<T = BlockOptions> extends Node {
         return blocks;
     }
 
+    __updateHotCorners() {}
+
     __hotLines() {
         const size = this.hotCornerSize();
         const radius = this.hotCornerRadius();
@@ -329,46 +665,70 @@ export class Block<T = BlockOptions> extends Node {
         const lineColor = this.hotLineStrokeColor();
 
         this.context.beginPath();
-        this.context.moveTo(this.hotCornerX1(), this.hotCornerY1());
-        if (!this.hotTop()) {
-            this.context.lineTo(this.hotCornerX2(), this.hotCornerY2());
+        this.context.moveTo(
+            this.hotCornerTopLeft().x,
+            this.hotCornerTopLeft().y
+        );
+        if (!this.hotTopFunc()) {
+            this.context.lineTo(
+                this.hotCornerTopRight().x,
+                this.hotCornerTopRight().y
+            );
             this.context.lineWidth = lineWidth;
             this.context.strokeStyle = lineColor;
             this.context.stroke();
-        } else this.hotTop()?.(this.context);
+        } else this.hotTopFunc()?.(this.context);
 
         this.context.beginPath();
-        this.context.moveTo(this.hotCornerX1(), this.hotCornerY1());
-        if (!this.hotLeft()) {
-            this.context.lineTo(this.hotCornerX3(), this.hotCornerY3());
+        this.context.moveTo(
+            this.hotCornerTopLeft().x,
+            this.hotCornerTopLeft().y
+        );
+        if (!this.hotLeftFunc()) {
+            this.context.lineTo(
+                this.hotCornerBottomLeft().x,
+                this.hotCornerBottomLeft().y
+            );
             this.context.lineWidth = lineWidth;
             this.context.strokeStyle = lineColor;
             this.context.stroke();
-        } else this.hotLeft()?.(this.context);
+        } else this.hotLeftFunc()?.(this.context);
 
         this.context.beginPath();
-        this.context.moveTo(this.hotCornerX3(), this.hotCornerY3());
-        if (!this.hotBottom()) {
-            this.context.lineTo(this.hotCornerX4(), this.hotCornerY4());
+        this.context.moveTo(
+            this.hotCornerBottomLeft().x,
+            this.hotCornerBottomLeft().y
+        );
+        if (!this.hotBottomFunc()) {
+            this.context.lineTo(
+                this.hotCornerBottomRight().x,
+                this.hotCornerBottomRight().y
+            );
             this.context.lineWidth = lineWidth;
             this.context.strokeStyle = lineColor;
             this.context.stroke();
-        } else this.hotBottom()?.(this.context);
+        } else this.hotBottomFunc()?.(this.context);
 
         this.context.beginPath();
-        this.context.moveTo(this.hotCornerX4(), this.hotCornerY4());
-        if (!this.hotRight()) {
-            this.context.lineTo(this.hotCornerX2(), this.hotCornerY2());
+        this.context.moveTo(
+            this.hotCornerBottomRight().x,
+            this.hotCornerBottomRight().y
+        );
+        if (!this.hotRightFunc()) {
+            this.context.lineTo(
+                this.hotCornerTopRight().x,
+                this.hotCornerTopRight().y
+            );
             this.context.lineWidth = lineWidth;
             this.context.strokeStyle = lineColor;
             this.context.stroke();
-        } else this.hotRight()?.(this.context);
+        } else this.hotRightFunc()?.(this.context);
 
         this.context.beginPath();
-        if (!this.hotCornerTopLeft()) {
+        if (!this.hotCornerTopLeftFunc()) {
             this.context.roundRect(
-                this.hotCornerX1() - size / 2,
-                this.hotCornerY1() - size / 2,
+                this.hotCornerTopLeft().x - size / 2,
+                this.hotCornerTopLeft().y - size / 2,
                 size,
                 size,
                 radius
@@ -379,14 +739,14 @@ export class Block<T = BlockOptions> extends Node {
             this.context.fill();
             this.context.stroke();
         } else {
-            this.hotCornerTopLeft()?.(this.context);
+            this.hotCornerTopLeftFunc()?.(this.context);
         }
 
         this.context.beginPath();
-        if (!this.hotCornerTopRight()) {
+        if (!this.hotCornerTopRightFunc()) {
             this.context.roundRect(
-                this.hotCornerX2() - size / 2,
-                this.hotCornerY2() - size / 2,
+                this.hotCornerTopRight().x - size / 2,
+                this.hotCornerTopRight().y - size / 2,
                 size,
                 size,
                 radius
@@ -397,14 +757,14 @@ export class Block<T = BlockOptions> extends Node {
             this.context.fill();
             this.context.stroke();
         } else {
-            this.hotCornerTopRight()?.(this.context);
+            this.hotCornerTopRightFunc()?.(this.context);
         }
 
         this.context.beginPath();
-        if (!this.hotCornerBottomLeft()) {
+        if (!this.hotCornerBottomLeftFunc()) {
             this.context.roundRect(
-                this.hotCornerX3() - size / 2,
-                this.hotCornerY3() - size / 2,
+                this.hotCornerBottomLeft().x - size / 2,
+                this.hotCornerBottomLeft().y - size / 2,
                 size,
                 size,
                 radius
@@ -415,14 +775,14 @@ export class Block<T = BlockOptions> extends Node {
             this.context.fill();
             this.context.stroke();
         } else {
-            this.hotCornerBottomLeft()?.(this.context);
+            this.hotCornerBottomLeftFunc()?.(this.context);
         }
 
         this.context.beginPath();
-        if (!this.hotCornerBottomRight()) {
+        if (!this.hotCornerBottomRightFunc()) {
             this.context.roundRect(
-                this.hotCornerX4() - size / 2,
-                this.hotCornerY4() - size / 2,
+                this.hotCornerBottomRight().x - size / 2,
+                this.hotCornerBottomRight().y - size / 2,
                 size,
                 size,
                 radius
@@ -433,7 +793,7 @@ export class Block<T = BlockOptions> extends Node {
             this.context.fill();
             this.context.stroke();
         } else {
-            this.hotCornerBottomRight()?.(this.context);
+            this.hotCornerBottomRightFunc()?.(this.context);
         }
     }
 
@@ -570,10 +930,10 @@ export class Block<T = BlockOptions> extends Node {
                 }
             } else b.width(0);
 
-            b.cornerX1(this.x());
-            b.cornerX2(this.x() + this.width());
-            b.cornerX3(this.x());
-            b.cornerX4(this.x() + this.width());
+            // b.cornerX1(this.x());
+            // b.cornerX2(this.x() + this.width());
+            // b.cornerX3(this.x());
+            // b.cornerX4(this.x() + this.width());
 
             if (
                 (!this.__isVerticalFlipped &&
@@ -596,33 +956,275 @@ export class Block<T = BlockOptions> extends Node {
         });
     }
 
-    __initCorners() {
-        this.cornerX1(this.x());
-        this.cornerY1(this.y());
-        this.cornerX2(this.x() + this.width());
-        this.cornerY2(this.y());
-        this.cornerX3(this.x());
-        this.cornerY3(this.y() + this.height());
-        this.cornerX4(this.x() + this.width());
-        this.cornerY4(this.y() + this.height());
+    __initCordinates() {
+        this.rotationCenterX(this.x() + this.width() / 2);
+        this.rotationCenterY(this.y() + this.height() / 2);
 
-        this.hotCornerX1(this.cornerX1() - this.hotAreaGap());
-        this.hotCornerY1(this.cornerY1() - this.hotAreaGap());
-        this.hotCornerX2(this.cornerX2() + this.hotAreaGap());
-        this.hotCornerY2(this.cornerY2() - this.hotAreaGap());
-        this.hotCornerX3(this.cornerX3() - this.hotAreaGap());
-        this.hotCornerY3(this.cornerY3() + this.hotAreaGap());
-        this.hotCornerX4(this.cornerX4() + this.hotAreaGap());
-        this.hotCornerY4(this.cornerY4() + this.hotAreaGap());
+        this.cornerTopLeft({
+            x: this.x(),
+            y: this.y(),
+        });
+        this.cornerTopRight({
+            x: this.x() + this.width(),
+            y: this.y(),
+        });
+        this.cornerBottomLeft({ x: this.x(), y: this.y() + this.height() });
+        this.cornerBottomRight({
+            x: this.x() + this.width(),
+            y: this.y() + this.height(),
+        });
 
-        this.hotRotCornerX1(this.hotCornerX1() - this.hotAreaGap());
-        this.hotRotCornerY1(this.hotCornerY1() - this.hotAreaGap());
-        this.hotRotCornerX2(this.hotCornerX2() + this.hotAreaGap());
-        this.hotRotCornerY2(this.hotCornerY2() - this.hotAreaGap());
-        this.hotRotCornerX3(this.hotCornerX3() - this.hotAreaGap());
-        this.hotRotCornerY3(this.hotCornerY3() + this.hotAreaGap());
-        this.hotRotCornerX4(this.hotCornerX4() + this.hotAreaGap());
-        this.hotRotCornerY4(this.hotCornerY4() + this.hotAreaGap());
+        this.hotCornerTopLeft({
+            x: this.cornerTopLeft().x - this.hotAreaGap(),
+            y: this.cornerTopLeft().y - this.hotAreaGap(),
+        });
+        this.hotCornerTopRight({
+            x: this.cornerTopRight().x + this.hotAreaGap(),
+            y: this.cornerTopRight().y - this.hotAreaGap(),
+        });
+        this.hotCornerBottomLeft({
+            x: this.cornerBottomLeft().x - this.hotAreaGap(),
+            y: this.cornerBottomLeft().y + this.hotAreaGap(),
+        });
+        this.hotCornerBottomRight({
+            x: this.cornerBottomRight().x + this.hotAreaGap(),
+            y: this.cornerBottomRight().y + this.hotAreaGap(),
+        });
+
+        this.hotRotCornerTopLeft({
+            x: this.hotCornerTopLeft().x - this.#HOT_AREA_SIZE,
+            y: this.hotCornerTopLeft().y - this.#HOT_AREA_SIZE,
+        });
+        this.hotRotCornerTopRight({
+            x: this.hotCornerTopRight().x + this.#HOT_AREA_SIZE,
+            y: this.hotCornerTopRight().y - this.#HOT_AREA_SIZE,
+        });
+        this.hotRotCornerBottomLeft({
+            x: this.hotCornerBottomLeft().x - this.#HOT_AREA_SIZE,
+            y: this.hotCornerBottomLeft().y + this.#HOT_AREA_SIZE,
+        });
+        this.hotRotCornerBottomRight({
+            x: this.hotCornerBottomRight().x + this.#HOT_AREA_SIZE,
+            y: this.hotCornerBottomRight().y + this.#HOT_AREA_SIZE,
+        });
+
+        this.hotRotatableAreaTopLeft({
+            topLeft: {
+                x: this.hotRotCornerTopLeft().x,
+                y: this.hotRotCornerTopLeft().y,
+            },
+            topRight: {
+                x: this.hotRotCornerTopLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerTopLeft().y,
+            },
+            bottomLeft: {
+                x: this.hotRotCornerTopLeft().x,
+                y: this.hotRotCornerTopLeft().y + this.#HOT_AREA_SIZE,
+            },
+            bottomRight: {
+                x: this.hotRotCornerTopLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerTopLeft().y + this.#HOT_AREA_SIZE,
+            },
+        });
+        this.hotRotatableAreaTopRight({
+            topLeft: {
+                x: this.hotRotCornerTopRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerTopRight().y,
+            },
+            topRight: {
+                x: this.hotRotCornerTopRight().x,
+                y: this.hotRotCornerTopRight().y,
+            },
+            bottomLeft: {
+                x: this.hotRotCornerTopRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerTopRight().y + this.#HOT_AREA_SIZE,
+            },
+            bottomRight: {
+                x: this.hotRotCornerTopRight().x,
+                y: this.hotRotCornerTopRight().y + this.#HOT_AREA_SIZE,
+            },
+        });
+        this.hotRotatableAreaBottomLeft({
+            topLeft: {
+                x: this.hotRotCornerBottomLeft().x,
+                y: this.hotRotCornerBottomLeft().y - this.#HOT_AREA_SIZE,
+            },
+            topRight: {
+                x: this.hotRotCornerBottomLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerBottomLeft().y - this.#HOT_AREA_SIZE,
+            },
+            bottomLeft: {
+                x: this.hotRotCornerBottomLeft().x,
+                y: this.hotRotCornerBottomLeft().y,
+            },
+            bottomRight: {
+                x: this.hotRotCornerBottomLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerBottomLeft().y,
+            },
+        });
+        this.hotRotatableAreaBottomRight({
+            topLeft: {
+                x: this.hotRotCornerBottomRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerBottomRight().y - this.#HOT_AREA_SIZE,
+            },
+            topRight: {
+                x: this.hotRotCornerBottomRight().x,
+                y: this.hotRotCornerBottomRight().y - this.#HOT_AREA_SIZE,
+            },
+            bottomLeft: {
+                x: this.hotRotCornerBottomRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerBottomRight().y,
+            },
+            bottomRight: {
+                x: this.hotRotCornerBottomRight().x,
+                y: this.hotRotCornerBottomRight().y,
+            },
+        });
+
+        this.hotResizableAreaTopLeft({
+            topLeft: {
+                x: this.hotCornerTopLeft().x,
+                y: this.hotCornerTopLeft().y,
+            },
+            topRight: {
+                x: this.hotCornerTopLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopLeft().y,
+            },
+            bottomLeft: {
+                x: this.hotCornerTopLeft().x,
+                y: this.hotCornerTopLeft().y + this.#HOT_AREA_SIZE,
+            },
+            bottomRight: {
+                x: this.hotCornerTopLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopLeft().y + this.#HOT_AREA_SIZE,
+            },
+        });
+        this.hotResizableAreaTopRight({
+            topLeft: {
+                x: this.hotCornerTopRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopRight().y,
+            },
+            topRight: {
+                x: this.hotCornerTopRight().x,
+                y: this.hotCornerTopRight().y,
+            },
+            bottomLeft: {
+                x: this.hotCornerTopRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopRight().y + this.#HOT_AREA_SIZE,
+            },
+            bottomRight: {
+                x: this.hotCornerTopRight().x,
+                y: this.hotCornerTopRight().y + this.#HOT_AREA_SIZE,
+            },
+        });
+        this.hotResizableAreaBottomLeft({
+            topLeft: {
+                x: this.hotCornerBottomLeft().x,
+                y: this.hotCornerBottomLeft().y - this.#HOT_AREA_SIZE,
+            },
+            topRight: {
+                x: this.hotCornerBottomLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomLeft().y - this.#HOT_AREA_SIZE,
+            },
+            bottomLeft: {
+                x: this.hotCornerBottomLeft().x,
+                y: this.hotCornerBottomLeft().y,
+            },
+            bottomRight: {
+                x: this.hotCornerBottomLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomLeft().y,
+            },
+        });
+        this.hotResizableAreaBottomRight({
+            topLeft: {
+                x: this.hotCornerBottomRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomRight().y - this.#HOT_AREA_SIZE,
+            },
+            topRight: {
+                x: this.hotCornerBottomRight().x,
+                y: this.hotCornerBottomRight().y - this.#HOT_AREA_SIZE,
+            },
+            bottomLeft: {
+                x: this.hotCornerBottomRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomRight().y,
+            },
+            bottomRight: {
+                x: this.hotCornerBottomRight().x,
+                y: this.hotCornerBottomRight().y,
+            },
+        });
+        this.hotResizableAreaTop({
+            topLeft: {
+                x: this.hotCornerTopLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopLeft().y,
+            },
+            topRight: {
+                x: this.hotCornerTopRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopRight().y,
+            },
+            bottomLeft: {
+                x: this.hotCornerTopLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopLeft().y + this.#HOT_AREA_SIZE,
+            },
+            bottomRight: {
+                x: this.hotCornerTopRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopRight().y + this.#HOT_AREA_SIZE,
+            },
+        });
+        this.hotResizableAreaRight({
+            topLeft: {
+                x: this.hotCornerTopRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopRight().y + this.#HOT_AREA_SIZE,
+            },
+            topRight: {
+                x: this.hotCornerTopRight().x,
+                y: this.hotCornerTopRight().y + this.#HOT_AREA_SIZE,
+            },
+            bottomLeft: {
+                x: this.hotCornerBottomRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomRight().y - this.#HOT_AREA_SIZE,
+            },
+            bottomRight: {
+                x: this.hotCornerBottomRight().x,
+                y: this.hotCornerBottomRight().y - this.#HOT_AREA_SIZE,
+            },
+        });
+        this.hotResizableAreaLeft({
+            topLeft: {
+                x: this.hotCornerTopLeft().x,
+                y: this.hotCornerTopLeft().y + this.#HOT_AREA_SIZE,
+            },
+            topRight: {
+                x: this.hotCornerTopLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerTopLeft().y + this.#HOT_AREA_SIZE,
+            },
+            bottomLeft: {
+                x: this.hotCornerBottomLeft().x,
+                y: this.hotCornerBottomLeft().y - this.#HOT_AREA_SIZE,
+            },
+            bottomRight: {
+                x: this.hotCornerBottomLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomLeft().y - this.#HOT_AREA_SIZE,
+            },
+        });
+        this.hotResizableAreaBottom({
+            topLeft: {
+                x: this.hotCornerBottomLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomLeft().y - this.#HOT_AREA_SIZE,
+            },
+            topRight: {
+                x: this.hotCornerBottomRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomRight().y - this.#HOT_AREA_SIZE,
+            },
+            bottomLeft: {
+                x: this.hotCornerBottomLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomLeft().y,
+            },
+            bottomRight: {
+                x: this.hotCornerBottomRight().x - this.#HOT_AREA_SIZE,
+                y: this.hotCornerBottomRight().y,
+            },
+        });
     }
 
     #contextFilter() {
@@ -634,18 +1236,20 @@ export class Block<T = BlockOptions> extends Node {
     }
 
     get __isHorizontalFlipped() {
+        // @TODO: need select corners based on rotation
         if (
             (this.horizontalFlipResize() &&
-                this.cornerX1() > this.cornerX2()) ||
-            this.cornerX3() > this.cornerX4()
+                this.cornerTopLeft().x >= this.cornerTopRight().x) ||
+            this.cornerBottomLeft().x >= this.cornerBottomRight().x
         )
             return true;
         return false;
     }
     get __isVerticalFlipped() {
+        // @TODO: need select corners based on rotation
         if (
-            this.cornerY1() > this.cornerY3() ||
-            this.cornerY2() > this.cornerY4()
+            this.cornerTopLeft().y > this.cornerBottomLeft().y ||
+            this.cornerTopRight().y > this.cornerBottomRight().y
         )
             return true;
         return false;
@@ -718,31 +1322,225 @@ export class Block<T = BlockOptions> extends Node {
             val: opt,
             widthRelated: widthRelated,
         });
-        return this.__cacheOptions(val, option, defaultOpt);
+        return this.__cacheOption(val, option, defaultOpt);
     }
 
-    __cacheOptions<T>(
+    __cacheOption<T>(
         opt: T | undefined,
         option: keyof IBlock<BlockOptions>,
         defaultOpt: T
     ): T {
-        // @Todo: fix type issue over the generic readonly
+        // @Todo: fix type issue over the generic readonly a.k.a (as any)
         if (opt !== undefined) (this.ownOptions[option] as any) = opt;
         else if (this.ownOptions[option] === undefined)
             (this.ownOptions[option] as any) = defaultOpt;
         return this.ownOptions[option];
     }
 
-    x(opt?: number | string) {
-        return this.__valueHandler(opt, "x", 0, true);
+    x(opt?: number | string): number {
+        const cacheX = this.ownOptions["x"] || 0;
+        const x = this.__valueHandler(opt, "x", 0, true);
+        const diffX = x - cacheX;
+        if (diffX !== 0) {
+            this.rotationCenterX(this.rotationCenterX() + diffX);
+
+            this.#updateCordX("cornerTopLeft", diffX);
+            this.#updateCordX("cornerTopRight", diffX);
+            this.#updateCordX("cornerBottomLeft", diffX);
+            this.#updateCordX("cornerBottomRight", diffX);
+
+            this.#updateCordX("hotCornerTopLeft", diffX);
+            this.#updateCordX("hotCornerTopRight", diffX);
+            this.#updateCordX("hotCornerBottomLeft", diffX);
+            this.#updateCordX("hotCornerBottomRight", diffX);
+
+            this.#updateCordX("hotRotCornerTopLeft", diffX);
+            this.#updateCordX("hotRotCornerTopRight", diffX);
+            this.#updateCordX("hotRotCornerBottomLeft", diffX);
+            this.#updateCordX("hotRotCornerBottomRight", diffX);
+
+            this.#updateAreaCordX("hotResizableAreaTopLeft", diffX);
+            this.#updateAreaCordX("hotResizableAreaTopRight", diffX);
+            this.#updateAreaCordX("hotResizableAreaBottomLeft", diffX);
+            this.#updateAreaCordX("hotResizableAreaBottomRight", diffX);
+            this.#updateAreaCordX("hotResizableAreaTop", diffX);
+            this.#updateAreaCordX("hotResizableAreaRight", diffX);
+            this.#updateAreaCordX("hotResizableAreaLeft", diffX);
+            this.#updateAreaCordX("hotResizableAreaBottom", diffX);
+
+            this.#updateAreaCordX("hotRotatableAreaTopLeft", diffX);
+            this.#updateAreaCordX("hotRotatableAreaTopRight", diffX);
+            this.#updateAreaCordX("hotRotatableAreaBottomLeft", diffX);
+            this.#updateAreaCordX("hotRotatableAreaBottomRight", diffX);
+        }
+        return x;
     }
 
     y(opt?: number | string): number {
-        return this.__valueHandler(opt, "y", 0, true);
+        const cacheY = this.ownOptions["y"] || 0;
+        const y = this.__valueHandler(opt, "y", 0, true);
+        const diffY = y - cacheY;
+        if (cacheY !== y && diffY !== 0) {
+            this.rotationCenterY(this.rotationCenterY() + diffY);
+
+            this.#updateCordY("cornerTopLeft", diffY);
+            this.#updateCordY("cornerTopRight", diffY);
+            this.#updateCordY("cornerBottomLeft", diffY);
+            this.#updateCordY("cornerBottomRight", diffY);
+
+            this.#updateCordY("hotCornerTopLeft", diffY);
+            this.#updateCordY("hotCornerTopRight", diffY);
+            this.#updateCordY("hotCornerBottomLeft", diffY);
+            this.#updateCordY("hotCornerBottomRight", diffY);
+
+            this.#updateCordY("hotRotCornerTopLeft", diffY);
+            this.#updateCordY("hotRotCornerTopRight", diffY);
+            this.#updateCordY("hotRotCornerBottomLeft", diffY);
+            this.#updateCordY("hotRotCornerBottomRight", diffY);
+
+            this.#updateAreaCordY("hotResizableAreaTopLeft", diffY);
+            this.#updateAreaCordY("hotResizableAreaTopRight", diffY);
+            this.#updateAreaCordY("hotResizableAreaBottomLeft", diffY);
+            this.#updateAreaCordY("hotResizableAreaBottomRight", diffY);
+            this.#updateAreaCordY("hotResizableAreaTop", diffY);
+            this.#updateAreaCordY("hotResizableAreaRight", diffY);
+            this.#updateAreaCordY("hotResizableAreaLeft", diffY);
+            this.#updateAreaCordY("hotResizableAreaBottom", diffY);
+
+            this.#updateAreaCordY("hotRotatableAreaTopLeft", diffY);
+            this.#updateAreaCordY("hotRotatableAreaTopRight", diffY);
+            this.#updateAreaCordY("hotRotatableAreaBottomLeft", diffY);
+            this.#updateAreaCordY("hotRotatableAreaBottomRight", diffY);
+        }
+        return y;
     }
 
     width(opt?: number | string): number {
-        return this.__valueHandler(opt, "width", 0, true);
+        const cacheW = this.ownOptions["width"] || 0;
+        const w = this.__valueHandler(opt, "width", 0, true);
+        const diffW = w - cacheW;
+        if (diffW !== 0) {
+            // @TODO: need to adjust this change realted to based rotain center x
+            this.rotationCenterX(this.x() + w / 2);
+            console.log(this.rotationCenterX(), this.cornerTopLeft().x);
+            if ((this.cornerTopLeft().x || 0) > this.rotationCenterX()) {
+                this.#updateCordX("cornerTopLeft", diffW);
+                this.#updateCordX("hotCornerTopLeft", diffW);
+                this.#updateCordX("hotRotCornerTopLeft", diffW);
+                this.#updateAreaCordX("hotResizableAreaTopLeft", diffW);
+                this.#updateAreaCordX("hotRotatableAreaTopLeft", diffW);
+            }
+            if ((this.cornerTopRight().x || 0) > this.rotationCenterX()) {
+                this.#updateCordX("cornerTopRight", diffW);
+                this.#updateCordX("hotCornerTopRight", diffW);
+
+                this.#updateCordX("hotRotCornerTopRight", diffW);
+
+                this.#updateAreaCordX("hotResizableAreaTopRight", diffW);
+                this.#updateAreaCordX("hotRotatableAreaTopRight", diffW);
+            }
+            if ((this.cornerBottomLeft().x || 0) > this.rotationCenterX()) {
+                this.#updateCordX("cornerBottomLeft", diffW);
+                this.#updateCordX("hotCornerBottomLeft", diffW);
+                this.#updateCordX("hotRotCornerBottomLeft", diffW);
+                this.#updateAreaCordX("hotResizableAreaBottomLeft", diffW);
+                this.#updateAreaCordX("hotRotatableAreaBottomLeft", diffW);
+            }
+            if ((this.cornerBottomRight().x || 0) > this.rotationCenterX()) {
+                this.#updateCordX("cornerBottomRight", diffW);
+                this.#updateCordX("hotCornerBottomRight", diffW);
+                this.#updateCordX("hotRotCornerBottomRight", diffW);
+                this.#updateAreaCordX("hotResizableAreaBottomRight", diffW);
+                this.#updateAreaCordX("hotRotatableAreaBottomRight", diffW);
+            }
+
+            if (
+                (this.cornerTopLeft().x || 0) > this.rotationCenterX() ||
+                (this.cornerBottomLeft().x || 0) > this.rotationCenterX()
+            ) {
+                this.hotResizableAreaBottom({
+                    topLeft: {
+                        x: this.hotResizableAreaBottom().topLeft.x + diffW,
+                        y: this.hotResizableAreaBottom().topLeft.y,
+                    },
+                    bottomLeft: {
+                        x: this.hotResizableAreaBottom().bottomLeft.x + diffW,
+                        y: this.hotResizableAreaBottom().bottomLeft.y,
+                    },
+                    topRight: {
+                        x: this.hotResizableAreaBottom().topRight.x,
+                        y: this.hotResizableAreaBottom().topRight.y,
+                    },
+                    bottomRight: {
+                        x: this.hotResizableAreaBottom().bottomRight.x,
+                        y: this.hotResizableAreaBottom().bottomRight.y,
+                    },
+                });
+                this.hotResizableAreaTop({
+                    topLeft: {
+                        x: this.hotResizableAreaTop().topLeft.x + diffW,
+                        y: this.hotResizableAreaTop().topLeft.y,
+                    },
+                    bottomLeft: {
+                        x: this.hotResizableAreaTop().bottomLeft.x + diffW,
+                        y: this.hotResizableAreaTop().bottomLeft.y,
+                    },
+                    topRight: {
+                        x: this.hotResizableAreaTop().topRight.x,
+                        y: this.hotResizableAreaTop().topRight.y,
+                    },
+                    bottomRight: {
+                        x: this.hotResizableAreaTop().bottomRight.x,
+                        y: this.hotResizableAreaTop().bottomRight.y,
+                    },
+                });
+                this.#updateAreaCordX("hotResizableAreaLeft", diffW);
+            }
+
+            if (
+                (this.cornerTopRight().x || 0) > this.rotationCenterX() ||
+                (this.cornerBottomRight().x || 0) > this.rotationCenterX()
+            ) {
+                this.hotResizableAreaBottom({
+                    topLeft: {
+                        x: this.hotResizableAreaBottom().topLeft.x,
+                        y: this.hotResizableAreaBottom().topLeft.y,
+                    },
+                    bottomLeft: {
+                        x: this.hotResizableAreaBottom().bottomLeft.x,
+                        y: this.hotResizableAreaBottom().bottomLeft.y,
+                    },
+                    topRight: {
+                        x: this.hotResizableAreaBottom().topRight.x + diffW,
+                        y: this.hotResizableAreaBottom().topRight.y,
+                    },
+                    bottomRight: {
+                        x: this.hotResizableAreaBottom().bottomRight.x + diffW,
+                        y: this.hotResizableAreaBottom().bottomRight.y,
+                    },
+                });
+                this.hotResizableAreaTop({
+                    topLeft: {
+                        x: this.hotResizableAreaTop().topLeft.x,
+                        y: this.hotResizableAreaTop().topLeft.y,
+                    },
+                    bottomLeft: {
+                        x: this.hotResizableAreaTop().bottomLeft.x,
+                        y: this.hotResizableAreaTop().bottomLeft.y,
+                    },
+                    topRight: {
+                        x: this.hotResizableAreaTop().topRight.x + diffW,
+                        y: this.hotResizableAreaTop().topRight.y,
+                    },
+                    bottomRight: {
+                        x: this.hotResizableAreaTop().bottomRight.x + diffW,
+                        y: this.hotResizableAreaTop().bottomRight.y,
+                    },
+                });
+                this.#updateAreaCordX("hotResizableAreaRight", diffW);
+            }
+        }
+        return w;
     }
 
     height(opt?: number | string): number {
@@ -863,152 +1661,404 @@ export class Block<T = BlockOptions> extends Node {
     marginRight(opt?: number | string) {
         return this.__valueHandler(opt, "marginRight", 0, true);
     }
-    cornerX1(opt?: number | string) {
-        return this.__valueHandler(opt, "cornerX1", 0, true);
-    }
-    cornerY1(opt?: number | string) {
-        return this.__valueHandler(opt, "cornerY1", 0, false);
-    }
-    cornerX2(opt?: number | string) {
-        return this.__valueHandler(opt, "cornerX2", 0, true);
-    }
-    cornerY2(opt?: number | string) {
-        return this.__valueHandler(opt, "cornerY2", 0, false);
-    }
-    cornerX3(opt?: number | string) {
-        return this.__valueHandler(opt, "cornerX3", 0, true);
-    }
-    cornerY3(opt?: number | string) {
-        return this.__valueHandler(opt, "cornerY3", 0, false);
-    }
-    cornerX4(opt?: number | string) {
-        return this.__valueHandler(opt, "cornerX4", 0, true);
-    }
-    cornerY4(opt?: number | string) {
-        return this.__valueHandler(opt, "cornerY4", 0, false);
+
+    cornerTopLeft(opt?: XY) {
+        return this.__valueHandler(opt, "cornerTopLeft", { x: 0, y: 0 });
     }
 
-    hotCornerX1(opt?: number | string) {
-        return this.__valueHandler(opt, "hotCornerX1", 0, true);
-    }
-    hotCornerY1(opt?: number | string) {
-        return this.__valueHandler(opt, "hotCornerY1", 0, false);
-    }
-    hotCornerX2(opt?: number | string) {
-        return this.__valueHandler(opt, "hotCornerX2", 0, true);
-    }
-    hotCornerY2(opt?: number | string) {
-        return this.__valueHandler(opt, "hotCornerY2", 0, false);
-    }
-    hotCornerX3(opt?: number | string) {
-        return this.__valueHandler(opt, "hotCornerX3", 0, true);
-    }
-    hotCornerY3(opt?: number | string) {
-        return this.__valueHandler(opt, "hotCornerY3", 0, false);
-    }
-    hotCornerX4(opt?: number | string) {
-        return this.__valueHandler(opt, "hotCornerX4", 0, true);
-    }
-    hotCornerY4(opt?: number | string) {
-        return this.__valueHandler(opt, "hotCornerY4", 0, false);
-    }
-    hotRotCornerX1(opt?: number | string) {
-        return this.__valueHandler(opt, "hotRotCornerX1", 0, true);
-    }
-    hotRotCornerY1(opt?: number | string) {
-        return this.__valueHandler(opt, "hotRotCornerY1", 0, false);
-    }
-    hotRotCornerX2(opt?: number | string) {
-        return this.__valueHandler(opt, "hotRotCornerX2", 0, true);
-    }
-    hotRotCornerY2(opt?: number | string) {
-        return this.__valueHandler(opt, "hotRotCornerY2", 0, false);
-    }
-    hotRotCornerX3(opt?: number | string) {
-        return this.__valueHandler(opt, "hotRotCornerX3", 0, true);
-    }
-    hotRotCornerY3(opt?: number | string) {
-        return this.__valueHandler(opt, "hotRotCornerY3", 0, false);
-    }
-    hotRotCornerX4(opt?: number | string) {
-        return this.__valueHandler(opt, "hotRotCornerX4", 0, true);
-    }
-    hotRotCornerY4(opt?: number | string) {
-        return this.__valueHandler(opt, "hotRotCornerY4", 0, false);
+    cornerTopRight(opt?: XY) {
+        return this.__valueHandler(opt, "cornerTopRight", {
+            x: 0,
+            y: 0,
+        });
     }
 
-    hotTop(opt?: (context: CanvasRenderingContext2D) => void) {
+    cornerBottomLeft(opt?: XY) {
+        return this.__valueHandler(opt, "cornerBottomLeft", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    cornerBottomRight(opt?: XY) {
+        return this.__valueHandler(opt, "cornerBottomRight", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    hotCornerTopLeft(opt?: XY) {
+        return this.__valueHandler(opt, "hotCornerTopLeft", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    hotCornerTopRight(opt?: XY) {
+        return this.__valueHandler(opt, "hotCornerTopRight", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    hotCornerBottomLeft(opt?: XY) {
+        return this.__valueHandler(opt, "hotCornerBottomLeft", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    hotCornerBottomRight(opt?: XY) {
+        return this.__valueHandler(opt, "hotCornerBottomRight", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    hotRotCornerTopLeft(opt?: XY) {
+        return this.__valueHandler(opt, "hotRotCornerTopLeft", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    hotRotCornerTopRight(opt?: XY) {
+        return this.__valueHandler(opt, "hotRotCornerTopRight", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    hotRotCornerBottomLeft(opt?: XY) {
+        return this.__valueHandler(opt, "hotRotCornerBottomLeft", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    hotRotCornerBottomRight(opt?: XY) {
+        return this.__valueHandler(opt, "hotRotCornerBottomRight", {
+            x: 0,
+            y: 0,
+        });
+    }
+
+    hotRotatableAreaTopLeft(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotRotatableAreaTopLeft", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotRotatableAreaTopRight(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotRotatableAreaTopRight", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotRotatableAreaBottomLeft(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotRotatableAreaBottomLeft", {
+            topLeft: {
+                x: this.hotRotCornerBottomLeft().x,
+                y: this.hotRotCornerBottomLeft().y - this.#HOT_AREA_SIZE,
+            },
+            topRight: {
+                x: this.hotRotCornerBottomLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerBottomLeft().y - this.#HOT_AREA_SIZE,
+            },
+            bottomLeft: {
+                x: this.hotRotCornerBottomLeft().x,
+                y: this.hotRotCornerBottomLeft().y,
+            },
+            bottomRight: {
+                x: this.hotRotCornerBottomLeft().x + this.#HOT_AREA_SIZE,
+                y: this.hotRotCornerBottomLeft().y,
+            },
+        });
+    }
+
+    hotRotatableAreaBottomRight(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotRotatableAreaBottomRight", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotResizableAreaTopLeft(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotResizableAreaTopLeft", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotResizableAreaTopRight(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotResizableAreaTopRight", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotResizableAreaBottomLeft(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotResizableAreaBottomLeft", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotResizableAreaBottomRight(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotResizableAreaBottomRight", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotResizableAreaTop(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotResizableAreaTop", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotResizableAreaBottom(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotResizableAreaBottom", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotResizableAreaLeft(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotResizableAreaLeft", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotResizableAreaRight(opt?: HotCornerArea) {
+        return this.__valueHandler(opt, "hotResizableAreaRight", {
+            topLeft: {
+                x: 0,
+                y: 0,
+            },
+            topRight: {
+                x: 0,
+                y: 0,
+            },
+            bottomLeft: {
+                x: 0,
+                y: 0,
+            },
+            bottomRight: {
+                x: 0,
+                y: 0,
+            },
+        });
+    }
+
+    hotTopFunc(opt?: (context: CanvasRenderingContext2D) => void) {
         return this.__valueHandler<typeof opt, typeof opt>(
             opt,
-            "hotTop",
+            "hotTopFunc",
             undefined
         );
     }
-    hotLeft(opt?: (context: CanvasRenderingContext2D) => void) {
+    hotLeftFunc(opt?: (context: CanvasRenderingContext2D) => void) {
         return this.__valueHandler<typeof opt, typeof opt>(
             opt,
-            "hotLeft",
+            "hotLeftFunc",
             undefined
         );
     }
-    hotRight(opt?: (context: CanvasRenderingContext2D) => void) {
+    hotRightFunc(opt?: (context: CanvasRenderingContext2D) => void) {
         return this.__valueHandler<typeof opt, typeof opt>(
             opt,
-            "hotRight",
+            "hotRightFunc",
             undefined
         );
     }
-    hotBottom(opt?: (context: CanvasRenderingContext2D) => void) {
+    hotBottomFunc(opt?: (context: CanvasRenderingContext2D) => void) {
         return this.__valueHandler<typeof opt, typeof opt>(
             opt,
-            "hotBottom",
+            "hotBottomFunc",
             undefined
         );
     }
-    hotCornerTopLeft(opt?: (context: CanvasRenderingContext2D) => void) {
+    hotCornerTopLeftFunc(opt?: (context: CanvasRenderingContext2D) => void) {
         return this.__valueHandler<typeof opt, typeof opt>(
             opt,
-            "hotCornerTopLeft",
+            "hotCornerTopLeftFunc",
             undefined
         );
     }
-    hotCornerTopRight(opt?: (context: CanvasRenderingContext2D) => void) {
+    hotCornerTopRightFunc(opt?: (context: CanvasRenderingContext2D) => void) {
         return this.__valueHandler<typeof opt, typeof opt>(
             opt,
-            "hotCornerTopRight",
+            "hotCornerTopRightFunc",
             undefined
         );
     }
-    hotCornerBottomLeft(opt?: (context: CanvasRenderingContext2D) => void) {
+    hotCornerBottomLeftFunc(opt?: (context: CanvasRenderingContext2D) => void) {
         return this.__valueHandler<typeof opt, typeof opt>(
             opt,
-            "hotCornerBottomLeft",
+            "hotCornerBottomLeftFunc",
             undefined
         );
     }
-    hotCornerBottomRight(opt?: (context: CanvasRenderingContext2D) => void) {
+    hotCornerBottomRightFunc(
+        opt?: (context: CanvasRenderingContext2D) => void
+    ) {
         return this.__valueHandler<typeof opt, typeof opt>(
             opt,
-            "hotCornerBottomRight",
+            "hotCornerBottomRightFunc",
             undefined
         );
     }
 
     rotationCenterX(opt?: number | string) {
-        return this.__valueHandler(
-            opt,
-            "rotationCenterX",
-            this.x() + this.width() / 2,
-            true
-        );
+        return this.__valueHandler(opt, "rotationCenterX", 0, true);
     }
     rotationCenterY(opt?: number | string) {
-        return this.__valueHandler(
-            opt,
-            "rotationCenterY",
-            this.y() + this.height() / 2,
-            false
-        );
+        return this.__valueHandler(opt, "rotationCenterY", 0, false);
     }
     rotationTopLeft(opt?: boolean) {
         return this.__valueHandler(opt, "rotationTopLeft", true);
@@ -1635,14 +2685,14 @@ export class Block<T = BlockOptions> extends Node {
         const inBound = checkInBound(
             x,
             y,
-            this.cornerX1(),
-            this.cornerY1(),
-            this.cornerX2(),
-            this.cornerY2(),
-            this.cornerX3(),
-            this.cornerY3(),
-            this.cornerX4(),
-            this.cornerY4()
+            this.cornerTopLeft().x,
+            this.cornerTopLeft().y,
+            this.cornerTopRight().x,
+            this.cornerTopRight().y,
+            this.cornerBottomLeft().x,
+            this.cornerBottomLeft().y,
+            this.cornerBottomRight().x,
+            this.cornerBottomRight().y
         );
         if (inBound) this.canvas?.takeRegister({ in: this.zIndex() });
         else this.canvas?.takeRegister({ out: this.zIndex() });
@@ -1662,7 +2712,7 @@ export class Block<T = BlockOptions> extends Node {
         this.#eventHandler<MouseEvent>("click", out);
     }
 
-    dbclick(_func: (event: MouseEvent) => void) {
+    dblclick(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
             if (
                 this.checkInBound(event) &&
@@ -1828,7 +2878,6 @@ export class Block<T = BlockOptions> extends Node {
     #eventHandler<E>(type: IMouseEvents, _func: (event: E) => void) {
         this.__events[type].push(_func);
     }
-
     selectable(opt?: boolean): boolean {
         const selectable = this.__valueHandler(opt, "selectable", false);
         if (
@@ -1847,14 +2896,14 @@ export class Block<T = BlockOptions> extends Node {
                 inBound = checkInBound(
                     x,
                     y,
-                    this.hotCornerX1(),
-                    this.hotCornerY1(),
-                    this.hotCornerX2(),
-                    this.hotCornerY2(),
-                    this.hotCornerX3(),
-                    this.hotCornerY3(),
-                    this.hotCornerX4(),
-                    this.hotCornerY4()
+                    this.hotCornerTopLeft().x,
+                    this.hotCornerTopLeft().y,
+                    this.hotCornerTopRight().x,
+                    this.hotCornerTopRight().y,
+                    this.hotCornerBottomLeft().x,
+                    this.hotCornerBottomLeft().y,
+                    this.hotCornerBottomRight().x,
+                    this.hotCornerBottomRight().y
                 );
                 if (inBound) this.canvas?.takeRegister({ in: this.zIndex() });
                 else this.canvas?.takeRegister({ out: this.zIndex() });
@@ -1870,7 +2919,10 @@ export class Block<T = BlockOptions> extends Node {
     }
 
     onRotate(opt?: (event: MouseEvent) => void) {
-        const rotateE = this.__cacheOptions(opt, "onRotate", undefined);
+        const rotateE = this.__valueHandler<
+            (event: MouseEvent) => void,
+            ((event: MouseEvent) => void) | undefined
+        >(opt, "onRotate", undefined);
         return (event: MouseEvent) => {
             rotateE?.(event);
         };
@@ -1887,7 +2939,6 @@ export class Block<T = BlockOptions> extends Node {
 
         const mousedown = (event: MouseEvent) => {
             if (this.#runningEvents.resize || this.#runningEvents.drag) return;
-            console.log(inBound)
             if (inBound) {
                 this.#runningEvents.rotate = true;
                 this.canvas?.takeRegister({ in: this.zIndex() });
@@ -1899,44 +2950,26 @@ export class Block<T = BlockOptions> extends Node {
         const mousemove = (event: MouseEvent) => {
             if (
                 !this.#runningEvents.selected ||
-                this.#runningEvents.drag ||
-                this.#runningEvents.resize
+                this.#runningEvents.resize ||
+                this.#runningEvents.drag
             )
                 return;
 
-            let cursor: string = "auto";
             let { x, y } = this.canvas.getCursorPosition(event);
             if (!this.#runningEvents.rotate) {
-                const ltx = this.hotCornerX1();
-                const lty = this.hotCornerY1();
-                const rtx = this.hotCornerX2();
-                const rty = this.hotCornerY2();
-                const lbx = this.hotCornerX3();
-                const lby = this.hotCornerY3();
-                const rbx = this.hotCornerX4();
-                const rby = this.hotCornerY4();
-
-                const hltx = this.hotRotCornerX1();
-                const hlty = this.hotRotCornerY1();
-                const hrtx = this.hotRotCornerX2();
-                const hrty = this.hotRotCornerY2();
-                const hlbx = this.hotRotCornerX3();
-                const hlby = this.hotRotCornerY3();
-                const hrbx = this.hotRotCornerX4();
-                const hrby = this.hotRotCornerY4();
-
+                let cursor: string | undefined = undefined;
                 if (
                     checkInBound(
                         x,
                         y,
-                        hltx,
-                        hlty,
-                        ltx,
-                        hlty,
-                        hltx,
-                        lty,
-                        ltx,
-                        lty
+                        this.hotRotatableAreaTopLeft().topLeft.x,
+                        this.hotRotatableAreaTopLeft().topLeft.y,
+                        this.hotRotatableAreaTopLeft().topRight.x,
+                        this.hotRotatableAreaTopLeft().topRight.y,
+                        this.hotRotatableAreaTopLeft().bottomLeft.x,
+                        this.hotRotatableAreaTopLeft().bottomLeft.y,
+                        this.hotRotatableAreaTopLeft().bottomRight.x,
+                        this.hotRotatableAreaTopLeft().bottomRight.y
                     ) &&
                     this.rotationTopLeft()
                 ) {
@@ -1947,14 +2980,14 @@ export class Block<T = BlockOptions> extends Node {
                     checkInBound(
                         x,
                         y,
-                        rtx,
-                        hrty,
-                        hrtx,
-                        hrty,
-                        rtx,
-                        rty,
-                        hrtx,
-                        rty
+                        this.hotRotatableAreaTopRight().topLeft.x,
+                        this.hotRotatableAreaTopRight().topLeft.y,
+                        this.hotRotatableAreaTopRight().topRight.x,
+                        this.hotRotatableAreaTopRight().topRight.y,
+                        this.hotRotatableAreaTopRight().bottomLeft.x,
+                        this.hotRotatableAreaTopRight().bottomLeft.y,
+                        this.hotRotatableAreaTopRight().bottomRight.x,
+                        this.hotRotatableAreaTopRight().bottomRight.y
                     ) &&
                     this.rotationTopRight()
                 ) {
@@ -1965,14 +2998,14 @@ export class Block<T = BlockOptions> extends Node {
                     checkInBound(
                         x,
                         y,
-                        hlbx,
-                        lby,
-                        lbx,
-                        lby,
-                        hlbx,
-                        hlby,
-                        lbx,
-                        lby
+                        this.hotRotatableAreaBottomLeft().topLeft.x,
+                        this.hotRotatableAreaBottomLeft().topLeft.y,
+                        this.hotRotatableAreaBottomLeft().topRight.x,
+                        this.hotRotatableAreaBottomLeft().topRight.y,
+                        this.hotRotatableAreaBottomLeft().bottomLeft.x,
+                        this.hotRotatableAreaBottomLeft().bottomLeft.y,
+                        this.hotRotatableAreaBottomLeft().bottomRight.x,
+                        this.hotRotatableAreaBottomLeft().bottomRight.y
                     ) &&
                     this.rotationBottomLeft()
                 ) {
@@ -1983,14 +3016,14 @@ export class Block<T = BlockOptions> extends Node {
                     checkInBound(
                         x,
                         y,
-                        rbx,
-                        rby,
-                        hrbx,
-                        rby,
-                        rbx,
-                        hrby,
-                        hrbx,
-                        hrby
+                        this.hotRotatableAreaBottomRight().topLeft.x,
+                        this.hotRotatableAreaBottomRight().topLeft.y,
+                        this.hotRotatableAreaBottomRight().topRight.x,
+                        this.hotRotatableAreaBottomRight().topRight.y,
+                        this.hotRotatableAreaBottomRight().bottomLeft.x,
+                        this.hotRotatableAreaBottomRight().bottomLeft.y,
+                        this.hotRotatableAreaBottomRight().bottomRight.x,
+                        this.hotRotatableAreaBottomRight().bottomRight.y
                     ) &&
                     this.rotationBottomRight()
                 ) {
@@ -1998,10 +3031,25 @@ export class Block<T = BlockOptions> extends Node {
                     topMove = false;
                     leftMove = false;
                 }
-                console.log(cursor)
-                if (cursor !== "auto") inBound = true;
-                else inBound = false;
-                this.canvas.changeCursor(cursor);
+                if (cursor) {
+                    inBound = true;
+                    this.#cursor = cursor;
+                    this.canvas.changeCursor(cursor);
+                } else {
+                    inBound = false;
+                    if (
+                        this.#cursor &&
+                        ![
+                            "ew-resize",
+                            "ns-resize",
+                            "nwse-resize",
+                            "nesw-resize",
+                        ].includes(this.#cursor)
+                    ) {
+                        this.#cursor = cursor;
+                        this.canvas.changeCursor(cursor);
+                    }
+                }
             }
             if (
                 this.#runningEvents.rotate &&
@@ -2011,7 +3059,7 @@ export class Block<T = BlockOptions> extends Node {
                     y - this.rotationCenterY(),
                     x - this.rotationCenterX()
                 );
-                this.#beforeRotDegree = this.rotate()
+                this.#beforeRotDegree = this.rotate();
                 if (topMove && leftMove) {
                     this.rotate(radian + degreeToRadian(135));
                 } else if (topMove && !leftMove) {
@@ -2029,6 +3077,8 @@ export class Block<T = BlockOptions> extends Node {
         const mouseup = () => {
             if (this.#runningEvents.rotate) {
                 this.#runningEvents.rotate = false;
+                this.canvas.changeCursor("auto");
+                inBound = false;
                 let dummy: any = {};
                 dummy[this.nodeId!] = {};
                 this.canvas?.takeSnapshot(new Date().getTime(), dummy);
@@ -2043,68 +3093,99 @@ export class Block<T = BlockOptions> extends Node {
     }
 
     __handleRotation() {
-        const corner1 = this.__rotateCorners(this.cornerX1(), this.cornerY1());
-        const corner2 = this.__rotateCorners(this.cornerX2(), this.cornerY2());
-        const corner3 = this.__rotateCorners(this.cornerX3(), this.cornerY3());
-        const corner4 = this.__rotateCorners(this.cornerX4(), this.cornerY4());
-        this.cornerX1(corner1.x);
-        this.cornerY1(corner1.y);
-        this.cornerX2(corner2.x);
-        this.cornerY2(corner2.y);
-        this.cornerX3(corner3.x);
-        this.cornerY3(corner3.y);
-        this.cornerX4(corner4.x);
-        this.cornerY4(corner4.y);
+        if (this.#beforeRotDegree === this.rotate()) return;
 
-        const hotCorner1 = this.__rotateCorners(
-            this.hotCornerX1(),
-            this.hotCornerY1()
-        );
-        const hotCorner2 = this.__rotateCorners(
-            this.hotCornerX2(),
-            this.hotCornerY2()
-        );
-        const hotCorner3 = this.__rotateCorners(
-            this.hotCornerX3(),
-            this.hotCornerY3()
-        );
-        const hotCorner4 = this.__rotateCorners(
-            this.hotCornerX4(),
-            this.hotCornerY4()
-        );
-        this.hotCornerX1(hotCorner1.x);
-        this.hotCornerY1(hotCorner1.y);
-        this.hotCornerX2(hotCorner2.x);
-        this.hotCornerY2(hotCorner2.y);
-        this.hotCornerX3(hotCorner3.x);
-        this.hotCornerY3(hotCorner3.y);
-        this.hotCornerX4(hotCorner4.x);
-        this.hotCornerY4(hotCorner4.y);
+        this.#updateCornerbyRot(this.cornerTopLeft);
+        this.#updateCornerbyRot(this.cornerTopRight);
+        this.#updateCornerbyRot(this.cornerBottomLeft);
+        this.#updateCornerbyRot(this.cornerBottomRight);
 
-        const hotRotCorner1 = this.__rotateCorners(
-            this.hotRotCornerX1(),
-            this.hotRotCornerY1()
+        this.#updateCornerbyRot(this.hotCornerTopLeft);
+        this.#updateCornerbyRot(this.hotCornerTopRight);
+        this.#updateCornerbyRot(this.hotCornerBottomLeft);
+        this.#updateCornerbyRot(this.hotCornerBottomRight);
+
+        this.#updateCornerbyRot(this.hotRotCornerTopLeft);
+        this.#updateCornerbyRot(this.hotRotCornerTopRight);
+        this.#updateCornerbyRot(this.hotRotCornerBottomLeft);
+        this.#updateCornerbyRot(this.hotRotCornerBottomRight);
+
+        this.#updateCornerAreabyRot(this.hotResizableAreaTopLeft);
+        this.#updateCornerAreabyRot(this.hotResizableAreaTopRight);
+        this.#updateCornerAreabyRot(this.hotResizableAreaBottomLeft);
+        this.#updateCornerAreabyRot(this.hotResizableAreaBottomRight);
+        this.#updateCornerAreabyRot(this.hotResizableAreaTop);
+        this.#updateCornerAreabyRot(this.hotResizableAreaRight);
+        this.#updateCornerAreabyRot(this.hotResizableAreaLeft);
+        this.#updateCornerAreabyRot(this.hotResizableAreaBottom);
+
+        this.#updateCornerAreabyRot(this.hotRotatableAreaTopLeft);
+        this.#updateCornerAreabyRot(this.hotRotatableAreaTopRight);
+        this.#updateCornerAreabyRot(this.hotRotatableAreaBottomLeft);
+        this.#updateCornerAreabyRot(this.hotRotatableAreaBottomRight);
+    }
+
+    #updateCornerbyRot(corner: any) {
+        const c = this.__rotateCorners(
+            corner.call(this).x,
+            corner.call(this).y
         );
-        const hotRotCorner2 = this.__rotateCorners(
-            this.hotRotCornerX2(),
-            this.hotRotCornerY2()
+        corner.call(this, { x: c.x, y: c.y });
+    }
+
+    #updateCornerAreabyRot(corner: any) {
+        const a = this.__rotateCorners(
+            corner.call(this).topLeft.x,
+            corner.call(this).topLeft.y
         );
-        const hotRotCorner3 = this.__rotateCorners(
-            this.hotRotCornerX3(),
-            this.hotRotCornerY3()
+        const b = this.__rotateCorners(
+            corner.call(this).topRight.x,
+            corner.call(this).topRight.y
         );
-        const hotRotCorner4 = this.__rotateCorners(
-            this.hotRotCornerX4(),
-            this.hotRotCornerY4()
+        const c = this.__rotateCorners(
+            corner.call(this).bottomLeft.x,
+            corner.call(this).bottomLeft.y
         );
-        this.hotRotCornerX1(hotRotCorner1.x);
-        this.hotRotCornerY1(hotRotCorner1.y);
-        this.hotRotCornerX2(hotRotCorner2.x);
-        this.hotRotCornerY2(hotRotCorner2.y);
-        this.hotRotCornerX3(hotRotCorner3.x);
-        this.hotRotCornerY3(hotRotCorner3.y);
-        this.hotRotCornerX4(hotRotCorner4.x);
-        this.hotRotCornerY4(hotRotCorner4.y);
+        const d = this.__rotateCorners(
+            corner.call(this).bottomRight.x,
+            corner.call(this).bottomRight.y
+        );
+        corner.call(this, {
+            topLeft: { x: a.x, y: a.y },
+            topRight: { x: b.x, y: b.y },
+            bottomLeft: { x: c.x, y: c.y },
+            bottomRight: { x: d.x, y: d.y },
+        });
+    }
+
+    #updateCordX(corner: string, x: number) {
+        this.ownOptions[corner].x = this.ownOptions[corner].x + x;
+    }
+
+    #updateAreaCordX(corner: string, x: number) {
+        this.ownOptions[corner].topLeft.x =
+            this.ownOptions[corner].topLeft.x + x;
+        this.ownOptions[corner].topRight.x =
+            this.ownOptions[corner].topRight.x + x;
+        this.ownOptions[corner].bottomLeft.x =
+            this.ownOptions[corner].bottomLeft.x + x;
+        this.ownOptions[corner].bottomRight.x =
+            this.ownOptions[corner].bottomRight.x + x;
+    }
+
+    #updateCordY(corner: string, y: number) {
+        this.ownOptions[corner].y = this.ownOptions[corner].y + y;
+    }
+
+    #updateAreaCordY(corner: string, y: number) {
+        this.ownOptions[corner].topLeft.y =
+            this.ownOptions[corner].topLeft.y + y;
+        this.ownOptions[corner].topRight.y =
+            this.ownOptions[corner].topRight.y + y;
+        this.ownOptions[corner].bottomLeft.y =
+            this.ownOptions[corner].bottomLeft.y + y;
+        this.ownOptions[corner].bottomRight.y =
+            this.ownOptions[corner].bottomRight.y + y;
     }
 
     __rotateCorners(x: number, y: number) {
@@ -2118,7 +3199,11 @@ export class Block<T = BlockOptions> extends Node {
     }
 
     onResize(opt?: (event: MouseEvent) => void) {
-        const resizeE = this.__cacheOptions(opt, "onResize", undefined);
+        const resizeE = this.__valueHandler<
+            (event: MouseEvent) => void,
+            ((event: MouseEvent) => void) | undefined
+        >(opt, "onResize", undefined);
+
         return (event: MouseEvent) => {
             resizeE?.(event);
         };
@@ -2134,10 +3219,6 @@ export class Block<T = BlockOptions> extends Node {
 
         let topResize = false;
         let leftResize = false;
-        let widthResize = false;
-        let heightResize = false;
-        let isLeft = false;
-        let isTop = false;
 
         let inBound = false;
 
@@ -2158,258 +3239,203 @@ export class Block<T = BlockOptions> extends Node {
                     y: this.y(),
                     width: this.width(),
                     height: this.height(),
-                    cornerX1: this.cornerX1(),
-                    cornerX2: this.cornerX2(),
-                    cornerX3: this.cornerX3(),
-                    cornerX4: this.cornerX4(),
-                    cornerY1: this.cornerY1(),
-                    cornerY2: this.cornerY2(),
-                    cornerY3: this.cornerY3(),
-                    cornerY4: this.cornerY4(),
-                    hotCornerX1: this.hotCornerX1(),
-                    hotCornerX2: this.hotCornerX2(),
-                    hotCornerX3: this.hotCornerX3(),
-                    hotCornerX4: this.hotCornerX4(),
-                    hotCornerY1: this.hotCornerY1(),
-                    hotCornerY2: this.hotCornerY2(),
-                    hotCornerY3: this.hotCornerY3(),
-                    hotCornerY4: this.hotCornerY4(),
                 };
             }
         };
 
         const mousemove = (event: MouseEvent) => {
-            if (!this.#runningEvents.selected) return;
+            if (
+                !this.#runningEvents.selected ||
+                this.#runningEvents.drag ||
+                this.#runningEvents.rotate
+            )
+                return;
 
             const { x, y } = this.canvas.getCursorPosition(event);
             if (!this.#runningEvents.resize) {
                 let cursor: string | undefined = undefined;
-                isTop =
-                    isLeft =
-                    widthResize =
-                    heightResize =
-                    leftResize =
-                    topResize =
-                        false;
-                let ltx = this.cornerX1();
-                let lty = this.cornerY1();
-                let rtx = this.cornerX2();
-                let rty = this.cornerY2();
-                let lbx = this.cornerX3();
-                let lby = this.cornerY3();
-                let rbx = this.cornerX4();
-                let rby = this.cornerY4();
+                topResize = leftResize = false;
 
-                let hltx = this.hotCornerX1();
-                let hlty = this.hotCornerY1();
-                let hrtx = this.hotCornerX2();
-                let hrty = this.hotCornerY2();
-                let hlbx = this.hotCornerX3();
-                let hlby = this.hotCornerY3();
-                let hrbx = this.hotCornerX4();
-                let hrby = this.hotCornerY4();
                 if (
                     checkInBound(
                         x,
                         y,
-                        hltx,
-                        hlty,
-                        ltx,
-                        lty,
-                        hlbx,
-                        hlby,
-                        lbx,
-                        lby
+                        this.hotResizableAreaLeft().topLeft.x,
+                        this.hotResizableAreaLeft().topLeft.y,
+                        this.hotResizableAreaLeft().topRight.x,
+                        this.hotResizableAreaLeft().topRight.y,
+                        this.hotResizableAreaLeft().bottomLeft.x,
+                        this.hotResizableAreaLeft().bottomLeft.y,
+                        this.hotResizableAreaLeft().bottomRight.x,
+                        this.hotResizableAreaLeft().bottomRight.y
                     )
                 ) {
-                    isLeft = ltx >= hltx || lbx >= hlby ? true : false;
-                    widthResize = true;
                     leftResize = true;
-                    cursor = "w-resize";
+                    cursor = "ew-resize";
                 } else if (
                     checkInBound(
                         x,
                         y,
-                        rtx,
-                        rty,
-                        hrtx,
-                        hrty,
-                        rbx,
-                        rby,
-                        hrbx,
-                        hrby
+                        this.hotResizableAreaRight().topLeft.x,
+                        this.hotResizableAreaRight().topLeft.y,
+                        this.hotResizableAreaRight().topRight.x,
+                        this.hotResizableAreaRight().topRight.y,
+                        this.hotResizableAreaRight().bottomLeft.x,
+                        this.hotResizableAreaRight().bottomLeft.y,
+                        this.hotResizableAreaRight().bottomRight.x,
+                        this.hotResizableAreaRight().bottomRight.y
                     )
                 ) {
-                    isLeft = rtx >= hrtx || rbx >= hrbx ? true : false;
-                    widthResize = true;
-                    cursor = "w-resize";
+                    cursor = "ew-resize";
                 } else if (
                     checkInBound(
                         x,
                         y,
-                        hltx,
-                        hlty,
-                        hrtx,
-                        hrty,
-                        ltx,
-                        lty,
-                        rtx,
-                        rty
+                        this.hotResizableAreaTop().topLeft.x,
+                        this.hotResizableAreaTop().topLeft.y,
+                        this.hotResizableAreaTop().topRight.x,
+                        this.hotResizableAreaTop().topRight.y,
+                        this.hotResizableAreaTop().bottomLeft.x,
+                        this.hotResizableAreaTop().bottomLeft.y,
+                        this.hotResizableAreaTop().bottomRight.x,
+                        this.hotResizableAreaTop().bottomRight.y
                     )
                 ) {
-                    isTop = lty >= hlty || rty >= hrty ? true : false;
-                    heightResize = true;
                     topResize = true;
-                    cursor = "n-resize";
+                    cursor = "ns-resize";
                 } else if (
                     checkInBound(
                         x,
                         y,
-                        lbx,
-                        lby,
-                        rbx,
-                        rby,
-                        hlbx,
-                        hlby,
-                        hrbx,
-                        hrby
+                        this.hotResizableAreaBottom().topLeft.x,
+                        this.hotResizableAreaBottom().topLeft.y,
+                        this.hotResizableAreaBottom().topRight.x,
+                        this.hotResizableAreaBottom().topRight.y,
+                        this.hotResizableAreaBottom().bottomLeft.x,
+                        this.hotResizableAreaBottom().bottomLeft.y,
+                        this.hotResizableAreaBottom().bottomRight.x,
+                        this.hotResizableAreaBottom().bottomRight.y
                     )
                 ) {
-                    isTop = lby >= hlby || rby >= hrby ? true : false;
-                    heightResize = true;
-                    cursor = "n-resize";
+                    cursor = "ns-resize";
                 }
 
-                if (checkInBound(x, y, hltx, hlty, ltx, lty, 0, 0, 0, 0)) {
-                    isLeft = ltx >= hltx ? true : false;
-                    isTop = lty >= hlty ? true : false;
+                if (
+                    checkInBound(
+                        x,
+                        y,
+                        this.hotResizableAreaTopLeft().topLeft.x,
+                        this.hotResizableAreaTopLeft().topLeft.y,
+                        this.hotResizableAreaTopLeft().topRight.x,
+                        this.hotResizableAreaTopLeft().topRight.y,
+                        this.hotResizableAreaTopLeft().bottomLeft.x,
+                        this.hotResizableAreaTopLeft().bottomLeft.y,
+                        this.hotResizableAreaTopLeft().bottomRight.x,
+                        this.hotResizableAreaTopLeft().bottomRight.y
+                    )
+                ) {
                     topResize = true;
                     leftResize = true;
-                    widthResize = true;
-                    heightResize = true;
-                    cursor = "nw-resize";
+                    cursor = "nwse-resize";
                 }
-                if (checkInBound(x, y, hrtx, hrty, rtx, rty, 0, 0, 0, 0)) {
-                    isLeft = rtx >= hrtx ? true : false;
-                    isTop = rty >= hrty ? true : false;
+                if (
+                    checkInBound(
+                        x,
+                        y,
+                        this.hotResizableAreaTopRight().topLeft.x,
+                        this.hotResizableAreaTopRight().topLeft.y,
+                        this.hotResizableAreaTopRight().topRight.x,
+                        this.hotResizableAreaTopRight().topRight.y,
+                        this.hotResizableAreaTopRight().bottomLeft.x,
+                        this.hotResizableAreaTopRight().bottomLeft.y,
+                        this.hotResizableAreaTopRight().bottomRight.x,
+                        this.hotResizableAreaTopRight().bottomRight.y
+                    )
+                ) {
                     topResize = true;
                     leftResize = false;
-                    widthResize = true;
-                    heightResize = true;
                     cursor = "nesw-resize";
                 }
-                if (checkInBound(x, y, lbx, lby, hlbx, hlby, 0, 0, 0, 0)) {
-                    isLeft = lbx >= hlbx ? true : false;
-                    isTop = lby >= hlby ? true : false;
+                if (
+                    checkInBound(
+                        x,
+                        y,
+                        this.hotResizableAreaBottomLeft().topLeft.x,
+                        this.hotResizableAreaBottomLeft().topLeft.y,
+                        this.hotResizableAreaBottomLeft().topRight.x,
+                        this.hotResizableAreaBottomLeft().topRight.y,
+                        this.hotResizableAreaBottomLeft().bottomLeft.x,
+                        this.hotResizableAreaBottomLeft().bottomLeft.y,
+                        this.hotResizableAreaBottomLeft().bottomRight.x,
+                        this.hotResizableAreaBottomLeft().bottomRight.y
+                    )
+                ) {
                     topResize = false;
                     leftResize = true;
-                    widthResize = true;
-                    heightResize = true;
                     cursor = "nesw-resize";
                 }
-                if (checkInBound(x, y, rbx, rby, hrbx, hrby, 0, 0, 0, 0)) {
-                    isLeft = rbx >= hrbx ? true : false;
-                    isTop = rby >= hrby ? true : false;
+                if (
+                    checkInBound(
+                        x,
+                        y,
+                        this.hotResizableAreaBottomRight().topLeft.x,
+                        this.hotResizableAreaBottomRight().topLeft.y,
+                        this.hotResizableAreaBottomRight().topRight.x,
+                        this.hotResizableAreaBottomRight().topRight.y,
+                        this.hotResizableAreaBottomRight().bottomLeft.x,
+                        this.hotResizableAreaBottomRight().bottomLeft.y,
+                        this.hotResizableAreaBottomRight().bottomRight.x,
+                        this.hotResizableAreaBottomRight().bottomRight.y
+                    )
+                ) {
                     topResize = false;
                     leftResize = false;
-                    widthResize = true;
-                    heightResize = true;
-                    cursor = "nw-resize";
+                    cursor = "nwse-resize";
                 }
-                if (cursor) inBound = true;
-                else inBound = false;
-                this.canvas.changeCursor(cursor);
+                if (cursor) {
+                    inBound = true;
+                    cursor = this.#chooseCursor(cursor);
+                    this.#cursor = cursor;
+                    this.canvas.changeCursor(cursor);
+                } else {
+                    inBound = false;
+                    if (this.#cursor !== "cell") {
+                        this.#cursor = cursor;
+                        this.canvas.changeCursor(cursor);
+                    }
+                }
             }
 
-            if (this.#runningEvents.resize) {
+            if (
+                this.#runningEvents.resize &&
+                this.canvas?.whoIsTheFirst(this.zIndex())
+            ) {
+                // console.log(this.#cursor);
                 let diffX = x - initCords.x;
-                let diffY = y - initCords.y;
 
-                if (diffX !== 0 && widthResize) {
+                if (diffX !== 0) {
                     let diff = diffX - beforeCords.x;
-                    let fliped;
 
-                    if (isLeft) {
-                        fliped =
-                            this.width() - diff <= 0
-                                ? this.horizontalFlipResize()
-                                : true;
-                    } else {
-                        fliped =
-                            this.width() + diff <= 0
-                                ? this.horizontalFlipResize()
-                                : true;
-                    }
-                    if (fliped) {
-                        if (this.__isHorizontalFlipped) {
-                            if (isLeft) {
-                                this.x(this.x() + diff);
-                                this.width(this.width() - diff);
-                            } else {
-                                this.x(originX);
-                                this.width(this.width() + diff);
-                            }
-                        } else {
-                            if (isLeft) {
-                                this.x(this.x() + diff);
-                                this.width(this.width() - diff);
-                            } else {
-                                this.x(originX);
-                                this.width(this.width() + diff);
-                            }
-                        }
-
-                        // @BUG: when resizing inverse these cordinates not updating correctly
+                    if (!this.__isHorizontalFlipped) {
                         if (leftResize) {
-                            this.cornerX1(this.cornerX1() + diff);
-                            this.cornerX3(this.cornerX3() + diff);
-                            this.hotCornerX1(this.hotCornerX1() + diff);
-                            this.hotCornerX3(this.hotCornerX3() + diff);
+                            this.x(this.x() + diff);
+                            this.width(this.width() - diff);
                         } else {
-                            this.cornerX2(this.cornerX2() + diff);
-                            this.cornerX4(this.cornerX4() + diff);
-                            this.hotCornerX2(this.hotCornerX2() + diff);
-                            this.hotCornerX4(this.hotCornerX4() + diff);
-                        }
-                        beforeCords.x = diffX;
-                    }
-                }
-                if (diffY !== 0 && heightResize) {
-                    const diff = diffY - beforeCords.y;
-
-                    if (!this.__isVerticalFlipped) {
-                        if (isTop) {
-                            this.y(this.y() + diff);
-                            this.height(this.height() - diff);
-                        } else {
-                            this.y(originY);
-                            this.height(this.height() + diff);
+                            this.x(originX);
+                            this.width(this.width() + diff);
                         }
                     } else {
-                        if (isTop) {
-                            this.y(this.y() - diff);
-                            this.height(this.height() + diff);
+                        if (leftResize) {
+                            this.x(this.x() + diff);
+                            this.width(this.width() - diff);
                         } else {
-                            // this.y(originY);
-                            // this.height(this.height() + diff);
+                            // this.x(originX);
+                            this.width(this.width() + diff);
                         }
                     }
-
-                    if (topResize) {
-                        this.cornerY1(this.cornerY1() + diff);
-                        this.cornerY2(this.cornerY2() + diff);
-                        this.hotCornerY1(this.hotCornerY1() + diff);
-                        this.hotCornerY2(this.hotCornerY2() + diff);
-                    } else {
-                        this.cornerY4(this.cornerY4() + diff);
-                        this.cornerY3(this.cornerY3() + diff);
-                        this.hotCornerY4(this.hotCornerY4() + diff);
-                        this.hotCornerY3(this.hotCornerY3() + diff);
-                    }
-                    if (this.height() >= 0 || this.__isVerticalFlipped) {
-                        beforeCords.y = diffY;
-                    }
+                    beforeCords.x = diffX;
                 }
+
                 this.onResize()(event);
                 this.canvas.invokeChange();
             }
@@ -2419,13 +3445,7 @@ export class Block<T = BlockOptions> extends Node {
             if (this.#runningEvents.resize) {
                 this.canvas.changeCursor("auto");
                 this.#runningEvents.resize = false;
-                isTop =
-                    isLeft =
-                    widthResize =
-                    heightResize =
-                    leftResize =
-                    topResize =
-                        false;
+                leftResize = topResize = false;
                 if (beforeCords.x !== 0 || beforeCords.y !== 0) {
                     let after: any = {};
                     after[this.nodeId!] = {
@@ -2433,21 +3453,6 @@ export class Block<T = BlockOptions> extends Node {
                         y: this.y(),
                         width: this.width(),
                         height: this.height(),
-                        cornerX1: this.cornerX1(),
-                        cornerY1: this.cornerY1(),
-                        cornerX2: this.cornerX2(),
-                        cornerY2: this.cornerY2(),
-                        cornerX3: this.cornerX3(),
-                        cornerY3: this.cornerY3(),
-                        cornerX4: this.cornerX4(),
-                        cornerY4: this.cornerY4(),
-                        hotCornerY1: this.hotCornerY1(),
-                        hotCornerX2: this.hotCornerX2(),
-                        hotCornerY2: this.hotCornerY2(),
-                        hotCornerX3: this.hotCornerX3(),
-                        hotCornerY3: this.hotCornerY3(),
-                        hotCornerX4: this.hotCornerX4(),
-                        hotCornerY4: this.hotCornerY4(),
                     };
                     this.canvas?.takeSnapshot(
                         new Date().getTime(),
@@ -2465,10 +3470,28 @@ export class Block<T = BlockOptions> extends Node {
         return resizable;
     }
 
+    #chooseCursor(defaultCursor: string) {
+        const angle = Math.abs(radianToDegree(this.rotate()));
+        let cursors = ["ew-resize", "ns-resize", "nwse-resize", "nesw-resize"];
+        const idx = cursors.indexOf(defaultCursor);
+        cursors.splice(idx, 1);
+        if (inRange(angle, 0, 44)) return defaultCursor;
+        else if (inRange(angle, 45, 89) || inRange(angle, 180, 224))
+            return cursors[2];
+        else if (inRange(angle, 90, 134) || inRange(angle, 225, 269))
+            return cursors[1];
+        else if (inRange(angle, 135, 179) || inRange(angle, 315, 360))
+            return cursors[0];
+        else if (inRange(angle, 270, 314)) return cursors[1];
+    }
+
     onDrag(opt?: (event: MouseEvent) => void) {
-        const rotateE = this.__cacheOptions(opt, "onDrag", undefined);
+        const dragE = this.__valueHandler<
+            (event: MouseEvent) => void,
+            ((event: MouseEvent) => void) | undefined
+        >(opt, "onDrag", undefined);
         return (event: MouseEvent) => {
-            rotateE?.(event);
+            dragE?.(event);
         };
     }
 
@@ -2488,24 +3511,6 @@ export class Block<T = BlockOptions> extends Node {
             beforeValues[this.nodeId!] = {
                 x: this.x(),
                 y: this.y(),
-                cornerX1: this.cornerX1(),
-                cornerX2: this.cornerX2(),
-                cornerX3: this.cornerX3(),
-                cornerX4: this.cornerX4(),
-                cornerY1: this.cornerY1(),
-                cornerY2: this.cornerY2(),
-                cornerY3: this.cornerY3(),
-                cornerY4: this.cornerY4(),
-                hotCornerX1: this.hotCornerX1(),
-                hotCornerX2: this.hotCornerX2(),
-                hotCornerX3: this.hotCornerX3(),
-                hotCornerX4: this.hotCornerX4(),
-                hotCornerY1: this.hotCornerY1(),
-                hotCornerY2: this.hotCornerY2(),
-                hotCornerY3: this.hotCornerY3(),
-                hotCornerY4: this.hotCornerY4(),
-                rotationCenterX: this.rotationCenterX(),
-                rotationCenterY: this.rotationCenterY(),
             };
             this.#runningEvents.drag = true;
         });
@@ -2526,47 +3531,11 @@ export class Block<T = BlockOptions> extends Node {
                 if (diffX !== 0 && this.dragX()) {
                     const diff = diffX - beforeCords.x;
                     this.x(this.x() + diff);
-
-                    this.cornerX1(this.cornerX1() + diff);
-                    this.cornerX2(this.cornerX2() + diff);
-                    this.cornerX3(this.cornerX3() + diff);
-                    this.cornerX4(this.cornerX4() + diff);
-
-                    this.hotCornerX1(this.hotCornerX1() + diff);
-                    this.hotCornerX2(this.hotCornerX2() + diff);
-                    this.hotCornerX3(this.hotCornerX3() + diff);
-                    this.hotCornerX4(this.hotCornerX4() + diff);
-
-                    this.hotRotCornerX1(this.hotRotCornerX1() + diff);
-                    this.hotRotCornerX2(this.hotRotCornerX2() + diff);
-                    this.hotRotCornerX3(this.hotRotCornerX3() + diff);
-                    this.hotRotCornerX4(this.hotRotCornerX4() + diff);
-
-                    this.rotationCenterX(this.rotationCenterX() + diff);
-
                     beforeCords.x = diffX;
                 }
                 if (diffY !== 0 && this.dragY()) {
                     const diff = diffY - beforeCords.y;
                     this.y(this.y() + diff);
-
-                    this.cornerY1(this.cornerY1() + diff);
-                    this.cornerY2(this.cornerY2() + diff);
-                    this.cornerY3(this.cornerY3() + diff);
-                    this.cornerY4(this.cornerY4() + diff);
-
-                    this.hotCornerY1(this.hotCornerY1() + diff);
-                    this.hotCornerY2(this.hotCornerY2() + diff);
-                    this.hotCornerY3(this.hotCornerY3() + diff);
-                    this.hotCornerY4(this.hotCornerY4() + diff);
-
-                    this.hotRotCornerY1(this.hotRotCornerY1() + diff);
-                    this.hotRotCornerY2(this.hotRotCornerY2() + diff);
-                    this.hotRotCornerY3(this.hotRotCornerY3() + diff);
-                    this.hotRotCornerY4(this.hotRotCornerY4() + diff);
-
-                    this.rotationCenterY(this.rotationCenterY() + diff);
-
                     beforeCords.y = diffY;
                 }
                 this.onDrag()(event);
@@ -2581,24 +3550,6 @@ export class Block<T = BlockOptions> extends Node {
                     after[this.nodeId!] = {
                         x: this.x(),
                         y: this.y(),
-                        cornerX1: this.cornerX1(),
-                        cornerX2: this.cornerX2(),
-                        cornerX3: this.cornerX3(),
-                        cornerX4: this.cornerX4(),
-                        cornerY1: this.cornerY1(),
-                        cornerY2: this.cornerY2(),
-                        cornerY3: this.cornerY3(),
-                        cornerY4: this.cornerY4(),
-                        hotCornerX1: this.hotCornerX1(),
-                        hotCornerX2: this.hotCornerX2(),
-                        hotCornerX3: this.hotCornerX3(),
-                        hotCornerX4: this.hotCornerX4(),
-                        hotCornerY1: this.hotCornerY1(),
-                        hotCornerY2: this.hotCornerY2(),
-                        hotCornerY3: this.hotCornerY3(),
-                        hotCornerY4: this.hotCornerY4(),
-                        rotationCenterX: this.rotationCenterX(),
-                        rotationCenterY: this.rotationCenterY(),
                     };
                     this.canvas.takeSnapshot(
                         new Date().getTime(),

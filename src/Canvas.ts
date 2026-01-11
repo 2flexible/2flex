@@ -50,7 +50,7 @@ export class Canvas {
     options?: CanvasOptions & ICssProperties;
     #canvasEvents: any = {
         click: [],
-        dbclick: [],
+        dblclick: [],
         mousedown: [],
         mouseup: [],
         mousemove: [],
@@ -438,19 +438,11 @@ export class Canvas {
                 if (event.deltaY < 0) {
                     this.invokeChange(undefined, (block: Block) => {
                         block.x(block.x() - moveSpeed);
-                        block.cornerX1(block.cornerX1() - moveSpeed);
-                        block.cornerX2(block.cornerX2() - moveSpeed);
-                        block.cornerX3(block.cornerX3() - moveSpeed);
-                        block.cornerX4(block.cornerX4() - moveSpeed);
                     });
                     this.__positionCords.x -= moveSpeed;
                 } else {
                     this.invokeChange(undefined, (block: Block) => {
                         block.x(block.x() + moveSpeed);
-                        block.cornerX1(block.cornerX1() + moveSpeed);
-                        block.cornerX2(block.cornerX2() + moveSpeed);
-                        block.cornerX3(block.cornerX3() + moveSpeed);
-                        block.cornerX4(block.cornerX4() + moveSpeed);
                     });
                     this.__positionCords.x += moveSpeed;
                 }
@@ -458,19 +450,11 @@ export class Canvas {
                 if (event.deltaY < 0) {
                     this.invokeChange(undefined, (block: Block) => {
                         block.y(block.y() + moveSpeed);
-                        block.cornerY1(block.cornerY1() + moveSpeed);
-                        block.cornerY2(block.cornerY2() + moveSpeed);
-                        block.cornerY3(block.cornerY3() + moveSpeed);
-                        block.cornerY4(block.cornerY4() + moveSpeed);
                     });
                     this.__positionCords.y += moveSpeed;
                 } else {
                     this.invokeChange(undefined, (block: Block) => {
                         block.y(block.y() - moveSpeed);
-                        block.cornerY1(block.cornerY1() - moveSpeed);
-                        block.cornerY2(block.cornerY2() - moveSpeed);
-                        block.cornerY3(block.cornerY3() - moveSpeed);
-                        block.cornerY4(block.cornerY4() - moveSpeed);
                     });
                     this.__positionCords.y -= moveSpeed;
                 }

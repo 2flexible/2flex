@@ -66,10 +66,6 @@ export function checkInBound(
     return false;
 }
 
-export function getRadiusByWH(width: number, height: number): number {
-    return Math.sqrt(height ** 2 + width ** 2) / 2;
-}
-
 export function radianToDegree(rad: number): number {
     return (rad * 180) / Math.PI;
 }
@@ -245,4 +241,7 @@ export function rgbaRepresenter(rgba: string): string {
 }
 export function getProperty(obj: any, key: string) {
     return Object.getOwnPropertyDescriptor(Object.getPrototypeOf(obj), key);
+}
+export function inRange(value:number, great:number, less:number){
+    return value >= great && value <= less
 }
