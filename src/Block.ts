@@ -289,8 +289,6 @@ export class Block<T = BlockOptions> extends Node {
 
     #keyframeIterations: any = {};
 
-    #beforeRotDegree: number = 0;
-
     constructor(options: IBlock<T>) {
         super();
         this.options = { ...options };
@@ -310,12 +308,9 @@ export class Block<T = BlockOptions> extends Node {
             return;
         }
         this.#contextFilter();
-        this.__handleRotation();
-        this.__updateHotCorners();
         this.#showHotAreas();
         // console.log(Math.abs(radianToDegree(this.rotate())));
         if (this.#runningEvents.selected) this.__hotLines();
-        this.#beforeRotDegree = this.rotate();
     }
 
     // @Todo remove this
@@ -652,8 +647,6 @@ export class Block<T = BlockOptions> extends Node {
         });
         return blocks;
     }
-
-    __updateHotCorners() {}
 
     __hotLines() {
         const size = this.hotCornerSize();
@@ -2325,7 +2318,40 @@ export class Block<T = BlockOptions> extends Node {
         this.ownOptions = this.options;
     }
     rotate(opt?: number): number {
-        return this.__valueHandler(opt, "rotate", 0);
+        const cacheRotate = this.ownOptions["rotate"] || 0;
+        const rotate = this.__valueHandler(opt, "rotate", 0);
+        const diffR = rotate - cacheRotate;
+        if (diffR !== 0) {
+            this.#updateCornerbyRot("cornerTopLeft", diffR);
+            this.#updateCornerbyRot("cornerTopRight", diffR);
+            this.#updateCornerbyRot("cornerBottomLeft", diffR);
+            this.#updateCornerbyRot("cornerBottomRight", diffR);
+
+            this.#updateCornerbyRot("hotCornerTopLeft", diffR);
+            this.#updateCornerbyRot("hotCornerTopRight", diffR);
+            this.#updateCornerbyRot("hotCornerBottomLeft", diffR);
+            this.#updateCornerbyRot("hotCornerBottomRight", diffR);
+
+            this.#updateCornerbyRot("hotRotCornerTopLeft", diffR);
+            this.#updateCornerbyRot("hotRotCornerTopRight", diffR);
+            this.#updateCornerbyRot("hotRotCornerBottomLeft", diffR);
+            this.#updateCornerbyRot("hotRotCornerBottomRight", diffR);
+
+            this.#updateCornerAreabyRot("hotResizableAreaTopLeft", diffR);
+            this.#updateCornerAreabyRot("hotResizableAreaTopRight", diffR);
+            this.#updateCornerAreabyRot("hotResizableAreaBottomLeft", diffR);
+            this.#updateCornerAreabyRot("hotResizableAreaBottomRight", diffR);
+            this.#updateCornerAreabyRot("hotResizableAreaTop", diffR);
+            this.#updateCornerAreabyRot("hotResizableAreaRight", diffR);
+            this.#updateCornerAreabyRot("hotResizableAreaLeft", diffR);
+            this.#updateCornerAreabyRot("hotResizableAreaBottom", diffR);
+
+            this.#updateCornerAreabyRot("hotRotatableAreaTopLeft", diffR);
+            this.#updateCornerAreabyRot("hotRotatableAreaTopRight", diffR);
+            this.#updateCornerAreabyRot("hotRotatableAreaBottomLeft", diffR);
+            this.#updateCornerAreabyRot("hotRotatableAreaBottomRight", diffR);
+        }
+        return diffR;
     }
 
     animate(keyframes: KeyFrame[], callback?: (timestamp: number) => void) {
@@ -3059,7 +3085,6 @@ export class Block<T = BlockOptions> extends Node {
                     y - this.rotationCenterY(),
                     x - this.rotationCenterX()
                 );
-                this.#beforeRotDegree = this.rotate();
                 if (topMove && leftMove) {
                     this.rotate(radian + degreeToRadian(135));
                 } else if (topMove && !leftMove) {
@@ -3092,70 +3117,42 @@ export class Block<T = BlockOptions> extends Node {
         return rotatable;
     }
 
-    __handleRotation() {
-        if (this.#beforeRotDegree === this.rotate()) return;
-
-        this.#updateCornerbyRot(this.cornerTopLeft);
-        this.#updateCornerbyRot(this.cornerTopRight);
-        this.#updateCornerbyRot(this.cornerBottomLeft);
-        this.#updateCornerbyRot(this.cornerBottomRight);
-
-        this.#updateCornerbyRot(this.hotCornerTopLeft);
-        this.#updateCornerbyRot(this.hotCornerTopRight);
-        this.#updateCornerbyRot(this.hotCornerBottomLeft);
-        this.#updateCornerbyRot(this.hotCornerBottomRight);
-
-        this.#updateCornerbyRot(this.hotRotCornerTopLeft);
-        this.#updateCornerbyRot(this.hotRotCornerTopRight);
-        this.#updateCornerbyRot(this.hotRotCornerBottomLeft);
-        this.#updateCornerbyRot(this.hotRotCornerBottomRight);
-
-        this.#updateCornerAreabyRot(this.hotResizableAreaTopLeft);
-        this.#updateCornerAreabyRot(this.hotResizableAreaTopRight);
-        this.#updateCornerAreabyRot(this.hotResizableAreaBottomLeft);
-        this.#updateCornerAreabyRot(this.hotResizableAreaBottomRight);
-        this.#updateCornerAreabyRot(this.hotResizableAreaTop);
-        this.#updateCornerAreabyRot(this.hotResizableAreaRight);
-        this.#updateCornerAreabyRot(this.hotResizableAreaLeft);
-        this.#updateCornerAreabyRot(this.hotResizableAreaBottom);
-
-        this.#updateCornerAreabyRot(this.hotRotatableAreaTopLeft);
-        this.#updateCornerAreabyRot(this.hotRotatableAreaTopRight);
-        this.#updateCornerAreabyRot(this.hotRotatableAreaBottomLeft);
-        this.#updateCornerAreabyRot(this.hotRotatableAreaBottomRight);
-    }
-
-    #updateCornerbyRot(corner: any) {
+    #updateCornerbyRot(corner: string, diffR: number) {
         const c = this.__rotateCorners(
-            corner.call(this).x,
-            corner.call(this).y
+            this.ownOptions[corner].x,
+            this.ownOptions[corner].y,
+            diffR
         );
-        corner.call(this, { x: c.x, y: c.y });
+        this.ownOptions[corner].x = c.x;
+        this.ownOptions[corner].y = c.y;
     }
 
-    #updateCornerAreabyRot(corner: any) {
+    #updateCornerAreabyRot(corner: string, diffR: number) {
         const a = this.__rotateCorners(
-            corner.call(this).topLeft.x,
-            corner.call(this).topLeft.y
+            this.ownOptions[corner].topLeft.x,
+            this.ownOptions[corner].topLeft.y,
+            diffR
         );
         const b = this.__rotateCorners(
-            corner.call(this).topRight.x,
-            corner.call(this).topRight.y
+            this.ownOptions[corner].topRight.x,
+            this.ownOptions[corner].topRight.y,
+            diffR
         );
         const c = this.__rotateCorners(
-            corner.call(this).bottomLeft.x,
-            corner.call(this).bottomLeft.y
+            this.ownOptions[corner].bottomLeft.x,
+            this.ownOptions[corner].bottomLeft.y,
+            diffR
         );
         const d = this.__rotateCorners(
-            corner.call(this).bottomRight.x,
-            corner.call(this).bottomRight.y
+            this.ownOptions[corner].bottomRight.x,
+            this.ownOptions[corner].bottomRight.y,
+            diffR
         );
-        corner.call(this, {
-            topLeft: { x: a.x, y: a.y },
-            topRight: { x: b.x, y: b.y },
-            bottomLeft: { x: c.x, y: c.y },
-            bottomRight: { x: d.x, y: d.y },
-        });
+
+        this.ownOptions[corner].topLeft = { x: a.x, y: a.y };
+        this.ownOptions[corner].topRight = { x: b.x, y: b.y };
+        this.ownOptions[corner].bottomLeft = { x: c.x, y: c.y };
+        this.ownOptions[corner].bottomRight = { x: d.x, y: d.y };
     }
 
     #updateCordX(corner: string, x: number) {
@@ -3188,13 +3185,13 @@ export class Block<T = BlockOptions> extends Node {
             this.ownOptions[corner].bottomRight.y + y;
     }
 
-    __rotateCorners(x: number, y: number) {
+    __rotateCorners(x: number, y: number, radian: number) {
         return rotateCordinates(
             x,
             y,
             this.rotationCenterX(),
             this.rotationCenterY(),
-            this.rotate() - this.#beforeRotDegree
+            radian
         );
     }
 
