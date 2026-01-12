@@ -222,7 +222,7 @@ export class Canvas {
             return;
         }
         for (const [key, value] of Object.entries(block.ownOptions)) {
-            const proto = getProperty(block, key, this.isNativeBlock(block))?.value.call(
+            getProperty(block, key, this.isNativeBlock(block))?.value.call(
                 block,
                 value
             );

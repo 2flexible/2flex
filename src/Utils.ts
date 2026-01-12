@@ -1,4 +1,3 @@
-import type { Block } from "./Block";
 import {
     CubicBezier,
     JumpPosition,
@@ -6,6 +5,7 @@ import {
     RGBA,
     StepsEasing,
 } from "./types";
+import { Node } from "./Tree";
 
 export function fromPercentage(from: number, parentS: number) {
     return (from * parentS) / 100;
@@ -242,10 +242,9 @@ export function rgbaRepresenter(rgba: string): string {
 }
 export function getProperty(obj: any, key: string, native: boolean = false) {
     let proto = Object.getPrototypeOf(obj);
-
     if (native && !getOwnPrototype(proto, key)) {
         return getPrototypeInChain(
-            Object.getPrototypeOf(obj.constructor).prototype,
+            Object.getPrototypeOf(obj.constructor.prototype),
             key
         );
     }
@@ -253,9 +252,11 @@ export function getProperty(obj: any, key: string, native: boolean = false) {
     return getOwnPrototype(proto, key);
 }
 export function getPrototypeInChain(proto: any, key: string) {
-    const p = Object.getPrototypeOf(proto);
-    if (!getOwnPrototype(p, key)) getPrototypeInChain(proto, key);
-    return getOwnPrototype(p, key);
+    const p = getOwnPrototype(proto, key);
+    if (p) return p;
+    else if (proto !== Node) {
+        return getPrototypeInChain(Object.getPrototypeOf(proto), key);
+    }
 }
 export function getOwnPrototype(proto: any, key: string) {
     return Object.getOwnPropertyDescriptor(proto, key);

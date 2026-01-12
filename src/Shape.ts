@@ -1,5 +1,6 @@
 import { Block } from "./Block";
-import { IBlock } from "./types";
+import type { HotCornerArea, XY } from "./Block";
+import type { IBlock } from "./types";
 
 export interface CursorPos {
     x: number;
@@ -175,23 +176,14 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         super(options);
     }
     render(): void {
-        super.render();
         this.beginPath();
-
         if (this.ownOptions.lineDash) this.lineDash();
         if (this.ownOptions.lineWidth) this.lineWidth();
         if (this.ownOptions.lineCap) this.lineCap();
         if (this.ownOptions.shadowBlur) this.shadowBlur();
         if (this.ownOptions.shadowColor) this.shadowColor();
         if (this.ownOptions.fillStyle) this.fillStyle();
-
-        if (this.ownOptions.fillRect)
-            this.fillRect({
-                x: this.x(),
-                y: this.y(),
-                width: this.width(),
-                height: this.height(),
-            });
+        if (this.ownOptions.fillRect) this.fillRect();
         if (this.ownOptions.rect) this.rect();
         if (this.ownOptions.strokeStyle) this.strokeStyle();
 
@@ -199,88 +191,18 @@ export class Shape<T> extends Block<T | IShapeOptions> {
 
         if (this.ownOptions.fill) this.fill();
         if (this.ownOptions.stroke) this.stroke();
+        super.render();
     }
 
     draw(_func?: (context: CanvasRenderingContext2D) => void) {
         if (_func) _func(this.context);
     }
-    x(opt?: number): number {
-        return super.x(opt);
-    }
-    y(opt?: number): number {
-        return super.y(opt);
-    }
-    width(opt?: number): number {
-        return super.width(opt);
-    }
-    height(opt?: number): number {
-        return super.height(opt);
-    }
-    cornerX1(opt?: number): number {
-        return super.cornerX1(opt);
-    }
-    cornerY1(opt?: number): number {
-        return super.cornerY1(opt);
-    }
-    cornerX2(opt?: number): number {
-        return super.cornerX2(opt);
-    }
-    cornerY2(opt?: number): number {
-        return super.cornerY2(opt);
-    }
-    cornerX3(opt?: number): number {
-        return super.cornerX3(opt);
-    }
-    cornerY3(opt?: number): number {
-        return super.cornerY3(opt);
-    }
-    cornerX4(opt?: number): number {
-        return super.cornerX4(opt);
-    }
-    cornerY4(opt?: number): number {
-        return super.cornerY4(opt);
-    }
-    hotCornerX1(opt?: number): number {
-        return super.hotCornerX1(opt);
-    }
-    hotCornerY1(opt?: number): number {
-        return super.hotCornerY1(opt);
-    }
-    hotCornerX2(opt?: number): number {
-        return super.hotCornerX2(opt);
-    }
-    hotCornerY2(opt?: number): number {
-        return super.hotCornerY2(opt);
-    }
-    hotCornerX3(opt?: number): number {
-        return super.hotCornerX3(opt);
-    }
-    hotCornerY3(opt?: number): number {
-        return super.hotCornerY3(opt);
-    }
-    hotCornerX4(opt?: number): number {
-        return super.hotCornerX4(opt);
-    }
-    hotCornerY4(opt?: number): number {
-        return super.hotCornerY4(opt);
-    }
-    zIndex(opt?: number): number {
-        return super.zIndex(opt);
-    }
-    selectable(opt?: boolean): boolean {
-        return super.selectable(opt);
-    }
-    resizable(opt?: boolean): boolean {
-        return super.resizable(opt);
-    }
+
     beginPath() {
         this.context.beginPath();
     }
     closePath(): void {
         this.context.closePath();
-    }
-    hidden(opt?: boolean) {
-        return super.hidden(opt);
     }
     fill(opt?: Fill) {
         const fill = this.__valueHandler(opt, "fill", false);
@@ -415,35 +337,6 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         const shadowOffsetY = this.__valueHandler(opt, "shadowOffsetY", 0);
         this.context.shadowOffsetY = shadowOffsetY;
         return shadowOffsetY;
-    }
-    filter(opt?: string) {
-        const filter = this.__valueHandler(opt, "filter", "");
-        this.context.filter = filter;
-        return filter;
-    }
-    blur(opt?: number) {
-        return super.blur(opt);
-    }
-    brightness(opt?: number) {
-        return super.brightness(opt);
-    }
-    contrast(opt?: number) {
-        return super.contrast(opt);
-    }
-    dropShadow(opt?: [number, number, number, string][]) {
-        return super.dropShadow(opt);
-    }
-    grayscale(opt?: number) {
-        return super.grayscale(opt);
-    }
-    hueRotate(opt?: number) {
-        return super.hueRotate(opt);
-    }
-    opacity(opt?: number) {
-        return super.opacity(opt);
-    }
-    sepia(opt?: number) {
-        return super.sepia(opt);
     }
     lineDash(opt?: LineDash) {
         const lineDash = this.__valueHandler(opt, "lineDash", []);
@@ -588,14 +481,17 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         this.context.fillText(text, x, y, maxWidth);
     }
 
-
     strokeText(opt?: DrawText) {
-        const { text, x, y, maxWidth } = this.__valueHandler(opt, "strokeText", {
-            text: "",
-            x: this.x(),
-            y: this.y(),
-            maxWidth: this.maxWidth(),
-        });
+        const { text, x, y, maxWidth } = this.__valueHandler(
+            opt,
+            "strokeText",
+            {
+                text: "",
+                x: this.x(),
+                y: this.y(),
+                maxWidth: this.maxWidth(),
+            }
+        );
         this.context.strokeText(text, x, y, maxWidth);
     }
 
@@ -668,18 +564,5 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     measureText(opt?: string) {
         const text = this.__valueHandler(opt, "measureText", "");
         return this.context?.measureText(text);
-    }
-
-    dragX(opt?: boolean): boolean {
-        return super.dragX(opt);
-    }
-    dragY(opt?: boolean): boolean {
-        return super.dragY(opt);
-    }
-    draggable(opt?: boolean): boolean {
-        return super.draggable(opt);
-    }
-    set(options: IBlock<IShapeOptions>): void {
-        super.set(options);
     }
 }
