@@ -76,11 +76,11 @@ export class Tree {
                 current &&
                 Object.getPrototypeOf(current).constructor.name !== "Node"
             ) {
-                _func(current as T);
                 if (!current.nodeId) {
                     current.nodeId = nodeId;
                     nodeId += 1;
                 } else nodeId = current.nodeId;
+                _func(current as T);
             }
             if (current?.child_nodes) Q.unshift(...current.child_nodes);
         }
@@ -114,6 +114,7 @@ export class Tree {
                 break;
             }
         }
+        console.log(this.#snapshots);
     }
 
     snapshotInBack() {

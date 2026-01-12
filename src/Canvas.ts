@@ -68,7 +68,6 @@ export class Canvas {
     #moveSpeed = 10;
     currentCursor: string = "auto";
     #animations: any = [];
-    #takeSnapshot = true;
     #snapshotSize = 50;
     #fps = 60;
     #history = true;
@@ -87,7 +86,6 @@ export class Canvas {
         this.height = height || 300;
         this.#history = this.options?.history || this.#history;
         this.#snapshotSize = this.options?.snapshotSize || 50;
-        this.#takeSnapshot = this.options?.takeSnapshot || true;
         this.#tree = new Tree(this.#snapshotSize);
         this.__domCanvas = new CanvasDOMManager(
             this.canvasId,
@@ -115,7 +113,7 @@ export class Canvas {
                     this.options.composite || "source-over";
                 this.context.globalAlpha = this.options.alpha || 1.0;
 
-                if (this.#takeSnapshot) this.#snapshotHandler();
+                if (this.#history) this.#snapshotHandler();
 
                 this.__domCanvas.changeStyle(this.options);
                 if (this.options.move == "mouse") {
@@ -156,7 +154,8 @@ export class Canvas {
             }
             const dummy: any = {};
             dummy[b.nodeId!] = { ...b.ownOptions };
-            this.takeSnapshot(time, dummy, dummy);
+            console.log(b.nodeId)
+            this.takeSnapshot(dummy, dummy);
         });
         if (this.#animations.length !== 0)
             this.animationInvoker(this.#animations);
@@ -252,13 +251,9 @@ export class Canvas {
         });
     }
 
-    takeSnapshot(
-        timestamp: Timestamp,
-        before: SnapshotObject,
-        after: SnapshotObject
-    ) {
-        if (this.options?.history) {
-            this.#tree.takeSanpshot(timestamp, before, after);
+    takeSnapshot(before: SnapshotObject, after: SnapshotObject) {
+        if (this.#history) {
+            this.#tree.takeSanpshot(new Date().getTime(), before, after);
         }
     }
 
@@ -468,7 +463,6 @@ export class Canvas {
             if (e.key === "Z" && e.ctrlKey) obj = this.#tree.snapshotInFuture();
             else if (e.key === "z" && e.ctrlKey)
                 obj = this.#tree.snapshotInBack();
-
             if (obj) this.invokeChange(obj);
         });
     }

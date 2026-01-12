@@ -1415,7 +1415,7 @@ export class Block<T = BlockOptions> extends Node {
         if (diffW !== 0) {
             // @TODO: need to adjust this change realted to based rotain center x
             this.rotationCenterX(this.x() + w / 2);
-            console.log(this.rotationCenterX(), this.cornerTopLeft().x);
+            // console.log(this.rotationCenterX(), this.cornerTopLeft().x);
             if ((this.cornerTopLeft().x || 0) > this.rotationCenterX()) {
                 this.#updateCordX("cornerTopLeft", diffW);
                 this.#updateCordX("hotCornerTopLeft", diffW);
@@ -2303,7 +2303,7 @@ export class Block<T = BlockOptions> extends Node {
             }
         }
         if (Object.keys(before).length !== 0) {
-            this.canvas?.takeSnapshot(new Date().getTime(), before, after);
+            this.canvas?.takeSnapshot(before, after);
             this.canvas?.invokeChange.call(this.canvas);
         }
     }
@@ -2351,7 +2351,7 @@ export class Block<T = BlockOptions> extends Node {
             this.#updateCornerAreabyRot("hotRotatableAreaBottomLeft", diffR);
             this.#updateCornerAreabyRot("hotRotatableAreaBottomRight", diffR);
         }
-        return diffR;
+        return rotate;
     }
 
     animate(keyframes: KeyFrame[], callback?: (timestamp: number) => void) {
@@ -2960,13 +2960,16 @@ export class Block<T = BlockOptions> extends Node {
 
         let topMove = false;
         let leftMove = false;
-
+        let beforeValues: any = {};
         let inBound = false;
 
         const mousedown = (event: MouseEvent) => {
             if (this.#runningEvents.resize || this.#runningEvents.drag) return;
             if (inBound) {
                 this.#runningEvents.rotate = true;
+                beforeValues[this.nodeId!] = {
+                    rotate: this.rotate(),
+                };
                 this.canvas?.takeRegister({ in: this.zIndex() });
             } else {
                 this.canvas?.takeRegister({ out: this.zIndex() });
@@ -3105,8 +3108,8 @@ export class Block<T = BlockOptions> extends Node {
                 this.canvas.changeCursor("auto");
                 inBound = false;
                 let dummy: any = {};
-                dummy[this.nodeId!] = {};
-                this.canvas?.takeSnapshot(new Date().getTime(), dummy);
+                dummy[this.nodeId!] = { rotate: this.rotate() };
+                this.canvas?.takeSnapshot(beforeValues, dummy);
             }
         };
 
@@ -3451,11 +3454,7 @@ export class Block<T = BlockOptions> extends Node {
                         width: this.width(),
                         height: this.height(),
                     };
-                    this.canvas?.takeSnapshot(
-                        new Date().getTime(),
-                        beforeValues,
-                        after
-                    );
+                    this.canvas?.takeSnapshot(beforeValues, after);
                     this.canvas.invokeChange();
                 }
             }
@@ -3548,11 +3547,7 @@ export class Block<T = BlockOptions> extends Node {
                         x: this.x(),
                         y: this.y(),
                     };
-                    this.canvas.takeSnapshot(
-                        new Date().getTime(),
-                        beforeValues,
-                        after
-                    );
+                    this.canvas.takeSnapshot(beforeValues, after);
                     this.canvas.invokeChange();
                 }
             }
