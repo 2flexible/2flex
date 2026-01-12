@@ -2354,6 +2354,84 @@ export class Block<T = BlockOptions> extends Node {
         return rotate;
     }
 
+        #updateCornerbyRot(corner: string, diffR: number) {
+        const c = this.__rotateCorners(
+            this.ownOptions[corner].x,
+            this.ownOptions[corner].y,
+            diffR
+        );
+        this.ownOptions[corner].x = c.x;
+        this.ownOptions[corner].y = c.y;
+    }
+
+    #updateCornerAreabyRot(corner: string, diffR: number) {
+        const a = this.__rotateCorners(
+            this.ownOptions[corner].topLeft.x,
+            this.ownOptions[corner].topLeft.y,
+            diffR
+        );
+        const b = this.__rotateCorners(
+            this.ownOptions[corner].topRight.x,
+            this.ownOptions[corner].topRight.y,
+            diffR
+        );
+        const c = this.__rotateCorners(
+            this.ownOptions[corner].bottomLeft.x,
+            this.ownOptions[corner].bottomLeft.y,
+            diffR
+        );
+        const d = this.__rotateCorners(
+            this.ownOptions[corner].bottomRight.x,
+            this.ownOptions[corner].bottomRight.y,
+            diffR
+        );
+
+        this.ownOptions[corner].topLeft = { x: a.x, y: a.y };
+        this.ownOptions[corner].topRight = { x: b.x, y: b.y };
+        this.ownOptions[corner].bottomLeft = { x: c.x, y: c.y };
+        this.ownOptions[corner].bottomRight = { x: d.x, y: d.y };
+    }
+
+    #updateCordX(corner: string, x: number) {
+        this.ownOptions[corner].x = this.ownOptions[corner].x + x;
+    }
+
+    #updateAreaCordX(corner: string, x: number) {
+        this.ownOptions[corner].topLeft.x =
+            this.ownOptions[corner].topLeft.x + x;
+        this.ownOptions[corner].topRight.x =
+            this.ownOptions[corner].topRight.x + x;
+        this.ownOptions[corner].bottomLeft.x =
+            this.ownOptions[corner].bottomLeft.x + x;
+        this.ownOptions[corner].bottomRight.x =
+            this.ownOptions[corner].bottomRight.x + x;
+    }
+
+    #updateCordY(corner: string, y: number) {
+        this.ownOptions[corner].y = this.ownOptions[corner].y + y;
+    }
+
+    #updateAreaCordY(corner: string, y: number) {
+        this.ownOptions[corner].topLeft.y =
+            this.ownOptions[corner].topLeft.y + y;
+        this.ownOptions[corner].topRight.y =
+            this.ownOptions[corner].topRight.y + y;
+        this.ownOptions[corner].bottomLeft.y =
+            this.ownOptions[corner].bottomLeft.y + y;
+        this.ownOptions[corner].bottomRight.y =
+            this.ownOptions[corner].bottomRight.y + y;
+    }
+
+    __rotateCorners(x: number, y: number, radian: number) {
+        return rotateCordinates(
+            x,
+            y,
+            this.rotationCenterX(),
+            this.rotationCenterY(),
+            radian
+        );
+    }
+
     animate(keyframes: KeyFrame[], callback?: (timestamp: number) => void) {
         const animationId = new Date().getTime();
         this.#keyframeIterations[animationId] = {
@@ -3118,84 +3196,6 @@ export class Block<T = BlockOptions> extends Node {
         this.#eventHandler("mouseup", mouseup);
 
         return rotatable;
-    }
-
-    #updateCornerbyRot(corner: string, diffR: number) {
-        const c = this.__rotateCorners(
-            this.ownOptions[corner].x,
-            this.ownOptions[corner].y,
-            diffR
-        );
-        this.ownOptions[corner].x = c.x;
-        this.ownOptions[corner].y = c.y;
-    }
-
-    #updateCornerAreabyRot(corner: string, diffR: number) {
-        const a = this.__rotateCorners(
-            this.ownOptions[corner].topLeft.x,
-            this.ownOptions[corner].topLeft.y,
-            diffR
-        );
-        const b = this.__rotateCorners(
-            this.ownOptions[corner].topRight.x,
-            this.ownOptions[corner].topRight.y,
-            diffR
-        );
-        const c = this.__rotateCorners(
-            this.ownOptions[corner].bottomLeft.x,
-            this.ownOptions[corner].bottomLeft.y,
-            diffR
-        );
-        const d = this.__rotateCorners(
-            this.ownOptions[corner].bottomRight.x,
-            this.ownOptions[corner].bottomRight.y,
-            diffR
-        );
-
-        this.ownOptions[corner].topLeft = { x: a.x, y: a.y };
-        this.ownOptions[corner].topRight = { x: b.x, y: b.y };
-        this.ownOptions[corner].bottomLeft = { x: c.x, y: c.y };
-        this.ownOptions[corner].bottomRight = { x: d.x, y: d.y };
-    }
-
-    #updateCordX(corner: string, x: number) {
-        this.ownOptions[corner].x = this.ownOptions[corner].x + x;
-    }
-
-    #updateAreaCordX(corner: string, x: number) {
-        this.ownOptions[corner].topLeft.x =
-            this.ownOptions[corner].topLeft.x + x;
-        this.ownOptions[corner].topRight.x =
-            this.ownOptions[corner].topRight.x + x;
-        this.ownOptions[corner].bottomLeft.x =
-            this.ownOptions[corner].bottomLeft.x + x;
-        this.ownOptions[corner].bottomRight.x =
-            this.ownOptions[corner].bottomRight.x + x;
-    }
-
-    #updateCordY(corner: string, y: number) {
-        this.ownOptions[corner].y = this.ownOptions[corner].y + y;
-    }
-
-    #updateAreaCordY(corner: string, y: number) {
-        this.ownOptions[corner].topLeft.y =
-            this.ownOptions[corner].topLeft.y + y;
-        this.ownOptions[corner].topRight.y =
-            this.ownOptions[corner].topRight.y + y;
-        this.ownOptions[corner].bottomLeft.y =
-            this.ownOptions[corner].bottomLeft.y + y;
-        this.ownOptions[corner].bottomRight.y =
-            this.ownOptions[corner].bottomRight.y + y;
-    }
-
-    __rotateCorners(x: number, y: number, radian: number) {
-        return rotateCordinates(
-            x,
-            y,
-            this.rotationCenterX(),
-            this.rotationCenterY(),
-            radian
-        );
     }
 
     onResize(opt?: (event: MouseEvent) => void) {

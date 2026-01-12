@@ -1,3 +1,4 @@
+import type { Block } from "./Block";
 import {
     CubicBezier,
     JumpPosition,
@@ -239,9 +240,26 @@ export function colorToRgba(color: string): RGBA {
 export function rgbaRepresenter(rgba: string): string {
     return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] || 1})`;
 }
-export function getProperty(obj: any, key: string) {
-    return Object.getOwnPropertyDescriptor(Object.getPrototypeOf(obj), key);
+export function getProperty(obj: any, key: string, native: boolean = false) {
+    let proto = Object.getPrototypeOf(obj);
+
+    if (native && !getOwnPrototype(proto, key)) {
+        return getPrototypeInChain(
+            Object.getPrototypeOf(obj.constructor).prototype,
+            key
+        );
+    }
+
+    return getOwnPrototype(proto, key);
 }
-export function inRange(value:number, great:number, less:number){
-    return value >= great && value <= less
+export function getPrototypeInChain(proto: any, key: string) {
+    const p = Object.getPrototypeOf(proto);
+    if (!getOwnPrototype(p, key)) getPrototypeInChain(proto, key);
+    return getOwnPrototype(p, key);
+}
+export function getOwnPrototype(proto: any, key: string) {
+    return Object.getOwnPropertyDescriptor(proto, key);
+}
+export function inRange(value: number, great: number, less: number) {
+    return value >= great && value <= less;
 }

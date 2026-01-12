@@ -21,6 +21,3 @@ export type JumpPosition =
     | "jump-end"
     | "jump-none"
     | "jump-both";
-
-
-type valueB<T> = T extends number ? number : string

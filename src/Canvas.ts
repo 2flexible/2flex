@@ -1,9 +1,10 @@
 import { Tree } from "./Tree";
-import { ICssProperties, Timestamp, SnapshotObject } from "./types";
 import { CanvasDOMManager } from "./DOMManager";
-import type { Block, BlockOptions } from "./Block";
 import { getProperty } from "./Utils";
-
+import type { Block, BlockOptions } from "./Block";
+import type { ICssProperties, SnapshotObject } from "./types";
+import { Rectangle } from "./shapes/Rectangle";
+import { Shape } from "./Shape";
 export type Composite =
     | "source-over"
     | "source-in"
@@ -154,7 +155,6 @@ export class Canvas {
             }
             const dummy: any = {};
             dummy[b.nodeId!] = { ...b.ownOptions };
-            console.log(b.nodeId)
             this.takeSnapshot(dummy, dummy);
         });
         if (this.#animations.length !== 0)
@@ -222,8 +222,18 @@ export class Canvas {
             return;
         }
         for (const [key, value] of Object.entries(block.ownOptions)) {
-            getProperty(block, key)?.value.call(block, value);
+            const proto = getProperty(block, key, this.isNativeBlock(block))?.value.call(
+                block,
+                value
+            );
         }
+    }
+    isNativeBlock(block: Block) {
+        const nativeBlocks = [Shape, Rectangle];
+        for (let i = 0, arr = nativeBlocks.length; i < arr; i++) {
+            if (block instanceof nativeBlocks[i]) return true;
+        }
+        return false;
     }
     invokeChange(obj?: any, _func?: (element: Block) => void) {
         this.context.restore();
@@ -234,19 +244,19 @@ export class Canvas {
         this.#tree.preOrderTraversal(undefined, (b: Block) => {
             if (obj && Object.keys(obj).includes(String(b.nodeId))) {
                 for (const [key, value] of Object.entries(obj[b.nodeId!])) {
-                    getProperty(b, key)?.value.call(b, value);
+                    getProperty(b, key, this.isNativeBlock(b))?.value.call(b, value);
                 }
             }
             for (const opt of b.__bindOptions) {
                 for (const key of opt.options) {
-                    getProperty(b, key as string)?.value.call(
+                    getProperty(b, key as string, this.isNativeBlock(b))?.value.call(
                         b,
                         opt.bindTo.ownOptions[key]
                     );
                 }
             }
-            b.__adjustBlocks();
             if (_func) _func(b);
+            b.__adjustBlocks();
             if (this.inBoundElement(b)) b.render();
         });
     }

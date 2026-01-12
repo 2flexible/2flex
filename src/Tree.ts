@@ -114,7 +114,6 @@ export class Tree {
                 break;
             }
         }
-        console.log(this.#snapshots);
     }
 
     snapshotInBack() {
