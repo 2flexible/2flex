@@ -199,14 +199,14 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     }
 
     beginPath() {
-        this.context.beginPath();
+        this.context?.beginPath();
     }
     closePath(): void {
-        this.context.closePath();
+        this.context?.closePath();
     }
     fill(opt?: Fill) {
         const fill = this.__valueHandler(opt, "fill", false);
-        if (fill) this.context.fill();
+        if (fill) this.context?.fill();
         return fill;
     }
     fillStyle(opt?: FillStyle) {
@@ -221,7 +221,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             x: 0,
             y: 0,
         });
-        this.#gradient = this.context.createConicGradient(angle, x, y);
+        this.#gradient = this.context?.createConicGradient(angle, x, y);
         return this.#gradient;
     }
     radialGradient(opt?: RadialGradient) {
@@ -237,7 +237,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
                 r1: 0,
             }
         );
-        this.#gradient = this.context.createRadialGradient(
+        this.#gradient = this.context?.createRadialGradient(
             x0,
             y0,
             r0,
@@ -254,7 +254,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             x1: 0,
             y1: 0,
         });
-        this.#gradient = this.context.createLinearGradient(x0, y0, x1, y1);
+        this.#gradient = this.context?.createLinearGradient(x0, y0, x1, y1);
         return this.#gradient;
     }
     createPattern(opt?: Pattern) {
@@ -272,7 +272,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             this.#cachePattern = new Image();
             this.#cachePattern.src = imageSource;
             this.#cachePattern.addEventListener("load", () => {
-                pattern = this.context.createPattern(
+                pattern = this.context?.createPattern(
                     this.#cachePattern,
                     repeat
                 );
@@ -280,7 +280,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
                 this.fillRect({ x, y, width, height });
             });
         } else {
-            pattern = this.context.createPattern(this.#cachePattern, repeat);
+            pattern = this.context?.createPattern(this.#cachePattern, repeat);
             this.fillStyle(pattern as any);
             this.fillRect({ x, y, width, height });
         }
@@ -299,53 +299,53 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     }
     stroke(opt?: Storke) {
         const stroke = this.__valueHandler(opt, "stroke", false);
-        if (stroke) this.context.stroke();
+        if (stroke) this.context?.stroke();
         return stroke;
     }
     strokeStyle(opt?: strokeStyle) {
         const strokeStyle = this.__valueHandler(opt, "strokeStyle", "black");
-        this.context.strokeStyle = strokeStyle;
+        if (this.context) this.context.strokeStyle = strokeStyle;
         return strokeStyle;
     }
     lineCap(opt?: LineCapOpt) {
         const lineCap = this.__valueHandler(opt, "lineCap", "butt");
-        this.context.lineCap = lineCap;
+        if (this.context) this.context.lineCap = lineCap;
         return lineCap;
     }
 
     lineWidth(opt?: LineWidth) {
         const lineWidth = this.__valueHandler(opt, "lineWidth", 0);
-        this.context.lineWidth = lineWidth;
+        if (this.context) this.context.lineWidth = lineWidth;
         return lineWidth;
     }
     shadowBlur(opt?: number) {
         const shadowBlur = this.__valueHandler(opt, "shadowBlur", 0);
-        this.context.shadowBlur = shadowBlur;
+        if (this.context)this.context.shadowBlur = shadowBlur;
         return shadowBlur;
     }
     shadowColor(opt?: string) {
         const shadowColor = this.__valueHandler(opt, "shadowColor", "black");
-        this.context.shadowColor = shadowColor;
+        if (this.context) this.context.shadowColor = shadowColor;
         return shadowColor;
     }
     shadowOffsetX(opt?: number) {
         const shadowOffsetX = this.__valueHandler(opt, "shadowOffsetX", 0);
-        this.context.shadowOffsetX = shadowOffsetX;
+        if (this.context) this.context.shadowOffsetX = shadowOffsetX;
         return shadowOffsetX;
     }
     shadowOffsetY(opt?: number) {
         const shadowOffsetY = this.__valueHandler(opt, "shadowOffsetY", 0);
-        this.context.shadowOffsetY = shadowOffsetY;
+        if (this.context) this.context.shadowOffsetY = shadowOffsetY;
         return shadowOffsetY;
     }
     lineDash(opt?: LineDash) {
         const lineDash = this.__valueHandler(opt, "lineDash", []);
-        this.context.setLineDash(lineDash);
+        this.context?.setLineDash(lineDash);
         return lineDash;
     }
     lineDashOffset(opt?: LineDashOffset) {
         const lineDash = this.__valueHandler(opt, "lineDash", 0);
-        this.context.lineDashOffset = lineDash;
+        if (this.context) this.context.lineDashOffset = lineDash;
         return lineDash;
     }
 
@@ -361,7 +361,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             "quadraticCurveTo",
             { cpx1: 0, cpy1: 0, endX: 0, endY: 0 }
         );
-        this.context.quadraticCurveTo(cpx1, cpy1, endX, endY);
+        this.context?.quadraticCurveTo(cpx1, cpy1, endX, endY);
     }
     bezierCurveTo(opt?: BezierCurveToOpt): void {
         const { cpx1, cpy1, cpx2, cpy2, endX, endY } = this.__valueHandler(
@@ -369,7 +369,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             "bezierCurveTo",
             { cpx1: 0, cpy1: 0, cpx2: 0, cpy2: 0, endX: 0, endY: 0 }
         );
-        this.context.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
+        this.context?.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
     }
     fillRect(opt?: RectOpt) {
         const { x, y, width, height } = this.__valueHandler(opt, "fillRect", {
@@ -378,7 +378,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             width: this.width(),
             height: this.height(),
         });
-        this.context.fillRect(
+        this.context?.fillRect(
             this.x() + x,
             this.y() + y,
             this.width() - width,
@@ -392,7 +392,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             width: this.width(),
             height: this.height(),
         });
-        this.context.rect(
+        this.context?.rect(
             this.x() + x,
             this.y() + y,
             this.width() - width,
@@ -406,7 +406,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             { x: 0, y: 0, width: 0, height: 0, borderRadius: [0] }
         );
 
-        this.context.roundRect(
+        this.context?.roundRect(
             this.x() + x,
             this.y() + y,
             this.width() - width,
@@ -421,7 +421,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             width: 0,
             height: 0,
         });
-        this.context.strokeRect(
+        this.context?.strokeRect(
             this.x() + x,
             this.y() + y,
             this.width() - width,
@@ -434,11 +434,11 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             x: 0,
             y: 0,
         });
-        this.context.moveTo(this.x() + x, this.y() + y);
+        this.context?.moveTo(this.x() + x, this.y() + y);
     }
     lineJoin(opt?: LineJoinOpt) {
         const lineJoin = this.__valueHandler(opt, "lineJoin", "miter");
-        this.context.lineJoin = lineJoin;
+        if (this.context)this.context.lineJoin = lineJoin;
         return lineJoin;
     }
     pointInPath(opt?: PointInPath): void {
@@ -452,7 +452,8 @@ export class Shape<T> extends Block<T | IShapeOptions> {
                 fillRule: undefined,
             }
         );
-        if (path) this.context.isPointInPath(path, x, y, fillRule || "nonzero");
+        if (path)
+            this.context?.isPointInPath(path, x, y, fillRule || "nonzero");
         else this.context.isPointInPath(x, y, fillRule || "nonzero");
     }
     pointInStroke(opt: PointInStroke): boolean {
@@ -461,13 +462,13 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             x: 0,
             y: 0,
         });
-        if (path) return this.context.isPointInStroke(path, x, y);
-        else return this.context.isPointInStroke(x, y);
+        if (path) return this.context?.isPointInStroke(path, x, y);
+        else return this.context?.isPointInStroke(x, y);
     }
 
     font(opt?: Font) {
         const font = this.__valueHandler(opt, "font", "");
-        this.context.font = font;
+        if (this.context)this.context.font = font;
         return font;
     }
 
@@ -478,7 +479,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             y: this.y(),
             maxWidth: this.maxWidth(),
         });
-        this.context.fillText(text, x, y, maxWidth);
+        this.context?.fillText(text, x, y, maxWidth);
     }
 
     strokeText(opt?: DrawText) {
@@ -492,18 +493,18 @@ export class Shape<T> extends Block<T | IShapeOptions> {
                 maxWidth: this.maxWidth(),
             }
         );
-        this.context.strokeText(text, x, y, maxWidth);
+        this.context?.strokeText(text, x, y, maxWidth);
     }
 
     fontStretch(opt?: FontStretch) {
         const fontStretch = this.__valueHandler(opt, "fontStretch", "normal");
-        this.context.fontStretch = fontStretch;
+        if (this.context) this.context.fontStretch = fontStretch;
         return fontStretch;
     }
 
     fontKerning(opt?: FontKerning) {
         const fontKerning = this.__valueHandler(opt, "fontKerning", "auto");
-        this.context.fontKerning = fontKerning;
+        if (this.context) this.context.fontKerning = fontKerning;
         return fontKerning;
     }
 
@@ -513,7 +514,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             "fontVariantCaps",
             "normal"
         );
-        this.context.fontVariantCaps = fontVariantCaps;
+        if (this.context) this.context.fontVariantCaps = fontVariantCaps;
         return fontVariantCaps;
     }
 
@@ -523,25 +524,25 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             "wordSpacing",
             "0px"
         );
-        this.context.wordSpacing = wordSpacing;
+        if (this.context) this.context.wordSpacing = wordSpacing;
         return wordSpacing;
     }
 
     direction(opt?: TextDirection) {
         const direction = this.__valueHandler(opt, "direction", "ltr");
-        this.context.direction = direction;
+        if (this.context) this.context.direction = direction;
         return direction;
     }
 
     letterSpacing(opt?: string) {
         const letterSpacing = this.__valueHandler(opt, "letterSpacing", "0px");
-        this.context.letterSpacing = letterSpacing;
+        if (this.context) this.context.letterSpacing = letterSpacing;
         return letterSpacing;
     }
 
     textAlign(opt?: TextAlign) {
         const textAlign = this.__valueHandler(opt, "textAlign", "start");
-        this.context.textAlign = textAlign;
+        if (this.context) this.context.textAlign = textAlign;
         return textAlign;
     }
 
@@ -551,13 +552,13 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             "textBaseline",
             "alphabetic"
         );
-        this.context.textBaseline = textBaseline;
+        if (this.context) this.context.textBaseline = textBaseline;
         return textBaseline;
     }
 
     textRendering(opt?: TextRendering) {
         const textRendering = this.__valueHandler(opt, "textRendering", "auto");
-        this.context.textRendering = textRendering;
+        if (this.context) this.context.textRendering = textRendering;
         return textRendering;
     }
 
