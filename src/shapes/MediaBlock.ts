@@ -1,7 +1,9 @@
 import { Block } from "./Block";
-import { IBlock, RepeatOption } from "./types";
+import type { IBlock } from "./types";
+import type { RepeatOption } from "./Shape";
 
 type ObjectFit = "contain" | "cover" | "fill";
+type Smoothing = "low" | "medium" | "high";
 
 interface ImageOptions {
     clipX?: number;
@@ -9,10 +11,12 @@ interface ImageOptions {
     clipWidth?: number;
     clipHeight?: number;
     objectFit?: ObjectFit;
+    smoothing?: boolean;
+    smoothingQuality?: Smoothing;
     repeat?: RepeatOption;
 }
 
-export class ImageBlock extends Block {
+export class MediaBlock extends Block {
     source: string;
     #cacheImage?: any;
     constructor(source: string, options: IBlock<ImageOptions>) {
@@ -21,7 +25,8 @@ export class ImageBlock extends Block {
         this.options = options;
     }
 
-    __initSet(): void {
+    render(): void {
+        super.render()
         if (!this.#cacheImage) {
             this.#cacheImage = new Image();
             this.#cacheImage.src = this.source;
@@ -93,26 +98,33 @@ export class ImageBlock extends Block {
             }
         }
     }
+    smoothing(opt?: boolean) {
+        const enabled = this.__valueHandler(opt, "smoothing", false);
+        this.context.imageSmoothingEnabled = enabled;
+        return enabled;
+    }
+    smoothingQuality(opt?: Smoothing) {
+        const quality = this.__valueHandler(opt, "smoothingQuality", "low");
+        this.context.imageSmoothingQuality = quality;
+        return quality;
+    }
     repeat(opt?: RepeatOption) {
-        return this.__cacheOption(opt, "repeat", "no-repeat");
+        return this.__valueHandler(opt, "repeat", "no-repeat");
     }
     clipX(opt?: number) {
-        return this.__cacheOption(opt, "clipX", 0);
+        return this.__valueHandler(opt, "clipX", 0);
     }
     clipY(opt?: number) {
-        return this.__cacheOption(opt, "clipY", 0);
+        return this.__valueHandler(opt, "clipY", 0);
     }
     clipWidth(opt?: number) {
-        return this.__cacheOption(opt, "clipWidth", this.width());
+        return this.__valueHandler(opt, "clipWidth", this.width());
     }
     clipHeight(opt?: number) {
-        return this.__cacheOption(opt, "clipHeight", this.height());
+        return this.__valueHandler(opt, "clipHeight", this.height());
     }
     objectFit(opt?: ObjectFit): ObjectFit {
-        return this.__cacheOption(opt, "objectFit", "fill");
-    }
-    clip(opt?: boolean): boolean {
-        return super.clip(opt);
+        return this.__valueHandler(opt, "objectFit", "fill");
     }
     hidden(opt?: boolean): boolean {
         return super.hidden(opt);
