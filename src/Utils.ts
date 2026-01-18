@@ -240,19 +240,19 @@ export function colorToRgba(color: string): RGBA {
 export function rgbaRepresenter(rgba: string): string {
     return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] || 1})`;
 }
-export function getProperty(obj: any, key: string, native: boolean = false) {
+export function getPrototype(obj: any, key: string) {
     let proto = Object.getPrototypeOf(obj);
-    if (native && !getOwnPrototype(proto, key)) {
+    if (!getOwnPrototype(proto, key)) {
         return getPrototypeInChain(
             Object.getPrototypeOf(obj.constructor.prototype),
             key
         );
     }
-
     return getOwnPrototype(proto, key);
 }
 export function getPrototypeInChain(proto: any, key: string) {
-    const p = getOwnPrototype(proto, key);
+    if(!proto) return proto
+    let p = getOwnPrototype(proto, key);
     if (p) return p;
     else if (proto !== Node) {
         return getPrototypeInChain(Object.getPrototypeOf(proto), key);
