@@ -1,208 +1,231 @@
 import { Shape } from "../Shape";
-import {
-    IBlock,
-    BorderStyle,
-    RoundRectOpt,
-    Position,
-    FillStyle,
-    GradientStops,
-    PlaybackRate,
-} from "../types";
+import type { RoundRectOpt, FillStyle } from "../Shape";
+import type { IBlock } from "../types";
+import { checkInBound } from "../Utils";
 
-export class Rectangle extends Shape {
-    constructor(options?: IBlock<RoundRectOpt>) {
+export type BorderStyle = "solid" | "dotted";
+
+export class Rectangle extends Shape<RoundRectOpt> {
+    #stroke = false;
+
+    constructor(options: IBlock<RoundRectOpt>) {
         super(options);
-        this.options = options || {};
     }
 
     draw(
         _func?: ((context: CanvasRenderingContext2D) => void) | undefined
     ): void {
-        this.beginPath();
-
+        this.border();
+        this.borderTop();
+        this.borderBottom();
+        this.borderLeft();
+        this.borderRight();
         this.backgroundColor();
 
-        this.roundRect({
-            x: this.x(),
-            y: this.y(),
-            width: this.width(),
-            height: this.height(),
-            borderRadius: this.borderRadius() || [0],
-        });
+        // @Todo fix radius on different corners
+        // @Todo fix differnet borderBottoms
+        const radius = this.borderRadius();
+        this.context.moveTo(
+            this.cornerTopLeft().x + radius[0],
+            this.cornerTopLeft().y
+        );
+        this.context.lineTo(
+            this.cornerTopRight().x - radius[1],
+            this.cornerTopRight().y
+        );
+        this.context.arcTo(
+            this.cornerTopRight().x,
+            this.cornerTopRight().y,
+            this.cornerBottomRight().x,
+            this.cornerBottomRight().y,
+            radius[1]
+        );
+        this.context.lineTo(
+            this.cornerBottomRight().x,
+            this.cornerBottomRight().y - radius[2]
+        );
+        this.context.arcTo(
+            this.cornerBottomRight().x,
+            this.cornerBottomRight().y,
+            this.cornerBottomRight().x - radius[3],
+            this.cornerBottomRight().y,
+            radius[2]
+        );
+        this.context.lineTo(
+            this.cornerBottomLeft().x + radius[3],
+            this.cornerBottomLeft().y
+        );
+        this.context.arcTo(
+            this.cornerBottomLeft().x,
+            this.cornerBottomLeft().y,
+            this.cornerTopLeft().x,
+            this.cornerTopLeft().y - radius[2],
+            radius[3]
+        );
+        this.context.lineTo(
+            this.cornerTopLeft().x,
+            this.cornerTopLeft().y + radius[3]
+        );
+        this.context.arcTo(
+            this.cornerTopLeft().x,
+            this.cornerTopLeft().y,
+            this.cornerTopRight().x + radius[3],
+            this.cornerTopRight().y,
+            radius[3]
+        );
 
-        this.fill();
-        this.stroke();
+        super.fill(true);
+        this.#stroke = false;
     }
-    x(opt?: number): number {
-        return super.x(opt);
+    borderRadius(opt?: number[]): number[] {
+        const radius = this.__valueHandler(opt, "borderRadius", [0, 0, 0, 0]);
+        let defRadius: number[] = radius;
+        switch (radius.length) {
+            case 1:
+                defRadius = [radius[0], radius[0], radius[0], radius[0]];
+                break;
+            case 2:
+                defRadius = [radius[0], radius[0], radius[1], radius[1]];
+                break;
+            case 3:
+                defRadius = [radius[0], radius[0], radius[1], radius[2]];
+                break;
+        }
+        return defRadius;
     }
-    y(opt?: number): number {
-        return super.y(opt);
-    }
-    borderRadius(opt?: number[]): number[] | undefined {
-        return this.__cacheOption(opt, "borderRadius", undefined);
+
+    #applyStroke() {
+        if (this.#stroke) return;
+        super.stroke();
+        this.#stroke = true;
     }
     backgroundColor(opt?: FillStyle) {
-        const bg = this.__cacheOption(opt, "backgroundColor", "black");
+        const bg = this.__valueHandler(opt, "backgroundColor", "black");
         super.fillStyle(bg);
         return bg;
     }
 
     border(opt?: string) {
-        const border = this.__cacheOption(opt, "border", "");
-        this.options.stroke = true;
-        const { borderStyleArrWidth } = this.#borderParser(border);
-
-        if (this.borderStyle() === "dotted") {
-            this.lineDash(borderStyleArrWidth);
+        const border = this.__valueHandler(opt, "border", undefined);
+        if (border) {
+            const { borderStyleArrWidth } = this.#borderParser(border);
+            if (this.borderStyle() === "dotted") {
+                this.lineDash(borderStyleArrWidth);
+            }
+            this.#applyStroke();
         }
         return border;
     }
     borderWidth(opt?: number) {
-        const borderWidth = this.__cacheOption(opt, "borderWidth", 0);
+        const borderWidth = this.__valueHandler(opt, "borderWidth", 0);
         super.lineWidth(borderWidth);
         return borderWidth;
     }
     borderColor(opt?: string) {
-        const borderColor = this.__cacheOption(opt, "borderColor", "");
+        const borderColor = this.__valueHandler(opt, "borderColor", "black");
         super.strokeStyle(borderColor);
-        return this.options.borderColor;
+        return borderColor;
     }
 
-    borderStyle(opt?: "solid" | "dotted"): string {
-        return this.__cacheOption(opt, "borderStyle", "dotted");
-    }
-    radialGradient({
-        x0,
-        y0,
-        r0,
-        x1,
-        y1,
-        r1,
-    }: {
-        x0: number;
-        y0: number;
-        r0: number;
-        x1: number;
-        y1: number;
-        r1: number;
-    }) {
-        return super.radialGradient({ x0, y0, r0, x1, y1, r1 });
-    }
-    linearGradient({
-        x0,
-        y0,
-        x1,
-        y1,
-    }: {
-        x0: number;
-        y0: number;
-        x1: number;
-        y1: number;
-    }) {
-        return super.linearGradient({ x0, y0, x1, y1 });
-    }
-    conicGradient({ angle, x, y }: { angle: number; x: number; y: number }) {
-        return super.conicGradient({ angle, x, y });
-    }
-    colorStops(opt: GradientStops[]): GradientStops[] {
-        return super.colorStops(opt);
-    }
-    resizable(opt?: boolean): boolean {
-        return super.resizable(opt);
-    }
-    hotAreaGap(opt?: number): number {
-        return super.hotAreaGap(opt);
-    }
-    rotatable(opt?: boolean): boolean {
-        return super.rotatable(opt);
-    }
-    rotate(opt?: number): number {
-        return super.rotate(opt);
-    }
-    hidden(opt?: boolean) {
-        return super.hidden(opt);
+    borderStyle(opt?: BorderStyle): BorderStyle {
+        return this.__valueHandler(opt, "borderStyle", "solid");
     }
     borderTop(opt?: string) {
-        const borderTop = this.__cacheOption(opt, "borderRight", "");
-        this.options.stroke = true;
-        let { borderStyleArrWidth } = this.#borderParser(borderTop);
-        borderStyleArrWidth.pop();
-        if (this.borderStyle() === "dotted") {
-            this.lineDash([
-                ...borderStyleArrWidth,
-                this.height() * 2 + this.width(),
-            ]);
-        } else {
-            this.lineDash([
-                this.width(),
-                this.width() + 2 * this.height(),
-                0,
-                0,
-            ]);
+        const borderTop = this.__valueHandler(opt, "borderRight", undefined);
+        if (borderTop) {
+            let { borderStyleArrWidth } = this.#borderParser(borderTop);
+            borderStyleArrWidth.pop();
+            if (this.borderStyle() === "dotted") {
+                this.lineDash([
+                    ...borderStyleArrWidth,
+                    this.height() * 2 + this.width(),
+                ]);
+            } else {
+                this.lineDash([
+                    this.width(),
+                    this.width() + 2 * this.height(),
+                    0,
+                    0,
+                ]);
+            }
+            this.#applyStroke();
         }
 
         return borderTop;
     }
 
     borderRight(opt?: string) {
-        const borderRight = this.__cacheOption(opt, "borderRight", "");
-        this.options.stroke = true;
-        const { borderStyleArrHeight } = this.#borderParser(borderRight);
-        borderStyleArrHeight.pop();
+        const borderRight = this.__valueHandler(opt, "borderRight", undefined);
 
-        if (this.borderStyle() === "dotted") {
-            this.lineDash([
-                0,
-                this.width(),
-                ...borderStyleArrHeight,
-                this.width() + this.height(),
-            ]);
-        } else if (this.borderStyle() === "solid") {
-            this.lineDash([
-                0,
-                this.width(),
-                this.height(),
-                this.width() + this.height(),
-            ]);
+        if (borderRight) {
+            const { borderStyleArrHeight } = this.#borderParser(borderRight);
+            borderStyleArrHeight.pop();
+
+            if (this.borderStyle() === "dotted") {
+                this.lineDash([
+                    0,
+                    this.width(),
+                    ...borderStyleArrHeight,
+                    this.width() + this.height(),
+                ]);
+            } else if (this.borderStyle() === "solid") {
+                this.lineDash([
+                    0,
+                    this.width(),
+                    this.height(),
+                    this.width() + this.height(),
+                ]);
+            }
+            this.#applyStroke();
         }
         return borderRight;
     }
     borderBottom(opt?: string) {
-        const borderBottom = this.__cacheOption(opt, "borderBottom", "");
-        this.options.stroke = true;
-
-        let { borderStyleArrWidth } = this.#borderParser(borderBottom);
-        if (this.borderStyle() === "dotted") {
-            this.lineDash([
-                0,
-                this.width() + this.height(),
-                ...borderStyleArrWidth,
-            ]);
-        } else if (this.borderStyle() === "solid") {
-            this.lineDash([0, this.width() + this.height(), this.width(), 0]);
+        const borderBottom = this.__valueHandler(
+            opt,
+            "borderBottom",
+            undefined
+        );
+        if (borderBottom) {
+            let { borderStyleArrWidth } = this.#borderParser(borderBottom);
+            if (this.borderStyle() === "dotted") {
+                this.lineDash([
+                    0,
+                    this.width() + this.height(),
+                    ...borderStyleArrWidth,
+                ]);
+            } else if (this.borderStyle() === "solid") {
+                this.lineDash([
+                    0,
+                    this.width() + this.height(),
+                    this.width(),
+                    0,
+                ]);
+            }
+            this.#applyStroke();
         }
-
         return borderBottom;
     }
     borderLeft(opt?: string) {
-        const borderLeft = this.__cacheOption(opt, "borderLeft", "");
-        this.options.stroke = true;
-        let { borderStyleArrHeight } = this.#borderParser(borderLeft);
+        const borderLeft = this.__valueHandler(opt, "borderLeft", undefined);
+        if (borderLeft) {
+            let { borderStyleArrHeight } = this.#borderParser(borderLeft);
 
-        if (this.borderStyle() === "dotted") {
-            this.lineDash([
-                0,
-                this.width() * 2 + this.height(),
-                ...borderStyleArrHeight,
-            ]);
-        } else if (this.borderStyle() === "solid") {
-            this.lineDash([
-                0,
-                this.width() * 2 + this.height(),
-                this.height(),
-                this.width(),
-            ]);
+            if (this.borderStyle() === "dotted") {
+                this.lineDash([
+                    0,
+                    this.width() * 2 + this.height(),
+                    ...borderStyleArrHeight,
+                ]);
+            } else if (this.borderStyle() === "solid") {
+                this.lineDash([
+                    0,
+                    this.width() * 2 + this.height(),
+                    this.height(),
+                    this.width(),
+                ]);
+            }
+            this.#applyStroke();
         }
         return borderLeft;
     }
@@ -210,8 +233,10 @@ export class Rectangle extends Shape {
     #borderParser(obj?: string) {
         const border = obj?.split(" ") || [];
 
-        // need to impliment css unit converter for different size, ex, px, em, rem etc.
-        const borderWidth = Number(border[0]);
+        const borderWidth = this.__unitConverter<string, number>({
+            val: border[0],
+            widthRelated: true,
+        });
         const borderStyle = border[1] as BorderStyle;
         const borderColor = border[2];
 
@@ -242,105 +267,18 @@ export class Rectangle extends Shape {
         this.borderColor(borderColor);
         return { borderStyleArrWidth, borderStyleArrHeight };
     }
-    position(opt?: Position) {
-        return this.__cacheOption(opt, "position", "static");
-    }
-    top(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "top", 0);
-    }
-    bottom(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "bottom", 0);
-    }
-    left(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "left", 0);
-    }
-    right(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "right", 0);
-    }
-    shadowBlur(opt?: number): number {
-        return super.shadowBlur(opt);
-    }
-    shadowColor(opt?: string): string {
-        return super.shadowColor(opt);
-    }
-    shadowOffsetX(opt?: number): number {
-        return super.shadowOffsetX(opt);
-    }
-    shadowOffsetY(opt?: number): number {
-        return super.shadowOffsetY(opt);
-    }
-    blur(opt?: number): number {
-        return super.blur(opt);
-    }
-    brightness(opt?: number): number {
-        return super.brightness(opt);
-    }
-    contrast(opt?: number): number {
-        return super.contrast(opt);
-    }
-    dropShadow(opt?: [number, number, number, string][]) {
-        return super.dropShadow(opt);
-    }
-    grayscale(opt?: number): number {
-        return super.grayscale(opt);
-    }
-    hueRotate(opt?: number): number {
-        return super.hueRotate(opt);
-    }
-    opacity(opt?: number): number {
-        return super.opacity(opt);
-    }
-    sepia(opt?: number): number {
-        return super.sepia(opt);
-    }
-    padding(opt?: number[]): number[] | undefined {
-        return super.padding(opt);
-    }
-    paddingLeft(opt?: number): number {
-        return super.paddingLeft(opt);
-    }
-    paddingTop(opt?: number): number {
-        return super.paddingTop(opt);
-    }
-    paddingBottom(opt?: number): number {
-        return super.paddingBottom(opt);
-    }
-    paddingRight(opt?: number): number {
-        return super.paddingRight(opt);
-    }
-    margin(opt?: number[]): number[] | undefined {
-        return super.margin(opt);
-    }
-    marginLeft(opt?: number): number {
-        return super.marginLeft(opt);
-    }
-    marginTop(opt?: number): number {
-        return super.marginTop(opt);
-    }
-    marginBottom(opt?: number): number {
-        return super.marginBottom(opt);
-    }
-    marginRight(opt?: number): number {
-        return super.marginRight(opt);
-    }
-    clip(opt?: boolean): boolean {
-        return super.clip(opt);
-    }
-    dragX(opt?: boolean) {
-        return super.dragX(opt);
-    }
-    dragY(opt?: boolean) {
-        return super.dragY(opt);
-    }
-    draggable(opt?: boolean): boolean {
-        return super.draggable(opt);
-    }
 
-    set(options: IBlock<RoundRectOpt>) {
-        super.set(options);
+    // @TODO: need to adjust border with to the x and width so corners will change related to this value
+
+    // x(opt?: number | string): number {
+    //     const cacheX = this.ownOptions["x"] || 0;
+    //     let x = this.__valueHandler(opt, "x", 0, true)
+    //     const diffX = x - cacheX;
+    //     if (diffX !== 0) x = this.borderWidth() / 2 + diffX;
+    //     return super.x(x)
+    // }
+
+    hotAreaGap(opt?: number): number {
+        return super.hotAreaGap((opt || 0) + this.borderWidth() / 2);
     }
 }
