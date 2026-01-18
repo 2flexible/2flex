@@ -1,6 +1,6 @@
 import { Tree } from "./Tree";
 import { CanvasDOMManager } from "./DOMManager";
-import { getProperty } from "./Utils";
+import { getPrototype } from "./Utils";
 import type { Block, BlockOptions } from "./Block";
 import type { ICssProperties, SnapshotObject } from "./types";
 import { Rectangle } from "./shapes/Rectangle";
@@ -208,32 +208,25 @@ export class Canvas {
         if (!block.ownOptions) return;
         for (const opt of block.__bindOptions) {
             for (const key of opt.options) {
-                getProperty(block, key as string)?.value.call(
+                getPrototype(block, key as string)?.value.call(
                     block,
                     opt.bindTo.ownOptions[key]
                 );
             }
         }
         if (block.ownOptions["hidden"]) {
-            getProperty(block, "hidden")?.value.call(
+            getPrototype(block, "hidden")?.value.call(
                 block,
                 block.ownOptions["hidden"]
             );
             return;
         }
         for (const [key, value] of Object.entries(block.ownOptions)) {
-            getProperty(block, key, this.isNativeBlock(block))?.value.call(
+            getPrototype(block, key)?.value.call(
                 block,
                 value
             );
         }
-    }
-    isNativeBlock(block: Block) {
-        const nativeBlocks = [Shape, Rectangle];
-        for (let i = 0, arr = nativeBlocks.length; i < arr; i++) {
-            if (block instanceof nativeBlocks[i]) return true;
-        }
-        return false;
     }
     invokeChange(obj?: any, _func?: (element: Block) => void) {
         this.context.restore();
@@ -244,12 +237,12 @@ export class Canvas {
         this.#tree.preOrderTraversal(undefined, (b: Block) => {
             if (obj && Object.keys(obj).includes(String(b.nodeId))) {
                 for (const [key, value] of Object.entries(obj[b.nodeId!])) {
-                    getProperty(b, key, this.isNativeBlock(b))?.value.call(b, value);
+                    getPrototype(b, key)?.value.call(b, value);
                 }
             }
             for (const opt of b.__bindOptions) {
                 for (const key of opt.options) {
-                    getProperty(b, key as string, this.isNativeBlock(b))?.value.call(
+                    getPrototype(b, key as string)?.value.call(
                         b,
                         opt.bindTo.ownOptions[key]
                     );
