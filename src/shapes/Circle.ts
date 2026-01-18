@@ -1,5 +1,5 @@
 import { Shape } from "../Shape";
-import { GradientStops, IBlock, Position } from "../types";
+import type { IBlock } from "../types";
 
 interface CircleOptions {
     radius?: number;
@@ -9,10 +9,9 @@ interface CircleOptions {
     endAngle?: number;
 }
 
-export class Circle extends Shape {
-    constructor(options?: IBlock<CircleOptions>) {
+export class Circle extends Shape<CircleOptions> {
+    constructor(options: IBlock<CircleOptions>) {
         super(options);
-        this.options = options || {};
     }
     draw(
         _func?: ((context: CanvasRenderingContext2D) => void) | undefined
@@ -27,7 +26,7 @@ export class Circle extends Shape {
             this.y() + this.height() + this.lineWidth(),
             this.width(),
             this.height(),
-            this.rotation(),
+            this.rotate(),
             this.startAngle(),
             this.endAngle()
         );
@@ -37,28 +36,25 @@ export class Circle extends Shape {
     }
 
     radius(opt?: number) {
-        const radius = this.__cacheOption(opt, "radius", 0);
+        const radius = this.__valueHandler(opt, "radius", 0);
         this.radiusX(radius);
         this.radiusY(radius);
         return radius;
     }
     radiusX(opt?: number) {
-        return this.__cacheOption(opt, "radiusX", 0);
+        return this.__valueHandler(opt, "radiusX", 0);
     }
     radiusY(opt?: number) {
-        return this.__cacheOption(opt, "radiusY", 0);
-    }
-    rotation(opt?: number) {
-        return this.__cacheOption(opt, "rotation", 0);
+        return this.__valueHandler(opt, "radiusY", 0);
     }
     startAngle(opt?: number) {
-        return this.__cacheOption(opt, "startAngle", 0);
+        return this.__valueHandler(opt, "startAngle", 0);
     }
     endAngle(opt?: number) {
-        return this.__cacheOption(opt, "endAngle", Math.PI * 2);
+        return this.__valueHandler(opt, "endAngle", Math.PI * 2);
     }
     backgroundColor(opt?: string) {
-        const backgroundColor = this.__cacheOption(
+        const backgroundColor = this.__valueHandler(
             opt,
             "backgroundColor",
             "black"
@@ -66,150 +62,9 @@ export class Circle extends Shape {
         super.fillStyle(backgroundColor);
         return backgroundColor;
     }
-    hidden(opt?: boolean) {
-        return super.hidden(opt);
-    }
-    radialGradient({
-        x0,
-        y0,
-        r0,
-        x1,
-        y1,
-        r1,
-    }: {
-        x0: number;
-        y0: number;
-        r0: number;
-        x1: number;
-        y1: number;
-        r1: number;
-    }) {
-        return super.radialGradient({ x0, y0, r0, x1, y1, r1 });
-    }
-    linearGradient({
-        x0,
-        y0,
-        x1,
-        y1,
-    }: {
-        x0: number;
-        y0: number;
-        x1: number;
-        y1: number;
-    }) {
-        return super.linearGradient({ x0, y0, x1, y1 });
-    }
-    conicGradient({ angle, x, y }: { angle: number; x: number; y: number }) {
-        return super.conicGradient({ angle, x, y });
-    }
-    colorStops(opt: GradientStops[]): GradientStops[] {
-        return super.colorStops(opt);
-    }
     borderWidth(opt?: number) {
-        const borderWidth = this.__cacheOption(opt, "backgroundColor", 0);
+        const borderWidth = this.__valueHandler(opt, "backgroundColor", 0);
         super.lineWidth(borderWidth);
         return borderWidth;
-    }
-    shadowBlur(opt?: number): number {
-        return super.shadowBlur(opt);
-    }
-    shadowColor(opt?: string): string {
-        return super.shadowColor(opt);
-    }
-    shadowOffsetX(opt?: number): number {
-        return super.shadowOffsetX(opt);
-    }
-    shadowOffsetY(opt?: number): number {
-        return super.shadowOffsetY(opt);
-    }
-    borderColor(opt?: string) {
-        const borderColor = this.__cacheOption(opt, "borderColor", "black");
-        super.strokeStyle(borderColor);
-        return borderColor;
-    }
-    padding(opt?: number[]): number[] | undefined {
-        return super.padding(opt);
-    }
-    position(opt?: Position) {
-        return this.__cacheOption(opt, "position", "static");
-    }
-    top(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "top", 0);
-    }
-    bottom(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "bottom", 0);
-    }
-    left(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "left", 0);
-    }
-    right(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "right", 0);
-    }
-    blur(opt?: number): number {
-        return super.blur(opt);
-    }
-    brightness(opt?: number): number {
-        return super.brightness(opt);
-    }
-    contrast(opt?: number): number {
-        return super.contrast(opt);
-    }
-    dropShadow(opt?: [number, number, number, string][]) {
-        return super.dropShadow(opt);
-    }
-    grayscale(opt?: number): number {
-        return super.grayscale(opt);
-    }
-    hueRotate(opt?: number): number {
-        return super.hueRotate(opt);
-    }
-    opacity(opt?: number): number {
-        return super.opacity(opt);
-    }
-    sepia(opt?: number): number {
-        return super.sepia(opt);
-    }
-    paddingLeft(opt?: number): number {
-        return super.paddingLeft(opt);
-    }
-    paddingTop(opt?: number): number {
-        return super.paddingTop(opt);
-    }
-    paddingBottom(opt?: number): number {
-        return super.paddingBottom(opt);
-    }
-    paddingRight(opt?: number): number {
-        return super.paddingRight(opt);
-    }
-    margin(opt?: number[]): number[] | undefined {
-        return super.margin(opt);
-    }
-    marginLeft(opt?: number): number {
-        return super.marginLeft(opt);
-    }
-    marginTop(opt?: number): number {
-        return super.marginTop(opt);
-    }
-    marginBottom(opt?: number): number {
-        return super.marginBottom(opt);
-    }
-    marginRight(opt?: number): number {
-        return super.marginRight(opt);
-    }
-    dragX(opt?: boolean) {
-        return super.dragX(opt);
-    }
-    dragY(opt?: boolean) {
-        return super.dragY(opt);
-    }
-    draggable(opt: boolean): boolean {
-        return super.draggable(opt);
-    }
-    set(options: IBlock<CircleOptions>) {
-        super.set(options);
     }
 }

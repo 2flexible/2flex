@@ -1,13 +1,6 @@
-import {
-    QuadraticCurveToOpt,
-    BezierCurveToOpt,
-    LineCapOpt,
-    LineJoinOpt,
-    LineDashOffset,
-    Fill,
-} from "../types";
 import { Shape } from "../Shape";
-import { IBlock, Position } from "../types";
+import type { QuadraticCurveToOpt, BezierCurveToOpt } from "../Shape";
+import type { IBlock } from "../types";
 import { Path } from "../Path";
 
 interface Points {
@@ -31,13 +24,12 @@ interface LineOptions extends BezierCurveToOpt, QuadraticCurveToOpt {
     dragEndY: boolean;
 }
 
-export class Line extends Shape {
+export class Line extends Shape<LineOptions> {
     path?: Path;
     #startCords = { x: 0, y: 0 };
 
-    constructor(options?: IBlock<LineOptions>) {
+    constructor(options: IBlock<LineOptions>) {
         super(options);
-        this.options = options || {};
         this.path = new Path();
         this.#startCords = { x: this.x(), y: this.y() };
     }
@@ -131,231 +123,63 @@ export class Line extends Shape {
         if (this.fill()) this.context.fill(this.path!.path);
         if (this.stroke()) this.context.stroke(this.path!.path);
     }
-    hidden(opt?: boolean) {
-        return super.hidden(opt);
-    }
-    fill(opt?: Fill): boolean {
-        return this.__cacheOption(opt, "fill", false);
-    }
-    stroke(opt?: Fill): boolean {
-        return this.__cacheOption(opt, "stroke", false);
-    }
 
-    points(opt?: Points[]) {
-        return this.__cacheOption(opt, "points", undefined);
+    points(opt?: Points[]): Points[] {
+        return this.__valueHandler<Points[], Points[]>(opt, "points", []);
     }
     checkInBound(_event: MouseEvent): boolean {
         const { x, y } = this.canvas.getCursorPosition(_event);
         return this.pointInStroke({ path: this.path!.path, x: x, y: y });
     }
     startX1(opt?: number) {
-        return this.__cacheOption(opt, "startX1", 0);
+        return this.__valueHandler(opt, "startX1", 0);
     }
     startY1(opt?: number) {
-        return this.__cacheOption(opt, "startY1", 0);
-    }
-    position(opt?: Position) {
-        return this.__cacheOption(opt, "position", "static");
-    }
-    top(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "top", 0);
-    }
-    bottom(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "bottom", 0);
-    }
-    left(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "left", 0);
-    }
-    right(opt?: number) {
-        if (this.position() === "static") opt = 0;
-        return this.__cacheOption(opt, "right", 0);
-    }
-    shadowBlur(opt?: number): number {
-        return super.shadowBlur(opt);
-    }
-    shadowColor(opt?: string): string {
-        return super.shadowColor(opt);
-    }
-    shadowOffsetX(opt?: number): number {
-        return super.shadowOffsetX(opt);
-    }
-    shadowOffsetY(opt?: number): number {
-        return super.shadowOffsetY(opt);
+        return this.__valueHandler(opt, "startY1", 0);
     }
     startX2(opt?: number) {
-        return this.__cacheOption(opt, "startX2", 0);
+        return this.__valueHandler(opt, "startX2", 0);
     }
     startY2(opt?: number) {
-        return this.__cacheOption(opt, "startY2", 0);
+        return this.__valueHandler(opt, "startY2", 0);
     }
     endX(opt?: number) {
-        return this.__cacheOption(opt, "endX", 0);
+        return this.__valueHandler(opt, "endX", 0);
     }
     endY(opt?: number) {
-        return this.__cacheOption(opt, "endY", 0);
+        return this.__valueHandler(opt, "endY", 0);
     }
     dragStartX(opt?: boolean) {
-        return this.__cacheOption(opt, "dragStartX", true);
+        return this.__valueHandler(opt, "dragStartX", true);
     }
     dragStartY(opt?: boolean) {
-        return this.__cacheOption(opt, "dragStartY", true);
+        return this.__valueHandler(opt, "dragStartY", true);
     }
     dragStartX1(opt?: boolean) {
-        return this.__cacheOption(opt, "dragStartX1", true);
+        return this.__valueHandler(opt, "dragStartX1", true);
     }
     dragStartY1(opt?: boolean) {
-        return this.__cacheOption(opt, "dragStartY1", true);
+        return this.__valueHandler(opt, "dragStartY1", true);
     }
     dragStartX2(opt?: boolean) {
-        return this.__cacheOption(opt, "dragStartX2", true);
+        return this.__valueHandler(opt, "dragStartX2", true);
     }
     dragStartY2(opt?: boolean) {
-        return this.__cacheOption(opt, "dragStartY2", true);
+        return this.__valueHandler(opt, "dragStartY2", true);
     }
     dragEndX(opt?: boolean) {
-        return this.__cacheOption(opt, "dragEndX", true);
+        return this.__valueHandler(opt, "dragEndX", true);
     }
     dragEndY(opt?: boolean) {
-        return this.__cacheOption(opt, "dragEndY", true);
-    }
-    fillStyle(opt?: string): string {
-        return super.fillStyle(opt);
+        return this.__valueHandler(opt, "dragEndY", true);
     }
     lineWidth(opt?: number): number {
-        const lineWidth = this.__cacheOption(opt, "lineWidth", 0);
+        const lineWidth = this.__valueHandler(opt, "lineWidth", 0);
         if (this.width() === 0) this.width(lineWidth);
         this.context.lineWidth = this.width();
         return lineWidth;
     }
-    lineCap(opt?: LineCapOpt): LineCapOpt {
-        return super.lineCap(opt);
-    }
-    lineJoin(opt?: LineJoinOpt): LineJoinOpt {
-        return super.lineJoin(opt);
-    }
-    lineDash(opt?: number[]) {
-        return super.lineDash(opt);
-    }
-    lineDashOffset(opt?: LineDashOffset) {
-        return super.lineDashOffset(opt);
-    }
-    strokeStyle(opt?: string): string {
-        return super.strokeStyle(opt);
-    }
     closePath(opt?: boolean): boolean {
-        return this.__cacheOption(opt, "closePath", false);
-    }
-    blur(opt?: number): number {
-        return super.blur(opt);
-    }
-    brightness(opt?: number): number {
-        return super.brightness(opt);
-    }
-    contrast(opt?: number): number {
-        return super.contrast(opt);
-    }
-    dropShadow(opt?: [number, number, number, string][]) {
-        return super.dropShadow(opt);
-    }
-    grayscale(opt?: number): number {
-        return super.grayscale(opt);
-    }
-    hueRotate(opt?: number): number {
-        return super.hueRotate(opt);
-    }
-    opacity(opt?: number): number {
-        return super.opacity(opt);
-    }
-    sepia(opt?: number): number {
-        return super.sepia(opt);
-    }
-    clip(opt?: boolean): boolean {
-        return super.clip(opt);
-    }
-    dragX(opt?: boolean) {
-        return super.dragX(opt);
-    }
-    dragY(opt?: boolean) {
-        return super.dragY(opt);
-    }
-    draggable(opt: boolean): boolean {
-        const draggable = this.__cacheOption(opt, "draggable", true);
-        if (!draggable) return false;
-
-        let isMouseDown = false;
-
-        let initX = 0;
-        let initY = 0;
-
-        let beforeX = 0;
-        let beforeY = 0;
-
-        this.mousedown((event) => {
-            const { x, y } = this.canvas.getCursorPosition(event);
-            initX = x;
-            initY = y;
-            if (event.button === 0) {
-                isMouseDown = true;
-                beforeX = 0;
-                beforeY = 0;
-            }
-        });
-
-        this.mousemove((event) => {
-            if (isMouseDown) {
-                const { x, y } = this.canvas.getCursorPosition(event);
-                let diffX = x - initX;
-                let diffY = y - initY;
-                const startX1 = this.startX1();
-                const startX2 = this.startX2();
-                const endX = this.endX();
-                const startY1 = this.startY1();
-                const startY2 = this.startY2();
-                const endY = this.endY();
-
-                // const dragX1 =
-                //     this.dragStartX1() && startX1 - 20 < x && x < startX1;
-                // const dragX2 =
-                //     this.dragStartX2() && startX2 - 20 < x && x < startX2;
-
-                // const dragEndX =
-                //     this.dragEndX() &&
-                //     endX + 20 > x &&
-                //     x > endX + this.#startCords.x;
-
-                // const dragEndY =
-                //     this.dragEndY() &&
-                //     endY + 20 > y &&
-                //     y > endY + this.#startCords.y;
-
-                this.beforeInit.x = this.x();
-                if (diffX !== 0 && this.dragX()) {
-                    if (this.dragStartX()) this.x(this.x() + (diffX - beforeX));
-                    // if (dragX1 || dragX2 || dragEndX)
-                    this.#startCords.x += diffX - beforeX;
-                    beforeX = diffX;
-                }
-                this.beforeInit.y = this.y();
-                if (diffY !== 0 && this.dragY()) {
-                    if (this.dragStartY()) this.y(this.y() + (diffY - beforeY));
-                    // if (dragEndY)
-                    this.#startCords.y += diffY - beforeY;
-                    beforeY = diffY;
-                }
-                this.__adjustCordinates();
-                this.canvas.invokeChange?.call(this.canvas);
-            }
-        });
-
-        this.mouseup((event) => {
-            isMouseDown = false;
-        });
-        return draggable;
-    }
-    set(options: IBlock<LineOptions>) {
-        super.set(options);
+        return this.__valueHandler(opt, "closePath", false);
     }
 }
