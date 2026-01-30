@@ -1,4 +1,4 @@
-import { Block } from "./Block";
+import { Block, HotCornerArea, XY } from "./Block";
 import type { IBlock } from "./types";
 
 type JustifyContent =
@@ -147,6 +147,7 @@ export class Layout extends Block {
         this.__handlePosition();
 
         this.listOnlyChilds((b: Block) => {
+            // need to replace every change with set method
             let bWidthResize = 0;
             let bHeightResize = 0;
 
@@ -301,106 +302,6 @@ export class Layout extends Block {
         this.#layoutCols = [];
         this.#layoutRows = [];
     }
-    x(opt?: number): number {
-        return super.x(opt);
-    }
-    y(opt?: number): number {
-        return super.y(opt);
-    }
-    padding(opt?: number[]): number[] {
-        return super.padding(opt);
-    }
-    paddingLeft(opt?: number): number {
-        return super.paddingLeft(opt);
-    }
-    paddingTop(opt?: number): number {
-        return super.paddingTop(opt);
-    }
-    paddingBottom(opt?: number): number {
-        return super.paddingBottom(opt);
-    }
-    paddingRight(opt?: number): number {
-        return super.paddingRight(opt);
-    }
-    width(opt?: number): number {
-        return super.width(opt);
-    }
-    height(opt?: number): number {
-        return super.height(opt);
-    }
-    cornerX1(opt?: number): number {
-        return super.cornerX1(opt);
-    }
-    cornerY1(opt?: number): number {
-        return super.cornerY1(opt);
-    }
-    cornerX2(opt?: number): number {
-        return super.cornerX2(opt);
-    }
-    cornerY2(opt?: number): number {
-        return super.cornerY2(opt);
-    }
-    cornerX3(opt?: number): number {
-        return super.cornerX3(opt);
-    }
-    cornerY3(opt?: number): number {
-        return super.cornerY3(opt);
-    }
-    cornerX4(opt?: number): number {
-        return super.cornerX4(opt);
-    }
-    cornerY4(opt?: number): number {
-        return super.cornerY4(opt);
-    }
-    hotCornerX1(opt?: number): number {
-        return super.hotCornerX1(opt);
-    }
-    hotCornerY1(opt?: number): number {
-        return super.hotCornerY1(opt);
-    }
-    hotCornerX2(opt?: number): number {
-        return super.hotCornerX2(opt);
-    }
-    hotCornerY2(opt?: number): number {
-        return super.hotCornerY2(opt);
-    }
-    hotCornerX3(opt?: number): number {
-        return super.hotCornerX3(opt);
-    }
-    hotCornerY3(opt?: number): number {
-        return super.hotCornerY3(opt);
-    }
-    hotCornerX4(opt?: number): number {
-        return super.hotCornerX4(opt);
-    }
-    hotCornerY4(opt?: number): number {
-        return super.hotCornerY4(opt);
-    }
-    resizable(opt?: boolean): boolean {
-        return super.resizable(opt);
-    }
-    hotAreaGap(opt?: number): number {
-        return super.hotAreaGap(opt);
-    }
-    zIndex(opt?: number): number {
-        return super.zIndex(opt);
-    }
-    dragX(opt?: boolean) {
-        return super.dragX(opt);
-    }
-    dragY(opt?: boolean) {
-        return super.dragY(opt);
-    }
-    selectable(opt?: boolean): boolean {
-        return super.selectable(opt);
-    }
-    draggable(opt: boolean): boolean {
-        return super.draggable(opt);
-    }
-    set(options: IBlock<LayoutOptions>) {
-        super.set(options);
-    }
-
     layout(opt?: ILayout) {
         const layout = this.__valueHandler<ILayout, ILayout>(
             opt,
@@ -510,9 +411,6 @@ export class Layout extends Block {
     }
     columnEnd(opt?: number) {
         return this.__valueHandler(opt, "columnEnd", 0);
-    }
-    hidden(opt?: boolean): boolean {
-        return super.hidden(opt);
     }
     justifyContent(opt?: JustifyContent) {
         const justifyContent = this.__valueHandler<
@@ -1296,27 +1194,6 @@ export class Layout extends Block {
         this.#checkLayoutType(_type, _func1, _func2);
     }
 
-    #updateCorners(b: Block) {
-        b.cornerX1();
-        b.cornerX2();
-        b.cornerX3();
-        b.cornerX4();
-        b.cornerY1();
-        b.cornerY2();
-        b.cornerY3();
-        b.cornerY4();
-        b.hotCornerX1();
-        b.hotCornerX2();
-        b.hotCornerX3();
-        b.hotCornerX4();
-        b.hotCornerY1();
-        b.hotCornerY2();
-        b.hotCornerY3();
-        b.hotCornerY4();
-        b.rotationCenterX();
-        b.rotationCenterY();
-    }
-
     #flexRow() {
         let colIdx = 0;
         let rowIdx = 0;
@@ -1382,7 +1259,6 @@ export class Layout extends Block {
             startX += gapCol + block.width();
             containerW += block.width();
             colIdx += 1;
-            this.#updateCorners(block);
         });
         this.#blocksWidth.push(containerW);
         this.#blocksHeight.push(containerH);
@@ -1441,8 +1317,6 @@ export class Layout extends Block {
                     rowIdx = 0;
 
                     wrapHeight = endH;
-
-                    this.#updateCorners(block);
                 }
             }
             if (block.position() !== "absolute") {
@@ -1567,8 +1441,6 @@ export class Layout extends Block {
                     block.y(startY + (this.#startYPos[idx] || 0));
                 }
                 startY += rowStart + this.gapRow();
-
-                this.#updateCorners(block);
             }
             let startXD =
                 cols[colIdx] === "auto" ? maxColWidths[colIdx] : cols[colIdx];
