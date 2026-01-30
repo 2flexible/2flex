@@ -134,7 +134,6 @@ export class Canvas {
     }
 
     add(...block: Block[]) {
-        let time = new Date().getTime();
         let zIndex = 1;
         this.#tree.addNodes(block);
         this.#tree.preOrderTraversal<Block>(this.#tree.head, (b: Block) => {
