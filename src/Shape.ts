@@ -1,5 +1,4 @@
 import { Block } from "./Block";
-import type { HotCornerArea, XY } from "./Block";
 import type { IBlock } from "./types";
 
 export interface CursorPos {
@@ -114,6 +113,7 @@ export interface LinearGradient {
     x1: number;
     y1: number;
 }
+export type RepeatOption = "repeat" | "repeat-x" | "repeat-y" | "no-repeat";
 export interface Pattern {
     imageSource: string;
     repeat: RepeatOption;
@@ -127,7 +127,6 @@ export interface ConicGradient {
     x: number;
     y: number;
 }
-export type RepeatOption = "repeat" | "repeat-x" | "repeat-y" | "no-repeat";
 export interface RectOpt extends CursorPos {
     x: number;
     y: number;

@@ -1,6 +1,6 @@
-import { Block } from "./Block";
-import type { IBlock } from "./types";
-import type { RepeatOption } from "./Shape";
+import type { IBlock } from "../types";
+import type { RepeatOption } from "../Shape";
+import { Shape } from "../Shape";
 
 type ObjectFit = "contain" | "cover" | "fill";
 type Smoothing = "low" | "medium" | "high";
@@ -16,7 +16,7 @@ interface ImageOptions {
     repeat?: RepeatOption;
 }
 
-export class MediaBlock extends Block {
+export class MediaBlock extends Shape<ImageOptions> {
     source: string;
     #cacheImage?: any;
     constructor(source: string, options: IBlock<ImageOptions>) {
