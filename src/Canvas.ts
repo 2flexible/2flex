@@ -221,10 +221,7 @@ export class Canvas {
             return;
         }
         for (const [key, value] of Object.entries(block.ownOptions)) {
-            getPrototype(block, key)?.value.call(
-                block,
-                value
-            );
+            getPrototype(block, key)?.value.call(block, value);
         }
     }
     invokeChange(obj?: any, _func?: (element: Block) => void) {
@@ -249,6 +246,7 @@ export class Canvas {
             }
             if (_func) _func(b);
             b.__adjustBlocks();
+            console.log(this.inBoundElement(b));
             if (this.inBoundElement(b)) b.render();
         });
     }
@@ -260,13 +258,49 @@ export class Canvas {
     }
 
     inBoundElement(element: Block) {
-        if (
-            element.x() >= this.canvasBounding.width ||
-            element.y() >= this.canvasBounding.height ||
-            element.x() + element.width() <= 0 ||
-            element.y() + element.height() <= 0
-        )
-            return false;
+        const x = Math.max(
+            0,
+            Math.min(
+                this.canvasBounding.width,
+                Math.max(
+                    element.cornerTopLeft().x,
+                    element.cornerTopRight().x,
+                    element.cornerBottomLeft().x,
+                    element.cornerBottomRight().x
+                )
+            ) -
+                Math.max(
+                    0,
+                    Math.min(
+                        element.cornerTopLeft().x,
+                        element.cornerTopRight().x,
+                        element.cornerBottomLeft().x,
+                        element.cornerBottomRight().x
+                    )
+                )
+        );
+        const y = Math.max(
+            0,
+            Math.min(
+                this.canvasBounding.height,
+                Math.max(
+                    element.cornerTopLeft().y,
+                    element.cornerTopRight().y,
+                    element.cornerBottomLeft().y,
+                    element.cornerBottomRight().y
+                )
+            ) -
+                Math.max(
+                    0,
+                    Math.min(
+                        element.cornerTopLeft().y,
+                        element.cornerTopRight().y,
+                        element.cornerBottomLeft().y,
+                        element.cornerBottomRight().y
+                    )
+                )
+        );
+        if (x * y <= 0) return false;
         return true;
     }
 
