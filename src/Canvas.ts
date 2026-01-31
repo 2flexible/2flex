@@ -1,6 +1,6 @@
 import { Tree } from "./Tree";
 import { CanvasDOMManager } from "./DOMManager";
-import { getPrototype } from "./Utils";
+import { getPrototype, xIntersect, yIntersect } from "./Utils";
 import type { Block, BlockOptions } from "./Block";
 import type { ICssProperties, SnapshotObject } from "./types";
 import { Rectangle } from "./shapes/Rectangle";
@@ -246,7 +246,6 @@ export class Canvas {
             }
             if (_func) _func(b);
             b.__adjustBlocks();
-            console.log(this.inBoundElement(b));
             if (this.inBoundElement(b)) b.render();
         });
     }
@@ -258,47 +257,39 @@ export class Canvas {
     }
 
     inBoundElement(element: Block) {
-        const x = Math.max(
-            0,
-            Math.min(
-                this.canvasBounding.width,
-                Math.max(
+        const x = xIntersect(
+            { left: 0, right: this.canvasBounding.width },
+            {
+                left: Math.min(
                     element.cornerTopLeft().x,
                     element.cornerTopRight().x,
                     element.cornerBottomLeft().x,
                     element.cornerBottomRight().x
-                )
-            ) -
-                Math.max(
-                    0,
-                    Math.min(
-                        element.cornerTopLeft().x,
-                        element.cornerTopRight().x,
-                        element.cornerBottomLeft().x,
-                        element.cornerBottomRight().x
-                    )
-                )
+                ),
+                right: Math.max(
+                    element.cornerTopLeft().x,
+                    element.cornerTopRight().x,
+                    element.cornerBottomLeft().x,
+                    element.cornerBottomRight().x
+                ),
+            }
         );
-        const y = Math.max(
-            0,
-            Math.min(
-                this.canvasBounding.height,
-                Math.max(
+        const y = yIntersect(
+            { top: 0, bottom: this.canvasBounding.height },
+            {
+                top: Math.min(
                     element.cornerTopLeft().y,
                     element.cornerTopRight().y,
                     element.cornerBottomLeft().y,
                     element.cornerBottomRight().y
-                )
-            ) -
-                Math.max(
-                    0,
-                    Math.min(
-                        element.cornerTopLeft().y,
-                        element.cornerTopRight().y,
-                        element.cornerBottomLeft().y,
-                        element.cornerBottomRight().y
-                    )
-                )
+                ),
+                bottom: Math.max(
+                    element.cornerTopLeft().y,
+                    element.cornerTopRight().y,
+                    element.cornerBottomLeft().y,
+                    element.cornerBottomRight().y
+                ),
+            }
         );
         if (x * y <= 0) return false;
         return true;

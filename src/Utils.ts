@@ -41,6 +41,20 @@ export function fromPc(from: number) {
 export function fromPt(from: number) {
     return fromIn(from) * 72;
 }
+
+export function xIntersect(
+    a: { left: number; right: number },
+    b: { left: number; right: number }
+) {
+    return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+}
+export function yIntersect(
+    a: { top: number; bottom: number },
+    b: { top: number; bottom: number }
+) {
+    return Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+}
+
 export function checkInBound(
     pointX: number,
     pointY: number,
@@ -251,7 +265,7 @@ export function getPrototype(obj: any, key: string) {
     return getOwnPrototype(proto, key);
 }
 export function getPrototypeInChain(proto: any, key: string) {
-    if(!proto) return proto
+    if (!proto) return proto;
     let p = getOwnPrototype(proto, key);
     if (p) return p;
     else if (proto !== Node) {
