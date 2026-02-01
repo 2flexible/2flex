@@ -787,98 +787,8 @@ export class Block<T = BlockOptions> extends Node {
         }
     }
 
-    __handlePosition() {
-        // if (this.#runningEvents.resize || this.#runningEvents.drag) return;
-        const pos = this.position();
-
-        if (pos === "fixed") {
-            if (this.top() !== undefined)
-                this.y(-this.canvas.__positionCords.y + this.top()!);
-            else if (this.bottom() !== undefined)
-                this.y(
-                    -this.canvas.__positionCords.y +
-                        Math.abs(this.canvas.height - this.height()) -
-                        this.bottom()!
-                );
-            if (this.left() !== undefined)
-                this.x(-this.canvas.__positionCords.x + this.left()!);
-            else if (this.right())
-                this.x(
-                    -this.canvas.__positionCords.x +
-                        Math.abs(this.canvas.width - this.width()) -
-                        this.right()!
-                );
-        } else if (pos === "sticky") {
-            if (this.canvas.__positionCords.y < 0) {
-                if (
-                    this.top() &&
-                    this.canvas.__positionCords.y <=
-                        Math.abs(this.canvas.height - this.height()) - this.y()
-                ) {
-                    this.y(-this.canvas.__positionCords.y + this.top()!);
-                }
-            } else {
-                if (
-                    this.bottom() &&
-                    this.canvas.__positionCords.y + this.bottom() >=
-                        Math.abs(this.canvas.height - this.height()) -
-                            Math.abs(this.y())
-                ) {
-                    this.y(
-                        -this.canvas.__positionCords.y +
-                            Math.abs(this.canvas.height - this.height()) -
-                            this.bottom()!
-                    );
-                }
-            }
-            if (this.canvas.__positionCords.x < 0) {
-                if (
-                    this.left() &&
-                    this.canvas.__positionCords.x <=
-                        Math.abs(this.canvas.width - this.width()) - this.x()
-                ) {
-                    this.x(-this.canvas.__positionCords.x + this.left()!);
-                }
-            } else {
-                const diffX = Math.abs(this.canvas.width - this.width());
-                if (
-                    this.right() &&
-                    this.canvas.__positionCords.x + this.right() >=
-                        diffX - Math.abs(this.x())
-                ) {
-                    this.x(
-                        -this.canvas.__positionCords.x + diffX - this.right()!
-                    );
-                }
-            }
-        } else if (pos === "absolute") {
-            this.x(0);
-            this.y(0);
-            if (this.left() !== undefined) this.x(this.left());
-            else if (this.right() !== undefined)
-                this.x(
-                    Math.abs(this.canvas.width - this.width()) - this.right()!
-                );
-            if (this.top() !== undefined) {
-                this.y(this.top());
-            } else if (this.bottom() !== undefined)
-                this.y(
-                    Math.abs(this.canvas.height - this.height()) -
-                        this.bottom()!
-                );
-        } else if (pos === "relative") {
-            if (this.left() !== undefined) this.x(this.x() + this.left()!);
-            else if (this.right() !== undefined)
-                this.x(this.x() - this.right()!);
-            if (this.top() !== undefined) this.y(this.y() + this.top()!);
-            else if (this.bottom() !== undefined)
-                this.y(this.y() + this.bottom()!);
-        }
-    }
-
     __adjustBlocks(): void {
-        this.__handlePosition();
-        // need to replace every change with set method
+        this.position();
         this.listOnlyChilds((b: Block) => {
             b.x(
                 (b.options.x || 0) +
@@ -1728,7 +1638,110 @@ export class Block<T = BlockOptions> extends Node {
         );
     }
     position(opt?: Position) {
-        return this.__valueHandler(opt, "position", "static");
+        // @TODO: z index has no effect on the static
+        const pos = this.__valueHandler<Position, Position | undefined>(
+            opt,
+            "position",
+            undefined
+        );
+        if (pos === "static") {
+            if (
+                !this.#runningEvents.drag &&
+                !this.#runningEvents.resize &&
+                !this.#runningEvents.rotate
+            ) {
+                if (this.top() !== undefined) this.y(this.top());
+                else if (this.bottom() !== undefined)
+                    this.y(
+                        Math.abs(this.canvas.height - this.#getRealHeight) -
+                            this.bottom()!
+                    );
+                if (this.left() !== undefined) this.x(this.left());
+                else if (this.right() !== undefined)
+                    this.x(
+                        Math.abs(this.canvas.width - this.#getRealWidth) -
+                            this.right()!
+                    );
+                this.rotationCenterX(this.#getCenterX);
+                this.rotationCenterY(this.#getCenterY);
+                this.rotate(0);
+            }
+        } else if (pos === "fixed") {
+            if (this.top() !== undefined) this.y(this.top()!);
+            else if (this.bottom() !== undefined)
+                this.y(
+                    Math.abs(this.canvas.height - this.height()) -
+                        this.bottom()!
+                );
+            if (this.left() !== undefined) this.x(+this.left()!);
+            else if (this.right() !== undefined)
+                this.x(
+                    +Math.abs(this.canvas.width - this.width()) - this.right()!
+                );
+        } else if (pos === "sticky") {
+            if (this.canvas.__positionCords.y < 0) {
+                if (
+                    this.top() !== undefined &&
+                    -this.canvas.__positionCords.y >=
+                        Math.abs(this.top()! - this.#getTop.y)
+                ) {
+                    this.y(this.top());
+                }
+            } else {
+                if (
+                    this.bottom() !== undefined &&
+                    this.canvas.__positionCords.y <=
+                        this.bottom()! + this.#getBottom.y
+                ) {
+                    this.y(
+                        Math.abs(this.canvas.height - this.#getRealHeight) -
+                            this.bottom()!
+                    );
+                }
+            }
+            if (this.canvas.__positionCords.x < 0) {
+                if (
+                    this.left() !== undefined &&
+                    -this.canvas.__positionCords.x >=
+                        Math.abs(this.left()! - this.#getLeft.x)
+                ) {
+                    this.x(this.left());
+                }
+            } else {
+                if (
+                    this.right() !== undefined &&
+                    this.canvas.__positionCords.x <=
+                        this.right()! + this.#getRight.x
+                ) {
+                    this.x(
+                        Math.abs(this.canvas.width - this.#getRealWidth) -
+                            this.right()!
+                    );
+                }
+            }
+        } else if (pos === "absolute") {
+            if (this.left() !== undefined) this.x(this.left());
+            else if (this.right() !== undefined)
+                this.x(
+                    Math.abs(this.canvas.width - this.#getRealWidth) -
+                        this.right()!
+                );
+            if (this.top() !== undefined) {
+                this.y(this.top());
+            } else if (this.bottom() !== undefined)
+                this.y(
+                    Math.abs(this.canvas.height - this.#getRealHeight) -
+                        this.bottom()!
+                );
+        } else if (pos === "relative") {
+            if (this.left() !== undefined) this.x(this.x() + this.left()!);
+            else if (this.right() !== undefined)
+                this.x(this.x() - this.right()!);
+            if (this.top() !== undefined) this.y(this.y() + this.top()!);
+            else if (this.bottom() !== undefined)
+                this.y(this.y() + this.bottom()!);
+        }
+        return pos;
     }
     top(opt?: number | string) {
         return this.__valueHandler(opt, "top", undefined, false);
@@ -2525,48 +2538,85 @@ export class Block<T = BlockOptions> extends Node {
         return rotate;
     }
 
-    get #getCenterX() {
-        const left = Math.min(
-            this.cornerTopLeft().x,
-            this.cornerTopRight().x,
-            this.cornerBottomLeft().x,
-            this.cornerBottomRight().x
-        );
-        return (
-            left +
-            Math.abs(
-                left -
-                    Math.max(
-                        this.cornerTopLeft().x,
-                        this.cornerTopRight().x,
-                        this.cornerBottomLeft().x,
-                        this.cornerBottomRight().x
-                    )
-            ) /
-                2
-        );
+    get #getTop() {
+        return {
+            x: Math.min(
+                this.cornerTopLeft().x,
+                this.cornerTopRight().x,
+                this.cornerBottomLeft().x,
+                this.cornerBottomRight().x
+            ),
+            y: Math.min(
+                this.cornerTopLeft().y,
+                this.cornerTopRight().y,
+                this.cornerBottomLeft().y,
+                this.cornerBottomRight().y
+            ),
+        };
     }
 
+    get #getBottom() {
+        return {
+            x: Math.max(
+                this.cornerTopLeft().x,
+                this.cornerTopRight().x,
+                this.cornerBottomLeft().x,
+                this.cornerBottomRight().x
+            ),
+            y: Math.max(
+                this.cornerTopLeft().y,
+                this.cornerTopRight().y,
+                this.cornerBottomLeft().y,
+                this.cornerBottomRight().y
+            ),
+        };
+    }
+
+    get #getLeft() {
+        return {
+            x: Math.min(
+                this.cornerTopLeft().x,
+                this.cornerTopRight().x,
+                this.cornerBottomLeft().x,
+                this.cornerBottomRight().x
+            ),
+            y: Math.min(
+                this.cornerTopLeft().y,
+                this.cornerTopRight().y,
+                this.cornerBottomLeft().y,
+                this.cornerBottomRight().y
+            ),
+        };
+    }
+
+    get #getRight() {
+        return {
+            x: Math.max(
+                this.cornerTopLeft().x,
+                this.cornerTopRight().x,
+                this.cornerBottomLeft().x,
+                this.cornerBottomRight().x
+            ),
+            y: Math.max(
+                this.cornerTopLeft().y,
+                this.cornerTopRight().y,
+                this.cornerBottomLeft().y,
+                this.cornerBottomRight().y
+            ),
+        };
+    }
+
+    get #getRealWidth() {
+        return this.#getRight.x - this.#getLeft.x;
+    }
+    get #getRealHeight() {
+        return this.#getBottom.y - this.#getTop.y;
+    }
+    get #getCenterX() {
+        return this.#getTop.x + this.#getRealWidth / 2;
+    }
     get #getCenterY() {
-        const top = Math.min(
-            this.cornerTopLeft().y,
-            this.cornerTopRight().y,
-            this.cornerBottomLeft().y,
-            this.cornerBottomRight().y
-        );
-        return (
-            top +
-            Math.abs(
-                top -
-                    Math.max(
-                        this.cornerTopLeft().y,
-                        this.cornerTopRight().y,
-                        this.cornerBottomLeft().y,
-                        this.cornerBottomRight().y
-                    )
-            ) /
-                2
-        );
+        return this.#getTop.y + this.#getRealHeight / 2;
     }
 
     #updateCornerbyRot(corner: string, diffR: number) {
@@ -3256,12 +3306,7 @@ export class Block<T = BlockOptions> extends Node {
     }
     selectable(opt?: boolean): boolean {
         const selectable = this.__valueHandler(opt, "selectable", false);
-        if (
-            !selectable ||
-            this.position() === "fixed" ||
-            this.position() === "sticky"
-        )
-            return false;
+        if (!selectable) return false;
         const click = (e: MouseEvent) => {
             const { x, y } = this.canvas?.getCursorPosition(e) || {
                 x: 0,
@@ -4068,9 +4113,7 @@ export class Block<T = BlockOptions> extends Node {
             if (
                 this.#runningEvents.resize ||
                 this.#runningEvents.rotate ||
-                !this.#runningEvents.drag ||
-                this.position() === "fixed" ||
-                this.position() === "sticky"
+                !this.#runningEvents.drag
             )
                 return;
             if (this.canvas?.whoIsTheFirst(this.zIndex())) {
