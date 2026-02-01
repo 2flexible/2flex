@@ -103,8 +103,6 @@ export type FlexBasis = number | string;
 export type Flex = [FlexGrow, FlexShrink, FlexBasis];
 export type PlaceSelf = AlignSelf & JustifySelf;
 export type Position = "static" | "relative" | "absolute" | "sticky" | "fixed";
-
-
 export type XY = { x: number; y: number };
 
 export interface HotCornerArea {
@@ -749,6 +747,7 @@ export class Block<T = BlockOptions> extends Node {
     __adjustBlocks(): void {
         this.position();
         this.listOnlyChilds((b: Block) => {
+            b.rotate(this.rotate());
             b.x(
                 (b.options.x || 0) +
                     this.x() +
@@ -1080,6 +1079,7 @@ export class Block<T = BlockOptions> extends Node {
                 y: this.hotCornerBottomRight().y,
             },
         });
+        this.#updateCornerByRot(this.rotate());
     }
 
     get __isHorizontalFlipped() {
@@ -2370,36 +2370,40 @@ export class Block<T = BlockOptions> extends Node {
         const rotate = this.__valueHandler(opt, "rotate", 0);
         const diffR = rotate - cacheRotate;
         if (diffR !== 0) {
-            this.#updateCornerbyRot("cornerTopLeft", diffR);
-            this.#updateCornerbyRot("cornerTopRight", diffR);
-            this.#updateCornerbyRot("cornerBottomLeft", diffR);
-            this.#updateCornerbyRot("cornerBottomRight", diffR);
-
-            this.#updateCornerbyRot("hotCornerTopLeft", diffR);
-            this.#updateCornerbyRot("hotCornerTopRight", diffR);
-            this.#updateCornerbyRot("hotCornerBottomLeft", diffR);
-            this.#updateCornerbyRot("hotCornerBottomRight", diffR);
-
-            this.#updateCornerbyRot("hotRotCornerTopLeft", diffR);
-            this.#updateCornerbyRot("hotRotCornerTopRight", diffR);
-            this.#updateCornerbyRot("hotRotCornerBottomLeft", diffR);
-            this.#updateCornerbyRot("hotRotCornerBottomRight", diffR);
-
-            this.#updateCornerAreabyRot("hotResizableAreaTopLeft", diffR);
-            this.#updateCornerAreabyRot("hotResizableAreaTopRight", diffR);
-            this.#updateCornerAreabyRot("hotResizableAreaBottomLeft", diffR);
-            this.#updateCornerAreabyRot("hotResizableAreaBottomRight", diffR);
-            this.#updateCornerAreabyRot("hotResizableAreaTop", diffR);
-            this.#updateCornerAreabyRot("hotResizableAreaRight", diffR);
-            this.#updateCornerAreabyRot("hotResizableAreaLeft", diffR);
-            this.#updateCornerAreabyRot("hotResizableAreaBottom", diffR);
-
-            this.#updateCornerAreabyRot("hotRotatableAreaTopLeft", diffR);
-            this.#updateCornerAreabyRot("hotRotatableAreaTopRight", diffR);
-            this.#updateCornerAreabyRot("hotRotatableAreaBottomLeft", diffR);
-            this.#updateCornerAreabyRot("hotRotatableAreaBottomRight", diffR);
+            this.#updateCornerByRot(diffR);
         }
         return rotate;
+    }
+
+    #updateCornerByRot(radian: number) {
+        this.#updateCornerbyRot("cornerTopLeft", radian);
+        this.#updateCornerbyRot("cornerTopRight", radian);
+        this.#updateCornerbyRot("cornerBottomLeft", radian);
+        this.#updateCornerbyRot("cornerBottomRight", radian);
+
+        this.#updateCornerbyRot("hotCornerTopLeft", radian);
+        this.#updateCornerbyRot("hotCornerTopRight", radian);
+        this.#updateCornerbyRot("hotCornerBottomLeft", radian);
+        this.#updateCornerbyRot("hotCornerBottomRight", radian);
+
+        this.#updateCornerbyRot("hotRotCornerTopLeft", radian);
+        this.#updateCornerbyRot("hotRotCornerTopRight", radian);
+        this.#updateCornerbyRot("hotRotCornerBottomLeft", radian);
+        this.#updateCornerbyRot("hotRotCornerBottomRight", radian);
+
+        this.#updateCornerAreabyRot("hotResizableAreaTopLeft", radian);
+        this.#updateCornerAreabyRot("hotResizableAreaTopRight", radian);
+        this.#updateCornerAreabyRot("hotResizableAreaBottomLeft", radian);
+        this.#updateCornerAreabyRot("hotResizableAreaBottomRight", radian);
+        this.#updateCornerAreabyRot("hotResizableAreaTop", radian);
+        this.#updateCornerAreabyRot("hotResizableAreaRight", radian);
+        this.#updateCornerAreabyRot("hotResizableAreaLeft", radian);
+        this.#updateCornerAreabyRot("hotResizableAreaBottom", radian);
+
+        this.#updateCornerAreabyRot("hotRotatableAreaTopLeft", radian);
+        this.#updateCornerAreabyRot("hotRotatableAreaTopRight", radian);
+        this.#updateCornerAreabyRot("hotRotatableAreaBottomLeft", radian);
+        this.#updateCornerAreabyRot("hotRotatableAreaBottomRight", radian);
     }
 
     get #getTop() {
