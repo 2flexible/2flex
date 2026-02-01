@@ -45,6 +45,9 @@ interface CanvasOptions {
     alpha?: number;
     composite?: Composite;
     history?: boolean;
+    zoomSet?: number;
+    x: number;
+    y: number;
 }
 export class Canvas {
     __domCanvas: CanvasDOMManager;
@@ -86,6 +89,10 @@ export class Canvas {
         this.width = width || 300;
         this.height = height || 300;
         this.#history = this.options?.history || this.#history;
+        this.__positionCords = {
+            x: this.options?.x || this.__positionCords.x,
+            y: this.options?.y || this.__positionCords.y,
+        };
         this.#snapshotSize = this.options?.snapshotSize || 50;
         this.#tree = new Tree(this.#snapshotSize);
         this.__domCanvas = new CanvasDOMManager(
@@ -143,6 +150,8 @@ export class Canvas {
             zIndex += 1;
 
             this.#handleOptions(b);
+            this.#setCanvasPosition();
+            this.#setCanvasZoom()
             b.__adjustBlocks();
 
             if (this.inBoundElement(b)) b.render();
@@ -227,7 +236,6 @@ export class Canvas {
     invokeChange(obj?: any, _func?: (element: Block) => void) {
         this.context.restore();
         this.context.save();
-
         this.clearRect();
 
         this.#tree.preOrderTraversal(undefined, (b: Block) => {
@@ -425,20 +433,16 @@ export class Canvas {
                     });
                     let diffX = event.clientX - initX;
                     let diffY = event.clientY - initY;
-                    this.invokeChange();
-
-                    if (diffX !== 0) {
-                        this.invokeChange(undefined, (block: Block) =>
-                            block.x(block.x() + (diffX - beforeX))
-                        );
-                        beforeX = diffX;
-                    }
-                    if (diffY !== 0) {
-                        this.invokeChange(undefined, (block: Block) =>
-                            block.y(block.y() + (diffY - beforeY))
-                        );
-                        beforeY = diffY;
-                    }
+                    this.invokeChange(undefined, (block: Block) => {
+                        if (diffX !== 0) {
+                            block.x(block.x() + (diffX - beforeX));
+                            beforeX = diffX;
+                        }
+                        if (diffY !== 0) {
+                            block.y(block.y() + (diffY - beforeY));
+                            beforeY = diffY;
+                        }
+                    });
                 }
             }
         });
@@ -449,6 +453,21 @@ export class Canvas {
         });
     }
 
+    #setCanvasPosition() {
+        
+        this.invokeChange(undefined, (block: Block) => {
+            block.x(block.x() + this.__positionCords.x);
+            block.y(block.y() + this.__positionCords.y);
+        });
+    }
+
+    #setCanvasZoom() {
+        this.invokeChange(undefined, (elem) => {
+            elem.width(elem.width() * (this.options?.zoomSet || 1));
+            elem.height(elem.height() * (this.options?.zoomSet || 1));
+        });
+    }
+
     #keyboardMove() {
         const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
 
@@ -456,31 +475,25 @@ export class Canvas {
             if (event.ctrlKey) {
                 return;
             }
-            if (event.shiftKey) {
-                if (event.deltaY < 0) {
-                    this.invokeChange(undefined, (block: Block) => {
+            this.invokeChange(undefined, (block: Block) => {
+                if (event.shiftKey) {
+                    if (event.deltaY < 0) {
                         block.x(block.x() - moveSpeed);
-                    });
-                    this.__positionCords.x -= moveSpeed;
-                } else {
-                    this.invokeChange(undefined, (block: Block) => {
+                        this.__positionCords.x -= moveSpeed;
+                    } else {
                         block.x(block.x() + moveSpeed);
-                    });
-                    this.__positionCords.x += moveSpeed;
-                }
-            } else {
-                if (event.deltaY < 0) {
-                    this.invokeChange(undefined, (block: Block) => {
-                        block.y(block.y() + moveSpeed);
-                    });
-                    this.__positionCords.y += moveSpeed;
+                        this.__positionCords.x += moveSpeed;
+                    }
                 } else {
-                    this.invokeChange(undefined, (block: Block) => {
+                    if (event.deltaY < 0) {
+                        block.y(block.y() + moveSpeed);
+                        this.__positionCords.y += moveSpeed;
+                    } else {
                         block.y(block.y() - moveSpeed);
-                    });
-                    this.__positionCords.y -= moveSpeed;
+                        this.__positionCords.y -= moveSpeed;
+                    }
                 }
-            }
+            });
         });
     }
 
