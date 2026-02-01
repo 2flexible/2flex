@@ -746,68 +746,25 @@ export class Block<T = BlockOptions> extends Node {
 
     __adjustBlocks(): void {
         this.position();
+        const cacheR = this.rotate();
+        this.rotate(0);
         this.listOnlyChilds((b: Block) => {
-            b.rotate(this.rotate());
+            b.rotate(cacheR);
             b.x(
                 (b.options.x || 0) +
-                    this.x() +
+                    this.#getLeft.x +
                     this.marginLeft() +
                     this.paddingLeft()
             );
             b.y(
                 (b.options.y || 0) +
-                    this.y() +
+                    this.#getTop.y +
                     this.marginTop() +
                     this.paddingTop()
             );
-            if (b.maxWidth() !== b.options.width!) b.width(b.maxWidth());
-            if (b.maxHeight() !== b.options.height!) b.width(b.maxHeight());
-            if (!this.__isHorizontalFlipped) {
-                if (
-                    this.width() - (this.paddingRight() + this.paddingLeft()) <
-                        b.width() ||
-                    b.width() < b.maxWidth()
-                )
-                    b.width(
-                        b.width() +
-                            -(
-                                b.width() -
-                                (this.width() -
-                                    (this.paddingRight() + this.paddingLeft()))
-                            )
-                    );
-            } else if (b.__isHorizontalFlipped) {
-                if (b.width() < b.maxWidth()) {
-                    b.width(
-                        b.width() +
-                            -(
-                                b.width() -
-                                (this.width() -
-                                    (this.paddingRight() + this.paddingLeft()))
-                            )
-                    );
-                }
-            } else b.width(0);
-
-            if (
-                (!this.__isVerticalFlipped &&
-                    this.height() - (this.paddingTop() + this.paddingBottom()) <
-                        b.height()) ||
-                b.height() < b.maxHeight()
-            ) {
-                let oldHeight = b.height();
-                b.height(
-                    b.height() +
-                        -(
-                            b.height() -
-                            (this.height() -
-                                (this.paddingTop() + this.paddingBottom()))
-                        )
-                );
-                if (b.minHeight() > b.height()) b.height(oldHeight);
-            }
             b.__adjustBlocks();
         });
+        this.rotate(cacheR);
     }
 
     __initCordinates() {
