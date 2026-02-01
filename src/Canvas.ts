@@ -150,8 +150,6 @@ export class Canvas {
             zIndex += 1;
 
             this.#handleOptions(b);
-            this.#setCanvasPosition();
-            this.#setCanvasZoom()
             b.__adjustBlocks();
 
             if (this.inBoundElement(b)) b.render();
@@ -169,6 +167,8 @@ export class Canvas {
             this.animationInvoker(this.#animations);
 
         this.#handleEvents();
+        this.#setCanvasPosition();
+        this.#setCanvasZoom();
     }
 
     find(queries: BlockOptions) {
@@ -454,7 +454,6 @@ export class Canvas {
     }
 
     #setCanvasPosition() {
-        
         this.invokeChange(undefined, (block: Block) => {
             block.x(block.x() + this.__positionCords.x);
             block.y(block.y() + this.__positionCords.y);
