@@ -144,6 +144,31 @@ export interface PointInPath extends CursorPos {
 export interface PointInStroke extends CursorPos {
     path?: Path2D;
 }
+
+interface ShapeFilters {
+    [key: string]: string | undefined;
+    blur?: string;
+    brightness?: string;
+    contrast?: string;
+    dropShadow?: string;
+    grayscale?: string;
+    hueRotate?: string;
+    saturate?: string;
+    sepia?: string;
+}
+
+export type BaseFilters =
+    | "blur"
+    | "brightness"
+    | "contrast"
+    | "drop-shadow"
+    | "grayscale"
+    | "hue-rotate"
+    | "opacity"
+    | "saturate"
+    | "sepia";
+
+
 export interface IShapeOptions {
     fill?: Fill;
     fillStyle?: FillStyle;
@@ -171,6 +196,17 @@ export interface IShapeOptions {
 export class Shape<T> extends Block<T | IShapeOptions> {
     #gradient: any = null;
     #cachePattern: any = null;
+    __filters: ShapeFilters = {
+        blur: undefined,
+        brightness: undefined,
+        contrast: undefined,
+        dropShadow: undefined,
+        grayscale: undefined,
+        hueRotate: undefined,
+        saturate: undefined,
+        sepia: undefined,
+    };
+
     constructor(options: IBlock<IShapeOptions>) {
         super(options);
     }
@@ -190,6 +226,8 @@ export class Shape<T> extends Block<T | IShapeOptions> {
 
         if (this.ownOptions.fill) this.fill();
         if (this.ownOptions.stroke) this.stroke();
+
+        this.#contextFilter();
         super.render();
     }
 
@@ -319,7 +357,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     }
     shadowBlur(opt?: number) {
         const shadowBlur = this.__valueHandler(opt, "shadowBlur", 0);
-        if (this.context)this.context.shadowBlur = shadowBlur;
+        if (this.context) this.context.shadowBlur = shadowBlur;
         return shadowBlur;
     }
     shadowColor(opt?: string) {
@@ -437,7 +475,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     }
     lineJoin(opt?: LineJoinOpt) {
         const lineJoin = this.__valueHandler(opt, "lineJoin", "miter");
-        if (this.context)this.context.lineJoin = lineJoin;
+        if (this.context) this.context.lineJoin = lineJoin;
         return lineJoin;
     }
     pointInPath(opt?: PointInPath): void {
@@ -467,7 +505,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
 
     font(opt?: Font) {
         const font = this.__valueHandler(opt, "font", "");
-        if (this.context)this.context.font = font;
+        if (this.context) this.context.font = font;
         return font;
     }
 
@@ -564,5 +602,100 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     measureText(opt?: string) {
         const text = this.__valueHandler(opt, "measureText", "");
         return this.context?.measureText(text);
+    }
+
+    #contextFilter() {
+        let allStr = "";
+        for (const [key, value] of Object.entries(this.__filters)) {
+            if (value) allStr += ` ${key + value}`;
+        }
+        this.context.filter = allStr;
+    }
+
+    #filterHandler(filter?: BaseFilters, value?: string | number | number[]) {
+        if (value === undefined || filter == undefined) return;
+        switch (filter) {
+            case "blur":
+                value = value + "px";
+                break;
+            case "brightness":
+                value = value + "%";
+                break;
+            case "contrast":
+                value = value + "%";
+                break;
+            case "drop-shadow":
+                let _s = "";
+                (value as number[]).forEach((i) => {
+                    if (typeof i == "string") _s += `${i}px`;
+                    else _s += i;
+                });
+                value = _s;
+                break;
+            case "grayscale":
+                value = value + "%";
+                break;
+            case "hue-rotate":
+                value = value + "deg";
+                break;
+            case "opacity":
+                value = value + "%";
+                break;
+            case "saturate":
+                value = value + "%";
+                break;
+            case "sepia":
+                value = value + "%";
+                break;
+        }
+        this.__filters[filter] = `(${value})`;
+    }
+
+    blur(opt?: number) {
+        const blur = this.__valueHandler(opt, "blur", undefined);
+        this.#filterHandler("blur", blur);
+        return blur;
+    }
+    brightness(opt?: number) {
+        const brightness = this.__valueHandler(opt, "brightness", undefined);
+        this.#filterHandler("brightness", brightness);
+        return brightness;
+    }
+    contrast(opt?: number) {
+        const contrast = this.__valueHandler(opt, "contrast", undefined);
+        this.#filterHandler("contrast", contrast);
+        return contrast;
+    }
+    dropShadow(opt?: [number, number, number, string][]) {
+        const dropShadow = this.__valueHandler(opt, "dropShadow", []);
+        this.#filterHandler("drop-shadow", dropShadow);
+        return dropShadow;
+    }
+    grayscale(opt?: number) {
+        const grayscale = this.__valueHandler(opt, "grayscale", undefined);
+        this.#filterHandler("grayscale", grayscale);
+        return grayscale;
+    }
+    hueRotate(opt?: number) {
+        const hueRotate = this.__valueHandler(opt, "hueRotate", undefined);
+        this.#filterHandler("hue-rotate", hueRotate);
+        return hueRotate;
+    }
+    opacity(opt?: number) {
+        const opacity = this.__valueHandler(opt, "opacity", undefined);
+
+        this.#filterHandler("opacity", opacity);
+        return opacity;
+    }
+    saturate(opt?: number) {
+        const saturate = this.__valueHandler(opt, "saturate", undefined);
+
+        this.#filterHandler("saturate", saturate);
+        return saturate;
+    }
+    sepia(opt?: number) {
+        const sepia = this.__valueHandler(opt, "sepia", undefined);
+        this.#filterHandler("sepia", sepia);
+        return sepia;
     }
 }

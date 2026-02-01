@@ -80,18 +80,6 @@ export interface KeyFrame {
     onFinish?: () => void;
 }
 
-interface BlockFilters {
-    [key: string]: string | undefined;
-    blur?: string;
-    brightness?: string;
-    contrast?: string;
-    dropShadow?: string;
-    grayscale?: string;
-    hueRotate?: string;
-    saturate?: string;
-    sepia?: string;
-}
-
 export type AlignSelf =
     | "normal"
     | "auto"
@@ -116,16 +104,6 @@ export type Flex = [FlexGrow, FlexShrink, FlexBasis];
 export type PlaceSelf = AlignSelf & JustifySelf;
 export type Position = "static" | "relative" | "absolute" | "sticky" | "fixed";
 
-export type BaseFilters =
-    | "blur"
-    | "brightness"
-    | "contrast"
-    | "drop-shadow"
-    | "grayscale"
-    | "hue-rotate"
-    | "opacity"
-    | "saturate"
-    | "sepia";
 
 export type XY = { x: number; y: number };
 
@@ -172,14 +150,6 @@ export interface BlockOptions {
     rotate?: number;
     onRotate?: (event: MouseEvent) => void;
     order?: number;
-    blur?: number;
-    brightness?: number;
-    contrast?: number;
-    dropShadow?: number;
-    grayscale?: number;
-    hueRotate?: number;
-    saturate?: number;
-    sepia?: number;
     alignSelf?: AlignSelf;
     justifySelf?: JustifySelf;
     flexShrink?: FlexShrink;
@@ -272,16 +242,6 @@ export class Block<T = BlockOptions> extends Node {
         mouseout: [],
         mouseover: [],
     };
-    __filters: BlockFilters = {
-        blur: undefined,
-        brightness: undefined,
-        contrast: undefined,
-        dropShadow: undefined,
-        grayscale: undefined,
-        hueRotate: undefined,
-        saturate: undefined,
-        sepia: undefined,
-    };
     __animationOn: any = [];
     #cursor: string | undefined;
 
@@ -305,7 +265,6 @@ export class Block<T = BlockOptions> extends Node {
             });
             return;
         }
-        this.#contextFilter();
         this.#showHotAreas();
         if (this.#runningEvents.selected) this.__hotLines();
     }
@@ -1121,14 +1080,6 @@ export class Block<T = BlockOptions> extends Node {
                 y: this.hotCornerBottomRight().y,
             },
         });
-    }
-
-    #contextFilter() {
-        let allStr = "";
-        for (const [key, value] of Object.entries(this.__filters)) {
-            if (value) allStr += ` ${key + value}`;
-        }
-        this.context.filter = allStr;
     }
 
     get __isHorizontalFlipped() {
@@ -2309,93 +2260,6 @@ export class Block<T = BlockOptions> extends Node {
     }
     hotAreaGap(opt?: number) {
         return this.__valueHandler(opt, "hotAreaGap", 0);
-    }
-
-    #filterHandler(filter?: BaseFilters, value?: string | number | number[]) {
-        if (value === undefined || filter == undefined) return;
-        switch (filter) {
-            case "blur":
-                value = value + "px";
-                break;
-            case "brightness":
-                value = value + "%";
-                break;
-            case "contrast":
-                value = value + "%";
-                break;
-            case "drop-shadow":
-                let _s = "";
-                (value as number[]).forEach((i) => {
-                    if (typeof i == "string") _s += `${i}px`;
-                    else _s += i;
-                });
-                value = _s;
-                break;
-            case "grayscale":
-                value = value + "%";
-                break;
-            case "hue-rotate":
-                value = value + "deg";
-                break;
-            case "opacity":
-                value = value + "%";
-                break;
-            case "saturate":
-                value = value + "%";
-                break;
-            case "sepia":
-                value = value + "%";
-                break;
-        }
-        this.__filters[filter] = `(${value})`;
-    }
-
-    blur(opt?: number) {
-        const blur = this.__valueHandler(opt, "blur", undefined);
-        this.#filterHandler("blur", blur);
-        return blur;
-    }
-    brightness(opt?: number) {
-        const brightness = this.__valueHandler(opt, "brightness", undefined);
-        this.#filterHandler("brightness", brightness);
-        return brightness;
-    }
-    contrast(opt?: number) {
-        const contrast = this.__valueHandler(opt, "contrast", undefined);
-        this.#filterHandler("contrast", contrast);
-        return contrast;
-    }
-    dropShadow(opt?: [number, number, number, string][]) {
-        const dropShadow = this.__valueHandler(opt, "dropShadow", []);
-        this.#filterHandler("drop-shadow", dropShadow);
-        return dropShadow;
-    }
-    grayscale(opt?: number) {
-        const grayscale = this.__valueHandler(opt, "grayscale", undefined);
-        this.#filterHandler("grayscale", grayscale);
-        return grayscale;
-    }
-    hueRotate(opt?: number) {
-        const hueRotate = this.__valueHandler(opt, "hueRotate", undefined);
-        this.#filterHandler("hue-rotate", hueRotate);
-        return hueRotate;
-    }
-    opacity(opt?: number) {
-        const opacity = this.__valueHandler(opt, "opacity", undefined);
-
-        this.#filterHandler("opacity", opacity);
-        return opacity;
-    }
-    saturate(opt?: number) {
-        const saturate = this.__valueHandler(opt, "saturate", undefined);
-
-        this.#filterHandler("saturate", saturate);
-        return saturate;
-    }
-    sepia(opt?: number) {
-        const sepia = this.__valueHandler(opt, "sepia", undefined);
-        this.#filterHandler("sepia", sepia);
-        return sepia;
     }
 
     hidden(opt?: boolean) {
