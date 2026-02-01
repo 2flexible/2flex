@@ -192,6 +192,15 @@ export interface IShapeOptions {
     pointInStroke?: PointInStroke;
 
     moveTo?: CursorPos;
+
+    blur?: number;
+    brightness?: number;
+    contrast?: number;
+    dropShadow?: number;
+    grayscale?: number;
+    hueRotate?: number;
+    saturate?: number;
+    sepia?: number;
 }
 export class Shape<T> extends Block<T | IShapeOptions> {
     #gradient: any = null;
