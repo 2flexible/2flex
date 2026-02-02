@@ -223,7 +223,7 @@ export class Block<T = BlockOptions> extends Node {
     ownOptions: IBlock<T>;
     options: IBlock<T>;
     __bindOptions: { bindTo: Block; options: (keyof BlockOptions)[] }[] = [];
-    #runningEvents = {
+    __runningEvents = {
         drag: false,
         rotate: false,
         resize: false,
@@ -257,18 +257,19 @@ export class Block<T = BlockOptions> extends Node {
     }
 
     render() {
+        this.__adjustBlocks();
         if (this.hidden()) {
             this.listAllChilds((n: Block) => {
                 n.hidden(true);
             });
             return;
         }
-        this.#showHotAreas();
-        if (this.#runningEvents.selected) this.__hotLines();
+        // this.showHotAreas();
+        if (this.__runningEvents.selected) this.__hotLines();
     }
 
     // @Todo remove this
-    #showHotAreas() {
+    showHotAreas() {
         this.context.beginPath();
         this.context.moveTo(
             this.hotResizableAreaTopLeft().topLeft.x,
@@ -1187,6 +1188,12 @@ export class Block<T = BlockOptions> extends Node {
         const x = this.__valueHandler(opt, "x", 0, true);
         const diffX = x - cacheX;
         if (diffX !== 0) {
+            if (this.ownOptions.position == "absolute") {
+                if (this.left() !== undefined) this.left(this.left()! + diffX);
+                else if (this.right() !== undefined)
+                    this.right(this.right()! - diffX);
+            }
+
             const cacheR = this.rotate();
             this.rotate(0);
             this.rotationCenterX(this.rotationCenterX() + diffX);
@@ -1230,6 +1237,11 @@ export class Block<T = BlockOptions> extends Node {
         const y = this.__valueHandler(opt, "y", 0, true);
         const diffY = y - cacheY;
         if (cacheY !== y && diffY !== 0) {
+            if (this.ownOptions.position == "absolute") {
+                if (this.top() !== undefined) this.top(this.top()! + diffY);
+                else if (this.bottom() !== undefined)
+                    this.bottom(this.bottom()! - diffY);
+            }
             const cacheR = this.rotate();
             this.rotate(0);
             this.rotationCenterY(this.rotationCenterY() + diffY);
@@ -1554,9 +1566,9 @@ export class Block<T = BlockOptions> extends Node {
         );
         if (pos === "static") {
             if (
-                !this.#runningEvents.drag &&
-                !this.#runningEvents.resize &&
-                !this.#runningEvents.rotate
+                !this.__runningEvents.drag &&
+                !this.__runningEvents.resize &&
+                !this.__runningEvents.rotate
             ) {
                 if (this.top() !== undefined) this.y(this.top());
                 else if (this.bottom() !== undefined)
@@ -1587,58 +1599,43 @@ export class Block<T = BlockOptions> extends Node {
                     +Math.abs(this.canvas.width - this.width()) - this.right()!
                 );
         } else if (pos === "sticky") {
-            if (this.canvas.__positionCords.y < 0) {
-                if (
-                    this.top() !== undefined &&
-                    -this.canvas.__positionCords.y >=
-                        Math.abs(this.top()! - this.#getTop.y)
-                ) {
-                    this.y(this.top());
-                }
-            } else {
-                if (
-                    this.bottom() !== undefined &&
-                    this.canvas.__positionCords.y <=
-                        this.bottom()! + this.#getBottom.y
-                ) {
-                    this.y(
-                        Math.abs(this.canvas.height - this.#getRealHeight) -
-                            this.bottom()!
-                    );
-                }
+            if (this.top() !== undefined && this.#getTop.y <= this.top()!) {
+                this.y(this.top());
+            } else if (
+                this.bottom() !== undefined &&
+                this.#getBottom.y >= this.canvas.height - this.bottom()!
+            ) {
+                this.y(
+                    Math.abs(this.canvas.height - this.#getRealHeight) -
+                        this.bottom()!
+                );
             }
-            if (this.canvas.__positionCords.x < 0) {
-                if (
-                    this.left() !== undefined &&
-                    -this.canvas.__positionCords.x >=
-                        Math.abs(this.left()! - this.#getLeft.x)
-                ) {
-                    this.x(this.left());
-                }
-            } else {
-                if (
-                    this.right() !== undefined &&
-                    this.canvas.__positionCords.x <=
-                        this.right()! + this.#getRight.x
-                ) {
-                    this.x(
-                        Math.abs(this.canvas.width - this.#getRealWidth) -
-                            this.right()!
-                    );
-                }
-            }
-        } else if (pos === "absolute") {
-            if (this.left() !== undefined) this.x(this.left());
-            else if (this.right() !== undefined)
+            if (this.left() !== undefined && this.#getLeft.x <= this.left()!) {
+                this.x(this.left());
+            } else if (
+                this.right() !== undefined &&
+                this.#getRight.x >= this.canvas.width - this.right()!
+            ) {
                 this.x(
                     Math.abs(this.canvas.width - this.#getRealWidth) -
                         this.right()!
                 );
+            }
+        } else if (pos === "absolute") {
+            if (this.left() !== undefined)
+                this.x(this.canvas.__positionCords.x + this.left()!);
+            else if (this.right() !== undefined)
+                this.x(
+                    this.canvas.__positionCords.x +
+                        Math.abs(this.canvas.width - this.#getRealWidth) -
+                        this.right()!
+                );
             if (this.top() !== undefined) {
-                this.y(this.top());
+                this.y(this.canvas.__positionCords.y + this.top());
             } else if (this.bottom() !== undefined)
                 this.y(
-                    Math.abs(this.canvas.height - this.#getRealHeight) -
+                    this.canvas.__positionCords.y +
+                        Math.abs(this.canvas.height - this.#getRealHeight) -
                         this.bottom()!
                 );
         } else if (pos === "relative") {
@@ -2292,7 +2289,7 @@ export class Block<T = BlockOptions> extends Node {
         return this.__valueHandler(opt, "zIndex", 1);
     }
 
-    set(options: IBlock<T>): void {
+    set(options: IBlock<BlockOptions | T>): void {
         let before: any = {};
         let after: any = {};
         for (const [key, value] of Object.entries(options)) {
@@ -3138,7 +3135,7 @@ export class Block<T = BlockOptions> extends Node {
                 y: 0,
             };
             let inBound;
-            if (this.#runningEvents.selected) {
+            if (this.__runningEvents.selected) {
                 inBound = checkInBound(
                     x,
                     y,
@@ -3156,8 +3153,8 @@ export class Block<T = BlockOptions> extends Node {
             } else inBound = this.checkInBound(e);
 
             if (inBound && this.canvas?.whoIsTheFirst(this.zIndex())) {
-                this.#runningEvents.selected = true;
-            } else this.#runningEvents.selected = false;
+                this.__runningEvents.selected = true;
+            } else this.__runningEvents.selected = false;
             this.canvas.invokeChange(this);
         };
         this.#eventHandler("click", click);
@@ -3179,32 +3176,31 @@ export class Block<T = BlockOptions> extends Node {
 
         let topMove = false;
         let leftMove = false;
-        let beforeValues: any = {};
+        const beforeValues: any = {};
         let inBound = false;
 
         const mousedown = (event: MouseEvent) => {
-            if (this.#runningEvents.resize || this.#runningEvents.drag) return;
+            if (this.__runningEvents.resize || this.__runningEvents.drag)
+                return;
             if (inBound) {
-                this.#runningEvents.rotate = true;
+                this.__runningEvents.rotate = true;
                 beforeValues[this.nodeId!] = {
                     rotate: this.rotate(),
                 };
                 this.canvas?.takeRegister({ in: this.zIndex() });
-            } else {
-                this.canvas?.takeRegister({ out: this.zIndex() });
-            }
+            } else this.canvas?.takeRegister({ out: this.zIndex() });
         };
 
         const mousemove = (event: MouseEvent) => {
             if (
-                !this.#runningEvents.selected ||
-                this.#runningEvents.resize ||
-                this.#runningEvents.drag
+                !this.__runningEvents.selected ||
+                this.__runningEvents.resize ||
+                this.__runningEvents.drag
             )
                 return;
 
             let { x, y } = this.canvas.getCursorPosition(event);
-            if (!this.#runningEvents.rotate) {
+            if (!this.__runningEvents.rotate) {
                 let cursor: string | undefined = undefined;
                 if (
                     checkInBound(
@@ -3300,7 +3296,7 @@ export class Block<T = BlockOptions> extends Node {
                 }
             }
             if (
-                this.#runningEvents.rotate &&
+                this.__runningEvents.rotate &&
                 this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 let radian = Math.atan2(
@@ -3322,11 +3318,11 @@ export class Block<T = BlockOptions> extends Node {
         };
 
         const mouseup = () => {
-            if (this.#runningEvents.rotate) {
-                this.#runningEvents.rotate = false;
+            if (this.__runningEvents.rotate) {
+                this.__runningEvents.rotate = false;
                 this.canvas.changeCursor("auto");
                 inBound = false;
-                let dummy: any = {};
+                const dummy: any = {};
                 dummy[this.nodeId!] = { rotate: this.rotate() };
                 this.canvas?.takeSnapshot(beforeValues, dummy);
             }
@@ -3363,36 +3359,97 @@ export class Block<T = BlockOptions> extends Node {
         let heightResize = false;
 
         let inBound = false;
-
         const mousedown = (event: MouseEvent) => {
-            if (this.#runningEvents.drag || this.#runningEvents.rotate) return;
-
+            if (this.__runningEvents.drag || this.__runningEvents.rotate)
+                return;
+            beforeCords = { x: 0, y: 0 };
             if (inBound) {
                 initCords = this.canvas.getCursorPosition(event);
-                this.#runningEvents.resize = true;
-                beforeCords = { x: 0, y: 0 };
+                this.__runningEvents.resize = true;
                 beforeValues[this.nodeId!] = {
-                    x: this.x(),
-                    y: this.y(),
-                    width: this.width(),
-                    height: this.height(),
+                    cornerTopLeft: structuredClone(this.cornerTopLeft()),
+                    cornerTopRight: structuredClone(this.cornerTopRight()),
+                    cornerBottomLeft: structuredClone(this.cornerBottomLeft()),
+                    cornerBottomRight: structuredClone(
+                        this.cornerBottomRight()
+                    ),
+
+                    hotCornerTopLeft: structuredClone(this.hotCornerTopLeft()),
+                    hotCornerTopRight: structuredClone(
+                        this.hotCornerTopRight()
+                    ),
+                    hotCornerBottomLeft: structuredClone(
+                        this.hotCornerBottomLeft()
+                    ),
+                    hotCornerBottomRight: structuredClone(
+                        this.hotCornerBottomRight()
+                    ),
+
+                    hotRotCornerTopLeft: structuredClone(
+                        this.hotRotCornerTopLeft()
+                    ),
+                    hotRotCornerTopRight: structuredClone(
+                        this.hotRotCornerTopRight()
+                    ),
+                    hotRotCornerBottomLeft: structuredClone(
+                        this.hotRotCornerBottomLeft()
+                    ),
+                    hotRotCornerBottomRight: structuredClone(
+                        this.hotRotCornerBottomRight()
+                    ),
+                    hotRotatableAreaTopLeft: structuredClone(
+                        this.hotRotatableAreaTopLeft()
+                    ),
+                    hotRotatableAreaTopRight: structuredClone(
+                        this.hotRotatableAreaTopRight()
+                    ),
+                    hotRotatableAreaBottomLeft: structuredClone(
+                        this.hotRotatableAreaBottomLeft()
+                    ),
+                    hotRotatableAreaBottomRight: structuredClone(
+                        this.hotRotatableAreaBottomRight()
+                    ),
+
+                    hotResizableAreaTopLeft: structuredClone(
+                        this.hotResizableAreaTopLeft()
+                    ),
+                    hotResizableAreaTopRight: structuredClone(
+                        this.hotResizableAreaTopRight()
+                    ),
+                    hotResizableAreaBottomLeft: structuredClone(
+                        this.hotResizableAreaBottomLeft()
+                    ),
+                    hotResizableAreaBottomRight: structuredClone(
+                        this.hotResizableAreaBottomRight()
+                    ),
+                    hotResizableAreaTop: structuredClone(
+                        this.hotResizableAreaTop()
+                    ),
+                    hotResizableAreaRight: structuredClone(
+                        this.hotResizableAreaRight()
+                    ),
+                    hotResizableAreaLeft: structuredClone(
+                        this.hotResizableAreaLeft()
+                    ),
+                    hotResizableAreaBottom: structuredClone(
+                        this.hotResizableAreaBottom()
+                    ),
                 };
             }
         };
 
         const mousemove = (event: MouseEvent) => {
             if (
-                !this.#runningEvents.selected ||
-                this.#runningEvents.drag ||
-                this.#runningEvents.rotate
+                !this.__runningEvents.selected ||
+                this.__runningEvents.drag ||
+                this.__runningEvents.rotate
             )
                 return;
 
             const { x, y } = this.canvas.getCursorPosition(event);
-            if (!this.#runningEvents.resize) {
+            if (!this.__runningEvents.resize) {
                 let cursor: string | undefined = undefined;
                 heightResize = widthResize = topResize = leftResize = false;
-
                 if (
                     checkInBound(
                         x,
@@ -3555,7 +3612,7 @@ export class Block<T = BlockOptions> extends Node {
                 }
             }
             if (
-                this.#runningEvents.resize &&
+                this.__runningEvents.resize &&
                 this.canvas?.whoIsTheFirst(this.zIndex())
             ) {
                 let diffX = x - initCords.x;
@@ -3849,19 +3906,44 @@ export class Block<T = BlockOptions> extends Node {
         };
 
         const mouseup = () => {
-            if (this.#runningEvents.resize) {
+            if (this.__runningEvents.resize) {
                 this.canvas.changeCursor("auto");
-                this.#runningEvents.resize = false;
+                this.__runningEvents.resize = false;
                 if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                    let after: any = {};
+                    const after: any = {};
                     after[this.nodeId!] = {
-                        x: this.x(),
-                        y: this.y(),
-                        width: this.width(),
-                        height: this.height(),
+                        cornerTopLeft: this.cornerTopLeft(),
+                        cornerTopRight: this.cornerTopRight(),
+                        cornerBottomLeft: this.cornerBottomLeft(),
+                        cornerBottomRight: this.cornerBottomRight(),
+                        hotCornerTopLeft: this.hotCornerTopLeft(),
+                        hotCornerTopRight: this.hotCornerTopRight(),
+                        hotCornerBottomLeft: this.hotCornerBottomLeft(),
+                        hotCornerBottomRight: this.hotCornerBottomRight(),
+                        hotRotCornerTopLeft: this.hotRotCornerTopLeft(),
+                        hotRotCornerTopRight: this.hotRotCornerTopRight(),
+                        hotRotCornerBottomLeft: this.hotRotCornerBottomLeft(),
+                        hotRotCornerBottomRight: this.hotRotCornerBottomRight(),
+                        hotRotatableAreaTopLeft: this.hotRotatableAreaTopLeft(),
+                        hotRotatableAreaTopRight:
+                            this.hotRotatableAreaTopRight(),
+                        hotRotatableAreaBottomLeft:
+                            this.hotRotatableAreaBottomLeft(),
+                        hotRotatableAreaBottomRight:
+                            this.hotRotatableAreaBottomRight(),
+                        hotResizableAreaTopLeft: this.hotResizableAreaTopLeft(),
+                        hotResizableAreaTopRight:
+                            this.hotResizableAreaTopRight(),
+                        hotResizableAreaBottomLeft:
+                            this.hotResizableAreaBottomLeft(),
+                        hotResizableAreaBottomRight:
+                            this.hotResizableAreaBottomRight(),
+                        hotResizableAreaTop: this.hotResizableAreaTop(),
+                        hotResizableAreaRight: this.hotResizableAreaRight(),
+                        hotResizableAreaLeft: this.hotResizableAreaLeft(),
+                        hotResizableAreaBottom: this.hotResizableAreaBottom(),
                     };
                     this.canvas?.takeSnapshot(beforeValues, after);
-                    this.canvas.invokeChange();
                 }
             }
         };
@@ -3923,7 +4005,7 @@ export class Block<T = BlockOptions> extends Node {
         let beforeValues: any = {};
 
         this.mousedown((event) => {
-            if (this.#runningEvents.resize || this.#runningEvents.rotate)
+            if (this.__runningEvents.resize || this.__runningEvents.rotate)
                 return;
             initCords = this.canvas.getCursorPosition(event);
             beforeCords = { x: 0, y: 0 };
@@ -3931,14 +4013,14 @@ export class Block<T = BlockOptions> extends Node {
                 x: this.x(),
                 y: this.y(),
             };
-            this.#runningEvents.drag = true;
+            this.__runningEvents.drag = true;
         });
 
         const mousemove = (event: MouseEvent) => {
             if (
-                this.#runningEvents.resize ||
-                this.#runningEvents.rotate ||
-                !this.#runningEvents.drag
+                this.__runningEvents.resize ||
+                this.__runningEvents.rotate ||
+                !this.__runningEvents.drag
             )
                 return;
             if (this.canvas?.whoIsTheFirst(this.zIndex())) {
@@ -3948,11 +4030,13 @@ export class Block<T = BlockOptions> extends Node {
                 if (diffX !== 0 && this.dragX()) {
                     const diff = diffX - beforeCords.x;
                     this.x(this.x() + diff);
+
                     beforeCords.x = diffX;
                 }
                 if (diffY !== 0 && this.dragY()) {
                     const diff = diffY - beforeCords.y;
                     this.y(this.y() + diff);
+
                     beforeCords.y = diffY;
                 }
                 this.onDrag()(event);
@@ -3960,15 +4044,15 @@ export class Block<T = BlockOptions> extends Node {
             }
         };
         const mouseup = () => {
-            if (this.#runningEvents.drag) {
-                this.#runningEvents.drag = false;
+            if (this.__runningEvents.drag) {
+                this.__runningEvents.drag = false;
                 if (beforeCords.x !== 0 || beforeCords.y !== 0) {
                     const after: any = {};
                     after[this.nodeId!] = {
                         x: this.x(),
                         y: this.y(),
                     };
-                    this.canvas.takeSnapshot(beforeValues, after);
+                    this.canvas?.takeSnapshot(beforeValues, after);
                     this.canvas.invokeChange();
                 }
             }
