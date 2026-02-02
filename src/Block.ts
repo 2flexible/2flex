@@ -590,7 +590,7 @@ export class Block<T = BlockOptions> extends Node {
 
     removeChild<T>(child: T): void {
         super.removeChild(child);
-        this.canvas.invokeChange(this.canvas);
+        this.canvas?.invokeChange(this.canvas);
     }
 
     findChilds(queries: BlockOptions) {
@@ -1117,7 +1117,7 @@ export class Block<T = BlockOptions> extends Node {
             else if (val.endsWith("rem"))
                 return fromRem(
                     Number(val.split("rem")[0]),
-                    this.canvas.width
+                    this.canvas?.width
                 ) as O;
             else if (val.endsWith("em"))
                 return fromEm(
@@ -1131,7 +1131,7 @@ export class Block<T = BlockOptions> extends Node {
             )
                 return fromVH(
                     Number(val.split("vh")[0]),
-                    this.canvas.height
+                    this.canvas?.height
                 ) as O;
             else if (
                 val.endsWith("vw") &&
@@ -1140,7 +1140,7 @@ export class Block<T = BlockOptions> extends Node {
             )
                 return fromVW(
                     Number(val.split("vw")[0]),
-                    this.canvas.width
+                    this.canvas?.width
                 ) as O;
             else if (val.endsWith("cm"))
                 return fromCm(Number(val.split("cm")[0])) as O;
@@ -1573,13 +1573,13 @@ export class Block<T = BlockOptions> extends Node {
                 if (this.top() !== undefined) this.y(this.top());
                 else if (this.bottom() !== undefined)
                     this.y(
-                        Math.abs(this.canvas.height - this.#getRealHeight) -
+                        Math.abs(this.canvas?.height - this.#getRealHeight) -
                             this.bottom()!
                     );
                 if (this.left() !== undefined) this.x(this.left());
                 else if (this.right() !== undefined)
                     this.x(
-                        Math.abs(this.canvas.width - this.#getRealWidth) -
+                        Math.abs(this.canvas?.width - this.#getRealWidth) -
                             this.right()!
                     );
                 this.rotationCenterX(this.#getCenterX);
@@ -1590,23 +1590,23 @@ export class Block<T = BlockOptions> extends Node {
             if (this.top() !== undefined) this.y(this.top()!);
             else if (this.bottom() !== undefined)
                 this.y(
-                    Math.abs(this.canvas.height - this.height()) -
+                    Math.abs(this.canvas?.height - this.height()) -
                         this.bottom()!
                 );
             if (this.left() !== undefined) this.x(+this.left()!);
             else if (this.right() !== undefined)
                 this.x(
-                    +Math.abs(this.canvas.width - this.width()) - this.right()!
+                    +Math.abs(this.canvas?.width - this.width()) - this.right()!
                 );
         } else if (pos === "sticky") {
             if (this.top() !== undefined && this.#getTop.y <= this.top()!) {
                 this.y(this.top());
             } else if (
                 this.bottom() !== undefined &&
-                this.#getBottom.y >= this.canvas.height - this.bottom()!
+                this.#getBottom.y >= this.canvas?.height - this.bottom()!
             ) {
                 this.y(
-                    Math.abs(this.canvas.height - this.#getRealHeight) -
+                    Math.abs(this.canvas?.height - this.#getRealHeight) -
                         this.bottom()!
                 );
             }
@@ -1614,28 +1614,28 @@ export class Block<T = BlockOptions> extends Node {
                 this.x(this.left());
             } else if (
                 this.right() !== undefined &&
-                this.#getRight.x >= this.canvas.width - this.right()!
+                this.#getRight.x >= this.canvas?.width - this.right()!
             ) {
                 this.x(
-                    Math.abs(this.canvas.width - this.#getRealWidth) -
+                    Math.abs(this.canvas?.width - this.#getRealWidth) -
                         this.right()!
                 );
             }
         } else if (pos === "absolute") {
             if (this.left() !== undefined)
-                this.x(this.canvas.__positionCords.x + this.left()!);
+                this.x(this.canvas?.__positionCords.x + this.left()!);
             else if (this.right() !== undefined)
                 this.x(
-                    this.canvas.__positionCords.x +
-                        Math.abs(this.canvas.width - this.#getRealWidth) -
+                    this.canvas?.__positionCords.x +
+                        Math.abs(this.canvas?.width - this.#getRealWidth) -
                         this.right()!
                 );
             if (this.top() !== undefined) {
-                this.y(this.canvas.__positionCords.y + this.top());
+                this.y(this.canvas?.__positionCords.y + this.top());
             } else if (this.bottom() !== undefined)
                 this.y(
-                    this.canvas.__positionCords.y +
-                        Math.abs(this.canvas.height - this.#getRealHeight) -
+                    this.canvas?.__positionCords.y +
+                        Math.abs(this.canvas?.height - this.#getRealHeight) -
                         this.bottom()!
                 );
         } else if (pos === "relative") {
@@ -3155,7 +3155,7 @@ export class Block<T = BlockOptions> extends Node {
             if (inBound && this.canvas?.whoIsTheFirst(this.zIndex())) {
                 this.__runningEvents.selected = true;
             } else this.__runningEvents.selected = false;
-            this.canvas.invokeChange(this);
+            this.canvas?.invokeChange(this);
         };
         this.#eventHandler("click", click);
         return selectable;
@@ -3199,7 +3199,7 @@ export class Block<T = BlockOptions> extends Node {
             )
                 return;
 
-            let { x, y } = this.canvas.getCursorPosition(event);
+            let { x, y } = this.canvas?.getCursorPosition(event);
             if (!this.__runningEvents.rotate) {
                 let cursor: string | undefined = undefined;
                 if (
@@ -3278,7 +3278,7 @@ export class Block<T = BlockOptions> extends Node {
                 if (cursor) {
                     inBound = true;
                     this.#cursor = cursor;
-                    this.canvas.changeCursor(cursor);
+                    this.canvas?.changeCursor(cursor);
                 } else {
                     inBound = false;
                     if (
@@ -3291,7 +3291,7 @@ export class Block<T = BlockOptions> extends Node {
                         ].includes(this.#cursor)
                     ) {
                         this.#cursor = cursor;
-                        this.canvas.changeCursor(cursor);
+                        this.canvas?.changeCursor(cursor);
                     }
                 }
             }
@@ -3313,14 +3313,14 @@ export class Block<T = BlockOptions> extends Node {
                     this.rotate(radian - degreeToRadian(135));
                 }
                 this.onRotate()(event);
-                this.canvas.invokeChange();
+                this.canvas?.invokeChange();
             }
         };
 
         const mouseup = () => {
             if (this.__runningEvents.rotate) {
                 this.__runningEvents.rotate = false;
-                this.canvas.changeCursor("auto");
+                this.canvas?.changeCursor("auto");
                 inBound = false;
                 const dummy: any = {};
                 dummy[this.nodeId!] = { rotate: this.rotate() };
@@ -3364,7 +3364,7 @@ export class Block<T = BlockOptions> extends Node {
                 return;
             beforeCords = { x: 0, y: 0 };
             if (inBound) {
-                initCords = this.canvas.getCursorPosition(event);
+                initCords = this.canvas?.getCursorPosition(event);
                 this.__runningEvents.resize = true;
                 beforeValues[this.nodeId!] = {
                     cornerTopLeft: structuredClone(this.cornerTopLeft()),
@@ -3446,7 +3446,7 @@ export class Block<T = BlockOptions> extends Node {
             )
                 return;
 
-            const { x, y } = this.canvas.getCursorPosition(event);
+            const { x, y } = this.canvas?.getCursorPosition(event);
             if (!this.__runningEvents.resize) {
                 let cursor: string | undefined = undefined;
                 heightResize = widthResize = topResize = leftResize = false;
@@ -3602,12 +3602,12 @@ export class Block<T = BlockOptions> extends Node {
                     inBound = true;
                     cursor = this.#chooseCursor(cursor);
                     this.#cursor = cursor;
-                    this.canvas.changeCursor(cursor);
+                    this.canvas?.changeCursor(cursor);
                 } else {
                     inBound = false;
                     if (this.#cursor !== "cell") {
                         this.#cursor = cursor;
-                        this.canvas.changeCursor(cursor);
+                        this.canvas?.changeCursor(cursor);
                     }
                 }
             }
@@ -3901,13 +3901,13 @@ export class Block<T = BlockOptions> extends Node {
                 this.rotationCenterX(this.#getCenterX);
                 this.rotationCenterY(this.#getCenterY);
                 this.onResize()(event);
-                this.canvas.invokeChange();
+                this.canvas?.invokeChange();
             }
         };
 
         const mouseup = () => {
             if (this.__runningEvents.resize) {
-                this.canvas.changeCursor("auto");
+                this.canvas?.changeCursor("auto");
                 this.__runningEvents.resize = false;
                 if (beforeCords.x !== 0 || beforeCords.y !== 0) {
                     const after: any = {};
@@ -4007,7 +4007,7 @@ export class Block<T = BlockOptions> extends Node {
         this.mousedown((event) => {
             if (this.__runningEvents.resize || this.__runningEvents.rotate)
                 return;
-            initCords = this.canvas.getCursorPosition(event);
+            initCords = this.canvas?.getCursorPosition(event);
             beforeCords = { x: 0, y: 0 };
             beforeValues[this.nodeId!] = {
                 x: this.x(),
@@ -4024,7 +4024,7 @@ export class Block<T = BlockOptions> extends Node {
             )
                 return;
             if (this.canvas?.whoIsTheFirst(this.zIndex())) {
-                const { x, y } = this.canvas.getCursorPosition(event);
+                const { x, y } = this.canvas?.getCursorPosition(event);
                 let diffX = x - initCords.x;
                 let diffY = y - initCords.y;
                 if (diffX !== 0 && this.dragX()) {
@@ -4053,7 +4053,7 @@ export class Block<T = BlockOptions> extends Node {
                         y: this.y(),
                     };
                     this.canvas?.takeSnapshot(beforeValues, after);
-                    this.canvas.invokeChange();
+                    this.canvas?.invokeChange();
                 }
             }
         };
