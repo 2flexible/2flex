@@ -39,7 +39,6 @@ interface CanvasOptions {
     moveSpeed?: number;
     zoom?: "center" | "point";
     move?: "auto" | "keyboard" | "mouse";
-    takeSnapshot: boolean;
     fps: number;
     snapshotSize: number;
     alpha?: number;
@@ -143,6 +142,7 @@ export class Canvas {
     add(...block: Block[]) {
         let zIndex = 1;
         this.#tree.addNodes(block);
+        const time = new Date().getTime()
         this.#tree.preOrderTraversal<Block>(this.#tree.head, (b: Block) => {
             b.canvas = this;
 
@@ -161,7 +161,7 @@ export class Canvas {
             }
             const dummy: any = {};
             dummy[b.nodeId!] = { ...b.ownOptions };
-            this.takeSnapshot(dummy, dummy);
+            this.#tree.takeSanpshot(time, dummy, dummy);
         });
         if (this.#animations.length !== 0)
             this.animationInvoker(this.#animations);
