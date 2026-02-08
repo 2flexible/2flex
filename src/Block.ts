@@ -246,6 +246,13 @@ export class Block<T = BlockOptions> extends Node {
     #isVerticalFlipped = false;
     #isHorizontalFlipped = false;
 
+    #rotaionCorners: HotCornerArea = {
+        topLeft: { x: 0, y: 0 },
+        bottomLeft: { x: 0, y: 0 },
+        topRight: { x: 0, y: 0 },
+        bottomRight: { x: 0, y: 0 },
+    };
+
     #keyframeIterations: any = {};
 
     constructor(options: IBlock<T>) {
@@ -1040,6 +1047,14 @@ export class Block<T = BlockOptions> extends Node {
                 y: this.hotCornerBottomRight().y,
             },
         });
+
+        this.#rotaionCorners = {
+            topLeft: { ...this.hotRotCornerTopLeft() },
+            bottomLeft: { ...this.hotRotCornerBottomLeft() },
+            topRight: { ...this.hotRotCornerTopRight() },
+            bottomRight: { ...this.hotRotCornerBottomRight() },
+        };
+
         this.#updateCornerByRot(this.rotate());
     }
 
@@ -1808,11 +1823,15 @@ export class Block<T = BlockOptions> extends Node {
             y: 0,
         });
         const diffX = corner.x - cacheCorner.x;
-        if (diffX !== 0)
+        if (diffX !== 0) {
             this.#updateAreaCordX("hotRotatableAreaTopLeft", diffX);
+            this.#rotaionCorners.topLeft.x = corner.x;
+        }
         const diffY = corner.y - cacheCorner.y;
-        if (diffY !== 0)
+        if (diffY !== 0) {
             this.#updateAreaCordY("hotRotatableAreaTopLeft", diffY);
+            this.#rotaionCorners.topLeft.y = corner.y;
+        }
         return corner;
     }
 
@@ -1826,11 +1845,15 @@ export class Block<T = BlockOptions> extends Node {
             y: 0,
         });
         const diffX = corner.x - cacheCorner.x;
-        if (diffX !== 0)
+        if (diffX !== 0) {
             this.#updateAreaCordX("hotRotatableAreaTopRight", diffX);
+            this.#rotaionCorners.topRight.x = corner.x;
+        }
         const diffY = corner.y - cacheCorner.y;
-        if (diffY !== 0)
+        if (diffY !== 0) {
             this.#updateAreaCordY("hotRotatableAreaTopRight", diffY);
+            this.#rotaionCorners.topRight.y = corner.y;
+        }
         return corner;
     }
 
@@ -1844,11 +1867,15 @@ export class Block<T = BlockOptions> extends Node {
             y: 0,
         });
         const diffX = corner.x - cacheCorner.x;
-        if (diffX !== 0)
+        if (diffX !== 0) {
             this.#updateAreaCordX("hotRotatableAreaBottomLeft", diffX);
+            this.#rotaionCorners.bottomLeft.x = corner.x;
+        }
         const diffY = corner.y - cacheCorner.y;
-        if (diffY !== 0)
+        if (diffY !== 0) {
             this.#updateAreaCordY("hotRotatableAreaBottomLeft", diffY);
+            this.#rotaionCorners.bottomLeft.y = corner.y;
+        }
         return corner;
     }
 
@@ -1862,11 +1889,15 @@ export class Block<T = BlockOptions> extends Node {
             y: 0,
         });
         const diffX = corner.x - cacheCorner.x;
-        if (diffX !== 0)
+        if (diffX !== 0) {
             this.#updateAreaCordX("hotRotatableAreaBottomRight", diffX);
+            this.#rotaionCorners.bottomRight.x = corner.x;
+        }
         const diffY = corner.y - cacheCorner.y;
-        if (diffY !== 0)
+        if (diffY !== 0) {
             this.#updateAreaCordY("hotRotatableAreaBottomRight", diffY);
+            this.#rotaionCorners.bottomRight.y = corner.y;
+        }
         return corner;
     }
 
@@ -3340,14 +3371,47 @@ export class Block<T = BlockOptions> extends Node {
                     y - this.rotationCenterY(),
                     x - this.rotationCenterX()
                 );
+
                 if (topMove && leftMove) {
-                    this.rotate(radian + degreeToRadian(135));
+                    this.rotate(
+                        radian -
+                            Math.atan2(
+                                this.#rotaionCorners.topLeft.y -
+                                    this.#getCenterY,
+                                this.#rotaionCorners.topLeft.x -
+                                    this.#getCenterX
+                            )
+                    );
                 } else if (topMove && !leftMove) {
-                    this.rotate(radian + degreeToRadian(45));
+                    this.rotate(
+                        radian -
+                            Math.atan2(
+                                this.#rotaionCorners.topRight.y -
+                                    this.#getCenterY,
+                                this.#rotaionCorners.topRight.x -
+                                    this.#getCenterX
+                            )
+                    );
                 } else if (!topMove && !leftMove) {
-                    this.rotate(radian - degreeToRadian(45));
+                    this.rotate(
+                        radian -
+                            Math.atan2(
+                                this.#rotaionCorners.bottomRight.y -
+                                    this.#getCenterY,
+                                this.#rotaionCorners.bottomRight.x -
+                                    this.#getCenterX
+                            )
+                    );
                 } else if (!topMove && leftMove) {
-                    this.rotate(radian - degreeToRadian(135));
+                    this.rotate(
+                        radian -
+                            Math.atan2(
+                                this.#rotaionCorners.bottomLeft.y -
+                                    this.#getCenterY,
+                                this.#rotaionCorners.bottomLeft.x -
+                                    this.#getCenterX
+                            )
+                    );
                 }
                 this.onRotate()(event);
                 this.canvas?.invokeChange();
