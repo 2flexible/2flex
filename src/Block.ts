@@ -2,7 +2,6 @@ import type { Canvas } from "./Canvas";
 import { Node } from "./Tree";
 import {
     checkInBound,
-    degreeToRadian,
     fromCm,
     fromEm,
     fromIn,
@@ -275,7 +274,7 @@ export class Block<T = BlockOptions> extends Node {
             });
             return;
         }
-        this.showHotAreas();
+        // this.showHotAreas();
         if (this.__runningEvents.selected) this.__hotLines();
     }
 
@@ -763,13 +762,13 @@ export class Block<T = BlockOptions> extends Node {
             b.rotate(cacheR);
             b.x(
                 (b.options.x || 0) +
-                    this.#getLeft.x +
+                    this.getLeft.x +
                     this.marginLeft() +
                     this.paddingLeft()
             );
             b.y(
                 (b.options.y || 0) +
-                    this.#getTop.y +
+                    this.getTop.y +
                     this.marginTop() +
                     this.paddingTop()
             );
@@ -793,8 +792,8 @@ export class Block<T = BlockOptions> extends Node {
             y: this.y() + this.height(),
         });
 
-        this.rotationCenterX(this.#getCenterX);
-        this.rotationCenterY(this.#getCenterY);
+        this.rotationCenterX(this.getCenterX);
+        this.rotationCenterY(this.getCenterY);
 
         this.hotCornerTopLeft({
             x: this.cornerTopLeft().x - this.hotAreaGap(),
@@ -1276,7 +1275,7 @@ export class Block<T = BlockOptions> extends Node {
         const w = this.__valueHandler(opt, "width", 0, true);
         const diffW = w - cacheW;
         if (diffW !== 0) {
-            const centerX = this.#getCenterX;
+            const centerX = this.getCenterX;
             const cacheR = this.rotate();
             this.rotate(0);
             if (this.cornerTopLeft().x > centerX) {
@@ -1303,7 +1302,7 @@ export class Block<T = BlockOptions> extends Node {
                     y: this.cornerBottomRight().y,
                 });
             }
-            this.rotationCenterX(this.#getCenterX);
+            this.rotationCenterX(this.getCenterX);
             this.rotate(cacheR);
         }
         return w;
@@ -1314,7 +1313,7 @@ export class Block<T = BlockOptions> extends Node {
         const h = this.__valueHandler(opt, "height", 0, false);
         const diffH = h - cacheH;
         if (diffH !== 0) {
-            const centerY = this.#getCenterY;
+            const centerY = this.getCenterY;
             const cacheR = this.rotate();
             this.rotate(0);
             if (this.cornerTopLeft().y > centerY) {
@@ -1342,7 +1341,7 @@ export class Block<T = BlockOptions> extends Node {
                 });
             }
 
-            this.rotationCenterY(this.#getCenterY);
+            this.rotationCenterY(this.getCenterY);
             this.rotate(cacheR);
         }
         return h;
@@ -1385,17 +1384,17 @@ export class Block<T = BlockOptions> extends Node {
                 if (this.top() !== undefined) this.y(this.top());
                 else if (this.bottom() !== undefined)
                     this.y(
-                        Math.abs(this.canvas?.height - this.#getRealHeight) -
+                        Math.abs(this.canvas?.height - this.getRealHeight) -
                             this.bottom()!
                     );
                 if (this.left() !== undefined) this.x(this.left());
                 else if (this.right() !== undefined)
                     this.x(
-                        Math.abs(this.canvas?.width - this.#getRealWidth) -
+                        Math.abs(this.canvas?.width - this.getRealWidth) -
                             this.right()!
                     );
-                this.rotationCenterX(this.#getCenterX);
-                this.rotationCenterY(this.#getCenterY);
+                this.rotationCenterX(this.getCenterX);
+                this.rotationCenterY(this.getCenterY);
                 this.rotate(0);
             }
         } else if (pos === "fixed") {
@@ -1411,25 +1410,25 @@ export class Block<T = BlockOptions> extends Node {
                     +Math.abs(this.canvas?.width - this.width()) - this.right()!
                 );
         } else if (pos === "sticky") {
-            if (this.top() !== undefined && this.#getTop.y <= this.top()!) {
+            if (this.top() !== undefined && this.getTop.y <= this.top()!) {
                 this.y(this.top());
             } else if (
                 this.bottom() !== undefined &&
-                this.#getBottom.y >= this.canvas?.height - this.bottom()!
+                this.getBottom.y >= this.canvas?.height - this.bottom()!
             ) {
                 this.y(
-                    Math.abs(this.canvas?.height - this.#getRealHeight) -
+                    Math.abs(this.canvas?.height - this.getRealHeight) -
                         this.bottom()!
                 );
             }
-            if (this.left() !== undefined && this.#getLeft.x <= this.left()!) {
+            if (this.left() !== undefined && this.getLeft.x <= this.left()!) {
                 this.x(this.left());
             } else if (
                 this.right() !== undefined &&
-                this.#getRight.x >= this.canvas?.width - this.right()!
+                this.getRight.x >= this.canvas?.width - this.right()!
             ) {
                 this.x(
-                    Math.abs(this.canvas?.width - this.#getRealWidth) -
+                    Math.abs(this.canvas?.width - this.getRealWidth) -
                         this.right()!
                 );
             }
@@ -1439,7 +1438,7 @@ export class Block<T = BlockOptions> extends Node {
             else if (this.right() !== undefined)
                 this.x(
                     this.canvas?.__positionCords.x +
-                        Math.abs(this.canvas?.width - this.#getRealWidth) -
+                        Math.abs(this.canvas?.width - this.getRealWidth) -
                         this.right()!
                 );
             if (this.top() !== undefined) {
@@ -1447,7 +1446,7 @@ export class Block<T = BlockOptions> extends Node {
             } else if (this.bottom() !== undefined)
                 this.y(
                     this.canvas?.__positionCords.y +
-                        Math.abs(this.canvas?.height - this.#getRealHeight) -
+                        Math.abs(this.canvas?.height - this.getRealHeight) -
                         this.bottom()!
                 );
         } else if (pos === "relative") {
@@ -2439,7 +2438,7 @@ export class Block<T = BlockOptions> extends Node {
         this.#updateCornerAreabyRot("hotRotatableAreaBottomRight", radian);
     }
 
-    get #getTop() {
+    get getTop() {
         return {
             x: Math.min(
                 this.cornerTopLeft().x,
@@ -2456,7 +2455,7 @@ export class Block<T = BlockOptions> extends Node {
         };
     }
 
-    get #getBottom() {
+    get getBottom() {
         return {
             x: Math.max(
                 this.cornerTopLeft().x,
@@ -2473,7 +2472,7 @@ export class Block<T = BlockOptions> extends Node {
         };
     }
 
-    get #getLeft() {
+    get getLeft() {
         return {
             x: Math.min(
                 this.cornerTopLeft().x,
@@ -2490,7 +2489,7 @@ export class Block<T = BlockOptions> extends Node {
         };
     }
 
-    get #getRight() {
+    get getRight() {
         return {
             x: Math.max(
                 this.cornerTopLeft().x,
@@ -2507,17 +2506,17 @@ export class Block<T = BlockOptions> extends Node {
         };
     }
 
-    get #getRealWidth() {
-        return this.#getRight.x - this.#getLeft.x;
+    get getRealWidth() {
+        return this.getRight.x - this.getLeft.x;
     }
-    get #getRealHeight() {
-        return this.#getBottom.y - this.#getTop.y;
+    get getRealHeight() {
+        return this.getBottom.y - this.getTop.y;
     }
-    get #getCenterX() {
-        return this.#getTop.x + this.#getRealWidth / 2;
+    get getCenterX() {
+        return this.getTop.x + this.getRealWidth / 2;
     }
-    get #getCenterY() {
-        return this.#getTop.y + this.#getRealHeight / 2;
+    get getCenterY() {
+        return this.getTop.y + this.getRealHeight / 2;
     }
 
     #updateCornerbyRot(corner: string, diffR: number) {
@@ -3377,9 +3376,9 @@ export class Block<T = BlockOptions> extends Node {
                         radian -
                             Math.atan2(
                                 this.#rotaionCorners.topLeft.y -
-                                    this.#getCenterY,
+                                    this.getCenterY,
                                 this.#rotaionCorners.topLeft.x -
-                                    this.#getCenterX
+                                    this.getCenterX
                             )
                     );
                 } else if (topMove && !leftMove) {
@@ -3387,9 +3386,9 @@ export class Block<T = BlockOptions> extends Node {
                         radian -
                             Math.atan2(
                                 this.#rotaionCorners.topRight.y -
-                                    this.#getCenterY,
+                                    this.getCenterY,
                                 this.#rotaionCorners.topRight.x -
-                                    this.#getCenterX
+                                    this.getCenterX
                             )
                     );
                 } else if (!topMove && !leftMove) {
@@ -3397,9 +3396,9 @@ export class Block<T = BlockOptions> extends Node {
                         radian -
                             Math.atan2(
                                 this.#rotaionCorners.bottomRight.y -
-                                    this.#getCenterY,
+                                    this.getCenterY,
                                 this.#rotaionCorners.bottomRight.x -
-                                    this.#getCenterX
+                                    this.getCenterX
                             )
                     );
                 } else if (!topMove && leftMove) {
@@ -3407,9 +3406,9 @@ export class Block<T = BlockOptions> extends Node {
                         radian -
                             Math.atan2(
                                 this.#rotaionCorners.bottomLeft.y -
-                                    this.#getCenterY,
+                                    this.getCenterY,
                                 this.#rotaionCorners.bottomLeft.x -
-                                    this.#getCenterX
+                                    this.getCenterX
                             )
                     );
                 }
@@ -3747,8 +3746,8 @@ export class Block<T = BlockOptions> extends Node {
                 }
                 this.#adjustCordsToFLip();
                 this.rotate(cacheR);
-                this.rotationCenterX(this.#getCenterX);
-                this.rotationCenterY(this.#getCenterY);
+                this.rotationCenterX(this.getCenterX);
+                this.rotationCenterY(this.getCenterY);
                 this.onResize()(event);
                 this.canvas?.invokeChange();
             }
