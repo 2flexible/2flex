@@ -3008,7 +3008,6 @@ export class Block<T = BlockOptions> extends Node {
             bottomRight.x,
             bottomRight.y
         );
-
         if (inBound) this.canvas?.takeRegister({ in: this.zIndex() });
         else this.canvas?.takeRegister({ out: this.zIndex() });
         return inBound;
@@ -3362,58 +3361,58 @@ export class Block<T = BlockOptions> extends Node {
                     }
                 }
             }
-            if (
-                this.__runningEvents.rotate &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
-                let radian = Math.atan2(
-                    y - this.rotationCenterY(),
-                    x - this.rotationCenterX()
-                );
 
-                if (topMove && leftMove) {
-                    this.rotate(
-                        radian -
-                            Math.atan2(
-                                this.#rotaionCorners.topLeft.y -
-                                    this.getCenterY,
-                                this.#rotaionCorners.topLeft.x -
-                                    this.getCenterX
-                            )
+            if (this.__runningEvents.rotate) {
+                this.canvas?.takeRegister({ in: this.zIndex() });
+                if (this.canvas?.whoIsTheFirst(this.zIndex())) {
+                    let radian = Math.atan2(
+                        y - this.rotationCenterY(),
+                        x - this.rotationCenterX()
                     );
-                } else if (topMove && !leftMove) {
-                    this.rotate(
-                        radian -
-                            Math.atan2(
-                                this.#rotaionCorners.topRight.y -
-                                    this.getCenterY,
-                                this.#rotaionCorners.topRight.x -
-                                    this.getCenterX
-                            )
-                    );
-                } else if (!topMove && !leftMove) {
-                    this.rotate(
-                        radian -
-                            Math.atan2(
-                                this.#rotaionCorners.bottomRight.y -
-                                    this.getCenterY,
-                                this.#rotaionCorners.bottomRight.x -
-                                    this.getCenterX
-                            )
-                    );
-                } else if (!topMove && leftMove) {
-                    this.rotate(
-                        radian -
-                            Math.atan2(
-                                this.#rotaionCorners.bottomLeft.y -
-                                    this.getCenterY,
-                                this.#rotaionCorners.bottomLeft.x -
-                                    this.getCenterX
-                            )
-                    );
+                    if (topMove && leftMove) {
+                        this.rotate(
+                            radian -
+                                Math.atan2(
+                                    this.#rotaionCorners.topLeft.y -
+                                        this.getCenterY,
+                                    this.#rotaionCorners.topLeft.x -
+                                        this.getCenterX
+                                )
+                        );
+                    } else if (topMove && !leftMove) {
+                        this.rotate(
+                            radian -
+                                Math.atan2(
+                                    this.#rotaionCorners.topRight.y -
+                                        this.getCenterY,
+                                    this.#rotaionCorners.topRight.x -
+                                        this.getCenterX
+                                )
+                        );
+                    } else if (!topMove && !leftMove) {
+                        this.rotate(
+                            radian -
+                                Math.atan2(
+                                    this.#rotaionCorners.bottomRight.y -
+                                        this.getCenterY,
+                                    this.#rotaionCorners.bottomRight.x -
+                                        this.getCenterX
+                                )
+                        );
+                    } else if (!topMove && leftMove) {
+                        this.rotate(
+                            radian -
+                                Math.atan2(
+                                    this.#rotaionCorners.bottomLeft.y -
+                                        this.getCenterY,
+                                    this.#rotaionCorners.bottomLeft.x -
+                                        this.getCenterX
+                                )
+                        );
+                    }
+                    this.onRotate()(event);
+                    this.canvas?.invokeChange();
                 }
-                this.onRotate()(event);
-                this.canvas?.invokeChange();
             }
         };
 
@@ -3474,7 +3473,8 @@ export class Block<T = BlockOptions> extends Node {
                         this.cornerBottomRight()
                     ),
                 };
-            }
+                this.canvas?.takeRegister({ in: this.zIndex() });
+            } else this.canvas?.takeRegister({ out: this.zIndex() });
         };
 
         const mousemove = (event: MouseEvent) => {
@@ -3688,71 +3688,70 @@ export class Block<T = BlockOptions> extends Node {
                     }
                 }
             }
-            if (
-                this.__runningEvents.resize &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
-                let diffX = x - initCords.x;
-                let diffY = y - initCords.y;
+            if (this.__runningEvents.resize) {
+                this.canvas?.takeRegister({ in: this.zIndex() });
+                if (this.canvas?.whoIsTheFirst(this.zIndex())) {
+                    let diffX = x - initCords.x;
+                    let diffY = y - initCords.y;
 
-                const cacheR = this.rotate();
-                this.rotate(0);
-                if (diffX !== 0) {
-                    let diffW = diffX - beforeCords.x;
-                    if (leftResize) {
-                        this.cornerTopLeft({
-                            x: this.cornerTopLeft().x + diffW,
-                            y: this.cornerTopLeft().y,
-                        });
-                        this.cornerBottomLeft({
-                            x: this.cornerBottomLeft().x + diffW,
-                            y: this.cornerBottomLeft().y,
-                        });
-                    } else if (rightResize) {
-                        this.cornerTopRight({
-                            x: this.cornerTopRight().x + diffW,
-                            y: this.cornerTopRight().y,
-                        });
-                        this.cornerBottomRight({
-                            x: this.cornerBottomRight().x + diffW,
-                            y: this.cornerBottomRight().y,
-                        });
-                    }
+                    const cacheR = this.rotate();
+                    this.rotate(0);
+                    if (diffX !== 0) {
+                        let diffW = diffX - beforeCords.x;
+                        if (leftResize) {
+                            this.cornerTopLeft({
+                                x: this.cornerTopLeft().x + diffW,
+                                y: this.cornerTopLeft().y,
+                            });
+                            this.cornerBottomLeft({
+                                x: this.cornerBottomLeft().x + diffW,
+                                y: this.cornerBottomLeft().y,
+                            });
+                        } else if (rightResize) {
+                            this.cornerTopRight({
+                                x: this.cornerTopRight().x + diffW,
+                                y: this.cornerTopRight().y,
+                            });
+                            this.cornerBottomRight({
+                                x: this.cornerBottomRight().x + diffW,
+                                y: this.cornerBottomRight().y,
+                            });
+                        }
 
-                    beforeCords.x = diffX;
-                }
-                if (diffY !== 0) {
-                    let diffH = diffY - beforeCords.y;
-                    if (topResize) {
-                        this.cornerTopRight({
-                            x: this.cornerTopRight().x,
-                            y: this.cornerTopRight().y + diffH,
-                        });
-                        this.cornerTopLeft({
-                            x: this.cornerTopLeft().x,
-                            y: this.cornerTopLeft().y + diffH,
-                        });
-                    } else if (bottomResize) {
-                        this.cornerBottomRight({
-                            x: this.cornerBottomRight().x,
-                            y: this.cornerBottomRight().y + diffH,
-                        });
-                        this.cornerBottomLeft({
-                            x: this.cornerBottomLeft().x,
-                            y: this.cornerBottomLeft().y + diffH,
-                        });
+                        beforeCords.x = diffX;
                     }
-                    beforeCords.y = diffY;
+                    if (diffY !== 0) {
+                        let diffH = diffY - beforeCords.y;
+                        if (topResize) {
+                            this.cornerTopRight({
+                                x: this.cornerTopRight().x,
+                                y: this.cornerTopRight().y + diffH,
+                            });
+                            this.cornerTopLeft({
+                                x: this.cornerTopLeft().x,
+                                y: this.cornerTopLeft().y + diffH,
+                            });
+                        } else if (bottomResize) {
+                            this.cornerBottomRight({
+                                x: this.cornerBottomRight().x,
+                                y: this.cornerBottomRight().y + diffH,
+                            });
+                            this.cornerBottomLeft({
+                                x: this.cornerBottomLeft().x,
+                                y: this.cornerBottomLeft().y + diffH,
+                            });
+                        }
+                        beforeCords.y = diffY;
+                    }
+                    this.#adjustCordsToFLip();
+                    this.rotate(cacheR);
+                    this.rotationCenterX(this.getCenterX);
+                    this.rotationCenterY(this.getCenterY);
+                    this.onResize()(event);
+                    this.canvas?.invokeChange();
                 }
-                this.#adjustCordsToFLip();
-                this.rotate(cacheR);
-                this.rotationCenterX(this.getCenterX);
-                this.rotationCenterY(this.getCenterY);
-                this.onResize()(event);
-                this.canvas?.invokeChange();
             }
         };
-
         const mouseup = () => {
             if (this.__runningEvents.resize) {
                 this.canvas?.changeCursor("auto");
