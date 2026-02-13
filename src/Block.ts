@@ -783,13 +783,16 @@ export class Block<T = BlockOptions> extends Node {
             y: this.y(),
         });
         this.cornerTopRight({
-            x: this.x() + this.width(),
+            x: this.x() + this.options?.width! || 0,
             y: this.y(),
         });
-        this.cornerBottomLeft({ x: this.x(), y: this.y() + this.height() });
+        this.cornerBottomLeft({
+            x: this.x(),
+            y: this.y() + this.options?.height! || 0,
+        });
         this.cornerBottomRight({
-            x: this.x() + this.width(),
-            y: this.y() + this.height(),
+            x: this.x() + this.options?.width! || 0,
+            y: this.y() + this.options?.height! || 0,
         });
 
         this.rotationCenterX(this.getCenterX);
@@ -1271,8 +1274,8 @@ export class Block<T = BlockOptions> extends Node {
     }
 
     width(opt?: number | string): number {
-        const cacheW = this.ownOptions.width || 0;
-        const w = this.__valueHandler(opt, "width", 0, true);
+        const cacheW = this.ownOptions.width || this.getRealWidth;
+        const w = this.__valueHandler(opt, "width", this.getRealWidth, true);
         const diffW = w - cacheW;
         if (diffW !== 0) {
             const centerX = this.getCenterX;
@@ -1305,12 +1308,12 @@ export class Block<T = BlockOptions> extends Node {
             this.rotationCenterX(this.getCenterX);
             this.rotate(cacheR);
         }
-        return w;
+        return this.getRealWidth;
     }
 
     height(opt?: number | string): number {
-        const cacheH = this.ownOptions.height || 0;
-        const h = this.__valueHandler(opt, "height", 0, false);
+        const cacheH = this.ownOptions.height || this.getRealHeight;
+        const h = this.__valueHandler(opt, "height", this.getRealHeight, false);
         const diffH = h - cacheH;
         if (diffH !== 0) {
             const centerY = this.getCenterY;
@@ -1344,7 +1347,7 @@ export class Block<T = BlockOptions> extends Node {
             this.rotationCenterY(this.getCenterY);
             this.rotate(cacheR);
         }
-        return h;
+        return this.getRealHeight;
     }
     minWidth(opt?: number | string): number {
         return this.__valueHandler(opt, "minWidth", 0, true);
