@@ -16,25 +16,16 @@ export class Circle extends Shape<CircleOptions> {
     draw(
         _func?: ((context: CanvasRenderingContext2D) => void) | undefined
     ): void {
-        this.beginPath();
-        this.backgroundColor();
-
-        this.width(this.width() || this.radiusX());
-        this.height(this.height() || this.radiusY());
         this.context.ellipse(
-            this.x() + this.width() + this.lineWidth(),
-            this.y() + this.height() + this.lineWidth(),
-            this.width(),
-            this.height(),
+            this.getCenterX,
+            this.getCenterY,
+            this.radiusX() / 2,
+            this.radiusY() / 2,
             this.rotate(),
             this.startAngle(),
             this.endAngle()
         );
-
-        super.fill();
-        super.stroke();
     }
-
     radius(opt?: number) {
         const radius = this.__valueHandler(opt, "radius", 0);
         this.radiusX(radius);
@@ -42,10 +33,22 @@ export class Circle extends Shape<CircleOptions> {
         return radius;
     }
     radiusX(opt?: number) {
-        return this.__valueHandler(opt, "radiusX", 0);
+        const cacheR = this.rotate();
+        this.rotate(0);
+        const r = this.__valueHandler(opt, "radiusX", 0);
+        const diffR = this.width() - r;
+        this.rotate(cacheR);
+        if (diffR !== 0) return r + diffR;
+        return r;
     }
     radiusY(opt?: number) {
-        return this.__valueHandler(opt, "radiusY", 0);
+        const cacheR = this.rotate();
+        this.rotate(0);
+        const r = this.__valueHandler(opt, "radiusY", 0);
+        const diffR = this.height() - r;
+        this.rotate(cacheR);
+        if (diffR !== 0) return r + diffR;
+        return r;
     }
     startAngle(opt?: number) {
         return this.__valueHandler(opt, "startAngle", 0);
@@ -60,6 +63,7 @@ export class Circle extends Shape<CircleOptions> {
             "black"
         );
         super.fillStyle(backgroundColor);
+        this.fill(true);
         return backgroundColor;
     }
     borderWidth(opt?: number) {
