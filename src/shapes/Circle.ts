@@ -1,5 +1,6 @@
 import { Shape } from "../Shape";
 import type { IBlock } from "../types";
+export type BorderStyle = "solid" | "dotted";
 
 interface CircleOptions {
     radius?: number;
@@ -7,6 +8,11 @@ interface CircleOptions {
     radiusY?: number;
     startAngle?: number;
     endAngle?: number;
+    backgroundColor: number;
+    border: string;
+    borderStyle: BorderStyle;
+    borderWidth: number;
+    borderColor: string;
 }
 
 export class Circle extends Shape<CircleOptions> {
@@ -16,6 +22,18 @@ export class Circle extends Shape<CircleOptions> {
     draw(
         _func?: ((context: CanvasRenderingContext2D) => void) | undefined
     ): void {
+        this.context.lineJoin = "round";
+        this.context.lineCap  = "round"
+        if (!this.#isAngleEmpty) {
+            this.context.arc(
+                this.getCenterX,
+                this.getCenterY,
+                this.innerRadius(),
+                this.endAngle(),
+                this.startAngle(),
+                true
+            );
+        }
         this.context.ellipse(
             this.getCenterX,
             this.getCenterY,
@@ -25,7 +43,28 @@ export class Circle extends Shape<CircleOptions> {
             this.startAngle(),
             this.endAngle()
         );
+        this.fillStyle(this.backgroundColor());
+        this.fill();
+        this.stroke();
+        if (this.#isAngleEmpty) this.beginPath();
+        this.context.arc(
+            this.getCenterX,
+            this.getCenterY,
+            this.innerRadius(),
+            this.endAngle(),
+            this.startAngle(),
+            true
+        );
+        this.fillStyle("transparent");
+        this.fill(true);
     }
+
+    get #isAngleEmpty() {
+        if (this.startAngle() === 0 && this.endAngle() === Math.PI * 2)
+            return true;
+        return false;
+    }
+
     radius(opt?: number) {
         const radius = this.__valueHandler(opt, "radius", 0);
         this.radiusX(radius);
@@ -50,6 +89,9 @@ export class Circle extends Shape<CircleOptions> {
         if (diffR !== 0) return r + diffR;
         return r;
     }
+    innerRadius(opt?: number) {
+        return this.__valueHandler(opt, "innerRadius", 0);
+    }
     startAngle(opt?: number) {
         return this.__valueHandler(opt, "startAngle", 0);
     }
@@ -67,8 +109,38 @@ export class Circle extends Shape<CircleOptions> {
         return backgroundColor;
     }
     borderWidth(opt?: number) {
-        const borderWidth = this.__valueHandler(opt, "backgroundColor", 0);
+        const borderWidth = this.__valueHandler(opt, "borderWidth", 0);
         super.lineWidth(borderWidth);
         return borderWidth;
+    }
+    borderColor(opt?: string) {
+        const borderColor = this.__valueHandler(opt, "borderColor", "black");
+        super.strokeStyle(borderColor);
+        return borderColor;
+    }
+    borderStyle(opt?: BorderStyle): BorderStyle {
+        return this.__valueHandler(opt, "borderStyle", "solid");
+    }
+
+    border(opt?: string) {
+        const border = this.__valueHandler<string, string | undefined>(
+            opt,
+            "border",
+            undefined
+        );
+        if (border) {
+            const borderParsed = border.split(" ") || [];
+
+            const borderWidth = this.__unitConverter<string, number>({
+                val: borderParsed[0],
+                widthRelated: true,
+            });
+
+            this.borderWidth(borderWidth);
+            this.borderStyle(borderParsed[1] as BorderStyle);
+            this.borderColor(borderParsed[2]);
+            this.stroke(true);
+        }
+        return border;
     }
 }
