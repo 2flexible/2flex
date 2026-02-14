@@ -193,12 +193,12 @@ export interface IShapeOptions {
 
     moveTo?: CursorPos;
 
-    radialGradient: RadialGradient
-    linearGradient: LinearGradient
-    conicGradient: ConicGradient
-    colorStops: GradientStops[];
+    radialGradient?: RadialGradient
+    linearGradient?: LinearGradient
+    conicGradient?: ConicGradient
+    colorStops?: GradientStops[];
 
-    createPattern: Pattern;
+    createPattern?: Pattern;
 
     blur?: number;
     brightness?: number;
@@ -209,8 +209,8 @@ export interface IShapeOptions {
     saturate?: number;
     sepia?: number;
 
-    fillText: DrawText;
-    strokeText: DrawText;
+    fillText?: DrawText;
+    strokeText?: DrawText;
     fontWeight?: FontWeight;
     fontStyle?: FontStyle;
     fontVariant?: FontVariant;
