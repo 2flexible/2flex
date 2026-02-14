@@ -621,7 +621,8 @@ export class Block<T = BlockOptions> extends Node {
         const background = this.hotCornerBackgroundColor();
         const lineWidth = this.hotLineStrokeWidth();
         const lineColor = this.hotLineStrokeColor();
-
+        
+        this.context.setLineDash([]);
         this.context.beginPath();
         this.context.moveTo(
             this.hotCornerTopLeft().x,
