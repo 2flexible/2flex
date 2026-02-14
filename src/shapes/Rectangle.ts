@@ -1,81 +1,123 @@
 import { Shape } from "../Shape";
-import type { RoundRectOpt, FillStyle } from "../Shape";
+import type { FillStyle } from "../Shape";
 import type { IBlock } from "../types";
-import { checkInBound } from "../Utils";
 
 export type BorderStyle = "solid" | "dotted";
 
-export class Rectangle extends Shape<RoundRectOpt> {
-    #stroke = false;
+export interface IRectangleOptions {
+    // border-radius: [top-left, top-right, bottom-right, bottom-left]
+    borderRadius: number[];
+    borderStyle: BorderStyle;
+    borderWidth: number;
+    borderColor: string;
+    backgroundColor: number;
+    border: string;
+    borderTop: string;
+    borderBottom: string;
+    borderLeft: string;
+    borderRight: string;
+}
 
-    constructor(options: IBlock<RoundRectOpt>) {
+export class Rectangle extends Shape<IRectangleOptions> {
+    constructor(options: IBlock<IRectangleOptions>) {
         super(options);
     }
 
     draw(
         _func?: ((context: CanvasRenderingContext2D) => void) | undefined
     ): void {
-        this.border();
-        this.borderTop();
-        this.borderBottom();
-        this.borderLeft();
-        this.borderRight();
-        this.backgroundColor();
-
-        // @Todo fix radius on different corners
         // @Todo fix differnet borderBottoms
         const radius = this.borderRadius();
-        this.context.moveTo(
-            this.cornerTopLeft().x + radius[0],
-            this.cornerTopLeft().y
-        );
-        this.context.lineTo(
+        this.context.beginPath();
+        const cacheR = this.rotate();
+        this.rotate(0);
+        const topRightC1 = this.__rotateCorners(
             this.cornerTopRight().x - radius[1],
-            this.cornerTopRight().y
+            this.cornerTopRight().y,
+            cacheR
         );
+
+        const bottomRightC1 = this.__rotateCorners(
+            this.cornerBottomRight().x,
+            this.cornerBottomRight().y + radius[1],
+            cacheR
+        );
+
+        const topRightC2 = this.__rotateCorners(
+            this.cornerTopLeft().x + radius[0],
+            this.cornerTopLeft().y,
+            cacheR
+        );
+
+        const bottomRightC2 = this.__rotateCorners(
+            this.cornerBottomRight().x,
+            this.cornerBottomRight().y - radius[2],
+            cacheR
+        );
+        const bottomRightC0 = this.__rotateCorners(
+            this.cornerBottomRight().x- radius[2],
+            this.cornerBottomRight().y ,
+            cacheR
+        );
+
+        const topLeftC2 = this.__rotateCorners(
+            this.cornerTopLeft().x,
+            this.cornerTopLeft().y + radius[0],
+            cacheR
+        );
+
+        const topLeftC0 = this.__rotateCorners(
+            this.cornerTopLeft().x + radius[0],
+            this.cornerTopLeft().y,
+            cacheR
+        );
+
+        const topLeftC3 = this.__rotateCorners(
+            this.cornerBottomLeft().x,
+            this.cornerBottomLeft().y - radius[3],
+            cacheR
+        );
+
+        const bottomLeftC2 = this.__rotateCorners(
+            this.cornerBottomLeft().x + radius[3],
+            this.cornerBottomLeft().y,
+            cacheR
+        );
+        this.rotate(cacheR);
+
+        this.context.moveTo(topLeftC0.x, topLeftC0.y);
+        this.context.lineTo(topRightC1.x, topRightC1.y);
         this.context.arcTo(
             this.cornerTopRight().x,
             this.cornerTopRight().y,
-            this.cornerBottomRight().x,
-            this.cornerBottomRight().y,
+            bottomRightC1.x,
+            bottomRightC1.y,
             radius[1]
         );
-        this.context.lineTo(
-            this.cornerBottomRight().x,
-            this.cornerBottomRight().y - radius[2]
-        );
+        this.context.lineTo(bottomRightC2.x, bottomRightC2.y);
         this.context.arcTo(
             this.cornerBottomRight().x,
             this.cornerBottomRight().y,
-            this.cornerBottomRight().x - radius[3],
-            this.cornerBottomRight().y,
+            bottomRightC0.x,
+            bottomRightC0.y,
             radius[2]
         );
-        this.context.lineTo(
-            this.cornerBottomLeft().x + radius[3],
-            this.cornerBottomLeft().y
-        );
+        this.context.lineTo(bottomLeftC2.x, bottomLeftC2.y);
         this.context.arcTo(
             this.cornerBottomLeft().x,
             this.cornerBottomLeft().y,
-            this.cornerTopLeft().x,
-            this.cornerTopLeft().y - radius[2],
+            topLeftC3.x,
+            topLeftC3.y,
             radius[3]
         );
-        this.context.lineTo(
-            this.cornerTopLeft().x,
-            this.cornerTopLeft().y + radius[3]
-        );
+        this.context.lineTo(topLeftC2.x, topLeftC2.y);
         this.context.arcTo(
             this.cornerTopLeft().x,
             this.cornerTopLeft().y,
-            this.cornerTopRight().x + radius[3],
-            this.cornerTopRight().y,
+            topRightC2.x,
+            topRightC2.y,
             radius[3]
         );
-
-        super.fill(true);
-        this.#stroke = false;
     }
     borderRadius(opt?: number[]): number[] {
         const radius = this.__valueHandler(opt, "borderRadius", [0, 0, 0, 0]);
@@ -94,14 +136,10 @@ export class Rectangle extends Shape<RoundRectOpt> {
         return defRadius;
     }
 
-    #applyStroke() {
-        if (this.#stroke) return;
-        super.stroke();
-        this.#stroke = true;
-    }
     backgroundColor(opt?: FillStyle) {
         const bg = this.__valueHandler(opt, "backgroundColor", "black");
         super.fillStyle(bg);
+        this.fill(true);
         return bg;
     }
 
@@ -112,7 +150,7 @@ export class Rectangle extends Shape<RoundRectOpt> {
             if (this.borderStyle() === "dotted") {
                 this.lineDash(borderStyleArrWidth);
             }
-            this.#applyStroke();
+            this.stroke(true);
         }
         return border;
     }
@@ -126,7 +164,6 @@ export class Rectangle extends Shape<RoundRectOpt> {
         super.strokeStyle(borderColor);
         return borderColor;
     }
-
     borderStyle(opt?: BorderStyle): BorderStyle {
         return this.__valueHandler(opt, "borderStyle", "solid");
     }
@@ -148,7 +185,7 @@ export class Rectangle extends Shape<RoundRectOpt> {
                     0,
                 ]);
             }
-            this.#applyStroke();
+            this.stroke(true);
         }
 
         return borderTop;
@@ -176,7 +213,7 @@ export class Rectangle extends Shape<RoundRectOpt> {
                     this.width() + this.height(),
                 ]);
             }
-            this.#applyStroke();
+            this.stroke(true);
         }
         return borderRight;
     }
@@ -202,7 +239,7 @@ export class Rectangle extends Shape<RoundRectOpt> {
                     0,
                 ]);
             }
-            this.#applyStroke();
+            this.stroke(true);
         }
         return borderBottom;
     }
@@ -225,7 +262,7 @@ export class Rectangle extends Shape<RoundRectOpt> {
                     this.width(),
                 ]);
             }
-            this.#applyStroke();
+            this.stroke(true);
         }
         return borderLeft;
     }
@@ -266,19 +303,5 @@ export class Rectangle extends Shape<RoundRectOpt> {
         this.borderStyle(borderStyle);
         this.borderColor(borderColor);
         return { borderStyleArrWidth, borderStyleArrHeight };
-    }
-
-    // @TODO: need to adjust border with to the x and width so corners will change related to this value
-
-    // x(opt?: number | string): number {
-    //     const cacheX = this.ownOptions["x"] || 0;
-    //     let x = this.__valueHandler(opt, "x", 0, true)
-    //     const diffX = x - cacheX;
-    //     if (diffX !== 0) x = this.borderWidth() / 2 + diffX;
-    //     return super.x(x)
-    // }
-
-    hotAreaGap(opt?: number): number {
-        return super.hotAreaGap((opt || 0) + this.borderWidth() / 2);
     }
 }
