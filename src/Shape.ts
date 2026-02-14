@@ -168,7 +168,6 @@ export type BaseFilters =
     | "saturate"
     | "sepia";
 
-
 export interface IShapeOptions {
     fill?: Fill;
     fillStyle?: FillStyle;
@@ -180,6 +179,7 @@ export interface IShapeOptions {
     lineWidth?: LineWidth;
     lineDash?: LineDash[];
     lineCap?: LineCapOpt;
+    lineJoin?: LineJoinOpt;
 
     bezierCurve?: BezierCurveToOpt;
     quadraticCurve?: QuadraticCurveToOpt;
@@ -193,6 +193,13 @@ export interface IShapeOptions {
 
     moveTo?: CursorPos;
 
+    radialGradient: RadialGradient
+    linearGradient: LinearGradient
+    conicGradient: ConicGradient
+    colorStops: GradientStops[];
+
+    createPattern: Pattern;
+
     blur?: number;
     brightness?: number;
     contrast?: number;
@@ -201,6 +208,20 @@ export interface IShapeOptions {
     hueRotate?: number;
     saturate?: number;
     sepia?: number;
+
+    fillText: DrawText;
+    strokeText: DrawText;
+    fontWeight?: FontWeight;
+    fontStyle?: FontStyle;
+    fontVariant?: FontVariant;
+    fontStretch?: FontStretch;
+    fontKerning?: FontKerning;
+    fontVariantCaps?: FontVariantCaps;
+    textBaseline?: TextBaseline;
+    textRendering?: TextRendering;
+    wordSpacing?: string;
+    letterSpacing?: string;
+    direction?: TextDirection;
 }
 export class Shape<T> extends Block<T | IShapeOptions> {
     #gradient: any = null;
@@ -220,6 +241,14 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         super(options);
     }
     render(): void {
+        this.position();
+        this.__adjustBlocks();
+        if (this.hidden()) {
+            this.listAllChilds((n: Block) => {
+                n.hidden(true);
+            });
+            return;
+        }
         this.beginPath();
         if (this.ownOptions.lineDash) this.lineDash();
         if (this.ownOptions.lineWidth) this.lineWidth();
@@ -231,13 +260,22 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         if (this.ownOptions.rect) this.rect();
         if (this.ownOptions.strokeStyle) this.strokeStyle();
 
+        this.context.save();
+        this.context.translate(this.rotationCenterX(), this.rotationCenterY());
+        this.context.rotate(this.rotate());
+        this.context.translate(
+            -this.rotationCenterX(),
+            -this.rotationCenterY()
+        );
         this.draw();
+        this.context.restore();
 
         if (this.ownOptions.fill) this.fill();
         if (this.ownOptions.stroke) this.stroke();
 
         this.#contextFilter();
-        super.render();
+        // this.showHotAreas();
+        if (this.__runningEvents.selected) this.__hotLines();
     }
 
     draw(_func?: (context: CanvasRenderingContext2D) => void) {
@@ -386,7 +424,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     }
     lineDash(opt?: LineDash) {
         const lineDash = this.__valueHandler(opt, "lineDash", []);
-        this.context?.setLineDash(lineDash);
+        if (this.context) this.context.setLineDash(lineDash);
         return lineDash;
     }
     lineDashOffset(opt?: LineDashOffset) {
