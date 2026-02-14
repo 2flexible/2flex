@@ -6,6 +6,7 @@ import type {
     FontVariant,
     FontVariantCaps,
     FontWeight,
+    strokeStyle,
     TextAlign,
     TextBaseline,
     TextDirection,
@@ -18,7 +19,6 @@ export interface IText {
     color?: string;
     strokeWidth?: number;
     strokeColor?: string;
-    stroke?: boolean;
     fontFamily?: string;
     fontWeight?: FontWeight;
     fontSize?: string;
@@ -27,7 +27,6 @@ export interface IText {
     fontStretch?: FontStretch;
     fontKerning?: FontKerning;
     fontVariantCaps?: FontVariantCaps;
-    textAlign?: TextAlign;
     textBaseline?: TextBaseline;
     textRendering?: TextRendering;
     wordSpacing?: string;
@@ -45,8 +44,7 @@ export class Text extends Shape<IText> {
 
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         super.font(this.#format_font);
-        this.color();
-        if (this.ownOptions.color) {
+        if (this.fill()) {
             super.fillText({
                 text: this.text,
                 x: this.x(),
@@ -55,7 +53,7 @@ export class Text extends Shape<IText> {
             });
         }
 
-        if (this.ownOptions.strokeColor) {
+        if (super.stroke()) {
             super.strokeText({
                 text: this.text,
                 x: this.x(),
@@ -83,7 +81,7 @@ export class Text extends Shape<IText> {
         return this.__valueHandler(opt, "fontFamily", "sans-serif");
     }
     fontSize(opt?: number | string) {
-        return this.__valueHandler(opt, "fontSize", 10, true);
+        return this.__valueHandler(opt, "fontSize", 0, true);
     }
     fontWeight(opt?: FontWeight) {
         return this.__valueHandler(opt, "fontWeight", "normal");
@@ -95,13 +93,24 @@ export class Text extends Shape<IText> {
         return this.__valueHandler(opt, "fontStyle", "normal");
     }
     color(opt?: string) {
-        const color = this.__valueHandler(opt, "color", "black");
-        super.fillStyle(color);
+        const color = this.__valueHandler(opt, "color", undefined);
+        if (color) {
+            super.fillStyle(color);
+            super.fill(true);
+        }
         return color;
     }
-    // need to change for parent element instead of usign context align
-    textAlign(opt?: TextAlign) {
-        const textAlign = this.__valueHandler(opt, "textAlign", "start");
-        return textAlign;
+    strokeColor(opt?: strokeStyle) {
+        const strokeColor = this.__valueHandler(opt, "strokeColor", undefined);
+        if (strokeColor) {
+            super.strokeStyle(strokeColor);
+            this.stroke(true);
+        }
+        return strokeColor;
+    }
+    strokeWidth(opt?: number) {
+        const width = this.__valueHandler(opt, "border", 0);
+        super.lineWidth(width);
+        return width;
     }
 }
