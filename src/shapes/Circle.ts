@@ -39,7 +39,7 @@ export class Circle extends Shape<CircleOptions> {
             this.getCenterY,
             this.radiusX() / 2,
             this.radiusY() / 2,
-            this.rotate(),
+            0,
             this.startAngle(),
             this.endAngle()
         );
