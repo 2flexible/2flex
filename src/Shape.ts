@@ -193,9 +193,9 @@ export interface IShapeOptions {
 
     moveTo?: CursorPos;
 
-    radialGradient?: RadialGradient
-    linearGradient?: LinearGradient
-    conicGradient?: ConicGradient
+    radialGradient?: RadialGradient;
+    linearGradient?: LinearGradient;
+    conicGradient?: ConicGradient;
     colorStops?: GradientStops[];
 
     createPattern?: Pattern;
@@ -260,15 +260,15 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         if (this.ownOptions.rect) this.rect();
         if (this.ownOptions.strokeStyle) this.strokeStyle();
 
-        this.context.save();
-        this.context.translate(this.rotationCenterX(), this.rotationCenterY());
-        this.context.rotate(this.rotate());
-        this.context.translate(
+        this.context?.save();
+        this.context?.translate(this.rotationCenterX(), this.rotationCenterY());
+        this.context?.rotate(this.rotate());
+        this.context?.translate(
             -this.rotationCenterX(),
             -this.rotationCenterY()
         );
         this.draw();
-        this.context.restore();
+        this.context?.restore();
 
         if (this.ownOptions.fill) this.fill();
         if (this.ownOptions.stroke) this.stroke();
@@ -656,7 +656,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         for (const [key, value] of Object.entries(this.__filters)) {
             if (value) allStr += ` ${key + value}`;
         }
-        this.context.filter = allStr;
+        if (this.context) this.context.filter = allStr;
     }
 
     #filterHandler(filter?: BaseFilters, value?: string | number | number[]) {
