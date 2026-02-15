@@ -525,7 +525,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         if (this.context) this.context.lineJoin = lineJoin;
         return lineJoin;
     }
-    pointInPath(opt?: PointInPath): void {
+    pointInPath(opt?: PointInPath): boolean {
         const { path, x, y, fillRule } = this.__valueHandler(
             opt,
             "pointInPath",
@@ -537,8 +537,13 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             }
         );
         if (path)
-            this.context?.isPointInPath(path, x, y, fillRule || "nonzero");
-        else this.context.isPointInPath(x, y, fillRule || "nonzero");
+            return this.context?.isPointInPath(
+                path,
+                x,
+                y,
+                fillRule || "nonzero"
+            );
+        else return this.context.isPointInPath(x, y, fillRule || "nonzero");
     }
     pointInStroke(opt: PointInStroke): boolean {
         const { path, x, y } = this.__valueHandler(opt, "pointInStroke", {
