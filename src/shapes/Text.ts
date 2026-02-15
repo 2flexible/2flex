@@ -14,7 +14,7 @@ import type {
 } from "../Shape";
 import type { IBlock } from "../types";
 
-export interface IText {
+export interface ITextOptions {
     text?: string;
     color?: string;
     strokeWidth?: number;
@@ -34,9 +34,9 @@ export interface IText {
     direction?: TextDirection;
 }
 
-export class Text extends Shape<IText> {
+export class Text extends Shape<ITextOptions> {
     text: string;
-    constructor(text: string, options: IBlock<IText>) {
+    constructor(text: string, options: IBlock<ITextOptions>) {
         super(options);
         this.text = text;
         this.options.text = text;
