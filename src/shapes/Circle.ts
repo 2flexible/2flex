@@ -2,7 +2,7 @@ import { Shape } from "../Shape";
 import type { IBlock } from "../types";
 export type BorderStyle = "solid" | "dotted";
 
-interface CircleOptions {
+interface ICircleOptions {
     radius?: number;
     radiusX?: number;
     radiusY?: number;
@@ -15,8 +15,8 @@ interface CircleOptions {
     borderColor: string;
 }
 
-export class Circle extends Shape<CircleOptions> {
-    constructor(options: IBlock<CircleOptions>) {
+export class Circle extends Shape<ICircleOptions> {
+    constructor(options: IBlock<ICircleOptions>) {
         super(options);
     }
     draw(
