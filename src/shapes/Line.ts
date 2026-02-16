@@ -24,16 +24,17 @@ interface ILineOptions {
 
 export class Line extends Shape<ILineOptions> {
     path?: Path2D;
+    pathLine?: Path2D;
     pathC1?: Path2D;
     pathC2?: Path2D;
     pathC3?: Path2D;
     pathC4?: Path2D;
-    #editable = false;
+    __editable = false;
 
     constructor(options: IBlock<ILineOptions>) {
         super(options);
 
-        this.dblclick((e) => (this.#editable = true));
+        this.dblclick((e) => (this.__editable = true));
         const click = (event: MouseEvent) => {
             const { x, y } = this.canvas?.getCursorPosition(event);
             if (
@@ -43,14 +44,17 @@ export class Line extends Shape<ILineOptions> {
                 !this.#pathInBound(x, y, this.pathC4!) &&
                 !this.#pathInBound(x, y, this.path!)
             )
-                this.#editable = false;
+                this.__editable = false;
         };
         this.__eventHandler<MouseEvent>("click", click);
     }
     render(): void {
         super.render();
-        if (this.#editable) this.__runningEvents.selected = false;
-        if (this.__runningEvents.selected || this.#editable) this.__hotLines();
+        if (this.__runningEvents.selected || this.__editable) {
+            this.__hotLines();
+            if (this.joinTo() !== undefined) this.joinTo()!.__hotLines();
+        }
+        if (this.__editable) this.__runningEvents.selected = false;
     }
 
     joinTo(opt?: Line) {
@@ -62,14 +66,17 @@ export class Line extends Shape<ILineOptions> {
     }
 
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
-        this.path = new Path2D();
-
         if (this.joinTo() !== undefined) {
             const joined = this.joinTo();
-            this.path = joined!.path;
-            // this.startX(joined!.endX());
-            // this.startY(joined!.endY());
+            this.path = joined!.path || new Path2D();
+            this.startX(joined!.endX());
+            this.startY(joined!.endY());
+            this.zIndex(joined!.zIndex());
+            this.__editable = joined!.__editable;
+            // width height need to be combined as well
+            // first need to identify boundries of top and low
         } else {
+            this.path = new Path2D();
             this.path!.moveTo(this.startX(), this.startY());
         }
         this.path!.bezierCurveTo(
@@ -86,7 +93,7 @@ export class Line extends Shape<ILineOptions> {
     }
 
     __hotLines(): void {
-        if (!this.#editable) {
+        if (!this.__editable) {
             super.__hotLines();
             return;
         }
@@ -100,8 +107,9 @@ export class Line extends Shape<ILineOptions> {
         );
         this.context.setLineDash([]);
         this.beginPath();
-        this.context.moveTo(this.startX(), this.startY());
-        this.context.bezierCurveTo(
+        this.pathLine = new Path2D();
+        this.pathLine.moveTo(this.startX(), this.startY());
+        this.pathLine.bezierCurveTo(
             this.startControlX(),
             this.startControlY(),
             this.endControlX(),
@@ -111,9 +119,8 @@ export class Line extends Shape<ILineOptions> {
         );
         this.context.lineWidth = 1;
         this.context.strokeStyle = "blue";
-        this.context.stroke();
+        this.context.stroke(this.pathLine);
 
-        this.beginPath();
         this.pathC1 = new Path2D();
         this.pathC1.arc(this.startX(), this.startY(), 3, 0, Math.PI * 2);
         this.context.lineWidth = 2;
@@ -122,7 +129,6 @@ export class Line extends Shape<ILineOptions> {
         this.context.stroke(this.pathC1);
         this.context.fill(this.pathC1);
 
-        this.beginPath();
         this.pathC4 = new Path2D();
         this.pathC4.arc(this.endX(), this.endY(), 3, 0, Math.PI * 2);
         this.context.lineWidth = 2;
@@ -132,7 +138,6 @@ export class Line extends Shape<ILineOptions> {
         this.context.fill(this.pathC4);
 
         if (this.startControllable()) {
-            this.beginPath();
             this.pathC2 = new Path2D();
             this.pathC2.arc(
                 this.startControlX(),
@@ -151,7 +156,6 @@ export class Line extends Shape<ILineOptions> {
         }
 
         if (this.endControllable()) {
-            this.beginPath();
             this.pathC3 = new Path2D();
             this.pathC3.arc(
                 this.endControlX(),
@@ -168,17 +172,16 @@ export class Line extends Shape<ILineOptions> {
             this.context.stroke(this.pathC3);
             this.context.fill(this.pathC3);
         }
-
         this.context?.restore();
     }
 
     checkInBound(_event: MouseEvent): boolean {
         const { x, y } = this.canvas.getCursorPosition(_event);
-        let inBound;
+        let inBound = false;
 
         if (!this.__runningEvents.selected) {
             inBound = this.#pathInBound(x, y, this.path!);
-        } else
+        } else if (!this.__editable) {
             inBound = checkInBound(
                 x,
                 y,
@@ -191,6 +194,7 @@ export class Line extends Shape<ILineOptions> {
                 this.hotCornerBottomRight().x,
                 this.hotCornerBottomRight().y
             );
+        }
         if (inBound) this.canvas?.takeRegister({ in: this.zIndex() });
         else this.canvas?.takeRegister({ out: this.zIndex() });
         return inBound;
