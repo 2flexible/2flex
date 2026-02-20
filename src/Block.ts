@@ -111,7 +111,7 @@ export interface HotCornerArea {
     bottomRight: XY;
 }
 
-export interface BlockOptions {
+export interface IBlockOptions {
     [key: string]: any;
     x?: number;
     y?: number;
@@ -216,12 +216,12 @@ export interface BlockOptions {
     hotResizableAreaBottom?: HotCornerArea;
 }
 
-export class Block<T = BlockOptions> extends Node {
+export class Block<T = IBlockOptions> extends Node {
     canvas: Canvas | any;
     parent: Block | undefined = this.parentNode as Block;
     ownOptions: IBlock<T>;
     options: IBlock<T>;
-    __bindOptions: { bindTo: Block; options: (keyof BlockOptions)[] }[] = [];
+    __bindOptions: { bindTo: Block; options: (keyof IBlockOptions)[] }[] = [];
     __runningEvents = {
         drag: false,
         rotate: false,
@@ -240,7 +240,6 @@ export class Block<T = BlockOptions> extends Node {
         mouseover: [],
     };
     __animationOn: any = [];
-    #cursor: string | undefined;
 
     #isVerticalFlipped = false;
     #isHorizontalFlipped = false;
@@ -254,6 +253,8 @@ export class Block<T = BlockOptions> extends Node {
 
     #keyframeIterations: any = {};
 
+    __childAdjustment?: (b: Block) => void;
+
     constructor(options: IBlock<T>) {
         super();
         this.options = { ...options };
@@ -266,336 +267,26 @@ export class Block<T = BlockOptions> extends Node {
     }
 
     render() {
-        this.position();
-        this.__adjustBlocks();
         if (this.hidden()) {
             this.listAllChilds((n: Block) => {
                 n.hidden(true);
             });
             return;
         }
-        // this.showHotAreas();
-        if (this.__runningEvents.selected) this.__hotLines();
+        this.__isSelected();
     }
-
-    // @Todo remove this
-    showHotAreas() {
-        this.context.beginPath();
-        this.context.moveTo(
-            this.hotResizableAreaTop().topLeft.x,
-            this.hotResizableAreaTop().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTop().topRight.x,
-            this.hotResizableAreaTop().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTop().bottomRight.x,
-            this.hotResizableAreaTop().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTop().bottomLeft.x,
-            this.hotResizableAreaTop().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTop().topLeft.x,
-            this.hotResizableAreaTop().topLeft.y
-        );
-
-        //
-        this.context.moveTo(
-            this.hotResizableAreaLeft().topLeft.x,
-            this.hotResizableAreaLeft().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaLeft().topRight.x,
-            this.hotResizableAreaLeft().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaLeft().bottomRight.x,
-            this.hotResizableAreaLeft().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaLeft().bottomLeft.x,
-            this.hotResizableAreaLeft().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaLeft().topLeft.x,
-            this.hotResizableAreaLeft().topLeft.y
-        );
-
-        //
-        this.context.moveTo(
-            this.hotResizableAreaBottom().topLeft.x,
-            this.hotResizableAreaBottom().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottom().topRight.x,
-            this.hotResizableAreaBottom().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottom().bottomRight.x,
-            this.hotResizableAreaBottom().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottom().bottomLeft.x,
-            this.hotResizableAreaBottom().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottom().topLeft.x,
-            this.hotResizableAreaBottom().topLeft.y
-        );
-
-        //
-        this.context.moveTo(
-            this.hotResizableAreaRight().topLeft.x,
-            this.hotResizableAreaRight().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaRight().topRight.x,
-            this.hotResizableAreaRight().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaRight().bottomRight.x,
-            this.hotResizableAreaRight().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaRight().bottomLeft.x,
-            this.hotResizableAreaRight().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaRight().topLeft.x,
-            this.hotResizableAreaRight().topLeft.y
-        );
-
-        this.context.fillStyle = "aqua";
-        this.context.fill();
-
-        this.context.beginPath();
-        this.context.moveTo(
-            this.hotResizableAreaTopLeft().topLeft.x,
-            this.hotResizableAreaTopLeft().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTopLeft().topRight.x,
-            this.hotResizableAreaTopLeft().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTopLeft().bottomRight.x,
-            this.hotResizableAreaTopLeft().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTopLeft().bottomLeft.x,
-            this.hotResizableAreaTopLeft().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTopLeft().topLeft.x,
-            this.hotResizableAreaTopLeft().topLeft.y
-        );
-
-        this.context.moveTo(
-            this.hotResizableAreaTopRight().topLeft.x,
-            this.hotResizableAreaTopRight().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTopRight().topRight.x,
-            this.hotResizableAreaTopRight().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTopRight().bottomRight.x,
-            this.hotResizableAreaTopRight().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTopRight().bottomLeft.x,
-            this.hotResizableAreaTopRight().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaTopRight().topLeft.x,
-            this.hotResizableAreaTopRight().topLeft.y
-        );
-
-        this.context.moveTo(
-            this.hotResizableAreaBottomLeft().topLeft.x,
-            this.hotResizableAreaBottomLeft().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottomLeft().topRight.x,
-            this.hotResizableAreaBottomLeft().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottomLeft().bottomRight.x,
-            this.hotResizableAreaBottomLeft().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottomLeft().bottomLeft.x,
-            this.hotResizableAreaBottomLeft().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottomLeft().topLeft.x,
-            this.hotResizableAreaBottomLeft().topLeft.y
-        );
-
-        this.context.moveTo(
-            this.hotResizableAreaBottomRight().topLeft.x,
-            this.hotResizableAreaBottomRight().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottomRight().topRight.x,
-            this.hotResizableAreaBottomRight().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottomRight().bottomRight.x,
-            this.hotResizableAreaBottomRight().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottomRight().bottomLeft.x,
-            this.hotResizableAreaBottomRight().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotResizableAreaBottomRight().topLeft.x,
-            this.hotResizableAreaBottomRight().topLeft.y
-        );
-        this.context.fillStyle = "red";
-        this.context.fill();
-
-        this.context.beginPath();
-        this.context.moveTo(
-            this.hotRotatableAreaTopLeft().topLeft.x,
-            this.hotRotatableAreaTopLeft().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaTopLeft().topRight.x,
-            this.hotRotatableAreaTopLeft().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaTopLeft().bottomRight.x,
-            this.hotRotatableAreaTopLeft().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaTopLeft().bottomLeft.x,
-            this.hotRotatableAreaTopLeft().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaTopLeft().topLeft.x,
-            this.hotRotatableAreaTopLeft().topLeft.y
-        );
-
-        this.context.moveTo(
-            this.hotRotatableAreaTopRight().topLeft.x,
-            this.hotRotatableAreaTopRight().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaTopRight().topRight.x,
-            this.hotRotatableAreaTopRight().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaTopRight().bottomRight.x,
-            this.hotRotatableAreaTopRight().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaTopRight().bottomLeft.x,
-            this.hotRotatableAreaTopRight().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaTopRight().topLeft.x,
-            this.hotRotatableAreaTopRight().topLeft.y
-        );
-
-        this.context.moveTo(
-            this.hotRotatableAreaBottomLeft().topLeft.x,
-            this.hotRotatableAreaBottomLeft().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaBottomLeft().topRight.x,
-            this.hotRotatableAreaBottomLeft().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaBottomLeft().bottomRight.x,
-            this.hotRotatableAreaBottomLeft().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaBottomLeft().bottomLeft.x,
-            this.hotRotatableAreaBottomLeft().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaBottomLeft().topLeft.x,
-            this.hotRotatableAreaBottomLeft().topLeft.y
-        );
-
-        this.context.moveTo(
-            this.hotRotatableAreaBottomRight().topLeft.x,
-            this.hotRotatableAreaBottomRight().topLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaBottomRight().topRight.x,
-            this.hotRotatableAreaBottomRight().topRight.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaBottomRight().bottomRight.x,
-            this.hotRotatableAreaBottomRight().bottomRight.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaBottomRight().bottomLeft.x,
-            this.hotRotatableAreaBottomRight().bottomLeft.y
-        );
-
-        this.context.lineTo(
-            this.hotRotatableAreaBottomRight().topLeft.x,
-            this.hotRotatableAreaBottomRight().topLeft.y
-        );
-        this.context.fillStyle = "yellow";
-        this.context.fill();
+    __isSelected() {
+        if (this.__runningEvents.selected) {
+            if (this.canvas?.whoIsTheFirst(this.zIndex())) this.__hotLines();
+            else this.__runningEvents.selected = false;
+        }
     }
-
     addChild(...node: Node[]): void {
         super.addChild(...node);
+        this.canvas?.invokeNodeListing();
+        this.listOnlyChilds((b: Block) => {
+            this.canvas?.__handleOptions(b);
+        });
     }
 
     removeChild<T>(child: T): void {
@@ -603,7 +294,7 @@ export class Block<T = BlockOptions> extends Node {
         this.canvas?.invokeChange(this.canvas);
     }
 
-    findChilds(queries: BlockOptions) {
+    findChilds(queries: IBlockOptions) {
         let blocks: Block[] = [];
         this.listAllChilds((block: Block) => {
             for (const [k, v] of Object.entries(queries)) {
@@ -621,7 +312,7 @@ export class Block<T = BlockOptions> extends Node {
         const background = this.hotCornerBackgroundColor();
         const lineWidth = this.hotLineStrokeWidth();
         const lineColor = this.hotLineStrokeColor();
-        
+
         this.context.setLineDash([]);
         this.context.beginPath();
         this.context.moveTo(
@@ -759,21 +450,59 @@ export class Block<T = BlockOptions> extends Node {
     __adjustBlocks(): void {
         const cacheR = this.rotate();
         this.rotate(0);
+        if (this.__childAdjustment) this.__childAdjustment(this as Block);
+        this.__childAdjustment = undefined;
         this.listOnlyChilds((b: Block) => {
+            b.rotationCenterX(this.getCenterX);
+            b.rotationCenterY(this.getCenterY);
             b.rotate(cacheR);
-            b.x(
+            const x =
                 (b.options.x || 0) +
-                    this.getLeft.x +
-                    this.marginLeft() +
-                    this.paddingLeft()
-            );
-            b.y(
+                this.getLeft.x +
+                this.marginLeft() +
+                this.paddingLeft();
+            const y =
                 (b.options.y || 0) +
-                    this.getTop.y +
-                    this.marginTop() +
-                    this.paddingTop()
-            );
-            b.__adjustBlocks();
+                this.getTop.y +
+                this.marginTop() +
+                this.paddingTop();
+
+            let width: number, height: number;
+            b.ownOptions.width = b.getRealWidth;
+            if (
+                this.getRealWidth - (this.paddingRight() + this.paddingLeft()) <
+                    b.getRealWidth ||
+                b.getRealWidth < b.maxWidth()
+            )
+                width =
+                    b.getRealWidth +
+                    -(
+                        b.getRealWidth -
+                        (this.getRealWidth -
+                            (this.paddingRight() + this.paddingLeft()))
+                    );
+
+            b.ownOptions.height = b.getRealHeight;
+            if (
+                this.getRealHeight -
+                    (this.paddingTop() + this.paddingBottom()) <
+                    b.getRealHeight ||
+                b.getRealHeight < b.maxHeight()
+            ) {
+                height =
+                    b.getRealHeight +
+                    -(
+                        b.getRealHeight -
+                        (this.getRealHeight -
+                            (this.paddingTop() + this.paddingBottom()))
+                    );
+            }
+            b.__childAdjustment = (b) => {
+                b.x(x);
+                b.y(y);
+                if (width !== undefined) b.width(width);
+                if (height !== undefined) b.height(height);
+            };
         });
         this.rotate(cacheR);
     }
@@ -1194,7 +923,7 @@ export class Block<T = BlockOptions> extends Node {
 
     __cacheOption<T>(
         opt: T | undefined,
-        option: keyof IBlock<BlockOptions>,
+        option: keyof IBlock<IBlockOptions>,
         defaultOpt: T
     ): T {
         // @Todo: fix type issue over the generic readonly a.k.a (as any)
@@ -1275,80 +1004,50 @@ export class Block<T = BlockOptions> extends Node {
     }
 
     width(opt?: number | string): number {
-        const cacheW = this.ownOptions.width || this.getRealWidth;
-        const w = this.__valueHandler(opt, "width", this.getRealWidth, true);
+        const cacheW = this.ownOptions.width || 0;
+        const w = this.__valueHandler(opt, "width", 0, true);
+        if (w < this.minWidth() && !this.horizontalFlipResize())
+            return this.minWidth();
         const diffW = w - cacheW;
         if (diffW !== 0) {
-            const centerX = this.getCenterX;
             const cacheR = this.rotate();
             this.rotate(0);
-            if (this.cornerTopLeft().x > centerX) {
-                this.cornerTopLeft({
-                    x: this.cornerTopLeft().x + diffW,
-                    y: this.cornerTopLeft().y,
-                });
-            }
-            if (this.cornerTopRight().x > centerX) {
-                this.cornerTopRight({
-                    x: this.cornerTopRight().x + diffW,
-                    y: this.cornerTopRight().y,
-                });
-            }
-            if (this.cornerBottomLeft().x > centerX) {
-                this.cornerBottomLeft({
-                    x: this.cornerBottomLeft().x + diffW,
-                    y: this.cornerBottomLeft().y,
-                });
-            }
-            if (this.cornerBottomRight().x > centerX) {
-                this.cornerBottomRight({
-                    x: this.cornerBottomRight().x + diffW,
-                    y: this.cornerBottomRight().y,
-                });
-            }
+            this.cornerTopRight({
+                x: this.cornerTopRight().x + diffW,
+                y: this.cornerTopRight().y,
+            });
+
+            this.cornerBottomRight({
+                x: this.cornerBottomRight().x + diffW,
+                y: this.cornerBottomRight().y,
+            });
             this.rotationCenterX(this.getCenterX);
             this.rotate(cacheR);
         }
-        return this.getRealWidth;
+        return w;
     }
 
     height(opt?: number | string): number {
-        const cacheH = this.ownOptions.height || this.getRealHeight;
-        const h = this.__valueHandler(opt, "height", this.getRealHeight, false);
+        const cacheH = this.ownOptions.height || 0;
+        const h = this.__valueHandler(opt, "height", 0, false);
+        if (h < this.minHeight() && !this.verticalFlipResize())
+            return this.minHeight();
         const diffH = h - cacheH;
         if (diffH !== 0) {
-            const centerY = this.getCenterY;
             const cacheR = this.rotate();
             this.rotate(0);
-            if (this.cornerTopLeft().y > centerY) {
-                this.cornerTopLeft({
-                    x: this.cornerTopLeft().x,
-                    y: this.cornerTopLeft().y + diffH,
-                });
-            }
-            if (this.cornerTopRight().y > centerY) {
-                this.cornerTopRight({
-                    x: this.cornerTopRight().x,
-                    y: this.cornerTopRight().y + diffH,
-                });
-            }
-            if (this.cornerBottomLeft().y > centerY) {
-                this.cornerBottomLeft({
-                    x: this.cornerBottomLeft().x,
-                    y: this.cornerBottomLeft().y + diffH,
-                });
-            }
-            if (this.cornerBottomRight().y > centerY) {
-                this.cornerBottomRight({
-                    x: this.cornerBottomRight().x,
-                    y: this.cornerBottomRight().y + diffH,
-                });
-            }
-
+            this.cornerBottomLeft({
+                x: this.cornerBottomLeft().x,
+                y: this.cornerBottomLeft().y + diffH,
+            });
+            this.cornerBottomRight({
+                x: this.cornerBottomRight().x,
+                y: this.cornerBottomRight().y + diffH,
+            });
             this.rotationCenterY(this.getCenterY);
             this.rotate(cacheR);
         }
-        return this.getRealHeight;
+        return h;
     }
     minWidth(opt?: number | string): number {
         return this.__valueHandler(opt, "minWidth", 0, true);
@@ -2369,11 +2068,14 @@ export class Block<T = BlockOptions> extends Node {
         return this.__valueHandler(opt, "fillRule", "nonzero");
     }
 
-    zIndex(opt?: number): number {
-        return this.__valueHandler(opt, "zIndex", 1);
+    zIndex(opt?: number) {
+        const cacheX = this.ownOptions.zIndex || undefined;
+        const z = this.__valueHandler(opt, "zIndex", undefined);
+        if (z !== cacheX) this.canvas?.invokeChange(this.canvas);
+        return z;
     }
 
-    set(options: IBlock<BlockOptions | T>): void {
+    set(options: IBlock<IBlockOptions | T>): void {
         let before: any = {};
         let after: any = {};
         for (const [key, value] of Object.entries(options)) {
@@ -2397,7 +2099,7 @@ export class Block<T = BlockOptions> extends Node {
         this.width(this.width() * scale);
         this.height(this.height() * scale);
     }
-    bind(block: Block, ...options: (keyof BlockOptions)[]) {
+    bind(block: Block, ...options: (keyof IBlockOptions)[]) {
         this.__bindOptions.push({ bindTo: block, options: options });
     }
     reset() {
@@ -3027,7 +2729,7 @@ export class Block<T = BlockOptions> extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.#eventHandler<MouseEvent>("click", out);
+        this.__eventHandler<MouseEvent>("click", out);
     }
 
     dblclick(_func: (event: MouseEvent) => void) {
@@ -3040,7 +2742,7 @@ export class Block<T = BlockOptions> extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.#eventHandler<MouseEvent>("dblclick", out);
+        this.__eventHandler<MouseEvent>("dblclick", out);
     }
 
     mousedown(_func: (event: MouseEvent) => void) {
@@ -3053,7 +2755,7 @@ export class Block<T = BlockOptions> extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.#eventHandler<MouseEvent>("mousedown", out);
+        this.__eventHandler<MouseEvent>("mousedown", out);
     }
 
     mouseup(_func: (event: MouseEvent) => void) {
@@ -3066,7 +2768,7 @@ export class Block<T = BlockOptions> extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.#eventHandler<MouseEvent>("mouseup", out);
+        this.__eventHandler<MouseEvent>("mouseup", out);
     }
 
     mousemove(_func: (event: MouseEvent) => void) {
@@ -3079,7 +2781,7 @@ export class Block<T = BlockOptions> extends Node {
                 this.canvas?.invokeChange.call(this.canvas);
             }
         };
-        this.#eventHandler<MouseEvent>("mousemove", out);
+        this.__eventHandler<MouseEvent>("mousemove", out);
     }
 
     mouseenter(_func: (event: MouseEvent) => void) {
@@ -3096,7 +2798,7 @@ export class Block<T = BlockOptions> extends Node {
                 }
             } else isMouseEnter = false;
         };
-        this.#eventHandler<MouseEvent>("mousemove", enter);
+        this.__eventHandler<MouseEvent>("mousemove", enter);
     }
 
     mouseleave(_func: (event: MouseEvent) => void) {
@@ -3113,7 +2815,7 @@ export class Block<T = BlockOptions> extends Node {
                 }
             } else isMouseLeave = false;
         };
-        this.#eventHandler<MouseEvent>("mousemove", leave);
+        this.__eventHandler<MouseEvent>("mousemove", leave);
     }
     /** @Todo
      mouseover and mouseout
@@ -3154,7 +2856,7 @@ export class Block<T = BlockOptions> extends Node {
                 isMouseOver = false;
             }
         };
-        this.#eventHandler<MouseEvent>("mousemove", over);
+        this.__eventHandler<MouseEvent>("mousemove", over);
     }
     mouseout(_func: (event: MouseEvent) => void) {
         const mouseLeave: any = {};
@@ -3190,11 +2892,12 @@ export class Block<T = BlockOptions> extends Node {
                 isMouseLeave = false;
             }
         };
-        this.#eventHandler<MouseEvent>("mousemove", out);
+        this.__eventHandler<MouseEvent>("mousemove", out);
     }
 
-    #eventHandler<E>(type: IMouseEvents, _func: (event: E) => void) {
+    __eventHandler<E>(type: IMouseEvents, _func: (event: E) => void) {
         this.__events[type].push(_func);
+        this.canvas?.invokeChange(this.canvas);
     }
     selectable(opt?: boolean): boolean {
         const selectable = this.__valueHandler(opt, "selectable", false);
@@ -3218,16 +2921,19 @@ export class Block<T = BlockOptions> extends Node {
                     this.hotCornerBottomRight().x,
                     this.hotCornerBottomRight().y
                 );
-                if (inBound) this.canvas?.takeRegister({ in: this.zIndex() });
-                else this.canvas?.takeRegister({ out: this.zIndex() });
             } else inBound = this.checkInBound(e);
 
-            if (inBound && this.canvas?.whoIsTheFirst(this.zIndex())) {
-                this.__runningEvents.selected = true;
-            } else this.__runningEvents.selected = false;
+            if (inBound) {
+                this.canvas?.takeRegister({ in: this.zIndex() });
+                if (this.canvas?.whoIsTheFirst(this.zIndex()))
+                    this.__runningEvents.selected = true;
+            } else {
+                this.canvas?.takeRegister({ out: this.zIndex() });
+                this.__runningEvents.selected = false;
+            }
             this.canvas?.invokeChange(this);
         };
-        this.#eventHandler("click", click);
+        this.__eventHandler("click", click);
         return selectable;
     }
 
@@ -3347,20 +3053,20 @@ export class Block<T = BlockOptions> extends Node {
                 }
                 if (cursor) {
                     inBound = true;
-                    this.#cursor = cursor;
+                    this.canvas.currentCursor = cursor;
                     this.canvas?.changeCursor(cursor);
                 } else {
                     inBound = false;
                     if (
-                        this.#cursor &&
+                        this.canvas?.currentCursor &&
                         ![
                             "ew-resize",
                             "ns-resize",
                             "nwse-resize",
                             "nesw-resize",
-                        ].includes(this.#cursor)
+                        ].includes(this.canvas?.currentCursor)
                     ) {
-                        this.#cursor = cursor;
+                        this.canvas.currentCursor = cursor;
                         this.canvas?.changeCursor(cursor);
                     }
                 }
@@ -3431,9 +3137,9 @@ export class Block<T = BlockOptions> extends Node {
             }
         };
 
-        this.#eventHandler("mousedown", mousedown);
-        this.#eventHandler("mousemove", mousemove);
-        this.#eventHandler("mouseup", mouseup);
+        this.__eventHandler("mousedown", mousedown);
+        this.__eventHandler("mousemove", mousemove);
+        this.__eventHandler("mouseup", mouseup);
 
         return rotatable;
     }
@@ -3463,8 +3169,7 @@ export class Block<T = BlockOptions> extends Node {
 
         let inBound = false;
         const mousedown = (event: MouseEvent) => {
-            if (this.__runningEvents.drag || this.__runningEvents.rotate)
-                return;
+            if (this.__runningEvents.rotate) return;
             beforeCords = { x: 0, y: 0 };
             if (inBound) {
                 initCords = this.canvas?.getCursorPosition(event);
@@ -3482,11 +3187,7 @@ export class Block<T = BlockOptions> extends Node {
         };
 
         const mousemove = (event: MouseEvent) => {
-            if (
-                !this.__runningEvents.selected ||
-                this.__runningEvents.drag ||
-                this.__runningEvents.rotate
-            )
+            if (!this.__runningEvents.selected || this.__runningEvents.rotate)
                 return;
 
             const { x, y } = this.canvas?.getCursorPosition(event);
@@ -3682,12 +3383,12 @@ export class Block<T = BlockOptions> extends Node {
                 }
                 if (cursor) {
                     inBound = true;
-                    this.#cursor = this.#chooseCursor(cursor);
+                    this.canvas.currentCursor = this.#chooseCursor(cursor);
                     this.canvas?.changeCursor(cursor);
                 } else {
                     inBound = false;
-                    if (this.#cursor !== "cell") {
-                        this.#cursor = cursor;
+                    if (this.canvas?.currentCursor !== "cell") {
+                        this.canvas.currentCursor = cursor;
                         this.canvas?.changeCursor(cursor);
                     }
                 }
@@ -3700,8 +3401,18 @@ export class Block<T = BlockOptions> extends Node {
 
                     const cacheR = this.rotate();
                     this.rotate(0);
+
+                    // let reverse = false;
+                    // console.log(this.cornerTopLeft().x, this.getCenterX);
+                    // if (this.cornerTopLeft().x > this.getCenterX)
+                    //     reverse = true;
+                    // else reverse = false;
+                    let diffW = 0;
+                    let diffH = 0;
+
                     if (diffX !== 0) {
-                        let diffW = diffX - beforeCords.x;
+                        diffW = diffX - beforeCords.x;
+                        // if (reverse) diffW = -diffW;
                         if (leftResize) {
                             this.cornerTopLeft({
                                 x: this.cornerTopLeft().x + diffW,
@@ -3711,6 +3422,8 @@ export class Block<T = BlockOptions> extends Node {
                                 x: this.cornerBottomLeft().x + diffW,
                                 y: this.cornerBottomLeft().y,
                             });
+                            // this.x(this.x()+diffW)
+                            // this.width(this.width()-diffW)
                         } else if (rightResize) {
                             this.cornerTopRight({
                                 x: this.cornerTopRight().x + diffW,
@@ -3721,11 +3434,10 @@ export class Block<T = BlockOptions> extends Node {
                                 y: this.cornerBottomRight().y,
                             });
                         }
-
                         beforeCords.x = diffX;
                     }
                     if (diffY !== 0) {
-                        let diffH = diffY - beforeCords.y;
+                        diffH = diffY - beforeCords.y;
                         if (topResize) {
                             this.cornerTopRight({
                                 x: this.cornerTopRight().x,
@@ -3773,9 +3485,9 @@ export class Block<T = BlockOptions> extends Node {
             }
         };
 
-        this.#eventHandler("mousedown", mousedown);
-        this.#eventHandler("mousemove", mousemove);
-        this.#eventHandler("mouseup", mouseup);
+        this.__eventHandler("mousedown", mousedown);
+        this.__eventHandler("mousemove", mousemove);
+        this.__eventHandler("mouseup", mouseup);
         return resizable;
     }
 
@@ -3966,30 +3678,29 @@ export class Block<T = BlockOptions> extends Node {
         });
 
         const mousemove = (event: MouseEvent) => {
-            if (
-                this.__runningEvents.resize ||
-                this.__runningEvents.rotate ||
-                !this.__runningEvents.drag
-            )
+            if (this.__runningEvents.resize || this.__runningEvents.rotate)
                 return;
-            if (this.canvas?.whoIsTheFirst(this.zIndex())) {
-                const { x, y } = this.canvas?.getCursorPosition(event);
-                let diffX = x - initCords.x;
-                let diffY = y - initCords.y;
-                if (diffX !== 0 && this.dragX()) {
-                    const diff = diffX - beforeCords.x;
-                    this.x(this.x() + diff);
+            if (this.__runningEvents.drag) {
+                this.canvas?.takeRegister({ in: this.zIndex() });
+                if (this.canvas?.whoIsTheFirst(this.zIndex())) {
+                    const { x, y } = this.canvas?.getCursorPosition(event);
+                    let diffX = x - initCords.x;
+                    let diffY = y - initCords.y;
+                    if (diffX !== 0 && this.dragX()) {
+                        const diff = diffX - beforeCords.x;
+                        this.x(this.x() + diff);
 
-                    beforeCords.x = diffX;
-                }
-                if (diffY !== 0 && this.dragY()) {
-                    const diff = diffY - beforeCords.y;
-                    this.y(this.y() + diff);
+                        beforeCords.x = diffX;
+                    }
+                    if (diffY !== 0 && this.dragY()) {
+                        const diff = diffY - beforeCords.y;
+                        this.y(this.y() + diff);
 
-                    beforeCords.y = diffY;
+                        beforeCords.y = diffY;
+                    }
+                    this.onDrag()(event);
+                    this.canvas?.invokeChange();
                 }
-                this.onDrag()(event);
-                this.canvas?.invokeChange();
             }
         };
         const mouseup = () => {
@@ -4006,8 +3717,8 @@ export class Block<T = BlockOptions> extends Node {
                 }
             }
         };
-        this.#eventHandler<MouseEvent>("mousemove", mousemove);
-        this.#eventHandler<MouseEvent>("mouseup", mouseup);
+        this.__eventHandler<MouseEvent>("mousemove", mousemove);
+        this.__eventHandler<MouseEvent>("mouseup", mouseup);
 
         return draggable;
     }
