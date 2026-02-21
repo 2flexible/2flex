@@ -241,8 +241,6 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         super(options);
     }
     render(): void {
-        this.position();
-        this.__adjustBlocks();
         if (this.hidden()) {
             this.listAllChilds((n: Block) => {
                 n.hidden(true);
@@ -250,6 +248,13 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             return;
         }
         this.beginPath();
+        this.context?.save();
+        this.context?.translate(this.rotationCenterX(), this.rotationCenterY());
+        this.context?.rotate(this.rotate());
+        this.context?.translate(
+            -this.rotationCenterX(),
+            -this.rotationCenterY()
+        );
         if (this.ownOptions.lineDash) this.lineDash();
         if (this.ownOptions.lineWidth) this.lineWidth();
         if (this.ownOptions.lineCap) this.lineCap();
@@ -260,22 +265,15 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         if (this.ownOptions.rect) this.rect();
         if (this.ownOptions.strokeStyle) this.strokeStyle();
 
-        this.context?.save();
-        this.context?.translate(this.rotationCenterX(), this.rotationCenterY());
-        this.context?.rotate(this.rotate());
-        this.context?.translate(
-            -this.rotationCenterX(),
-            -this.rotationCenterY()
-        );
         this.draw();
-        this.context?.restore();
-
+        
         if (this.ownOptions.fill) this.fill();
         if (this.ownOptions.stroke) this.stroke();
-
         this.#contextFilter();
-        // this.showHotAreas();
-        if (this.__runningEvents.selected) this.__hotLines();
+
+        this.context?.restore();
+        
+        this.__isSelected();
     }
 
     draw(_func?: (context: CanvasRenderingContext2D) => void) {
