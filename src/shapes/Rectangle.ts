@@ -124,16 +124,16 @@ export class Rectangle extends Shape<IRectangleOptions> {
             if (this.borderStyle() === "dotted") {
                 this.lineDash([
                     0,
-                    this.width(),
+                    this.getRealWidth,
                     ...borderStyleArrHeight,
-                    this.width() + this.height(),
+                    this.getRealWidth + this.getRealHeight,
                 ]);
             } else if (this.borderStyle() === "solid") {
                 this.lineDash([
                     0,
-                    this.width(),
-                    this.height(),
-                    this.width() + this.height(),
+                    this.getRealWidth,
+                    this.getRealHeight,
+                    this.getRealWidth + this.getRealHeight,
                 ]);
             }
             this.stroke(true);
@@ -151,14 +151,14 @@ export class Rectangle extends Shape<IRectangleOptions> {
             if (this.borderStyle() === "dotted") {
                 this.lineDash([
                     0,
-                    this.width() + this.height(),
+                    this.getRealWidth + this.getRealHeight,
                     ...borderStyleArrWidth,
                 ]);
             } else if (this.borderStyle() === "solid") {
                 this.lineDash([
                     0,
-                    this.width() + this.height(),
-                    this.width(),
+                    this.getRealWidth + this.getRealHeight,
+                    this.getRealWidth,
                     0,
                 ]);
             }
@@ -174,15 +174,15 @@ export class Rectangle extends Shape<IRectangleOptions> {
             if (this.borderStyle() === "dotted") {
                 this.lineDash([
                     0,
-                    this.width() * 2 + this.height(),
+                    this.getRealWidth * 2 + this.getRealHeight,
                     ...borderStyleArrHeight,
                 ]);
             } else if (this.borderStyle() === "solid") {
                 this.lineDash([
                     0,
-                    this.width() * 2 + this.height(),
-                    this.height(),
-                    this.width(),
+                    this.getRealWidth * 2 + this.getRealHeight,
+                    this.getRealHeight,
+                    this.getRealWidth,
                 ]);
             }
             this.stroke(true);
