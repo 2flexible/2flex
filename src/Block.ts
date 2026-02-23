@@ -283,16 +283,31 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
     addChild(...node: Node[]): void {
+        const exists = this.childNodes.some((r) => node.includes(r));
+        let before: any = {};
+        before[this.nodeId!] = {
+            childNodes: [...this.childNodes],
+        };
         super.addChild(...node);
+        if (exists) return;
         this.canvas?.invokeNodeListing();
         this.listOnlyChilds((b: Block) => {
             this.canvas?.__handleOptions(b);
+            this.canvas?.__takeInitSnaphshot(before);
+            this.canvas?.__takeBlockSnapshot(this, before);
         });
     }
 
     removeChild<T>(child: T): void {
         super.removeChild(child);
-        this.canvas?.invokeChange();
+        this.canvas?.invokeNodeListing();
+    }
+
+    __addChildInternal(...node: Node[]) {
+        super.addChild(...node);
+    }
+    __removeChildInternal<T>(child: T): void {
+        super.removeChild(child);
     }
 
     findChilds(queries: IBlockOptions) {

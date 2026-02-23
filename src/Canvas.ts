@@ -1,10 +1,9 @@
-import { Tree } from "./Tree";
+import { Tree, Node } from "./Tree";
 import { CanvasDOMManager } from "./DOMManager";
 import { getPrototype, xIntersect, yIntersect } from "./Utils";
-import type { Block, BlockOptions } from "./Block";
+import type { Block, IBlockOptions } from "./Block";
 import type { ICssProperties, SnapshotObject } from "./types";
-import { Rectangle } from "./shapes/Rectangle";
-import { Shape } from "./Shape";
+
 export type Composite =
     | "source-over"
     | "source-in"
@@ -38,16 +37,18 @@ interface CanvasOptions {
     zoomInvSpeed?: number;
     moveSpeed?: number;
     zoom?: "center" | "point";
-    move?: "auto" | "keyboard" | "mouse";
+    keyboardMovement?: boolean;
+    mouseMovement?: boolean;
     fps: number;
-    snapshotSize: number;
     alpha?: number;
     composite?: Composite;
+    historySize: number;
     history?: boolean;
     zoomSet?: number;
     x: number;
     y: number;
 }
+
 export class Canvas {
     __domCanvas: CanvasDOMManager;
     options?: CanvasOptions & ICssProperties;
@@ -70,12 +71,18 @@ export class Canvas {
     #zoomInvSpeed = 0.8;
     #moveSpeed = 10;
     currentCursor: string = "auto";
-    #animations: any = [];
-    #snapshotSize = 50;
+    __animations: any = [];
     #fps = 60;
     #history = true;
     #elements: number[] = [];
-    __positionCords: { x: number; y: number } = { x: 0, y: 0 };
+    #mouseMovement = true;
+    #keyboardMovement = true;
+    #zoomOption = "center";
+    #handledNodes: number[] = [];
+    #initTime?: number;
+    #highZIndex = 1;
+
+    __positionCords: { x: number; y: number; z: number } = { x: 0, y: 0, z: 1 };
 
     constructor(
         canvasId?: string,
@@ -88,17 +95,19 @@ export class Canvas {
         this.width = width || 300;
         this.height = height || 300;
         this.#history = this.options?.history || this.#history;
+        this.#zoomOption = this.options?.zoom || "center";
         this.__positionCords = {
-            x: this.options?.x || this.__positionCords.x,
-            y: this.options?.y || this.__positionCords.y,
+            x: this.options?.x || 0,
+            y: this.options?.y || 0,
+            z: this.options?.zoomSet || 1,
         };
-        this.#snapshotSize = this.options?.snapshotSize || 50;
-        this.#tree = new Tree(this.#snapshotSize);
+        this.#tree = new Tree(this.options?.historySize);
         this.__domCanvas = new CanvasDOMManager(
             this.canvasId,
             this.width,
             this.height
         );
+        this.#initTime = new Date().getTime();
         this.#initCanvas();
     }
 
@@ -123,59 +132,42 @@ export class Canvas {
                 if (this.#history) this.#snapshotHandler();
 
                 this.__domCanvas.changeStyle(this.options);
-                if (this.options.move == "mouse") {
-                    this.#handMove();
-                } else if (this.options.move == "keyboard") {
-                    this.#keyboardMove();
-                } else {
-                    this.#keyboardMove();
-                    this.#handMove();
-                }
 
-                if (this.options.zoom == "point") {
-                    this.#pointZoom();
-                } else this.#centerZoom();
+                if (this.#mouseMovement) this.#handMove();
+                if (this.#keyboardMovement) this.#keyboardMove();
+
+                if (this.#zoomOption == "point") this.#pointZoom();
+                else if (this.#zoomOption == "center") this.#centerZoom();
             }
         };
     }
 
     add(...block: Block[]) {
-        let zIndex = 1;
         this.#tree.addNodes(block);
-        const time = new Date().getTime()
+        this.#initTime = new Date().getTime();
         this.#tree.preOrderTraversal<Block>(this.#tree.head, (b: Block) => {
-            b.canvas = this;
-
-            b.zIndex(zIndex);
-            zIndex += 1;
-
-            this.#handleOptions(b);
-            b.__adjustBlocks();
-
+            this.__handleOptions(b);
+            this.__takeInitSnaphshot(b);
             if (this.inBoundElement(b)) b.render();
-
-            this.#animations.push(...b.__animationOn);
-
-            for (const key in b.__events) {
-                this.#canvasEvents[key].push(...b.__events[key]);
-            }
-            const dummy: any = {};
-            dummy[b.nodeId!] = { ...b.ownOptions };
-            this.#tree.takeSanpshot(time, dummy, dummy);
+            this.__animations.push(...b.__animationOn);
         });
-        if (this.#animations.length !== 0)
-            this.animationInvoker(this.#animations);
+        if (this.__animations.length !== 0)
+            this.animationInvoker(this.__animations);
 
-        this.#handleEvents();
+        this.__handleEvents();
         this.#setCanvasPosition();
         this.#setCanvasZoom();
     }
 
-    find(queries: BlockOptions) {
+    find(queries: IBlockOptions) {
         let blocks: Block[] = [];
-        this.#tree.preOrderTraversal(this.#tree.head, (block: Block) => {
+        this.#tree.listSortedChilds((block: Block) => {
             for (const [k, v] of Object.entries(queries)) {
-                if (block.ownOptions[k] === v) blocks.push(block);
+                if (
+                    block.ownOptions[k] === v ||
+                    (k === "nodeId" && block.nodeId === v)
+                )
+                    blocks.push(block);
             }
         });
         return blocks;
@@ -192,16 +184,6 @@ export class Canvas {
         };
     }
 
-    #handleEvents() {
-        for (const key in this.#canvasEvents) {
-            if (this.#canvasEvents[key].length !== 0) {
-                this.__domCanvas.addEventListener(key, (event) => {
-                    for (const func of this.#canvasEvents[key]) func(event);
-                });
-            }
-        }
-    }
-
     whoIsTheFirst(zIndex: number) {
         return Math.max(...this.#elements) === zIndex;
     }
@@ -212,8 +194,26 @@ export class Canvas {
         else this.#elements = this.#elements.filter((i) => i !== inOutZ["out"]);
     }
 
-    #handleOptions(block: Block): void {
-        if (!block.ownOptions) return;
+    __handleOptions(block: Block): void {
+        if (!block.ownOptions || this.#handledNodes.includes(block.nodeId!))
+            return;
+        block.canvas = this;
+        this.#handleBindOptions(block);
+        for (const [key, value] of Object.entries(block.ownOptions)) {
+            getPrototype(block, key)?.value.call(block, value);
+        }
+        if (!block.ownOptions.zIndex) {
+            block.ownOptions.zIndex = this.#highZIndex;
+        }
+        if (block.ownOptions.zIndex > this.#highZIndex)
+            this.#highZIndex = block.ownOptions.zIndex + 1;
+        else this.#highZIndex += 1;
+
+        this.#collectEvents(block);
+        this.#handledNodes.push(block.nodeId!);
+    }
+
+    #handleBindOptions(block: Block) {
         for (const opt of block.__bindOptions) {
             for (const key of opt.options) {
                 getPrototype(block, key as string)?.value.call(
@@ -222,46 +222,128 @@ export class Canvas {
                 );
             }
         }
-        if (block.ownOptions["hidden"]) {
-            getPrototype(block, "hidden")?.value.call(
-                block,
-                block.ownOptions["hidden"]
-            );
-            return;
-        }
-        for (const [key, value] of Object.entries(block.ownOptions)) {
-            getPrototype(block, key)?.value.call(block, value);
+    }
+
+    __takeInitSnaphshot(block: Block) {
+        const dummy: any = {};
+        dummy[block.nodeId!] = { ...block.ownOptions };
+        this.#tree.takeSanpshot(this.#initTime!, null, dummy);
+    }
+
+    __takeBlockSnapshot(parentBlock: Block, before: any) {
+        const after: any = {};
+        after[parentBlock.nodeId!] = {
+            childNodes: parentBlock.childNodes,
+        };
+        this.#tree.takeSanpshot(this.#initTime!, before, after);
+    }
+
+    #collectEvents(block: Block) {
+        for (const key in block.__events) {
+            if (!Object.hasOwn(this.#canvasEvents, key))
+                this.#canvasEvents[key] = [];
+            this.#canvasEvents[key].push(...block.__events[key]);
         }
     }
-    invokeChange(obj?: any, _func?: (element: Block) => void) {
+
+    registerEvent(event: string, callFunc: (event: Event) => void) {
+        if (!Object.hasOwn(this.#canvasEvents, event))
+            this.#canvasEvents[event] = [];
+        this.#canvasEvents[event].push(callFunc);
+    }
+    __handleEvents() {
+        for (const key in this.#canvasEvents) {
+            if (this.#canvasEvents[key].length !== 0) {
+                const events = this.#canvasEvents[key];
+                this.__domCanvas.addEventListener(key, (event) => {
+                    for (const func of events) func(event);
+                });
+            }
+            delete this.#canvasEvents[key];
+        }
+    }
+    invokeChange(obj?: any, _func?: (block: Block) => void) {
         this.context.restore();
         this.context.save();
         this.clearRect();
+        let terminate = false;
+        this.#tree.listSortedChilds((b: Block) => {
+            if (terminate) return;
+            if (this.#handledNodes.includes(b.nodeId!)) {
+                if (obj && Object.keys(obj).includes(String(b.nodeId))) {
+                    for (let [key, value] of Object.entries(obj[b.nodeId!])) {
+                        if (key === "childNodes") {
+                            if (b.childNodes.length !== (value as []).length) {
+                                if (
+                                    (value as []).length > b.childNodes.length
+                                ) {
+                                    for (
+                                        let i = 0;
+                                        i < (value as []).length;
+                                        i++
+                                    ) {
+                                        if (
+                                            !(value as Node[]).includes(
+                                                b.childNodes[i]
+                                            )
+                                        ) {
+                                            b.__addChildInternal(
+                                                (value as [])[i]
+                                            );
+                                            this.#tree.assignNodeId(
+                                                (value as [])[i]
+                                            );
+                                            this.__handleOptions(
+                                                (value as [])[i]
+                                            );
+                                        }
+                                    }
+                                } else {
+                                    for (
+                                        let i = 0;
+                                        i < b.childNodes.length;
+                                        i++
+                                    ) {
+                                        if (
+                                            !b.childNodes.includes(
+                                                (value as [])[i]
+                                            )
+                                        ) {
+                                            b.childNodes[i].nodeId = undefined;
+                                            b.__removeChildInternal(
+                                                b.childNodes[i]
+                                            );
+                                        }
+                                    }
+                                }
+                                terminate = true;
+                                this.invokeNodeListing();
+                                this.invokeChange();
+                                return
+                            }
+                        } else getPrototype(b, key)?.value.call(b, value);
+                    }
+                }
 
-        this.#tree.preOrderTraversal(undefined, (b: Block) => {
-            if (obj && Object.keys(obj).includes(String(b.nodeId))) {
-                for (const [key, value] of Object.entries(obj[b.nodeId!])) {
-                    getPrototype(b, key)?.value.call(b, value);
-                }
+                this.__handleEvents();
+                this.#handleBindOptions(b);
+
+                if (_func) _func(b);
+                b.__adjustBlocks();
+                b.position();
+                if (this.inBoundElement(b)) b.render();
             }
-            for (const opt of b.__bindOptions) {
-                for (const key of opt.options) {
-                    getPrototype(b, key as string)?.value.call(
-                        b,
-                        opt.bindTo.ownOptions[key]
-                    );
-                }
-            }
-            if (_func) _func(b);
-            b.__adjustBlocks();
-            if (this.inBoundElement(b)) b.render();
-        });
+        }, "zIndex");
+    }
+
+    invokeNodeListing() {
+        this.#initTime = new Date().getTime();
+        this.#tree.preOrderTraversal<Block>(this.#tree.head);
     }
 
     takeSnapshot(before: SnapshotObject, after: SnapshotObject) {
-        if (this.#history) {
+        if (this.#history)
             this.#tree.takeSanpshot(new Date().getTime(), before, after);
-        }
     }
 
     inBoundElement(element: Block) {
@@ -322,65 +404,84 @@ export class Canvas {
         requestAnimationFrame(framer);
     }
     #pointZoom() {
-        const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
         this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
             if (event.ctrlKey) {
                 const { x, y } = this.getCursorPosition(event);
+
                 let scale = this.options?.zoomSpeed || this.#zoomSpeed;
                 let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
+
+                let beforeX = this.__positionCords.x;
+                let beforeY = this.__positionCords.y;
+
                 if (event.deltaY < 0) {
-                    this.invokeChange(undefined, (elem) => {
-                        elem.width(elem.width() * scale);
-                        elem.height(elem.height() * scale);
+                    this.__positionCords.x -=
+                        x / (this.__positionCords.z * scale) -
+                        x / this.__positionCords.z;
+
+                    this.__positionCords.y -=
+                        y / (this.__positionCords.z * scale) -
+                        y / this.__positionCords.z;
+                    this.invokeChange(undefined, (block) => {
+                        block.x(block.x() - (this.__positionCords.x - beforeX));
+                        block.y(block.y() - (this.__positionCords.y - beforeY));
+                        block.scale(scale);
                     });
+                    this.__positionCords.z *= scale;
                 } else {
-                    this.invokeChange(undefined, (elem) => {
-                        elem.width(elem.width() * invScale);
-                        elem.height(elem.height() * invScale);
+                    this.__positionCords.x -=
+                        x / (this.__positionCords.z * invScale) -
+                        x / this.__positionCords.z;
+
+                    this.__positionCords.y -=
+                        y / (this.__positionCords.z * invScale) -
+                        y / this.__positionCords.z;
+
+                    this.invokeChange(undefined, (block) => {
+                        block.x(block.x() - (this.__positionCords.x - beforeX));
+                        block.y(block.y() - (this.__positionCords.y - beforeY));
+                        block.scale(invScale);
                     });
+
+                    this.__positionCords.z *= invScale;
                 }
-                if (this.canvas.width / 2 < x)
-                    this.invokeChange(undefined, (block: Block) =>
-                        block.x(block.x() - moveSpeed)
-                    );
-                else
-                    this.invokeChange(undefined, (block: Block) =>
-                        block.x(block.x() + moveSpeed)
-                    );
-                if (this.canvas.height / 2 < y)
-                    this.invokeChange(undefined, (block: Block) =>
-                        block.y(block.y() - moveSpeed)
-                    );
-                else
-                    this.invokeChange(undefined, (block: Block) =>
-                        block.y(block.y() + moveSpeed)
-                    );
             }
         });
     }
 
     #centerZoom() {
-        const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
-
         this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
             if (event.ctrlKey) {
                 let scale = this.options?.zoomSpeed || this.#zoomSpeed;
                 let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
-                if (event.deltaY < 0) {
-                    this.invokeChange(undefined, (block: Block) => {
-                        block.x(block.x() - moveSpeed);
-                        block.y(block.y() - moveSpeed);
-                        block.width(block.width() * scale);
-                        block.height(block.height() * scale);
-                    });
-                } else {
-                    this.invokeChange(undefined, (block: Block) => {
-                        block.x(block.x() + moveSpeed);
-                        block.y(block.y() + moveSpeed);
-                        block.width(block.width() * invScale);
-                        block.height(block.height() * invScale);
-                    });
-                }
+                this.invokeChange(undefined, (block: Block) => {
+                    if (event.deltaY < 0) {
+                        const cacheR = block.rotate();
+                        block.rotate(0);
+                        const scaleW = block.width() * scale - block.width();
+                        const scaleH = block.height() * scale - block.height();
+                        block.x((block.x() || 1) + scaleW);
+                        block.y((block.y() || 1) + scaleH);
+                        // block.width((block.width() || 1) * scale);
+                        // block.height((block.height() || 1) * scale);
+                        block.scale(scale);
+                        block.rotate(cacheR);
+                        this.__positionCords.z *= scale;
+                    } else {
+                        const cacheR = block.rotate();
+                        block.rotate(0);
+                        const scaleW = block.width() * invScale - block.width();
+                        const scaleH =
+                            block.height() * invScale - block.height();
+                        block.x((block.x() || 1) + scaleW);
+                        block.y((block.y() || 1) + scaleH);
+                        block.scale(invScale);
+                        // block.width((block.width() || 1) * invScale);
+                        // block.height((block.height() || 1) * invScale);
+                        block.rotate(cacheR);
+                        this.__positionCords.z *= invScale;
+                    }
+                });
             }
         });
     }
@@ -433,21 +534,25 @@ export class Canvas {
                     });
                     let diffX = event.clientX - initX;
                     let diffY = event.clientY - initY;
-                    this.invokeChange(undefined, (block: Block) => {
-                        if (diffX !== 0) {
-                            block.x(block.x() + (diffX - beforeX));
-                            beforeX = diffX;
-                        }
-                        if (diffY !== 0) {
-                            block.y(block.y() + (diffY - beforeY));
-                            beforeY = diffY;
-                        }
-                    });
+                    if (diffX !== 0) {
+                        this.invokeChange(undefined, (block: Block) => {
+                            block.translate({ x: diffX - beforeX, y: 0 });
+                        });
+                        this.__positionCords.x += diffX;
+                        beforeX = diffX;
+                    }
+                    if (diffY !== 0) {
+                        this.invokeChange(undefined, (block: Block) => {
+                            block.translate({ x: 0, y: diffY - beforeY });
+                        });
+                        this.__positionCords.y += diffY;
+                        beforeY = diffY;
+                    }
                 }
             }
         });
 
-        this.__domCanvas.addEventListener("keyup", (event) => {
+        window.addEventListener("keyup", (event) => {
             (this.__domCanvas as any).changeStyle({ cursor: "auto" });
             isKeyDown = false;
         });
@@ -469,30 +574,33 @@ export class Canvas {
 
     #keyboardMove() {
         const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
-
         this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
-            if (event.ctrlKey) {
-                return;
-            }
-            this.invokeChange(undefined, (block: Block) => {
-                if (event.shiftKey) {
-                    if (event.deltaY < 0) {
-                        block.x(block.x() - moveSpeed);
-                        this.__positionCords.x -= moveSpeed;
-                    } else {
-                        block.x(block.x() + moveSpeed);
-                        this.__positionCords.x += moveSpeed;
-                    }
+            if (event.ctrlKey) return;
+            if (event.shiftKey) {
+                if (event.deltaY < 0) {
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.translate({ x: -moveSpeed, y: 0 });
+                    });
+                    this.__positionCords.x -= moveSpeed;
                 } else {
-                    if (event.deltaY < 0) {
-                        block.y(block.y() + moveSpeed);
-                        this.__positionCords.y += moveSpeed;
-                    } else {
-                        block.y(block.y() - moveSpeed);
-                        this.__positionCords.y -= moveSpeed;
-                    }
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.translate({ x: moveSpeed, y: 0 });
+                    });
+                    this.__positionCords.x += moveSpeed;
                 }
-            });
+            } else {
+                if (event.deltaY < 0) {
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.translate({ x: 0, y: moveSpeed });
+                    });
+                    this.__positionCords.y += moveSpeed;
+                } else {
+                    this.invokeChange(undefined, (block: Block) => {
+                        block.translate({ x: 0, y: -moveSpeed });
+                    });
+                    this.__positionCords.y -= moveSpeed;
+                }
+            }
         });
     }
 
