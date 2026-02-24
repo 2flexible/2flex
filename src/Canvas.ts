@@ -245,7 +245,7 @@ export class Canvas {
     __takeBlockSnapshot(parentBlock: Block, before: any) {
         const after: any = {};
         after[parentBlock.nodeId!] = {
-            childNodes: parentBlock.childNodes,
+            childNodes: [...parentBlock.childNodes],
         };
         this.#tree.takeSanpshot(this.#initTime!, before, after);
     }
@@ -304,72 +304,14 @@ export class Canvas {
             this.__domCanvas.addEventListener(key, func);
         }
     }
-    invokeChange(obj?: any, _func?: (block: Block) => void) {
+    invokeChange(_func?: (block: Block) => void) {
         this.context.restore();
         this.context.save();
         this.clearRect();
-        let terminate = false;
         this.#tree.listSortedChilds((b: Block) => {
-            if (terminate) return;
-            if (this.#handledNodes.includes(b.nodeId!)) {
-                if (obj && Object.keys(obj).includes(String(b.nodeId))) {
-                    for (let [key, value] of Object.entries(obj[b.nodeId!])) {
-                        if (key === "childNodes") {
-                            if (b.childNodes.length !== (value as []).length) {
-                                if (
-                                    (value as []).length > b.childNodes.length
-                                ) {
-                                    for (
-                                        let i = 0;
-                                        i < (value as []).length;
-                                        i++
-                                    ) {
-                                        if (
-                                            !(value as Node[]).includes(
-                                                b.childNodes[i]
-                                            )
-                                        ) {
-                                            b.__addChildInternal(
-                                                (value as [])[i]
-                                            );
-                                            this.#tree.assignNodeId(
-                                                (value as [])[i]
-                                            );
-                                            this.__handleOptions(
-                                                (value as [])[i]
-                                            );
-                                        }
-                                    }
-                                } else {
-                                    for (
-                                        let i = 0;
-                                        i < b.childNodes.length;
-                                        i++
-                                    ) {
-                                        if (
-                                            !b.childNodes.includes(
-                                                (value as [])[i]
-                                            )
-                                        ) {
-                                            b.childNodes[i].nodeId = undefined;
-                                            b.__removeChildInternal(
-                                                b.childNodes[i]
-                                            );
-                                        }
-                                    }
-                                }
-                                terminate = true;
-                                this.invokeNodeListing();
-                                this.invokeChange();
-                                return;
-                            }
-                        } else getPrototype(b, key)?.value.call(b, value);
-                    }
-                }
-
+            if (b.nodeId && this.#handledNodes.includes(b.nodeId)) {
                 this.#registerDomEvent();
                 this.#handleBindOptions(b);
-
                 if (_func) _func(b);
                 b.__adjustBlocks();
                 b.position();
@@ -464,7 +406,7 @@ export class Canvas {
                     this.__positionCords.y -=
                         y / (this.__positionCords.z * scale) -
                         y / this.__positionCords.z;
-                    this.invokeChange(undefined, (block) => {
+                    this.invokeChange((block) => {
                         block.x(block.x() - (this.__positionCords.x - beforeX));
                         block.y(block.y() - (this.__positionCords.y - beforeY));
                         block.scale(scale);
@@ -479,7 +421,7 @@ export class Canvas {
                         y / (this.__positionCords.z * invScale) -
                         y / this.__positionCords.z;
 
-                    this.invokeChange(undefined, (block) => {
+                    this.invokeChange((block) => {
                         block.x(block.x() - (this.__positionCords.x - beforeX));
                         block.y(block.y() - (this.__positionCords.y - beforeY));
                         block.scale(invScale);
@@ -496,7 +438,7 @@ export class Canvas {
             if (event.ctrlKey) {
                 let scale = this.options?.zoomSpeed || this.#zoomSpeed;
                 let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
-                this.invokeChange(undefined, (block: Block) => {
+                this.invokeChange((block: Block) => {
                     if (event.deltaY < 0) {
                         const cacheR = block.rotate();
                         block.rotate(0);
@@ -577,14 +519,14 @@ export class Canvas {
                     let diffX = event.clientX - initX;
                     let diffY = event.clientY - initY;
                     if (diffX !== 0) {
-                        this.invokeChange(undefined, (block: Block) => {
+                        this.invokeChange((block: Block) => {
                             block.translate({ x: diffX - beforeX, y: 0 });
                         });
                         this.__positionCords.x += diffX;
                         beforeX = diffX;
                     }
                     if (diffY !== 0) {
-                        this.invokeChange(undefined, (block: Block) => {
+                        this.invokeChange((block: Block) => {
                             block.translate({ x: 0, y: diffY - beforeY });
                         });
                         this.__positionCords.y += diffY;
@@ -601,14 +543,14 @@ export class Canvas {
     }
 
     #setCanvasPosition() {
-        this.invokeChange(undefined, (block: Block) => {
+        this.invokeChange((block: Block) => {
             block.x(block.x() + this.__positionCords.x);
             block.y(block.y() + this.__positionCords.y);
         });
     }
 
     #setCanvasZoom() {
-        this.invokeChange(undefined, (elem) => {
+        this.invokeChange((elem) => {
             elem.width(elem.width() * (this.options?.zoomSet || 1));
             elem.height(elem.height() * (this.options?.zoomSet || 1));
         });
@@ -620,24 +562,24 @@ export class Canvas {
             if (event.ctrlKey) return;
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
-                    this.invokeChange(undefined, (block: Block) => {
+                    this.invokeChange((block: Block) => {
                         block.translate({ x: -moveSpeed, y: 0 });
                     });
                     this.__positionCords.x -= moveSpeed;
                 } else {
-                    this.invokeChange(undefined, (block: Block) => {
+                    this.invokeChange((block: Block) => {
                         block.translate({ x: moveSpeed, y: 0 });
                     });
                     this.__positionCords.x += moveSpeed;
                 }
             } else {
                 if (event.deltaY < 0) {
-                    this.invokeChange(undefined, (block: Block) => {
+                    this.invokeChange((block: Block) => {
                         block.translate({ x: 0, y: moveSpeed });
                     });
                     this.__positionCords.y += moveSpeed;
                 } else {
-                    this.invokeChange(undefined, (block: Block) => {
+                    this.invokeChange((block: Block) => {
                         block.translate({ x: 0, y: -moveSpeed });
                     });
                     this.__positionCords.y -= moveSpeed;
@@ -652,7 +594,69 @@ export class Canvas {
             if (e.key === "Z" && e.ctrlKey) obj = this.#tree.snapshotInFuture();
             else if (e.key === "z" && e.ctrlKey)
                 obj = this.#tree.snapshotInBack();
-            if (obj) this.invokeChange(obj);
+            console.log(obj);
+            if (obj)
+                this.invokeChange((b: Block) => {
+                    if (Object.keys(obj).includes(String(b.nodeId))) {
+                        for (let [key, value] of Object.entries(
+                            obj[b.nodeId!]
+                        )) {
+                            if (key === "childNodes") {
+                                if (
+                                    b.childNodes.length !== (value as []).length
+                                ) {
+                                    if (
+                                        (value as []).length >
+                                        b.childNodes.length
+                                    ) {
+                                        for (
+                                            let i = 0;
+                                            i < (value as []).length;
+                                            i++
+                                        ) {
+                                            if (
+                                                !(value as Node[]).includes(
+                                                    b.childNodes[i]
+                                                )
+                                            ) {
+                                                b.__addChildInternal(
+                                                    (value as [])[i]
+                                                );
+                                                this.#tree.assignNodeId(
+                                                    (value as [])[i]
+                                                );
+                                                this.__handleOptions(
+                                                    (value as [])[i]
+                                                );
+                                            }
+                                        }
+                                    } else {
+                                        for (
+                                            let i = 0;
+                                            i < b.childNodes.length;
+                                            i++
+                                        ) {
+                                            if (
+                                                !b.childNodes.includes(
+                                                    (value as [])[i]
+                                                )
+                                            ) {
+                                                b.childNodes[i].nodeId =
+                                                    undefined;
+                                                b.__removeChildInternal(
+                                                    b.childNodes[i]
+                                                );
+                                            }
+                                        }
+                                    }
+                                    this.invokeNodeListing();
+                                    this.invokeChange();
+                                    return;
+                                }
+                            } else getPrototype(b, key)?.value.call(b, value);
+                        }
+                    }
+                });
         });
     }
 }
