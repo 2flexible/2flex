@@ -1,4 +1,4 @@
-import { ICssProperties } from "./types";
+import type { ICssProperties, CustomEvent } from "./types";
 
 interface ContextParamas {
     alpha?: boolean;
@@ -8,10 +8,15 @@ interface ContextParamas {
     willReadFrequently?: boolean;
 }
 
+interface DomEvent {
+    [key: string]: CustomEvent[];
+}
+
 export class CanvasDOMManager {
     canvasId: string;
     width: number;
     height: number;
+    #domEvents: DomEvent = {};
     contextParams: ContextParamas = {
         alpha: true,
         colorSpace: "srgb",
@@ -62,18 +67,28 @@ export class CanvasDOMManager {
         }
     }
 
-    addEventListener(_type: string, _func: (event: any) => void) {
-        this.canvas.addEventListener(
-            _type,
-            (event: any) => {
-                event.preventDefault();
-                _func(event);
-            },
-            { passive: false }
-        );
+    addEventListener<E extends Event>(_type: string, _func: CustomEvent<E>) {
+        if (
+            (this.#domEvents[_type] &&
+                this.#domEvents[_type].includes(_func as CustomEvent<Event>)) ||
+            !_func
+        )
+            return;
+        if (!this.#domEvents[_type]) this.#domEvents[_type] = [];
+        this.#domEvents[_type].push(_func as CustomEvent<Event>);
+
+        this.canvas.addEventListener(_type, _func as any, { passive: false });
     }
 
-    removeEventListener(_type: string, _func: (event: any) => void) {
-        this.canvas.removeEventListener(_type, (event: any) => _func(event));
+    removeEventListener<E extends Event>(_type: string, _func: CustomEvent<E>) {
+        if (!this.#domEvents[_type]) return;
+        this.#domEvents[_type] = this.#domEvents[_type].filter(
+            (i) => i !== _func
+        );
+        this.canvas.removeEventListener(_type, _func as any);
+    }
+
+    getListener(event: string) {
+        return this.#domEvents[event];
     }
 }

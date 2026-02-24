@@ -2,7 +2,7 @@ import { Tree, Node } from "./Tree";
 import { CanvasDOMManager } from "./DOMManager";
 import { getPrototype, xIntersect, yIntersect } from "./Utils";
 import type { Block, IBlockOptions } from "./Block";
-import type { ICssProperties, SnapshotObject } from "./types";
+import type { ICssProperties, SnapshotObject, CustomEvent } from "./types";
 
 export type Composite =
     | "source-over"
@@ -49,19 +49,24 @@ interface CanvasOptions {
     y: number;
 }
 
+interface CanvasEvents {
+    func?: CustomEvent<Event>;
+    events: CustomEvent<Event>[];
+}
+
 export class Canvas {
     __domCanvas: CanvasDOMManager;
     options?: CanvasOptions & ICssProperties;
-    #canvasEvents: any = {
-        click: [],
-        dblclick: [],
-        mousedown: [],
-        mouseup: [],
-        mousemove: [],
-        mouseenter: [],
-        mouseleave: [],
-        mouseout: [],
-        mouseover: [],
+    #canvasEvents: { [key: string]: CanvasEvents } = {
+        click: { func: undefined, events: [] },
+        dblclick: { func: undefined, events: [] },
+        mousedown: { func: undefined, events: [] },
+        mouseup: { func: undefined, events: [] },
+        mousemove: { func: undefined, events: [] },
+        mouseenter: { func: undefined, events: [] },
+        mouseleave: { func: undefined, events: [] },
+        mouseout: { func: undefined, events: [] },
+        mouseover: { func: undefined, events: [] },
     };
     canvasId: string;
     width: number;
@@ -147,6 +152,7 @@ export class Canvas {
         this.#initTime = new Date().getTime();
         this.#tree.preOrderTraversal<Block>(this.#tree.head, (b: Block) => {
             this.__handleOptions(b);
+            this.__collectEvents(b);
             this.__takeInitSnaphshot(b);
             if (this.inBoundElement(b)) b.render();
             this.__animations.push(...b.__animationOn);
@@ -154,9 +160,16 @@ export class Canvas {
         if (this.__animations.length !== 0)
             this.animationInvoker(this.__animations);
 
-        this.__handleEvents();
+        this.#registerDomEvent();
         this.#setCanvasPosition();
         this.#setCanvasZoom();
+    }
+
+    remove(block: Block) {
+        this.#tree.head.removeChild(block);
+        this.__clearEvents(block);
+        this.invokeNodeListing();
+        // @Todo: take snapshot for this
     }
 
     find(queries: IBlockOptions) {
@@ -209,7 +222,6 @@ export class Canvas {
             this.#highZIndex = block.ownOptions.zIndex + 1;
         else this.#highZIndex += 1;
 
-        this.#collectEvents(block);
         this.#handledNodes.push(block.nodeId!);
     }
 
@@ -238,28 +250,58 @@ export class Canvas {
         this.#tree.takeSanpshot(this.#initTime!, before, after);
     }
 
-    #collectEvents(block: Block) {
+    __collectEvents(block: Block) {
         for (const key in block.__events) {
-            if (!Object.hasOwn(this.#canvasEvents, key))
-                this.#canvasEvents[key] = [];
-            this.#canvasEvents[key].push(...block.__events[key]);
+            for (const event of block.__events[key])
+                this.registerEvent(key, event);
         }
     }
 
-    registerEvent(event: string, callFunc: (event: Event) => void) {
-        if (!Object.hasOwn(this.#canvasEvents, event))
-            this.#canvasEvents[event] = [];
-        this.#canvasEvents[event].push(callFunc);
+    __clearEvents(block: Block) {
+        for (const key in block.__events) {
+            this.removeEvent(key, block.__events[key]);
+        }
     }
-    __handleEvents() {
+
+    registerEvent(event: string, callFunc: CustomEvent<Event>) {
+        if (
+            this.#canvasEvents[event].events.includes(callFunc) ||
+            typeof callFunc !== "function"
+        )
+            return;
+        this.#canvasEvents[event].events.push(callFunc);
+        const events = this.#canvasEvents[event].events;
+        this.#buildEventFunc(event, events);
+    }
+    removeEvent(event: string, callFunc: CustomEvent<Event>) {
+        if (
+            !this.#canvasEvents[event].events.includes(callFunc) ||
+            typeof callFunc !== "function"
+        )
+            return;
+        this.#canvasEvents[event].events = this.#canvasEvents[
+            event
+        ].events.filter((i) => i !== callFunc);
+        const events = this.#canvasEvents[event].events;
+        this.#buildEventFunc(event, events);
+    }
+
+    #buildEventFunc(event: string, events: CustomEvent<Event>[]) {
+        this.#canvasEvents[event].func = (e: Event) => {
+            for (const func of events) func(e);
+        };
+    }
+    #registerDomEvent() {
         for (const key in this.#canvasEvents) {
-            if (this.#canvasEvents[key].length !== 0) {
-                const events = this.#canvasEvents[key];
-                this.__domCanvas.addEventListener(key, (event) => {
-                    for (const func of events) func(event);
-                });
+            const func = this.#canvasEvents[key].func as CustomEvent<Event>;
+            if (func === undefined) continue;
+            const eventFunc = this.__domCanvas.getListener(key);
+            if (eventFunc && !eventFunc.includes(func)) {
+                for (let i = 0, len = eventFunc.length; i < len; i++) {
+                    this.__domCanvas.removeEventListener(key, eventFunc[i]);
+                }
             }
-            delete this.#canvasEvents[key];
+            this.__domCanvas.addEventListener(key, func);
         }
     }
     invokeChange(obj?: any, _func?: (block: Block) => void) {
@@ -319,13 +361,13 @@ export class Canvas {
                                 terminate = true;
                                 this.invokeNodeListing();
                                 this.invokeChange();
-                                return
+                                return;
                             }
                         } else getPrototype(b, key)?.value.call(b, value);
                     }
                 }
 
-                this.__handleEvents();
+                this.#registerDomEvent();
                 this.#handleBindOptions(b);
 
                 if (_func) _func(b);
@@ -404,7 +446,7 @@ export class Canvas {
         requestAnimationFrame(framer);
     }
     #pointZoom() {
-        this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
+        window.addEventListener("wheel", (event: WheelEvent) => {
             if (event.ctrlKey) {
                 const { x, y } = this.getCursorPosition(event);
 
@@ -450,7 +492,7 @@ export class Canvas {
     }
 
     #centerZoom() {
-        this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
+        window.addEventListener("wheel", (event: WheelEvent) => {
             if (event.ctrlKey) {
                 let scale = this.options?.zoomSpeed || this.#zoomSpeed;
                 let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
@@ -513,7 +555,7 @@ export class Canvas {
             }
         });
 
-        this.__domCanvas.addEventListener("mousemove", (event) => {
+        window.addEventListener("mousemove", (event: MouseEvent) => {
             if (event.buttons == 0) {
                 isMouseDown = false;
                 if (isKeyDown)
@@ -574,7 +616,7 @@ export class Canvas {
 
     #keyboardMove() {
         const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
-        this.__domCanvas.addEventListener("wheel", (event: WheelEvent) => {
+        window.addEventListener("wheel", (event: WheelEvent) => {
             if (event.ctrlKey) return;
             if (event.shiftKey) {
                 if (event.deltaY < 0) {

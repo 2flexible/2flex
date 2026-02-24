@@ -21,3 +21,4 @@ export type JumpPosition =
     | "jump-end"
     | "jump-none"
     | "jump-both";
+export type CustomEvent<E = Event> = (event: E & Event) => void;

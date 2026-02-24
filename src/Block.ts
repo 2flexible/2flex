@@ -25,7 +25,14 @@ import {
     rotateCordinates,
     inRange,
 } from "./Utils";
-import { CubicBezier, IBlock, LinearEasing, RGBA, StepsEasing } from "./types";
+import type {
+    CubicBezier,
+    IBlock,
+    LinearEasing,
+    RGBA,
+    StepsEasing,
+    CustomEvent,
+} from "./types";
 
 export type IMouseEvents =
     | "click"
@@ -293,6 +300,7 @@ export class Block<T = IBlockOptions> extends Node {
         this.canvas?.invokeNodeListing();
         this.listOnlyChilds((b: Block) => {
             this.canvas?.__handleOptions(b);
+            this.canvas?.__collectEvents(b);
             this.canvas?.__takeInitSnaphshot(before);
             this.canvas?.__takeBlockSnapshot(this, before);
         });
@@ -300,6 +308,7 @@ export class Block<T = IBlockOptions> extends Node {
 
     removeChild<T>(child: T): void {
         super.removeChild(child);
+        this.canvas?.__clearEvents(child);
         this.canvas?.invokeNodeListing();
     }
 
@@ -2917,9 +2926,9 @@ export class Block<T = IBlockOptions> extends Node {
         this.__eventHandler<MouseEvent>("mousemove", out);
     }
 
-    __eventHandler<E>(
+    __eventHandler<E extends Event>(
         type: IMouseEvents,
-        _func: (event: E) => void,
+        _func: CustomEvent<E>,
         identify?: string
     ) {
         if (identify) {
