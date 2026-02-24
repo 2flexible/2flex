@@ -124,7 +124,6 @@ export class Layout extends Block<LayoutOptions> {
     }
     addChild(...block: Block[]): void {
         super.addChild(...block);
-        this.canvas?.invokeNodeListing();
         this.listOnlyChilds((b: Block, idx: number) => {
             this.canvas?.__handleOptions(b);
             if (b.order() === undefined) {
@@ -134,7 +133,7 @@ export class Layout extends Block<LayoutOptions> {
                 b.order(b.order()! - 1);
             }
         });
-        this.#childBlocks = this.child_nodes as Block[];
+        this.#childBlocks = this.childNodes as Block[];
         this.#childBlocks.sort(
             (a, b) => (a.order() as number) - (b.order() as number)
         );
