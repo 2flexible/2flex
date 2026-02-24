@@ -307,9 +307,15 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     removeChild<T>(child: T): void {
+        if (!this.childNodes.includes(child as Node)) return;
+        let before: any = {};
+        before[this.nodeId!] = {
+            childNodes: [...this.childNodes],
+        };
         super.removeChild(child);
-        this.canvas?.__clearEvents(child);
         this.canvas?.invokeNodeListing();
+        this.canvas?.__clearEvents(child);
+        this.canvas?.__takeBlockSnapshot(this, before);
     }
 
     __addChildInternal(...node: Node[]) {
