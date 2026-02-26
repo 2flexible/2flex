@@ -1,3 +1,4 @@
+import { BlockPayload } from "../Block";
 import { Shape } from "../Shape";
 import type {
     FontKerning,
@@ -169,5 +170,11 @@ export class Text extends Shape<ITextOptions> {
     scale(opt?: number): void {
         super.scale(opt);
         this.fontSize(this.fontSize() * (opt || 1));
+    }
+
+    generatePayload(): BlockPayload {
+        const payload  = super.generatePayload()
+        payload.additionalParams = [this.text()]
+        return payload
     }
 }

@@ -1,9 +1,11 @@
 import { SnapshotObject, Timestamp } from "./types";
 
+export type NodeId = number | undefined
+
 export class Node {
     childNodes: Node[];
     parentNode?: Node;
-    nodeId?: number;
+    nodeId?: NodeId;
 
     constructor() {
         this.childNodes = [];

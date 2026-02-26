@@ -1,5 +1,5 @@
 import type { Canvas } from "./Canvas";
-import { Node } from "./Tree";
+import { Node, NodeId } from "./Tree";
 import {
     checkInBound,
     fromCm,
@@ -223,6 +223,15 @@ export interface IBlockOptions {
     hotResizableAreaBottom?: HotCornerArea;
 }
 
+export interface BlockPayload {
+    nodeId: NodeId;
+    name: string;
+    options: IBlockOptions;
+    ownOptions: IBlockOptions;
+    childs: BlockPayload[];
+    additionalParams: any[];
+}
+
 export class Block<T = IBlockOptions> extends Node {
     canvas: Canvas | any;
     ownOptions: IBlock<T>;
@@ -289,6 +298,22 @@ export class Block<T = IBlockOptions> extends Node {
             else this.__runningEvents.selected = false;
         }
     }
+
+    generatePayload(): BlockPayload {
+        const childs: BlockPayload[] = [];
+        this.listOnlyChilds((b: Block) => {
+            childs.push(b.generatePayload());
+        });
+        return {
+            nodeId: this.nodeId,
+            name: this.constructor.name,
+            options: this.options,
+            ownOptions: this.ownOptions,
+            childs: childs,
+            additionalParams: [],
+        };
+    }
+
     addChild(...node: Node[]): void {
         const exists = this.childNodes.some((r) => node.includes(r));
         let before: any = {};
@@ -2751,8 +2776,8 @@ export class Block<T = IBlockOptions> extends Node {
             bottomRight.x,
             bottomRight.y
         );
-        if (inBound) this.canvas?.takeRegister({ in: this.zIndex() });
-        else this.canvas?.takeRegister({ out: this.zIndex() });
+        if (inBound) this.canvas?.registerZIndex({ in: this.zIndex() });
+        else this.canvas?.registerZIndex({ out: this.zIndex() });
         return inBound;
     }
 
@@ -2970,11 +2995,11 @@ export class Block<T = IBlockOptions> extends Node {
             } else inBound = this.checkInBound(e);
 
             if (inBound) {
-                this.canvas?.takeRegister({ in: this.zIndex() });
+                this.canvas?.registerZIndex({ in: this.zIndex() });
                 if (this.canvas?.whoIsTheFirst(this.zIndex()))
                     this.__runningEvents.selected = true;
             } else {
-                this.canvas?.takeRegister({ out: this.zIndex() });
+                this.canvas?.registerZIndex({ out: this.zIndex() });
                 this.__runningEvents.selected = false;
             }
             this.canvas?.invokeChange();
@@ -3010,8 +3035,8 @@ export class Block<T = IBlockOptions> extends Node {
                 beforeValues[this.nodeId!] = {
                     rotate: this.rotate(),
                 };
-                this.canvas?.takeRegister({ in: this.zIndex() });
-            } else this.canvas?.takeRegister({ out: this.zIndex() });
+                this.canvas?.registerZIndex({ in: this.zIndex() });
+            } else this.canvas?.registerZIndex({ out: this.zIndex() });
         };
 
         const mousemove = (event: MouseEvent) => {
@@ -3120,7 +3145,7 @@ export class Block<T = IBlockOptions> extends Node {
             }
 
             if (this.__runningEvents.rotate) {
-                this.canvas?.takeRegister({ in: this.zIndex() });
+                this.canvas?.registerZIndex({ in: this.zIndex() });
                 if (this.canvas?.whoIsTheFirst(this.zIndex())) {
                     let radian = Math.atan2(
                         y - this.rotationCenterY(),
@@ -3228,8 +3253,8 @@ export class Block<T = IBlockOptions> extends Node {
                         this.cornerBottomRight()
                     ),
                 };
-                this.canvas?.takeRegister({ in: this.zIndex() });
-            } else this.canvas?.takeRegister({ out: this.zIndex() });
+                this.canvas?.registerZIndex({ in: this.zIndex() });
+            } else this.canvas?.registerZIndex({ out: this.zIndex() });
         };
 
         const mousemove = (event: MouseEvent) => {
@@ -3440,7 +3465,7 @@ export class Block<T = IBlockOptions> extends Node {
                 }
             }
             if (this.__runningEvents.resize) {
-                this.canvas?.takeRegister({ in: this.zIndex() });
+                this.canvas?.registerZIndex({ in: this.zIndex() });
                 if (this.canvas?.whoIsTheFirst(this.zIndex())) {
                     let diffX = x - initCords.x;
                     let diffY = y - initCords.y;
@@ -3728,7 +3753,7 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.__runningEvents.resize || this.__runningEvents.rotate)
                 return;
             if (this.__runningEvents.drag) {
-                this.canvas?.takeRegister({ in: this.zIndex() });
+                this.canvas?.registerZIndex({ in: this.zIndex() });
                 if (this.canvas?.whoIsTheFirst(this.zIndex())) {
                     const { x, y } = this.canvas?.getCursorPosition(event);
                     let diffX = x - initCords.x;
