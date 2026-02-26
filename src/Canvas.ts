@@ -1,8 +1,9 @@
-import { Tree, Node } from "./Tree";
+import { Tree, Node, NodeId } from "./Tree";
 import { CanvasDOMManager } from "./DOMManager";
 import { getPrototype, xIntersect, yIntersect } from "./Utils";
-import type { Block, IBlockOptions } from "./Block";
+import type { Block, IBlockOptions, BlockPayload } from "./Block";
 import type { ICssProperties, SnapshotObject, CustomEvent } from "./types";
+import { defaultBlocks } from "./defaultBlocks";
 
 export type Composite =
     | "source-over"
@@ -39,25 +40,44 @@ interface CanvasOptions {
     zoom?: "center" | "point";
     keyboardMovement?: boolean;
     mouseMovement?: boolean;
-    fps: number;
+    history?: boolean;
+    historySize?: number;
+    x?: number;
+    y?: number;
+    z?: number;
+    fps?: number;
     alpha?: number;
     composite?: Composite;
-    historySize: number;
-    history?: boolean;
-    zoomSet?: number;
-    x: number;
-    y: number;
 }
 
-interface CanvasEvents {
+interface CanvasEvent {
     func?: CustomEvent<Event>;
     events: CustomEvent<Event>[];
 }
 
+type CanvasEvents = { [key: string]: CanvasEvent };
+
+interface CanvasPayload {
+    canvasId: string;
+    width: number;
+    height: number;
+    options: (CanvasOptions & ICssProperties) | undefined;
+}
+
+interface Payload {
+    canvas: CanvasPayload;
+    blocks: BlockPayload[];
+}
+
 export class Canvas {
-    __domCanvas: CanvasDOMManager;
+    canvasId: string;
+    width: number;
+    height: number;
     options?: CanvasOptions & ICssProperties;
-    #canvasEvents: { [key: string]: CanvasEvents } = {
+
+    __domCanvas: CanvasDOMManager;
+    #tree: Tree;
+    #canvasEvents: CanvasEvents = {
         click: { func: undefined, events: [] },
         dblclick: { func: undefined, events: [] },
         mousedown: { func: undefined, events: [] },
@@ -68,22 +88,25 @@ export class Canvas {
         mouseout: { func: undefined, events: [] },
         mouseover: { func: undefined, events: [] },
     };
-    canvasId: string;
-    width: number;
-    height: number;
-    #tree: Tree;
-    #zoomSpeed = 1.2;
-    #zoomInvSpeed = 0.8;
-    #moveSpeed = 10;
+    #defaultOptions = {
+        history: true,
+        zoom: "center",
+        zoomSpeed: 1.2,
+        zoomInvSpeed: 0.8,
+        moveSpeed: 10,
+        keyboardMovement: true,
+        mouseMovement: true,
+        x: 0,
+        y: 0,
+        z: 1,
+        fps: 60,
+        composite: "source-over",
+        alpha: 1.0,
+    };
     currentCursor: string = "auto";
     __animations: any = [];
-    #fps = 60;
-    #history = true;
-    #elements: number[] = [];
-    #mouseMovement = true;
-    #keyboardMovement = true;
-    #zoomOption = "center";
-    #handledNodes: number[] = [];
+    #higherZElements: number[] = [];
+    #handledNodes: NodeId[] = [];
     #initTime?: number;
     #highZIndex = 1;
 
@@ -99,14 +122,10 @@ export class Canvas {
         this.options = options;
         this.width = width || 300;
         this.height = height || 300;
-        this.#history = this.options?.history || this.#history;
-        this.#zoomOption = this.options?.zoom || "center";
-        this.__positionCords = {
-            x: this.options?.x || 0,
-            y: this.options?.y || 0,
-            z: this.options?.zoomSet || 1,
-        };
+
+        if (this.options) this.setOptions();
         this.#tree = new Tree(this.options?.historySize);
+
         this.__domCanvas = new CanvasDOMManager(
             this.canvasId,
             this.width,
@@ -124,6 +143,33 @@ export class Canvas {
         return this.__domCanvas.canvas;
     }
 
+    setOptions() {
+        if (this.options?.history)
+            this.#defaultOptions.history = this.options.history;
+        if (this.options?.zoom) this.#defaultOptions.zoom = this.options.zoom;
+        if (this.options?.zoomSpeed)
+            this.#defaultOptions.zoomSpeed = this.options.zoomSpeed;
+
+        if (this.options?.zoomInvSpeed)
+            this.#defaultOptions.zoomInvSpeed = this.options.zoomInvSpeed;
+        if (this.options?.moveSpeed)
+            this.#defaultOptions.moveSpeed = this.options.moveSpeed;
+        if (this.options?.keyboardMovement)
+            this.#defaultOptions.keyboardMovement =
+                this.options.keyboardMovement;
+        if (this.options?.mouseMovement)
+            this.#defaultOptions.mouseMovement = this.options.mouseMovement;
+        if (this.options?.x) this.#defaultOptions.x = this.options.x;
+        if (this.options?.y) this.#defaultOptions.y = this.options.y;
+        if (this.options?.z) this.#defaultOptions.z = this.options.z;
+        if (this.options?.fps) this.#defaultOptions.fps = this.options.fps;
+        this.__positionCords = {
+            x: this.#defaultOptions.x,
+            y: this.#defaultOptions.y,
+            z: this.#defaultOptions.z,
+        };
+    }
+
     #initCanvas() {
         this.canvas;
         this.context.save();
@@ -131,18 +177,20 @@ export class Canvas {
         window.onload = () => {
             if (this.options) {
                 this.context.globalCompositeOperation =
-                    this.options.composite || "source-over";
-                this.context.globalAlpha = this.options.alpha || 1.0;
-
-                if (this.#history) this.#snapshotHandler();
+                    this.options.composite ||
+                    (this.#defaultOptions
+                        .composite as GlobalCompositeOperation);
+                this.context.globalAlpha =
+                    this.options.alpha || this.#defaultOptions.alpha;
 
                 this.__domCanvas.changeStyle(this.options);
 
-                if (this.#mouseMovement) this.#handMove();
-                if (this.#keyboardMovement) this.#keyboardMove();
-
-                if (this.#zoomOption == "point") this.#pointZoom();
-                else if (this.#zoomOption == "center") this.#centerZoom();
+                if (this.#defaultOptions.history) this.#snapshotHandler();
+                if (this.#defaultOptions.mouseMovement) this.#handMove();
+                if (this.#defaultOptions.keyboardMovement) this.#keyboardMove();
+                if (this.#defaultOptions.zoom == "point") this.#pointZoom();
+                else if (this.#defaultOptions.zoom == "center")
+                    this.#centerZoom();
             }
         };
     }
@@ -172,9 +220,76 @@ export class Canvas {
         // @Todo: take snapshot for this
     }
 
-    find(queries: IBlockOptions) {
+    export(): string {
+        const payload: Payload = {
+            canvas: {
+                canvasId: this.canvasId,
+                width: this.width,
+                height: this.height,
+                options: this.options,
+            },
+            blocks: [],
+        };
+        this.#tree.head.listOnlyChilds((block: Block) => {
+            payload.blocks.push(block.generatePayload());
+        });
+        return JSON.stringify(payload);
+    }
+
+    load(payload: string) {
+        const parsedPayload = JSON.parse(payload) as Payload;
+        const canvasOpt = parsedPayload.canvas;
+        this.canvasId = canvasOpt.canvasId;
+        this.options = canvasOpt.options;
+        this.width = canvasOpt.width;
+        this.height = canvasOpt.height;
+        if (this.options) this.setOptions();
+        this.#initCanvas();
+
+        const blocks = parsedPayload.blocks;
+        const constructedBlocks: Block[] = [];
+
+        const checkBlock = (block: BlockPayload) => {
+            const exists = this.find({ nodeId: block.nodeId });
+            const childs: Block[] = [];
+            let foundBlock;
+            if (exists && exists[0]) {
+                foundBlock = exists[0];
+            } else {
+                const found = defaultBlocks.filter(
+                    (b) => b.name === block.name
+                );
+                let invokeClass = found[0];
+                if (invokeClass)
+                    if (block.additionalParams.length !== 0)
+                        foundBlock = new invokeClass(
+                            ...block.additionalParams,
+                            block.options || {}
+                        );
+                    else {
+                        foundBlock = new invokeClass(block.options || {});
+                    }
+            }
+            foundBlock.ownOptions = block.ownOptions || block.options;
+            if (block.childs?.length !== 0)
+                for (let i = 0, len = block.childs!.length; i < len; i++) {
+                    const childBlock = checkBlock(block.childs![i]);
+                    if (childBlock) childs.push(childBlock);
+                }
+            foundBlock.addChild(...childs);
+            return foundBlock;
+        };
+
+        for (let i = 0, len = blocks.length; i < len; i++) {
+            const b = checkBlock(blocks[i]);
+            if (b) constructedBlocks.push(b);
+        }
+        this.add(...constructedBlocks);
+    }
+
+    find(queries: IBlockOptions): Block[] {
         let blocks: Block[] = [];
-        this.#tree.listSortedChilds((block: Block) => {
+        this.#tree.head.listAllChilds((block: Block) => {
             for (const [k, v] of Object.entries(queries)) {
                 if (
                     block.ownOptions[k] === v ||
@@ -198,13 +313,17 @@ export class Canvas {
     }
 
     whoIsTheFirst(zIndex: number) {
-        return Math.max(...this.#elements) === zIndex;
+        return Math.max(...this.#higherZElements) === zIndex;
     }
 
-    takeRegister(inOutZ: any) {
+    registerZIndex(inOutZ: any) {
         let m = inOutZ["in"];
-        if (m && !this.#elements.includes(m)) this.#elements.push(m);
-        else this.#elements = this.#elements.filter((i) => i !== inOutZ["out"]);
+        if (m && !this.#higherZElements.includes(m))
+            this.#higherZElements.push(m);
+        else
+            this.#higherZElements = this.#higherZElements.filter(
+                (i) => i !== inOutZ["out"]
+            );
     }
 
     __handleOptions(block: Block): void {
@@ -326,7 +445,7 @@ export class Canvas {
     }
 
     takeSnapshot(before: SnapshotObject, after: SnapshotObject) {
-        if (this.#history)
+        if (this.#defaultOptions.history)
             this.#tree.takeSanpshot(new Date().getTime(), before, after);
     }
 
@@ -375,25 +494,29 @@ export class Canvas {
             requestAnimationFrame(framer);
             // getting true frame per second
             const delta = timestamp - lastFrame;
-            if (lastFrame && delta < this.#fps / 1000) return;
+            if (lastFrame && delta < this.#defaultOptions.fps / 1000) return;
             this.context.restore();
             this.context.save();
             this.clearRect();
             for (let anime of animations) {
                 anime(timestamp);
             }
-            const execTime = delta % this.#fps;
+            const execTime = delta % this.#defaultOptions.fps;
             lastFrame = timestamp - execTime;
         };
         requestAnimationFrame(framer);
     }
     #pointZoom() {
         window.addEventListener("wheel", (event: WheelEvent) => {
+            if (this.#defaultOptions.zoom !== "point") return;
             if (event.ctrlKey) {
                 const { x, y } = this.getCursorPosition(event);
 
-                let scale = this.options?.zoomSpeed || this.#zoomSpeed;
-                let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
+                let scale =
+                    this.options?.zoomSpeed || this.#defaultOptions.zoomSpeed;
+                let invScale =
+                    this.options?.zoomInvSpeed ||
+                    this.#defaultOptions.zoomInvSpeed;
 
                 let beforeX = this.__positionCords.x;
                 let beforeY = this.__positionCords.y;
@@ -435,9 +558,13 @@ export class Canvas {
 
     #centerZoom() {
         window.addEventListener("wheel", (event: WheelEvent) => {
+            if (this.#defaultOptions.zoom !== "center") return;
             if (event.ctrlKey) {
-                let scale = this.options?.zoomSpeed || this.#zoomSpeed;
-                let invScale = this.options?.zoomInvSpeed || this.#zoomInvSpeed;
+                let scale =
+                    this.options?.zoomSpeed || this.#defaultOptions.zoomSpeed;
+                let invScale =
+                    this.options?.zoomInvSpeed ||
+                    this.#defaultOptions.zoomInvSpeed;
                 this.invokeChange((block: Block) => {
                     if (event.deltaY < 0) {
                         const cacheR = block.rotate();
@@ -489,6 +616,7 @@ export class Canvas {
         let isKeyDown = false;
 
         window.addEventListener("keydown", (event) => {
+            if (!this.#defaultOptions.mouseMovement) return;
             if (event.code == "Space") {
                 if (!isKeyDown) {
                     (this.__domCanvas as any).changeStyle({ cursor: "grab" });
@@ -498,6 +626,8 @@ export class Canvas {
         });
 
         window.addEventListener("mousemove", (event: MouseEvent) => {
+            if (!this.#defaultOptions.mouseMovement) return;
+
             if (event.buttons == 0) {
                 isMouseDown = false;
                 if (isKeyDown)
@@ -537,6 +667,7 @@ export class Canvas {
         });
 
         window.addEventListener("keyup", (event) => {
+            if (!this.#defaultOptions.mouseMovement) return;
             (this.__domCanvas as any).changeStyle({ cursor: "auto" });
             isKeyDown = false;
         });
@@ -551,14 +682,15 @@ export class Canvas {
 
     #setCanvasZoom() {
         this.invokeChange((elem) => {
-            elem.width(elem.width() * (this.options?.zoomSet || 1));
-            elem.height(elem.height() * (this.options?.zoomSet || 1));
+            elem.width(elem.width() * this.#defaultOptions.z);
+            elem.height(elem.height() * this.#defaultOptions.z);
         });
     }
 
     #keyboardMove() {
-        const moveSpeed = this.options?.moveSpeed || this.#moveSpeed;
+        const moveSpeed = this.#defaultOptions.moveSpeed;
         window.addEventListener("wheel", (event: WheelEvent) => {
+            if (!this.#defaultOptions.keyboardMovement) return;
             if (event.ctrlKey) return;
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
@@ -590,6 +722,7 @@ export class Canvas {
 
     #snapshotHandler() {
         window.addEventListener("keydown", (e: KeyboardEvent) => {
+            if (!this.#defaultOptions.history) return;
             let obj;
             if (e.key === "Z" && e.ctrlKey) obj = this.#tree.snapshotInFuture();
             else if (e.key === "z" && e.ctrlKey)
