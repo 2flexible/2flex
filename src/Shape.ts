@@ -266,13 +266,14 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         if (this.ownOptions.strokeStyle) this.strokeStyle();
 
         this.draw();
-        
-        if (this.ownOptions.fill) this.fill();
-        if (this.ownOptions.stroke) this.stroke();
+
         this.#contextFilter();
 
+        if (this.ownOptions.fill) this.fill();
+        if (this.ownOptions.stroke) this.stroke();
+
         this.context?.restore();
-        
+
         this.__isSelected();
     }
 
@@ -676,9 +677,12 @@ export class Shape<T> extends Block<T | IShapeOptions> {
                 break;
             case "drop-shadow":
                 let _s = "";
-                (value as number[]).forEach((i) => {
-                    if (typeof i == "string") _s += `${i}px`;
-                    else _s += i;
+                (value as number[]).forEach((i, idx, arr) => {
+                    if (typeof i == "string") _s += i;
+                    else {
+                        _s += `${i}px`;
+                        if (idx !== arr.length - 1) _s += " ";
+                    }
                 });
                 value = _s;
                 break;
