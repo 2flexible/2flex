@@ -1,6 +1,6 @@
 import { Shape } from "../Shape";
 import type { IBlock } from "../types";
-import { checkInBound } from "../Utils";
+import { checkInBound, getPrototype } from "../Utils";
 
 interface ILineOptions {
     startX?: number;
@@ -19,7 +19,9 @@ interface ILineOptions {
     lineColor?: number;
     backgroundColor?: number;
     closePath?: boolean;
-    joinTo: Line;
+    joinTo?: Line;
+    controlPointsSize?: number;
+    editable?: boolean;
 }
 
 export class Line extends Shape<ILineOptions> {
@@ -29,26 +31,16 @@ export class Line extends Shape<ILineOptions> {
     pathC2?: Path2D;
     pathC3?: Path2D;
     pathC4?: Path2D;
+    __joined = false;
     __editable = false;
+    __xPoints: number[] = [];
+    __yPoints: number[] = [];
 
     constructor(options: IBlock<ILineOptions>) {
         super(options);
-
-        this.dblclick((e) => (this.__editable = true));
-        const click = (event: MouseEvent) => {
-            const { x, y } = this.canvas?.getCursorPosition(event);
-            if (
-                !this.#pathInBound(x, y, this.pathC1!) &&
-                !this.#pathInBound(x, y, this.pathC2!) &&
-                !this.#pathInBound(x, y, this.pathC3!) &&
-                !this.#pathInBound(x, y, this.pathC4!) &&
-                !this.#pathInBound(x, y, this.path!)
-            )
-                this.__editable = false;
-        };
-        this.__eventHandler<MouseEvent>("click", click);
     }
     render(): void {
+        this.#boundingBox();
         super.render();
         if (this.__runningEvents.selected || this.__editable) {
             this.__hotLines();
@@ -58,11 +50,13 @@ export class Line extends Shape<ILineOptions> {
     }
 
     joinTo(opt?: Line) {
-        return this.__valueHandler<Line, Line | undefined>(
+        const join = this.__valueHandler<Line, Line | undefined>(
             opt,
             "joinTo",
             undefined
         );
+        if (join !== undefined) join.__joined = true;
+        return join;
     }
 
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
@@ -73,8 +67,6 @@ export class Line extends Shape<ILineOptions> {
             this.startY(joined!.endY());
             this.zIndex(joined!.zIndex());
             this.__editable = joined!.__editable;
-            // width height need to be combined as well
-            // first need to identify boundries of top and low
         } else {
             this.path = new Path2D();
             this.path!.moveTo(this.startX(), this.startY());
@@ -94,7 +86,7 @@ export class Line extends Shape<ILineOptions> {
 
     __hotLines(): void {
         if (!this.__editable) {
-            super.__hotLines();
+            if (!this.__joined) super.__hotLines();
             return;
         }
 
@@ -106,6 +98,7 @@ export class Line extends Shape<ILineOptions> {
             -this.rotationCenterY()
         );
         this.context.setLineDash([]);
+
         this.beginPath();
         this.pathLine = new Path2D();
         this.pathLine.moveTo(this.startX(), this.startY());
@@ -121,16 +114,30 @@ export class Line extends Shape<ILineOptions> {
         this.context.strokeStyle = "blue";
         this.context.stroke(this.pathLine);
 
+        this.beginPath();
         this.pathC1 = new Path2D();
-        this.pathC1.arc(this.startX(), this.startY(), 3, 0, Math.PI * 2);
+        this.pathC1.arc(
+            this.startX(),
+            this.startY(),
+            this.controlPointsSize(),
+            0,
+            Math.PI * 2
+        );
         this.context.lineWidth = 2;
         this.context.strokeStyle = "blue";
         this.context.fillStyle = "white";
         this.context.stroke(this.pathC1);
         this.context.fill(this.pathC1);
+        this.beginPath();
 
         this.pathC4 = new Path2D();
-        this.pathC4.arc(this.endX(), this.endY(), 3, 0, Math.PI * 2);
+        this.pathC4.arc(
+            this.endX(),
+            this.endY(),
+            this.controlPointsSize(),
+            0,
+            Math.PI * 2
+        );
         this.context.lineWidth = 2;
         this.context.strokeStyle = "blue";
         this.context.fillStyle = "white";
@@ -138,37 +145,41 @@ export class Line extends Shape<ILineOptions> {
         this.context.fill(this.pathC4);
 
         if (this.startControllable()) {
+            this.beginPath();
+            this.context.moveTo(this.startX(), this.startY());
+            this.context.lineTo(this.startControlX(), this.startControlY());
             this.pathC2 = new Path2D();
             this.pathC2.arc(
                 this.startControlX(),
                 this.startControlY(),
-                3,
+                this.controlPointsSize(),
                 0,
                 Math.PI * 2
             );
-            this.pathC2.moveTo(this.startX(), this.startY());
-            this.pathC2.lineTo(this.startControlX(), this.startControlY());
             this.context.lineWidth = 1;
             this.context.strokeStyle = "blue";
             this.context.fillStyle = "white";
+            this.context.stroke();
             this.context.stroke(this.pathC2);
             this.context.fill(this.pathC2);
         }
 
         if (this.endControllable()) {
+            this.beginPath();
+            this.context.moveTo(this.endX(), this.endY());
+            this.context.lineTo(this.endControlX(), this.endControlY());
             this.pathC3 = new Path2D();
             this.pathC3.arc(
                 this.endControlX(),
                 this.endControlY(),
-                3,
+                this.controlPointsSize(),
                 0,
                 Math.PI * 2
             );
-            this.pathC3.moveTo(this.endX(), this.endY());
-            this.pathC3.lineTo(this.endControlX(), this.endControlY());
             this.context.lineWidth = 1;
             this.context.strokeStyle = "blue";
             this.context.fillStyle = "white";
+            this.context.stroke();
             this.context.stroke(this.pathC3);
             this.context.fill(this.pathC3);
         }
@@ -178,7 +189,7 @@ export class Line extends Shape<ILineOptions> {
     checkInBound(_event: MouseEvent): boolean {
         const { x, y } = this.canvas.getCursorPosition(_event);
         let inBound = false;
-
+        this.lineWidth();
         if (!this.__runningEvents.selected) {
             inBound = this.#pathInBound(x, y, this.path!);
         } else if (!this.__editable) {
@@ -195,8 +206,8 @@ export class Line extends Shape<ILineOptions> {
                 this.hotCornerBottomRight().y
             );
         }
-        if (inBound) this.canvas?.takeRegister({ in: this.zIndex() });
-        else this.canvas?.takeRegister({ out: this.zIndex() });
+        if (inBound) this.canvas?.registerZIndex({ in: this.zIndex() });
+        else this.canvas?.registerZIndex({ out: this.zIndex() });
         return inBound;
     }
 
@@ -207,8 +218,6 @@ export class Line extends Shape<ILineOptions> {
         if (diffX !== 0) {
             this.startX(this.startX() + diffX);
             this.endX(this.endX() + diffX);
-            this.startControlX(this.startControlX() + diffX);
-            this.endControlX(this.endControlX() + diffX);
         }
         return x;
     }
@@ -220,30 +229,56 @@ export class Line extends Shape<ILineOptions> {
         if (diffY !== 0) {
             this.startY(this.startY() + diffY);
             this.endY(this.endY() + diffY);
-            this.startControlY(this.startControlY() + diffY);
-            this.endControlY(this.endControlY() + diffY);
         }
         return y;
     }
 
     startX(opt?: number) {
-        const x = this.__valueHandler(opt, "startX", undefined);
-        if (x === undefined) return this.x();
+        const cacheX = this.ownOptions.startX || 0;
+        let x = this.__valueHandler<number, number | undefined>(
+            opt,
+            "startX",
+            undefined
+        );
+        if (x === undefined) x = this.x();
+        const diffX = x - cacheX;
+        if (diffX !== 0) this.startControlX(this.startControlX() + diffX);
         return x;
     }
     startY(opt?: number) {
-        const y = this.__valueHandler(opt, "startY", undefined);
-        if (y === undefined) return this.y();
+        const cacheY = this.ownOptions.startY || 0;
+        let y = this.__valueHandler<number, number | undefined>(
+            opt,
+            "startY",
+            undefined
+        );
+        if (y === undefined) y = this.y();
+        const diffY = y - cacheY;
+        if (diffY !== 0) this.startControlY(this.startControlY() + diffY);
         return y;
     }
     endX(opt?: number) {
-        const x = this.__valueHandler(opt, "endX", undefined);
-        if (x === undefined) return this.x() + this.width();
+        const cacheX = this.ownOptions.endX || 0;
+        let x = this.__valueHandler<number, number | undefined>(
+            opt,
+            "endX",
+            undefined
+        );
+        if (x === undefined) x = this.x() + this.width();
+        const diffX = x - cacheX;
+        if (diffX !== 0) this.endControlX(this.endControlX() + diffX);
         return x;
     }
     endY(opt?: number) {
-        const y = this.__valueHandler(opt, "endY", undefined);
-        if (y === undefined) return this.y() + this.height();
+        const cacheY = this.ownOptions.endY || 0;
+        let y = this.__valueHandler<number, number | undefined>(
+            opt,
+            "endY",
+            undefined
+        );
+        if (y === undefined) y = this.y() + this.height();
+        const diffY = y - cacheY;
+        if (diffY !== 0) this.endControlY(this.endControlY() + diffY);
         return y;
     }
     startControlX(opt?: number) {
@@ -269,12 +304,18 @@ export class Line extends Shape<ILineOptions> {
     startDraggable(opt?: boolean) {
         const draggable = this.__valueHandler(opt, "startDraggable", false);
         if (draggable)
-            this.#draggablePoints(this.startX, this.startY, "pathC1");
+            this.#draggablePoints(
+                "startX",
+                "startY",
+                "pathC1",
+                "startDraggable"
+            );
         return draggable;
     }
     endDraggable(opt?: boolean) {
         const draggable = this.__valueHandler(opt, "endDraggable", false);
-        if (draggable) this.#draggablePoints(this.endX, this.endY, "pathC4");
+        if (draggable)
+            this.#draggablePoints("endX", "endY", "pathC4", "endDraggable");
         return draggable;
     }
 
@@ -282,17 +323,71 @@ export class Line extends Shape<ILineOptions> {
         const draggable = this.__valueHandler(opt, "startControllable", false);
         if (draggable)
             this.#draggablePoints(
-                this.startControlX,
-                this.startControlY,
-                "pathC2"
+                "startControlX",
+                "startControlY",
+                "pathC2",
+                "startControllable"
             );
         return draggable;
     }
     endControllable(opt?: boolean) {
         const draggable = this.__valueHandler(opt, "endControllable", false);
         if (draggable)
-            this.#draggablePoints(this.endControlX, this.endControlY, "pathC3");
+            this.#draggablePoints(
+                "endControlX",
+                "endControlY",
+                "pathC3",
+                "endControllable"
+            );
         return draggable;
+    }
+
+    controlPointsSize(opt?: number) {
+        return this.__valueHandler(opt, "controlPointsSize", 4);
+    }
+
+    editable(opt?: boolean) {
+        const editable = this.__valueHandler(opt, "editable", false);
+        if (!editable) return editable;
+
+        const dblclick = (event: MouseEvent) => {
+            const { x, y } = this.canvas?.getCursorPosition(event);
+            if (this.#pathInBound(x, y, this.path!)) {
+                this.__editable = true;
+                this.canvas?.invokeChange();
+            }
+        };
+        const click = (event: MouseEvent) => {
+            const { x, y } = this.canvas?.getCursorPosition(event);
+            let editable =
+                !this.#pathInBound(x, y, this.path!) &&
+                !this.#pathInBound(x, y, this.pathC1!) &&
+                !this.#pathInBound(x, y, this.pathC2!) &&
+                !this.#pathInBound(x, y, this.pathC3!) &&
+                !this.#pathInBound(x, y, this.pathC4!);
+
+            if (editable) {
+                this.__editable = false;
+            }
+            const join = this.joinTo();
+            if (
+                join !== undefined &&
+                !this.#pathInBound(x, y, join!.pathC1!) &&
+                !this.#pathInBound(x, y, join!.pathC2!) &&
+                !this.#pathInBound(x, y, join!.pathC3!) &&
+                !this.#pathInBound(x, y, join!.pathC4!) &&
+                !this.#pathInBound(x, y, this.path!)
+            ) {
+                join.__editable = !editable;
+            }
+        };
+        this.__eventHandler<MouseEvent>("click", click, "editableClick");
+        this.__eventHandler<MouseEvent>(
+            "dblclick",
+            dblclick,
+            "editableDlclick"
+        );
+        return editable;
     }
 
     #pathInBound(x: number, y: number, path: Path2D) {
@@ -302,13 +397,21 @@ export class Line extends Shape<ILineOptions> {
         );
     }
 
-    #draggablePoints(xPoint: any, yPoint: any, path: string) {
+    #draggablePoints(
+        xPoint: string,
+        yPoint: string,
+        path: string,
+        identify: string
+    ) {
         let initCords = { x: 0, y: 0 };
         let beforeCords = { x: 0, y: 0 };
         let beforeValues: any = {};
         let isRunning = false;
+        const callX = getPrototype(this, xPoint);
+        const callY = getPrototype(this, yPoint);
 
         const mousedown = (event: MouseEvent) => {
+            isRunning = false;
             const pointPaths: { [key: string]: Path2D } = {
                 pathC1: this.pathC1!,
                 pathC2: this.pathC2!,
@@ -317,35 +420,36 @@ export class Line extends Shape<ILineOptions> {
             };
             const { x, y } = this.canvas?.getCursorPosition(event);
             const inBound = this.#pathInBound(x, y, pointPaths[path]);
+
             if (inBound) {
                 initCords = { x: x, y: y };
                 beforeCords = { x: 0, y: 0 };
-                beforeValues[this.nodeId!] = {
-                    x: xPoint.call(this),
-                    y: yPoint.call(this),
-                };
-
+                beforeValues[this.nodeId!] = {};
+                beforeValues[this.nodeId!][xPoint] = callX?.value.call(this);
+                beforeValues[this.nodeId!][yPoint] = callY?.value.call(this);
                 isRunning = true;
-                this.canvas?.takeRegister({ in: this.zIndex() });
-            } else this.canvas?.takeRegister({ out: this.zIndex() });
+                this.canvas?.registerZIndex({ in: this.zIndex() });
+            } else this.canvas?.registerZIndex({ out: this.zIndex() });
         };
 
         const mousemove = (event: MouseEvent) => {
             if (isRunning) {
                 this.__runningEvents.drag = false;
-                this.canvas?.takeRegister({ in: this.zIndex() });
+                if (this.joinTo() !== undefined)
+                    this.joinTo()!.__runningEvents.drag = false;
+                this.canvas?.registerZIndex({ in: this.zIndex() });
                 if (this.canvas?.whoIsTheFirst(this.zIndex())) {
                     const { x, y } = this.canvas?.getCursorPosition(event);
                     let diffX = x - initCords.x;
                     let diffY = y - initCords.y;
                     if (diffX !== 0) {
                         const diff = diffX - beforeCords.x;
-                        xPoint.call(this, xPoint.call(this) + diff);
+                        callX?.value.call(this, callX?.value.call(this) + diff);
                         beforeCords.x = diffX;
                     }
                     if (diffY !== 0) {
                         const diff = diffY - beforeCords.y;
-                        yPoint.call(this, yPoint.call(this) + diff);
+                        callY?.value.call(this, callY?.value.call(this) + diff);
                         beforeCords.y = diffY;
                     }
                     this.canvas?.invokeChange();
@@ -357,18 +461,94 @@ export class Line extends Shape<ILineOptions> {
                 isRunning = false;
                 if (beforeCords.x !== 0 || beforeCords.y !== 0) {
                     const after: any = {};
-                    after[this.nodeId!] = {
-                        x: xPoint.call(this),
-                        y: yPoint.call(this),
-                    };
+                    after[this.nodeId!] = {};
+                    after[this.nodeId!][xPoint] = callX?.value.call(this);
+                    after[this.nodeId!][yPoint] = callY?.value.call(this);
                     this.canvas?.takeSnapshot(beforeValues, after);
                     this.canvas?.invokeChange();
                 }
             }
         };
-        this.__eventHandler<MouseEvent>("mousedown", mousedown);
-        this.__eventHandler<MouseEvent>("mousemove", mousemove);
-        this.__eventHandler<MouseEvent>("mouseup", mouseup);
+        this.__eventHandler<MouseEvent>(
+            "mousedown",
+            mousedown,
+            `${identify}Down`
+        );
+        this.__eventHandler<MouseEvent>(
+            "mousemove",
+            mousemove,
+            `${identify}Move`
+        );
+        this.__eventHandler<MouseEvent>("mouseup", mouseup, `${identify}Up`);
+    }
+
+    #boundingBox() {
+        const c1 = this.#findMinMax(
+            this.startX(),
+            this.startControlX(),
+            this.endControlX(),
+            this.endX()
+        );
+        const c2 = this.#findMinMax(
+            this.startY(),
+            this.startControlY(),
+            this.endControlY(),
+            this.endY()
+        );
+        this.__xPoints = [this.startX(), this.endX(), ...c1];
+        this.__yPoints = [this.startY(), this.endY(), ...c2];
+        const joined = this.joinTo();
+        if (joined !== undefined) {
+            this.__xPoints = [...this.__xPoints, ...joined.__xPoints];
+            this.__yPoints = [...this.__yPoints, ...joined.__yPoints];
+        }
+        this.hotCornerTopLeft({
+            x: Math.min(...this.__xPoints),
+            y: Math.min(...this.__yPoints),
+        });
+        this.hotCornerTopRight({
+            x: Math.max(...this.__xPoints),
+            y: Math.min(...this.__yPoints),
+        });
+        this.hotCornerBottomLeft({
+            x: Math.min(...this.__xPoints),
+            y: Math.max(...this.__yPoints),
+        });
+        this.hotCornerBottomRight({
+            x: Math.max(...this.__xPoints),
+            y: Math.max(...this.__yPoints),
+        });
+    }
+
+    #findMinMax(p0: number, p1: number, p2: number, p3: number) {
+        const a = 3 * (-p0 + 3 * p1 - 3 * p2 + p3);
+        const b = 6 * (p0 - 2 * p1 + p2);
+        const c = 3 * (p1 - p0);
+
+        const points = [];
+        const D = Math.pow(b, 2) - 4 * a * c;
+        if (D == 0) {
+            const t = -b / (2 * a);
+            if (t >= 0 && t <= 1) points.push(t);
+        } else if (D > 0) {
+            const base = Math.sqrt(D);
+            const t1 = (-b + base) / (2 * a);
+            const t2 = (-b - base) / (2 * a);
+            if (t1 >= 0 && t1 <= 1) points.push(t1);
+            if (t2 >= 0 && t2 <= 1) points.push(t2);
+        }
+        return points.map((i) => {
+            return this.#cubicBezier(p0, p1, p2, p3, i);
+        });
+    }
+
+    #cubicBezier(p0: number, p1: number, p2: number, p3: number, t: number) {
+        const res =
+            p0 * (1 - t) ** 3 +
+            3 * p1 * t * (1 - t) ** 2 +
+            3 * p2 * (1 - t) * t ** 2 +
+            p3 * t ** 3;
+        return res;
     }
 
     closePath(opt?: boolean): boolean {
@@ -394,5 +574,10 @@ export class Line extends Shape<ILineOptions> {
             this.fill(true);
         }
         return backgroundColor;
+    }
+
+    scale(opt?: number): void {
+        super.scale(opt);
+        this.lineWidth(this.lineWidth() * (opt || 1));
     }
 }
