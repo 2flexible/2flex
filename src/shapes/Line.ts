@@ -1,7 +1,13 @@
-import { XY } from "../Block";
 import { Shape } from "../Shape";
+import type { Block } from "../Block";
 import type { IBlock } from "../types";
 import { checkInBound, getPrototype } from "../Utils";
+
+interface StickyLine {
+    block?: Block;
+    x: number;
+    y: number;
+}
 
 interface ILineOptions {
     startX?: number;
@@ -23,6 +29,8 @@ interface ILineOptions {
     joinTo?: Line;
     controlPointsSize?: number;
     editable?: boolean;
+    stickStart?: StickyLine;
+    stickEnd?: StickyLine;
 }
 
 export class Line extends Shape<ILineOptions> {
@@ -35,12 +43,35 @@ export class Line extends Shape<ILineOptions> {
     __joined = false;
     __editable = false;
     __points: { x: number[]; y: number[] } = { x: [], y: [] };
+    __stickyStartBlock: {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+    } = {
+        x: undefined,
+        y: undefined,
+        width: undefined,
+        height: undefined,
+    };
+    __stickyEndBlock: {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+    } = {
+        x: undefined,
+        y: undefined,
+        width: undefined,
+        height: undefined,
+    };
 
     constructor(options: IBlock<ILineOptions>) {
         super(options);
     }
     render(): void {
         this.#boundingBox();
+        this.#handleSticky();
         super.render();
         if (this.__runningEvents.selected || this.__editable) {
             this.__hotLines();
@@ -353,6 +384,20 @@ export class Line extends Shape<ILineOptions> {
         if (y === undefined) return this.endY();
         return y;
     }
+    stickStart(opt?: StickyLine): StickyLine {
+        return this.__valueHandler(opt, "stickStart", {
+            block: undefined,
+            x: 0,
+            y: 0,
+        });
+    }
+    stickEnd(opt?: StickyLine): StickyLine {
+        return this.__valueHandler(opt, "stickEnd", {
+            block: undefined,
+            x: 0,
+            y: 0,
+        });
+    }
     startDraggable(opt?: boolean) {
         const draggable = this.__valueHandler(opt, "startDraggable", false);
         if (draggable)
@@ -532,6 +577,64 @@ export class Line extends Shape<ILineOptions> {
             `${identify}Move`
         );
         this.__eventHandler<MouseEvent>("mouseup", mouseup, `${identify}Up`);
+    }
+
+    #handleSticky() {
+        if (
+            this.stickStart() !== undefined &&
+            this.stickStart().block !== undefined
+        ) {
+            const b = this.stickStart().block;
+
+            if (this.__stickyStartBlock.x !== undefined) {
+                this.stickStart().x += b!.x() - this.__stickyStartBlock.x;
+            }
+            if (this.__stickyStartBlock.y !== undefined) {
+                this.stickStart().y += b!.y() - this.__stickyStartBlock.y;
+            }
+
+            if (this.__stickyStartBlock.width !== undefined) {
+                this.stickStart().x += b!.width() - this.__stickyStartBlock.width;
+            }
+            if (this.__stickyStartBlock.height !== undefined) {
+                this.stickStart().y += b!.height() - this.__stickyStartBlock.height;
+            }
+            this.__stickyStartBlock.x = b!.x();
+            this.__stickyStartBlock.y = b!.y();
+            this.__stickyStartBlock.width = b!.width();
+            this.__stickyStartBlock.height = b!.height();
+
+            this.startX(this.stickStart().x);
+            this.startY(this.stickStart().y);
+        }
+
+        if (
+            this.stickEnd() !== undefined &&
+            this.stickEnd().block !== undefined
+        ) {
+            const b = this.stickEnd().block;
+
+            if (this.__stickyEndBlock.x !== undefined) {
+                this.stickEnd().x += b!.x() - this.__stickyEndBlock.x;
+            }
+            if (this.__stickyEndBlock.y !== undefined) {
+                this.stickEnd().y += b!.y() - this.__stickyEndBlock.y;
+            }
+
+            if (this.__stickyEndBlock.width !== undefined) {
+                this.stickEnd().x += b!.width() - this.__stickyEndBlock.width;
+            }
+            if (this.__stickyEndBlock.height !== undefined) {
+                this.stickEnd().y += b!.height() - this.__stickyEndBlock.height;
+            }
+            this.__stickyEndBlock.x = b!.x();
+            this.__stickyEndBlock.y = b!.y();
+            this.__stickyEndBlock.width = b!.width();
+            this.__stickyEndBlock.height = b!.height();
+
+            this.endX(this.stickEnd().x);
+            this.endY(this.stickEnd().y);
+        }
     }
 
     #boundingBox() {
