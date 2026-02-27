@@ -1,3 +1,4 @@
+import { XY } from "../Block";
 import { Shape } from "../Shape";
 import type { IBlock } from "../types";
 import { checkInBound, getPrototype } from "../Utils";
@@ -33,8 +34,7 @@ export class Line extends Shape<ILineOptions> {
     pathC4?: Path2D;
     __joined = false;
     __editable = false;
-    __xPoints: number[] = [];
-    __yPoints: number[] = [];
+    __points: { x: number[]; y: number[] } = { x: [], y: [] };
 
     constructor(options: IBlock<ILineOptions>) {
         super(options);
@@ -66,6 +66,7 @@ export class Line extends Shape<ILineOptions> {
             this.startX(joined!.endX());
             this.startY(joined!.endY());
             this.zIndex(joined!.zIndex());
+            // this.width(joined!.width())
             this.__editable = joined!.__editable;
         } else {
             this.path = new Path2D();
@@ -210,7 +211,6 @@ export class Line extends Shape<ILineOptions> {
         else this.canvas?.registerZIndex({ out: this.zIndex() });
         return inBound;
     }
-
     x(opt?: number | string): number {
         const cacheX = this.ownOptions.x || 0;
         const x = super.x(opt);
@@ -231,6 +231,58 @@ export class Line extends Shape<ILineOptions> {
             this.endY(this.endY() + diffY);
         }
         return y;
+    }
+    width(opt?: number | string): number {
+        const cacheW = this.ownOptions.width || 0;
+        const w = super.width(opt);
+        if (w < this.minWidth() && !this.horizontalFlipResize())
+            return this.minWidth();
+        const diffW = w - cacheW;
+        if (diffW) {
+            const cR = this.rotate();
+            this.rotate(0);
+            const joined = this.joinTo();
+            if (joined) {
+                if (this.endX() > joined.startX()) {
+                    this.endX(this.endX() + diffW);
+                    joined.endX(joined.endX() + diffW);
+                } else {
+                    joined.startX(joined.startX() + diffW);
+                    this.startX(this.startX() + diffW);
+                }
+            } else {
+                if (this.endX() > this.startX()) this.endX(this.endX() + diffW);
+                else this.startX(this.startX() + diffW);
+            }
+            this.rotate(cR);
+        }
+        return w;
+    }
+    height(opt?: number | string): number {
+        const cacheH = this.ownOptions.height || 0;
+        const h = super.height(opt);
+        if (h < this.minHeight() && !this.verticalFlipResize())
+            return this.minHeight();
+        const diffH = h - cacheH;
+        if (diffH) {
+            const cR = this.rotate();
+            this.rotate(0);
+            const joined = this.joinTo();
+            if (joined) {
+                if (this.endY() > joined.startY()) {
+                    this.endY(this.endY() + diffH);
+                    joined.endY(joined.endY() + diffH);
+                } else {
+                    joined.startY(joined.startY() + diffH);
+                    this.startY(this.startY() + diffH);
+                }
+            } else {
+                if (this.endY() > this.startY()) this.endY(this.endY() + diffH);
+                else this.startY(this.startY() + diffH);
+            }
+            this.rotate(cR);
+        }
+        return h;
     }
 
     startX(opt?: number) {
@@ -495,28 +547,32 @@ export class Line extends Shape<ILineOptions> {
             this.endControlY(),
             this.endY()
         );
-        this.__xPoints = [this.startX(), this.endX(), ...c1];
-        this.__yPoints = [this.startY(), this.endY(), ...c2];
+        this.__points.x = [this.startX(), this.endX(), ...c1];
+        this.__points.y = [this.startY(), this.endY(), ...c2];
         const joined = this.joinTo();
         if (joined !== undefined) {
-            this.__xPoints = [...this.__xPoints, ...joined.__xPoints];
-            this.__yPoints = [...this.__yPoints, ...joined.__yPoints];
+            this.__points.x = [...this.__points.x, ...joined.__points.x];
+            this.__points.y = [...this.__points.y, ...joined.__points.y];
         }
+        const xMin = Math.min(...this.__points.x);
+        const yMin = Math.min(...this.__points.y);
+        const xMax = Math.max(...this.__points.x);
+        const yMax = Math.max(...this.__points.y);
         this.hotCornerTopLeft({
-            x: Math.min(...this.__xPoints),
-            y: Math.min(...this.__yPoints),
+            x: xMin,
+            y: yMin,
         });
         this.hotCornerTopRight({
-            x: Math.max(...this.__xPoints),
-            y: Math.min(...this.__yPoints),
+            x: xMax,
+            y: yMin,
         });
         this.hotCornerBottomLeft({
-            x: Math.min(...this.__xPoints),
-            y: Math.max(...this.__yPoints),
+            x: xMin,
+            y: yMax,
         });
         this.hotCornerBottomRight({
-            x: Math.max(...this.__xPoints),
-            y: Math.max(...this.__yPoints),
+            x: xMax,
+            y: yMax,
         });
     }
 
