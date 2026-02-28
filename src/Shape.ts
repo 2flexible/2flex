@@ -168,6 +168,34 @@ export type BaseFilters =
     | "saturate"
     | "sepia";
 
+interface Arc {
+    x: number;
+    y: number;
+    radius: number;
+    startAngle: number;
+    endAngle: number;
+    counterclockwise?: boolean;
+}
+
+interface ArcTo {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    radius: number;
+}
+
+interface Ellipse {
+    x: number;
+    y: number;
+    radiusX: number;
+    radiusY: number;
+    rotation: number;
+    startAngle: number;
+    endAngle: number;
+    counterclockwise?: number;
+}
+
 export interface IShapeOptions {
     fill?: Fill;
     fillStyle?: FillStyle;
@@ -222,10 +250,12 @@ export interface IShapeOptions {
     wordSpacing?: string;
     letterSpacing?: string;
     direction?: TextDirection;
+
+    pathData?: string;
 }
 export class Shape<T> extends Block<T | IShapeOptions> {
-    #gradient: any = null;
-    #cachePattern: any = null;
+    #gradient?: CanvasGradient;
+    #dataPath?: Path2D;
     __filters: ShapeFilters = {
         blur: undefined,
         brightness: undefined,
@@ -286,10 +316,14 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     }
     closePath(): void {
         this.context?.closePath();
+        this.#dataPath?.closePath();
     }
     fill(opt?: Fill) {
         const fill = this.__valueHandler(opt, "fill", false);
-        if (fill) this.context?.fill();
+        if (fill) {
+            this.context?.fill();
+            if (this.#dataPath) this.context?.fill(this.#dataPath);
+        }
         return fill;
     }
     fillStyle(opt?: FillStyle) {
@@ -340,35 +374,6 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         this.#gradient = this.context?.createLinearGradient(x0, y0, x1, y1);
         return this.#gradient;
     }
-    createPattern(opt?: Pattern) {
-        const { imageSource, repeat, x, y, width, height } =
-            this.__valueHandler(opt, "createPattern", {
-                imageSource: "",
-                repeat: "no-repeat",
-                x: 0,
-                y: 0,
-                width: 0,
-                height: 0,
-            });
-        let pattern = null;
-        if (!this.#cachePattern) {
-            this.#cachePattern = new Image();
-            this.#cachePattern.src = imageSource;
-            this.#cachePattern.addEventListener("load", () => {
-                pattern = this.context?.createPattern(
-                    this.#cachePattern,
-                    repeat
-                );
-                this.fillStyle(pattern as any);
-                this.fillRect({ x, y, width, height });
-            });
-        } else {
-            pattern = this.context?.createPattern(this.#cachePattern, repeat);
-            this.fillStyle(pattern as any);
-            this.fillRect({ x, y, width, height });
-        }
-    }
-
     colorStops(opt?: GradientStops[]) {
         const stops = this.__valueHandler<GradientStops[], GradientStops[]>(
             opt,
@@ -376,13 +381,16 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             []
         );
         for (let stop of stops) {
-            this.#gradient.addColorStop(stop.stop, stop.color);
+            this.#gradient?.addColorStop(stop.stop, stop.color);
         }
         return stops;
     }
     stroke(opt?: Storke) {
         const stroke = this.__valueHandler(opt, "stroke", false);
-        if (stroke) this.context?.stroke();
+        if (stroke) {
+            this.context?.stroke();
+            if (this.#dataPath) this.context?.stroke(this.#dataPath);
+        }
         return stroke;
     }
     strokeStyle(opt?: strokeStyle) {
@@ -435,6 +443,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     line(opt?: CursorPos) {
         const { x, y } = this.__valueHandler(opt, "line", { x: 0, y: 0 });
         this.context?.lineTo(x, y);
+        this.#dataPath?.lineTo(x, y);
         return { x, y };
     }
 
@@ -445,6 +454,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             { cpx1: 0, cpy1: 0, endX: 0, endY: 0 }
         );
         this.context?.quadraticCurveTo(cpx1, cpy1, endX, endY);
+        this.#dataPath?.quadraticCurveTo(cpx1, cpy1, endX, endY);
     }
     bezierCurveTo(opt?: BezierCurveToOpt): void {
         const { cpx1, cpy1, cpx2, cpy2, endX, endY } = this.__valueHandler(
@@ -453,6 +463,7 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             { cpx1: 0, cpy1: 0, cpx2: 0, cpy2: 0, endX: 0, endY: 0 }
         );
         this.context?.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
+        this.#dataPath?.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY);
     }
     fillRect(opt?: RectOpt) {
         const { x, y, width, height } = this.__valueHandler(opt, "fillRect", {
@@ -481,6 +492,12 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             this.width() - width,
             this.height() - height
         );
+        this.#dataPath?.rect(
+            this.x() + x,
+            this.y() + y,
+            this.width() - width,
+            this.height() - height
+        );
     }
     roundRect(opt?: RoundRectOpt): void {
         const { x, y, width, height, borderRadius } = this.__valueHandler(
@@ -488,8 +505,14 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             "roundRect",
             { x: 0, y: 0, width: 0, height: 0, borderRadius: [0] }
         );
-
         this.context?.roundRect(
+            this.x() + x,
+            this.y() + y,
+            this.width() - width,
+            this.height() - height,
+            borderRadius
+        );
+        this.#dataPath?.roundRect(
             this.x() + x,
             this.y() + y,
             this.width() - width,
@@ -511,13 +534,101 @@ export class Shape<T> extends Block<T | IShapeOptions> {
             this.height() - height
         );
     }
-    // can be 2 different format, one opt with optinos giving paramters, two like this
+
+    arc(opt?: Arc) {
+        const arc = this.__valueHandler(opt, "arc", {
+            x: 0,
+            y: 0,
+            radius: 0,
+            startAngle: 0,
+            endAngle: 0,
+            counterclockwise: false,
+        });
+        this.context?.arc(
+            arc.x,
+            arc.y,
+            arc.radius,
+            arc.startAngle,
+            arc.endAngle,
+            arc.counterclockwise
+        );
+        this.#dataPath?.arc(
+            arc.x,
+            arc.y,
+            arc.radius,
+            arc.startAngle,
+            arc.endAngle,
+            arc.counterclockwise
+        );
+        return;
+    }
+
+    arcTo(opt?: ArcTo) {
+        const arcTo = this.__valueHandler(opt, "arcTo", {
+            x1: 0,
+            y1: 0,
+            x2: 0,
+            y2: 0,
+            radius: 0,
+        });
+        this.context?.arcTo(
+            arcTo.x1,
+            arcTo.y1,
+            arcTo.x2,
+            arcTo.y2,
+            arcTo.radius
+        );
+        this.#dataPath?.arcTo(
+            arcTo.x1,
+            arcTo.y1,
+            arcTo.x2,
+            arcTo.y2,
+            arcTo.radius
+        );
+        return;
+    }
+
+    ellipse(opt?: Ellipse) {
+        const ellipse = this.__valueHandler(opt, "ellipse", {
+            x: 0,
+            y: 0,
+            radiusX: 0,
+            radiusY: 0,
+            rotation: 0,
+            startAngle: 0,
+            endAngle: 0,
+            counterclockwise: false,
+        });
+        this.context?.ellipse(
+            ellipse.x,
+            ellipse.y,
+            ellipse.radiusX,
+            ellipse.radiusY,
+            ellipse.rotation,
+            ellipse.startAngle,
+            ellipse.endAngle,
+            ellipse.counterclockwise
+        );
+        this.#dataPath?.ellipse(
+            ellipse.x,
+            ellipse.y,
+            ellipse.radiusX,
+            ellipse.radiusY,
+            ellipse.rotation,
+            ellipse.startAngle,
+            ellipse.endAngle,
+            ellipse.counterclockwise
+        );
+        return;
+    }
+
     moveTo(opt?: CursorPos): void {
         const { x, y } = this.__valueHandler(opt, "moveTo", {
             x: 0,
             y: 0,
         });
         this.context?.moveTo(this.x() + x, this.y() + y);
+        this.#dataPath?.moveTo(this.x() + x, this.y() + y);
     }
     lineJoin(opt?: LineJoinOpt) {
         const lineJoin = this.__valueHandler(opt, "lineJoin", "miter");
@@ -737,7 +848,6 @@ export class Shape<T> extends Block<T | IShapeOptions> {
     }
     opacity(opt?: number) {
         const opacity = this.__valueHandler(opt, "opacity", undefined);
-
         this.#filterHandler("opacity", opacity);
         return opacity;
     }
@@ -751,5 +861,10 @@ export class Shape<T> extends Block<T | IShapeOptions> {
         const sepia = this.__valueHandler(opt, "sepia", undefined);
         this.#filterHandler("sepia", sepia);
         return sepia;
+    }
+    pathData(opt?: string) {
+        const data = this.__valueHandler(opt, "pathData", undefined);
+        if (data !== undefined) this.#dataPath = new Path2D(data);
+        return data;
     }
 }
