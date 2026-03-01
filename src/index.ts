@@ -3,7 +3,14 @@ import { Block } from "./Block";
 import { Layout } from "./Layout";
 import { CanvasDOMManager } from "./DOMManager";
 import { Shape } from "./Shape";
-import { Rectangle, Circle, Line, MediaBlock, Text } from "./shapes/index";
+import {
+    Rectangle,
+    Circle,
+    Line,
+    MediaBlock,
+    Text,
+    VideoBlock,
+} from "./shapes/index";
 export {
     Canvas,
     Block,
@@ -15,4 +22,5 @@ export {
     MediaBlock,
     Circle,
     Line,
+    VideoBlock,
 };
