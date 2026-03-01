@@ -113,15 +113,7 @@ export interface LinearGradient {
     x1: number;
     y1: number;
 }
-export type RepeatOption = "repeat" | "repeat-x" | "repeat-y" | "no-repeat";
-export interface Pattern {
-    imageSource: string;
-    repeat: RepeatOption;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
+
 export interface ConicGradient {
     angle: number;
     x: number;
@@ -225,8 +217,6 @@ export interface IShapeOptions {
     linearGradient?: LinearGradient;
     conicGradient?: ConicGradient;
     colorStops?: GradientStops[];
-
-    createPattern?: Pattern;
 
     blur?: number;
     brightness?: number;
