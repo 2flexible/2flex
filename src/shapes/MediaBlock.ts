@@ -1,9 +1,10 @@
 import type { IBlock } from "../types";
-import type { RepeatOption } from "../Shape";
 import { Shape } from "../Shape";
 
 type ObjectFit = "contain" | "cover" | "fill";
 type Smoothing = "low" | "medium" | "high";
+type Repeat = number | "fill";
+type MediaSource = string | HTMLImageElement;
 
 interface ImageOptions {
     clipX?: number;
@@ -13,23 +14,24 @@ interface ImageOptions {
     objectFit?: ObjectFit;
     smoothing?: boolean;
     smoothingQuality?: Smoothing;
-    repeat?: RepeatOption;
+    repeatX?: Repeat;
+    repeatY?: Repeat;
 }
 
 export class MediaBlock extends Shape<ImageOptions> {
-    source: string;
+    source: MediaSource;
     #cacheImage?: any;
-    constructor(source: string, options: IBlock<ImageOptions>) {
+    constructor(source: MediaSource, options: IBlock<ImageOptions>) {
         super(options);
         this.source = source;
-        this.options = options;
     }
 
-    render(): void {
-        super.render()
+    draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         if (!this.#cacheImage) {
-            this.#cacheImage = new Image();
-            this.#cacheImage.src = this.source;
+            if (typeof this.source === "string") {
+                this.#cacheImage = new Image();
+                this.#cacheImage.src = this.source;
+            } else this.#cacheImage = this.source;
             this.#cacheImage.addEventListener("load", () => this.#drawImage());
         } else this.#drawImage();
     }
@@ -38,78 +40,103 @@ export class MediaBlock extends Shape<ImageOptions> {
         const fit = this.objectFit();
         let width = this.#cacheImage.width;
         let height = this.#cacheImage.height;
+
+        let wrapW = 0;
+        let wrapH = 0;
         let x = this.x();
         let y = this.y();
-        const repeat = this.repeat();
-        if (repeat === "no-repeat") {
+
+        let clipW = width;
+        let clipH = height;
+
+        let cacheW = clipW;
+        let cacheH = clipH;
+        if (!this.isRepeat) {
             if (fit === "contain") {
-                if (this.#cacheImage.width > this.#cacheImage.height) {
-                    if (this.#cacheImage.width > this.width()) {
-                        height += Math.abs(this.height() - this.width());
-                    } else {
-                        height += this.height();
-                    }
-                } else if (this.#cacheImage.width < this.#cacheImage.height) {
-                    if (this.#cacheImage.height > this.height())
-                        width +=
-                            Math.abs(this.height() - this.width()) +
-                            this.width();
-                    else width += this.width();
+                if (width > this.width()) {
+                    clipW += Math.abs(width - this.width());
+                    width = this.width();
+                    clipH += clipW - cacheW;
+                    height = this.height();
+                } else if (height > this.height()) {
+                    clipH += Math.abs(height - this.height());
+                    height = this.height();
+                    clipW += clipH - cacheH;
+                    width = this.width();
                 }
-            }
-            if (fit === "cover") {
+                cacheW = clipW;
+                cacheH = clipH;
+            } else if (fit === "cover") {
                 width = this.clipWidth();
                 height = this.clipHeight();
             }
-        }
-        let sizeW = width;
-        let sizeH = height;
-        while (true) {
-            this.context.drawImage(
+            this.context?.drawImage(
                 this.#cacheImage,
                 this.clipX(),
                 this.clipY(),
-                width,
-                height,
+                clipW,
+                clipH,
                 x,
                 y,
-                this.width(),
-                this.height()
+                width,
+                height
             );
-            if (repeat === "repeat") {
-                if (sizeW > this.width()) {
-                    x = this.x();
-                    y *= 2;
-                    sizeW = width;
-                } else {
-                    sizeW *= 2;
-                    x += sizeW;
+        } else {
+            let wPerImage = width;
+            let hPerImage = height;
+            if (this.repeatX() !== undefined) {
+                if (this.repeatX() === "fill") wPerImage = width;
+                else wPerImage = this.width() / this.repeatX()!;
+            }
+
+            if (this.repeatY() !== undefined) {
+                if (this.repeatY() === "fill") hPerImage = height;
+                else hPerImage = this.height() / this.repeatY()!;
+            }
+
+            while (this.width() > Math.ceil(wrapW)) {
+                while (this.height() > Math.ceil(wrapH)) {
+                    this.context?.drawImage(
+                        this.#cacheImage,
+                        this.clipX(),
+                        this.clipY(),
+                        width - this.clipX(),
+                        height - this.clipY(),
+                        x,
+                        y,
+                        wPerImage,
+                        hPerImage
+                    );
+                    wrapH += hPerImage || this.height();
+                    y += hPerImage || this.height();
                 }
-                if (sizeH > this.height() && sizeW > this.width()) break;
-            } else if (repeat === "repeat-x") {
-                if (sizeW > this.width()) break;
-                sizeW *= 2;
-                x += sizeW;
-                break;
-            } else if (repeat === "repeat-y") {
-                if (sizeH > this.height()) break;
-                sizeH *= 2;
-                y += sizeH;
+                wrapW += wPerImage || this.width();
+                x += wPerImage || this.width();
+                wrapH = 0;
+                y = this.y();
             }
         }
     }
+
+    get isRepeat() {
+        return this.repeatX() !== undefined || this.repeatY() !== undefined;
+    }
+
     smoothing(opt?: boolean) {
         const enabled = this.__valueHandler(opt, "smoothing", false);
-        this.context.imageSmoothingEnabled = enabled;
+        if (this.context) this.context.imageSmoothingEnabled = enabled;
         return enabled;
     }
     smoothingQuality(opt?: Smoothing) {
         const quality = this.__valueHandler(opt, "smoothingQuality", "low");
-        this.context.imageSmoothingQuality = quality;
+        if (this.context) this.context.imageSmoothingQuality = quality;
         return quality;
     }
-    repeat(opt?: RepeatOption) {
-        return this.__valueHandler(opt, "repeat", "no-repeat");
+    repeatX(opt?: Repeat) {
+        return this.__valueHandler(opt, "repeatX", undefined);
+    }
+    repeatY(opt?: Repeat) {
+        return this.__valueHandler(opt, "repeatY", undefined);
     }
     clipX(opt?: number) {
         return this.__valueHandler(opt, "clipX", 0);
@@ -123,22 +150,7 @@ export class MediaBlock extends Shape<ImageOptions> {
     clipHeight(opt?: number) {
         return this.__valueHandler(opt, "clipHeight", this.height());
     }
-    objectFit(opt?: ObjectFit): ObjectFit {
+    objectFit(opt?: ObjectFit) {
         return this.__valueHandler(opt, "objectFit", "fill");
-    }
-    hidden(opt?: boolean): boolean {
-        return super.hidden(opt);
-    }
-    dragX(opt?: boolean): boolean {
-        return super.dragX(opt);
-    }
-    dragY(opt?: boolean): boolean {
-        return super.dragY(opt);
-    }
-    draggable(opt?: boolean): boolean {
-        return super.draggable(opt);
-    }
-    set(options: IBlock<ImageOptions>): void {
-        super.set(options);
     }
 }
