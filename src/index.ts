@@ -1,26 +1,24 @@
 import { Canvas } from "./Canvas";
 import { Block } from "./Block";
-import { Layout } from "./Layout";
-import { CanvasDOMManager } from "./DOMManager";
-import { Shape } from "./Shape";
 import {
-    Rectangle,
-    Circle,
-    Line,
-    MediaBlock,
-    Text,
+    CircleBlock,
+    ImageBlock,
+    LineBlock,
+    RectangleBlock,
+    TextBlock,
     VideoBlock,
 } from "./shapes/index";
+import { LayoutBlock } from "./LayoutBlock";
+import { ShapeBlock } from "./ShapeBlock";
 export {
     Canvas,
     Block,
-    Layout,
-    CanvasDOMManager,
-    Shape,
-    Text,
-    Rectangle,
-    MediaBlock,
-    Circle,
-    Line,
+    LayoutBlock,
+    ShapeBlock,
+    RectangleBlock,
+    CircleBlock,
+    LineBlock,
+    TextBlock,
+    ImageBlock,
     VideoBlock,
 };

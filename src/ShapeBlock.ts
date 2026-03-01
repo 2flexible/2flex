@@ -243,7 +243,7 @@ export interface IShapeOptions {
 
     pathData?: string;
 }
-export class Shape<T> extends Block<T | IShapeOptions> {
+export class ShapeBlock<T> extends Block<T | IShapeOptions> {
     #gradient?: CanvasGradient;
     #dataPath?: Path2D;
     __filters: ShapeFilters = {

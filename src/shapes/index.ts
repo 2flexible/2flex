@@ -1,8 +1,8 @@
-import { Rectangle } from "./Rectangle";
-import { Circle } from "./Circle";
-import { Line } from "./Line";
-import { Text } from "./Text";
-import { MediaBlock } from "./ImageBlock";
 import { VideoBlock } from "./VideoBlock";
+import { CircleBlock } from "./CircleBlock";
+import { ImageBlock } from "./ImageBlock";
+import { LineBlock } from "./LineBlock";
+import { RectangleBlock } from "./RectangleBlock";
+import { TextBlock } from "./TextBlock";
 
-export { Rectangle, Circle, Line, Text, MediaBlock, VideoBlock };
+export { RectangleBlock, CircleBlock, LineBlock, TextBlock, ImageBlock, VideoBlock };

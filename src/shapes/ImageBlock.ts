@@ -1,10 +1,10 @@
 import type { IBlock } from "../types";
-import { Shape } from "../Shape";
+import { ShapeBlock } from "../ShapeBlock";
 
 type ObjectFit = "contain" | "cover" | "fill";
 type Smoothing = "low" | "medium" | "high";
 type Repeat = number | "fill";
-type MediaSource = string | HTMLImageElement;
+type ImageSource = string | HTMLImageElement;
 
 interface ImageOptions {
     clipX?: number;
@@ -18,10 +18,10 @@ interface ImageOptions {
     repeatY?: Repeat;
 }
 
-export class MediaBlock extends Shape<ImageOptions> {
-    source: MediaSource;
+export class ImageBlock extends ShapeBlock<ImageOptions> {
+    source: ImageSource;
     #cacheImage?: any;
-    constructor(source: MediaSource, options: IBlock<ImageOptions>) {
+    constructor(source: ImageSource, options: IBlock<ImageOptions>) {
         super(options);
         this.source = source;
     }

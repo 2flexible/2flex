@@ -1,5 +1,5 @@
 import { BlockPayload } from "../Block";
-import { Shape } from "../Shape";
+import { ShapeBlock } from "../ShapeBlock";
 import type {
     FontKerning,
     FontStretch,
@@ -12,7 +12,7 @@ import type {
     TextBaseline,
     TextDirection,
     TextRendering,
-} from "../Shape";
+} from "../ShapeBlock";
 import type { IBlock } from "../types";
 
 export interface ITextOptions {
@@ -35,7 +35,7 @@ export interface ITextOptions {
     direction?: TextDirection;
 }
 
-export class Text extends Shape<ITextOptions> {
+export class TextBlock extends ShapeBlock<ITextOptions> {
     #splitedText: string[] = [];
     #lettersWidth: number[] = [];
     #updateText?: () => void;
@@ -173,8 +173,8 @@ export class Text extends Shape<ITextOptions> {
     }
 
     generatePayload(): BlockPayload {
-        const payload  = super.generatePayload()
-        payload.additionalParams = [this.text()]
-        return payload
+        const payload = super.generatePayload();
+        payload.additionalParams = [this.text()];
+        return payload;
     }
 }

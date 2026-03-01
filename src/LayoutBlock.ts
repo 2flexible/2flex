@@ -93,7 +93,7 @@ interface LayoutOptions extends GridLayout, FlexLayout {
     placeItems: PlaceItems;
 }
 
-export class Layout extends Block<LayoutOptions> {
+export class LayoutBlock extends Block<LayoutOptions> {
     #containerX?: number = undefined;
     #containerY?: number = undefined;
 

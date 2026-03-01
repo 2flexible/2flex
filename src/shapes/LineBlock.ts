@@ -1,4 +1,4 @@
-import { Shape } from "../Shape";
+import { ShapeBlock } from "../ShapeBlock";
 import type { Block } from "../Block";
 import type { IBlock } from "../types";
 import { checkInBound, getPrototype } from "../Utils";
@@ -26,14 +26,14 @@ interface ILineOptions {
     lineColor?: number;
     backgroundColor?: number;
     closePath?: boolean;
-    joinTo?: Line;
+    joinTo?: LineBlock;
     controlPointsSize?: number;
     editable?: boolean;
     stickStart?: StickyLine;
     stickEnd?: StickyLine;
 }
 
-export class Line extends Shape<ILineOptions> {
+export class LineBlock extends ShapeBlock<ILineOptions> {
     path?: Path2D;
     pathLine?: Path2D;
     pathC1?: Path2D;
@@ -80,8 +80,8 @@ export class Line extends Shape<ILineOptions> {
         if (this.__editable) this.__runningEvents.selected = false;
     }
 
-    joinTo(opt?: Line) {
-        const join = this.__valueHandler<Line, Line | undefined>(
+    joinTo(opt?: LineBlock) {
+        const join = this.__valueHandler<LineBlock, LineBlock | undefined>(
             opt,
             "joinTo",
             undefined
@@ -594,10 +594,12 @@ export class Line extends Shape<ILineOptions> {
             }
 
             if (this.__stickyStartBlock.width !== undefined) {
-                this.stickStart().x += b!.width() - this.__stickyStartBlock.width;
+                this.stickStart().x +=
+                    b!.width() - this.__stickyStartBlock.width;
             }
             if (this.__stickyStartBlock.height !== undefined) {
-                this.stickStart().y += b!.height() - this.__stickyStartBlock.height;
+                this.stickStart().y +=
+                    b!.height() - this.__stickyStartBlock.height;
             }
             this.__stickyStartBlock.x = b!.x();
             this.__stickyStartBlock.y = b!.y();

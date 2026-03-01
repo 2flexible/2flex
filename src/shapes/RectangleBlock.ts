@@ -1,5 +1,5 @@
-import { Shape } from "../Shape";
-import type { FillStyle } from "../Shape";
+import { ShapeBlock } from "../ShapeBlock";
+import type { FillStyle } from "../ShapeBlock";
 import type { IBlock } from "../types";
 
 export type BorderStyle = "solid" | "dotted";
@@ -18,7 +18,7 @@ export interface IRectangleOptions {
     borderRight: string;
 }
 
-export class Rectangle extends Shape<IRectangleOptions> {
+export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
     constructor(options: IBlock<IRectangleOptions>) {
         super(options);
     }
@@ -37,11 +37,11 @@ export class Rectangle extends Shape<IRectangleOptions> {
             this.getRealHeight,
             radius
         );
-        this.border()
-        this.borderBottom()
-        this.borderTop()
-        this.borderLeft()
-        this.borderRight()
+        this.border();
+        this.borderBottom();
+        this.borderTop();
+        this.borderLeft();
+        this.borderRight();
         this.rotate(cacheR);
     }
     borderRadius(opt?: number[]): number[] {

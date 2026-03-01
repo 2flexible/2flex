@@ -1,9 +1,9 @@
 import type { IBlock } from "../types";
-import { Shape } from "../Shape";
+import { ShapeBlock } from "../ShapeBlock";
 
 interface VideoOptions {}
 
-export class VideoBlock extends Shape<VideoOptions> {
+export class VideoBlock extends ShapeBlock<VideoOptions> {
     source: HTMLVideoElement;
     #cacheVideo?: HTMLVideoElement;
     #events = {

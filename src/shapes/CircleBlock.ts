@@ -1,4 +1,4 @@
-import { Shape } from "../Shape";
+import { ShapeBlock } from "../ShapeBlock";
 import type { IBlock } from "../types";
 export type BorderStyle = "solid" | "dotted";
 
@@ -15,7 +15,7 @@ interface ICircleOptions {
     borderColor: string;
 }
 
-export class Circle extends Shape<ICircleOptions> {
+export class CircleBlock extends ShapeBlock<ICircleOptions> {
     constructor(options: IBlock<ICircleOptions>) {
         super(options);
     }
@@ -23,7 +23,7 @@ export class Circle extends Shape<ICircleOptions> {
         _func?: ((context: CanvasRenderingContext2D) => void) | undefined
     ): void {
         this.context.lineJoin = "round";
-        this.context.lineCap  = "round"
+        this.context.lineCap = "round";
         if (!this.#isAngleEmpty) {
             this.context.arc(
                 this.getCenterX,
