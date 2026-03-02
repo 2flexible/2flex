@@ -31,10 +31,10 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         const cacheR = this.rotate();
         this.rotate(0);
         this.context.roundRect(
-            this.getLeft.x,
-            this.getLeft.y,
-            this.getRealWidth,
-            this.getRealHeight,
+            this.x(),
+            this.y(),
+            this.width(),
+            this.height(),
             radius
         );
         this.border();

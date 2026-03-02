@@ -53,7 +53,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         this.#updateText?.();
         this.#updateText = undefined;
         let words = [this.text()];
-        if (text_measure.width > this.getRealWidth)
+        if (text_measure.width > this.width())
             words = this.#responsiveText(text_measure.width);
         let wrapH = this.getTop.y;
         for (let i = 0, len = words.length; i < len; i++) {
@@ -91,12 +91,12 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         let additonalSplit: string[] = [];
         let lenWords = 0;
         while (
-            realWidth > this.getRealWidth &&
+            realWidth > this.width() &&
             wordIdx < this.#splitedText.length
         ) {
             additonalSplit = [];
             lenWords += this.#lettersWidth[wordIdx];
-            if (lenWords >= this.getRealWidth) {
+            if (lenWords >= this.width()) {
                 texts.push(words);
                 words = "";
                 lenWords = this.#lettersWidth[wordIdx];

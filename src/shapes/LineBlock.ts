@@ -97,7 +97,6 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             this.startX(joined!.endX());
             this.startY(joined!.endY());
             this.zIndex(joined!.zIndex());
-            // this.width(joined!.width())
             this.__editable = joined!.__editable;
         } else {
             this.path = new Path2D();
