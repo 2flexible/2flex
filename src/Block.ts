@@ -232,6 +232,8 @@ export interface BlockPayload {
     additionalParams: any[];
 }
 
+type BlockEvent = { [key: string]: CustomEvent<Event> };
+
 export class Block<T = IBlockOptions> extends Node {
     canvas: Canvas | any;
     ownOptions: IBlock<T>;
@@ -284,6 +286,8 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     render() {
+        this.__adjustBlocks();
+        this.position();
         if (this.hidden()) {
             this.listAllChilds((n: Block) => {
                 n.hidden(true);
@@ -525,7 +529,9 @@ export class Block<T = IBlockOptions> extends Node {
                 this.paddingTop();
 
             let width: number, height: number;
-            b.ownOptions.width = b.getRealWidth;
+
+            // these values causing error while rotating
+            // b.ownOptions.width = b.getRealWidth;
             if (
                 this.getRealWidth - (this.paddingRight() + this.paddingLeft()) <
                     b.getRealWidth ||
@@ -539,7 +545,7 @@ export class Block<T = IBlockOptions> extends Node {
                             (this.paddingRight() + this.paddingLeft()))
                     );
 
-            b.ownOptions.height = b.getRealHeight;
+            // b.ownOptions.height = b.getRealHeight;
             if (
                 this.getRealHeight -
                     (this.paddingTop() + this.paddingBottom()) <
@@ -559,6 +565,8 @@ export class Block<T = IBlockOptions> extends Node {
                 b.y(y);
                 if (width !== undefined) b.width(width);
                 if (height !== undefined) b.height(height);
+                // b.rotationCenterX(this.getCenterX);
+                // b.rotationCenterY(this.getCenterY);
             };
         });
         this.rotate(cacheR);
@@ -582,8 +590,11 @@ export class Block<T = IBlockOptions> extends Node {
             y: this.y() + this.options?.height! || 0,
         });
 
-        this.rotationCenterX(this.getCenterX);
-        this.rotationCenterY(this.getCenterY);
+        const centerX = this.getCenterX;
+        const centerY = this.getCenterY;
+
+        this.rotationCenterX(centerX);
+        this.rotationCenterY(centerY);
 
         this.hotCornerTopLeft({
             x: this.cornerTopLeft().x - this.hotAreaGap(),
@@ -914,7 +925,9 @@ export class Block<T = IBlockOptions> extends Node {
         val?: T;
         widthRelated?: boolean;
     }): O {
-        if (val && typeof val === "string") {
+        const startsWithNum = /^\d/;
+        if (val && typeof val === "string" && startsWithNum.test(val)) {
+
             if (val.endsWith("px")) return Number(val.split("px")[0]) as O;
             else if (val.endsWith("%"))
                 return fromPercentage(
@@ -971,7 +984,7 @@ export class Block<T = IBlockOptions> extends Node {
         defaultOpt: O,
         widthRelated?: boolean
     ): O {
-        const val = this.__unitConverter<T, O>({
+        let val = this.__unitConverter<T, O>({
             val: opt,
             widthRelated: widthRelated,
         });
@@ -1057,16 +1070,15 @@ export class Block<T = IBlockOptions> extends Node {
         if (diffW !== 0) {
             const cacheR = this.rotate();
             this.rotate(0);
+            this.rotationCenterX(this.rotationCenterX() + diffW / 2);
             this.cornerTopRight({
                 x: this.cornerTopRight().x + diffW,
                 y: this.cornerTopRight().y,
             });
-
             this.cornerBottomRight({
                 x: this.cornerBottomRight().x + diffW,
                 y: this.cornerBottomRight().y,
             });
-            this.rotationCenterX(this.getCenterX);
             this.rotate(cacheR);
         }
         return w;
@@ -1081,6 +1093,7 @@ export class Block<T = IBlockOptions> extends Node {
         if (diffH !== 0) {
             const cacheR = this.rotate();
             this.rotate(0);
+            this.rotationCenterY(this.rotationCenterY() + diffH / 2);
             this.cornerBottomLeft({
                 x: this.cornerBottomLeft().x,
                 y: this.cornerBottomLeft().y + diffH,
@@ -1089,7 +1102,6 @@ export class Block<T = IBlockOptions> extends Node {
                 x: this.cornerBottomRight().x,
                 y: this.cornerBottomRight().y + diffH,
             });
-            this.rotationCenterY(this.getCenterY);
             this.rotate(cacheR);
         }
         return h;
@@ -1141,8 +1153,8 @@ export class Block<T = IBlockOptions> extends Node {
                         Math.abs(this.canvas?.width - this.getRealWidth) -
                             this.right()!
                     );
-                this.rotationCenterX(this.getCenterX);
-                this.rotationCenterY(this.getCenterY);
+                // this.rotationCenterX(this.getCenterX);
+                // this.rotationCenterY(this.getCenterY);
                 this.rotate(0);
             }
         } else if (pos === "fixed") {
@@ -3125,7 +3137,6 @@ export class Block<T = IBlockOptions> extends Node {
                 }
                 if (cursor) {
                     inBound = true;
-                    this.canvas.currentCursor = cursor;
                     this.canvas?.changeCursor(cursor);
                 } else {
                     inBound = false;
@@ -3138,7 +3149,6 @@ export class Block<T = IBlockOptions> extends Node {
                             "nesw-resize",
                         ].includes(this.canvas?.currentCursor)
                     ) {
-                        this.canvas.currentCursor = cursor;
                         this.canvas?.changeCursor(cursor);
                     }
                 }
@@ -3246,12 +3256,10 @@ export class Block<T = IBlockOptions> extends Node {
                 initCords = this.canvas?.getCursorPosition(event);
                 this.__runningEvents.resize = true;
                 beforeValues[this.nodeId!] = {
-                    cornerTopLeft: structuredClone(this.cornerTopLeft()),
-                    cornerTopRight: structuredClone(this.cornerTopRight()),
-                    cornerBottomLeft: structuredClone(this.cornerBottomLeft()),
-                    cornerBottomRight: structuredClone(
-                        this.cornerBottomRight()
-                    ),
+                    x: this.x(),
+                    y: this.y(),
+                    width: this.width(),
+                    height: this.height(),
                 };
                 this.canvas?.registerZIndex({ in: this.zIndex() });
             } else this.canvas?.registerZIndex({ out: this.zIndex() });
@@ -3454,12 +3462,11 @@ export class Block<T = IBlockOptions> extends Node {
                 }
                 if (cursor) {
                     inBound = true;
-                    this.canvas.currentCursor = this.#chooseCursor(cursor);
+                    cursor = this.#chooseCursor(cursor);
                     this.canvas?.changeCursor(cursor);
                 } else {
                     inBound = false;
                     if (this.canvas?.currentCursor !== "cell") {
-                        this.canvas.currentCursor = cursor;
                         this.canvas?.changeCursor(cursor);
                     }
                 }
@@ -3469,71 +3476,58 @@ export class Block<T = IBlockOptions> extends Node {
                 if (this.canvas?.whoIsTheFirst(this.zIndex())) {
                     let diffX = x - initCords.x;
                     let diffY = y - initCords.y;
+                    const rightC = this.#rightCornerRad;
+                    const reverseX =
+                        (rightC > 70 && rightC < 180) ||
+                        (rightC < -60 && rightC > -180)
+                            ? -1
+                            : 1;
+                    const reverseY =
+                        (rightC > 70 && rightC < 180) ||
+                        (rightC < -60 && rightC > -180)
+                            ? -1
+                            : 1;
 
-                    const cacheR = this.rotate();
-                    this.rotate(0);
-
-                    // let reverse = false;
-                    // console.log(this.cornerTopLeft().x, this.getCenterX);
-                    // if (this.cornerTopLeft().x > this.getCenterX)
-                    //     reverse = true;
-                    // else reverse = false;
                     let diffW = 0;
                     let diffH = 0;
-
                     if (diffX !== 0) {
                         diffW = diffX - beforeCords.x;
-                        // if (reverse) diffW = -diffW;
-                        if (leftResize) {
-                            this.cornerTopLeft({
-                                x: this.cornerTopLeft().x + diffW,
-                                y: this.cornerTopLeft().y,
-                            });
-                            this.cornerBottomLeft({
-                                x: this.cornerBottomLeft().x + diffW,
-                                y: this.cornerBottomLeft().y,
-                            });
-                            // this.x(this.x()+diffW)
-                            // this.width(this.width()-diffW)
-                        } else if (rightResize) {
-                            this.cornerTopRight({
-                                x: this.cornerTopRight().x + diffW,
-                                y: this.cornerTopRight().y,
-                            });
-                            this.cornerBottomRight({
-                                x: this.cornerBottomRight().x + diffW,
-                                y: this.cornerBottomRight().y,
-                            });
-                        }
                         beforeCords.x = diffX;
                     }
                     if (diffY !== 0) {
                         diffH = diffY - beforeCords.y;
-                        if (topResize) {
-                            this.cornerTopRight({
-                                x: this.cornerTopRight().x,
-                                y: this.cornerTopRight().y + diffH,
-                            });
-                            this.cornerTopLeft({
-                                x: this.cornerTopLeft().x,
-                                y: this.cornerTopLeft().y + diffH,
-                            });
-                        } else if (bottomResize) {
-                            this.cornerBottomRight({
-                                x: this.cornerBottomRight().x,
-                                y: this.cornerBottomRight().y + diffH,
-                            });
-                            this.cornerBottomLeft({
-                                x: this.cornerBottomLeft().x,
-                                y: this.cornerBottomLeft().y + diffH,
-                            });
-                        }
                         beforeCords.y = diffY;
                     }
+
+                    let diffDx = 0;
+                    let diffDy = 0;
+
+                    if (this.canvas?.currentCursor === "ew-resize") {
+                        diffDx = diffW;
+                        diffDy = -diffW;
+                    } else if (this.canvas?.currentCursor === "ns-resize") {
+                        diffDx = diffH;
+                        diffDy = diffH;
+                    } else if (
+                        this.canvas?.currentCursor === "nwse-resize" ||
+                        this.canvas?.currentCursor === "nesw-resize"
+                    ) {
+                        diffDx = diffW;
+                        diffDy = diffH;
+                    }
+                    if (leftResize) {
+                        this.x(this.x() + diffDx * reverseX);
+                        this.width(this.width() - diffDx * reverseX);
+                    } else if (rightResize) {
+                        this.width(this.width() + diffDx * reverseX);
+                    }
+                    if (topResize) {
+                        this.y(this.y() + diffDy * reverseY);
+                        this.height(this.height() - diffDy * reverseY);
+                    } else if (bottomResize) {
+                        this.height(this.height() + diffDy * reverseY);
+                    }
                     this.#adjustCordsToFLip();
-                    this.rotate(cacheR);
-                    this.rotationCenterX(this.getCenterX);
-                    this.rotationCenterY(this.getCenterY);
                     this.onResize()(event);
                     this.canvas?.invokeChange();
                 }
@@ -3546,10 +3540,10 @@ export class Block<T = IBlockOptions> extends Node {
                 if (beforeCords.x !== 0 || beforeCords.y !== 0) {
                     const after: any = {};
                     after[this.nodeId!] = {
-                        cornerTopLeft: this.cornerTopLeft(),
-                        cornerTopRight: this.cornerTopRight(),
-                        cornerBottomLeft: this.cornerBottomLeft(),
-                        cornerBottomRight: this.cornerBottomRight(),
+                        x: this.x(),
+                        y: this.y(),
+                        width: this.width(),
+                        height: this.height(),
                     };
                     this.canvas?.takeSnapshot(beforeValues, after);
                 }
@@ -3687,14 +3681,29 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     #chooseCursor(defaultCursor: string) {
-        const cursors: any = {
+        const cursors: { [key: string]: string[] } = {
             "ew-resize": ["nwse-resize", "ns-resize", "nesw-resize"],
             "ns-resize": ["nesw-resize", "ew-resize", "nwse-resize"],
             "nesw-resize": ["ew-resize", "nwse-resize", "ns-resize"],
             "nwse-resize": ["ns-resize", "nesw-resize", "ew-resize"],
         };
 
-        const angle = radianToDegree(
+        const angle = this.#rightCornerRad;
+        if (inRange(angle, -125, -85) || inRange(angle, 45, 70))
+            return cursors[defaultCursor][1];
+        else if (inRange(angle, -105, -20) || inRange(angle, 70, 105))
+            return cursors[defaultCursor][2];
+        else if (
+            inRange(angle, -180, -125) ||
+            inRange(angle, 145, 180) ||
+            inRange(angle, 15, 45)
+        )
+            return cursors[defaultCursor][0];
+        return defaultCursor;
+    }
+
+    get #rightCornerRad() {
+        return radianToDegree(
             Math.atan2(
                 this.cornerTopRight().y +
                     Math.abs(
@@ -3705,18 +3714,6 @@ export class Block<T = IBlockOptions> extends Node {
                 this.cornerTopRight().x - this.rotationCenterX()
             )
         );
-
-        if (inRange(angle, -105, -20) || inRange(angle, 85, 125))
-            return cursors[defaultCursor][2];
-        else if (inRange(angle, -125, -105) || inRange(angle, 45, 85))
-            return cursors[defaultCursor][1];
-        else if (
-            inRange(angle, -180, -125) ||
-            inRange(angle, 145, 180) ||
-            inRange(angle, 15, 45)
-        )
-            return cursors[defaultCursor][0];
-        return defaultCursor;
     }
 
     onDrag(opt?: (event: MouseEvent) => void) {
