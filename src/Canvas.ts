@@ -109,6 +109,7 @@ export class Canvas {
     #handledNodes: NodeId[] = [];
     #initTime?: number;
     #highZIndex = 1;
+    #isFocused = false;
 
     __positionCords: { x: number; y: number; z: number } = { x: 0, y: 0, z: 1 };
 
@@ -191,19 +192,27 @@ export class Canvas {
                 if (this.#defaultOptions.zoom == "point") this.#pointZoom();
                 else if (this.#defaultOptions.zoom == "center")
                     this.#centerZoom();
+
+                this.canvas.addEventListener("focusin", () => {
+                    this.#isFocused = true;
+                });
+                this.canvas.addEventListener("focusout", () => {
+                    this.#isFocused = false;
+                });
             }
         };
     }
-
     add(...block: Block[]) {
         this.#tree.addNodes(block);
         this.#initTime = new Date().getTime();
         this.#tree.preOrderTraversal<Block>(this.#tree.head, (b: Block) => {
-            this.__handleOptions(b);
-            this.__collectEvents(b);
-            this.__takeInitSnaphshot(b);
-            if (this.inBoundElement(b)) b.render();
-            this.__animations.push(...b.__animationOn);
+            if (!this.#handledNodes.includes(b.nodeId)) {
+                this.__handleOptions(b);
+                this.__collectEvents(b);
+                this.__takeInitSnaphshot(b);
+                if (this.inBoundElement(b)) b.render();
+                this.__animations.push(...b.__animationOn);
+            }
         });
         if (this.__animations.length !== 0)
             this.animationInvoker(this.__animations);
@@ -378,7 +387,8 @@ export class Canvas {
 
     __clearEvents(block: Block) {
         for (const key in block.__events) {
-            this.removeEvent(key, block.__events[key]);
+            for (const event of block.__events[key])
+                this.removeEvent(key, event);
         }
     }
 
@@ -432,9 +442,8 @@ export class Canvas {
                 this.#registerDomEvent();
                 this.#handleBindOptions(b);
                 if (_func) _func(b);
-                b.__adjustBlocks();
-                b.position();
-                if (this.inBoundElement(b)) b.render();
+                b.hidden(!this.inBoundElement(b));
+                b.render();
             }
         }, "zIndex");
     }
@@ -507,94 +516,112 @@ export class Canvas {
         requestAnimationFrame(framer);
     }
     #pointZoom() {
-        window.addEventListener("wheel", (event: WheelEvent) => {
-            if (this.#defaultOptions.zoom !== "point") return;
-            if (event.ctrlKey) {
-                const { x, y } = this.getCursorPosition(event);
+        window.addEventListener(
+            "wheel",
+            (event: WheelEvent) => {
+                if (this.#defaultOptions.zoom !== "point" || !this.#isFocused)
+                    return;
+                if (event.ctrlKey) {
+                    event.preventDefault();
+                    const { x, y } = this.getCursorPosition(event);
 
-                let scale =
-                    this.options?.zoomSpeed || this.#defaultOptions.zoomSpeed;
-                let invScale =
-                    this.options?.zoomInvSpeed ||
-                    this.#defaultOptions.zoomInvSpeed;
+                    let scale = this.#defaultOptions.zoomSpeed;
+                    let invScale = this.#defaultOptions.zoomInvSpeed;
 
-                let beforeX = this.__positionCords.x;
-                let beforeY = this.__positionCords.y;
+                    let beforeX = this.__positionCords.x;
+                    let beforeY = this.__positionCords.y;
 
-                if (event.deltaY < 0) {
-                    this.__positionCords.x -=
-                        x / (this.__positionCords.z * scale) -
-                        x / this.__positionCords.z;
+                    if (event.deltaY < 0) {
+                        const scaleFactor =
+                            (this.__positionCords.z * scale) /
+                            this.__positionCords.z;
+                        this.__positionCords.x += (x - beforeX) * scaleFactor;
+                        this.__positionCords.y -= (y - beforeY) * scaleFactor;
 
-                    this.__positionCords.y -=
-                        y / (this.__positionCords.z * scale) -
-                        y / this.__positionCords.z;
-                    this.invokeChange((block) => {
-                        block.x(block.x() - (this.__positionCords.x - beforeX));
-                        block.y(block.y() - (this.__positionCords.y - beforeY));
-                        block.scale(scale);
-                    });
-                    this.__positionCords.z *= scale;
-                } else {
-                    this.__positionCords.x -=
-                        x / (this.__positionCords.z * invScale) -
-                        x / this.__positionCords.z;
+                        this.invokeChange((block) => {
+                            block.translate({
+                                x: this.__positionCords.x - beforeX,
+                                y: 0,
+                            });
+                            block.scale(scale);
+                        });
+                        this.__positionCords.z *= scale;
+                    } else {
+                        const scaleFactor =
+                            (this.__positionCords.z * invScale) /
+                            (this.__positionCords.z - 1);
+                        this.__positionCords.x -= (x - beforeX) * scaleFactor;
+                        this.__positionCords.y -= (y - beforeY) * scaleFactor;
+                        this.invokeChange((block) => {
+                            block.translate({
+                                x: this.__positionCords.x - beforeX,
+                                y: this.__positionCords.y - beforeY,
+                            });
+                            block.scale(invScale);
+                        });
 
-                    this.__positionCords.y -=
-                        y / (this.__positionCords.z * invScale) -
-                        y / this.__positionCords.z;
-
-                    this.invokeChange((block) => {
-                        block.x(block.x() - (this.__positionCords.x - beforeX));
-                        block.y(block.y() - (this.__positionCords.y - beforeY));
-                        block.scale(invScale);
-                    });
-
-                    this.__positionCords.z *= invScale;
+                        this.__positionCords.z *= invScale;
+                    }
                 }
-            }
-        });
+            },
+            { passive: false }
+        );
     }
 
     #centerZoom() {
-        window.addEventListener("wheel", (event: WheelEvent) => {
-            if (this.#defaultOptions.zoom !== "center") return;
-            if (event.ctrlKey) {
-                let scale =
-                    this.options?.zoomSpeed || this.#defaultOptions.zoomSpeed;
-                let invScale =
-                    this.options?.zoomInvSpeed ||
-                    this.#defaultOptions.zoomInvSpeed;
-                this.invokeChange((block: Block) => {
-                    if (event.deltaY < 0) {
-                        const cacheR = block.rotate();
-                        block.rotate(0);
-                        const scaleW = block.width() * scale - block.width();
-                        const scaleH = block.height() * scale - block.height();
-                        block.x((block.x() || 1) + scaleW);
-                        block.y((block.y() || 1) + scaleH);
-                        // block.width((block.width() || 1) * scale);
-                        // block.height((block.height() || 1) * scale);
-                        block.scale(scale);
-                        block.rotate(cacheR);
-                        this.__positionCords.z *= scale;
-                    } else {
-                        const cacheR = block.rotate();
-                        block.rotate(0);
-                        const scaleW = block.width() * invScale - block.width();
-                        const scaleH =
-                            block.height() * invScale - block.height();
-                        block.x((block.x() || 1) + scaleW);
-                        block.y((block.y() || 1) + scaleH);
-                        block.scale(invScale);
-                        // block.width((block.width() || 1) * invScale);
-                        // block.height((block.height() || 1) * invScale);
-                        block.rotate(cacheR);
-                        this.__positionCords.z *= invScale;
-                    }
-                });
-            }
-        });
+        window.addEventListener(
+            "wheel",
+            (event: WheelEvent) => {
+                if (this.#defaultOptions.zoom !== "center" || !this.#isFocused)
+                    return;
+                event.preventDefault();
+                if (event.ctrlKey) {
+                    let scale = this.#defaultOptions.zoomSpeed;
+                    let invScale = this.#defaultOptions.zoomInvSpeed;
+
+                    let beforeX = this.__positionCords.x;
+                    let beforeY = this.__positionCords.y;
+                    const x = this.canvasBounding.right / 2;
+                    const y = this.canvasBounding.bottom / 2;
+                    this.invokeChange((block: Block) => {
+                        if (event.deltaY < 0) {
+                            this.__positionCords.x +=
+                                (x - beforeX) *
+                                ((this.__positionCords.z * scale) /
+                                    this.__positionCords.z -
+                                    1);
+
+                            console.log(this.__positionCords.x);
+                            // this.__positionCords.y +=
+                            //     y / (this.__positionCords.z * scale) -
+                            //     y / this.__positionCords.z;
+                            block.translate({
+                                x: beforeX - this.__positionCords.x,
+                                y: 0,
+                            });
+                            block.scale(scale);
+                            this.__positionCords.z *= scale;
+                        } else {
+                            this.__positionCords.x +=
+                                x / (this.__positionCords.z * invScale) -
+                                x / this.__positionCords.z;
+
+                            this.__positionCords.y +=
+                                y / (this.__positionCords.z * invScale) -
+                                y / this.__positionCords.z;
+
+                            block.translate({
+                                x: this.__positionCords.x - beforeX,
+                                y: this.__positionCords.y - beforeY,
+                            });
+                            block.scale(invScale);
+                            this.__positionCords.z *= invScale;
+                        }
+                    });
+                }
+            },
+            { passive: false }
+        );
     }
     clearRect() {
         this.context.clearRect(0, 0, this.width, this.height);
@@ -602,6 +629,7 @@ export class Canvas {
 
     changeCursor(cur: string) {
         cur = cur || "auto";
+        this.currentCursor = cur;
         return this.__domCanvas.changeStyle({
             cursor: cur,
         } as any);
@@ -626,7 +654,7 @@ export class Canvas {
         });
 
         window.addEventListener("mousemove", (event: MouseEvent) => {
-            if (!this.#defaultOptions.mouseMovement) return;
+            if (!this.#defaultOptions.mouseMovement || !this.#isFocused) return;
 
             if (event.buttons == 0) {
                 isMouseDown = false;
@@ -675,22 +703,24 @@ export class Canvas {
 
     #setCanvasPosition() {
         this.invokeChange((block: Block) => {
-            block.x(block.x() + this.__positionCords.x);
-            block.y(block.y() + this.__positionCords.y);
+            block.translate({
+                x: block.x() + this.__positionCords.x,
+                y: block.y() + this.__positionCords.y,
+            });
         });
     }
 
     #setCanvasZoom() {
-        this.invokeChange((elem) => {
-            elem.width(elem.width() * this.#defaultOptions.z);
-            elem.height(elem.height() * this.#defaultOptions.z);
+        this.invokeChange((block) => {
+            block.scale(this.#defaultOptions.z);
         });
     }
 
     #keyboardMove() {
         const moveSpeed = this.#defaultOptions.moveSpeed;
         window.addEventListener("wheel", (event: WheelEvent) => {
-            if (!this.#defaultOptions.keyboardMovement) return;
+            if (!this.#defaultOptions.keyboardMovement || !this.#isFocused)
+                return;
             if (event.ctrlKey) return;
             if (event.shiftKey) {
                 if (event.deltaY < 0) {
@@ -722,7 +752,7 @@ export class Canvas {
 
     #snapshotHandler() {
         window.addEventListener("keydown", (e: KeyboardEvent) => {
-            if (!this.#defaultOptions.history) return;
+            if (!this.#defaultOptions.history || !this.#isFocused) return;
             let obj;
             if (e.key === "Z" && e.ctrlKey) obj = this.#tree.snapshotInFuture();
             else if (e.key === "z" && e.ctrlKey)
