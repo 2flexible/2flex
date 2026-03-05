@@ -26,7 +26,6 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
     draw(
         _func?: ((context: CanvasRenderingContext2D) => void) | undefined
     ): void {
-        const radius = this.borderRadius();
         this.context.beginPath();
         const cacheR = this.rotate();
         this.rotate(0);
@@ -35,7 +34,7 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
             this.y(),
             this.width(),
             this.height(),
-            radius
+            this.borderRadius()
         );
         this.border();
         this.borderBottom();
@@ -226,5 +225,15 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         this.borderStyle(borderStyle);
         this.borderColor(borderColor);
         return { borderStyleArrWidth, borderStyleArrHeight };
+    }
+
+    __clipShape() {
+        this.__clipPath?.roundRect(
+            this.getLeft.x,
+            this.getTop.y,
+            this.getRealWidth,
+            this.getRealHeight, 
+            this.borderRadius()
+        );
     }
 }

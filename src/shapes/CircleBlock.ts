@@ -143,4 +143,15 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         }
         return border;
     }
+    __clipShape() {
+        this.__clipPath?.ellipse(
+            this.getCenterX,
+            this.getCenterY,
+            this.radiusX() / 2,
+            this.radiusY() / 2,
+            0,
+            this.startAngle(),
+            this.endAngle()
+        );
+    }
 }

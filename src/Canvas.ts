@@ -653,46 +653,54 @@ export class Canvas {
             }
         });
 
-        window.addEventListener("mousemove", (event: MouseEvent) => {
-            if (!this.#defaultOptions.mouseMovement || !this.#isFocused) return;
+        window.addEventListener(
+            "mousemove",
+            (event: MouseEvent) => {
+                if (!this.#defaultOptions.mouseMovement || !this.#isFocused)
+                    return;
+                event.preventDefault();
 
-            if (event.buttons == 0) {
-                isMouseDown = false;
-                if (isKeyDown)
-                    (this.__domCanvas as any).changeStyle({ cursor: "grab" });
-            }
+                if (event.buttons == 0) {
+                    isMouseDown = false;
+                    if (isKeyDown)
+                        (this.__domCanvas as any).changeStyle({
+                            cursor: "grab",
+                        });
+                }
 
-            if (event.buttons == 1 && isKeyDown) {
-                if (!isMouseDown) {
-                    initX = event.clientX;
-                    initY = event.clientY;
-                    beforeX = 0;
-                    beforeY = 0;
-                    isMouseDown = true;
-                }
-                if (isMouseDown) {
-                    (this.__domCanvas as any).changeStyle({
-                        cursor: "grabbing",
-                    });
-                    let diffX = event.clientX - initX;
-                    let diffY = event.clientY - initY;
-                    if (diffX !== 0) {
-                        this.invokeChange((block: Block) => {
-                            block.translate({ x: diffX - beforeX, y: 0 });
-                        });
-                        this.__positionCords.x += diffX;
-                        beforeX = diffX;
+                if (event.buttons == 1 && isKeyDown) {
+                    if (!isMouseDown) {
+                        initX = event.clientX;
+                        initY = event.clientY;
+                        beforeX = 0;
+                        beforeY = 0;
+                        isMouseDown = true;
                     }
-                    if (diffY !== 0) {
-                        this.invokeChange((block: Block) => {
-                            block.translate({ x: 0, y: diffY - beforeY });
+                    if (isMouseDown) {
+                        (this.__domCanvas as any).changeStyle({
+                            cursor: "grabbing",
                         });
-                        this.__positionCords.y += diffY;
-                        beforeY = diffY;
+                        let diffX = event.clientX - initX;
+                        let diffY = event.clientY - initY;
+                        if (diffX !== 0) {
+                            this.invokeChange((block: Block) => {
+                                block.translate({ x: diffX - beforeX, y: 0 });
+                            });
+                            this.__positionCords.x += diffX;
+                            beforeX = diffX;
+                        }
+                        if (diffY !== 0) {
+                            this.invokeChange((block: Block) => {
+                                block.translate({ x: 0, y: diffY - beforeY });
+                            });
+                            this.__positionCords.y += diffY;
+                            beforeY = diffY;
+                        }
                     }
                 }
-            }
-        });
+            },
+            { passive: false }
+        );
 
         window.addEventListener("keyup", (event) => {
             if (!this.#defaultOptions.mouseMovement) return;
@@ -718,36 +726,72 @@ export class Canvas {
 
     #keyboardMove() {
         const moveSpeed = this.#defaultOptions.moveSpeed;
-        window.addEventListener("wheel", (event: WheelEvent) => {
-            if (!this.#defaultOptions.keyboardMovement || !this.#isFocused)
-                return;
-            if (event.ctrlKey) return;
-            if (event.shiftKey) {
-                if (event.deltaY < 0) {
-                    this.invokeChange((block: Block) => {
-                        block.translate({ x: -moveSpeed, y: 0 });
-                    });
-                    this.__positionCords.x -= moveSpeed;
+        window.addEventListener(
+            "wheel",
+            (event: WheelEvent) => {
+                if (!this.#defaultOptions.keyboardMovement || !this.#isFocused)
+                    return;
+                if (event.ctrlKey) return;
+                event.preventDefault();
+                let inBound = false;
+                if (event.shiftKey) {
+                    if (event.deltaY < 0) {
+                        this.invokeChange((block: Block) => {
+                            if (
+                                block.checkInBound(event) &&
+                                block.isOverflowXScroll
+                            ) {
+                                block.overflowTranslate({
+                                    x: -moveSpeed,
+                                    y: 0,
+                                });
+                                inBound = true;
+                            } else block.translate({ x: -moveSpeed, y: 0 });
+                        });
+                        if (!inBound) this.__positionCords.x -= moveSpeed;
+                    } else {
+                        this.invokeChange((block: Block) => {
+                            if (
+                                block.checkInBound(event) &&
+                                block.isOverflowXScroll
+                            ) {
+                                block.overflowTranslate({ x: moveSpeed, y: 0 });
+                                inBound = true;
+                            } else block.translate({ x: moveSpeed, y: 0 });
+                        });
+                        if (!inBound) this.__positionCords.x += moveSpeed;
+                    }
                 } else {
-                    this.invokeChange((block: Block) => {
-                        block.translate({ x: moveSpeed, y: 0 });
-                    });
-                    this.__positionCords.x += moveSpeed;
+                    if (event.deltaY < 0) {
+                        this.invokeChange((block: Block) => {
+                            if (
+                                block.checkInBound(event) &&
+                                block.isOverflowYScroll
+                            ) {
+                                block.overflowTranslate({ x: 0, y: moveSpeed });
+                                inBound = true;
+                            } else block.translate({ x: 0, y: moveSpeed });
+                        });
+                        if (!inBound) this.__positionCords.y += moveSpeed;
+                    } else {
+                        this.invokeChange((block: Block) => {
+                            if (
+                                block.checkInBound(event) &&
+                                block.isOverflowYScroll
+                            ) {
+                                block.overflowTranslate({
+                                    x: 0,
+                                    y: -moveSpeed,
+                                });
+                                inBound = true;
+                            } else block.translate({ x: 0, y: -moveSpeed });
+                        });
+                        if (!inBound) this.__positionCords.y -= moveSpeed;
+                    }
                 }
-            } else {
-                if (event.deltaY < 0) {
-                    this.invokeChange((block: Block) => {
-                        block.translate({ x: 0, y: moveSpeed });
-                    });
-                    this.__positionCords.y += moveSpeed;
-                } else {
-                    this.invokeChange((block: Block) => {
-                        block.translate({ x: 0, y: -moveSpeed });
-                    });
-                    this.__positionCords.y -= moveSpeed;
-                }
-            }
-        });
+            },
+            { passive: false }
+        );
     }
 
     #snapshotHandler() {

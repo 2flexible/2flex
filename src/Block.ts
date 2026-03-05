@@ -118,6 +118,8 @@ export interface HotCornerArea {
     bottomRight: XY;
 }
 
+export type Overflow = "visible" | "hidden" | "clip" | "scroll" | "auto";
+
 export interface IBlockOptions {
     [key: string]: any;
     x?: number;
@@ -221,6 +223,8 @@ export interface IBlockOptions {
     hotResizableAreaRight?: HotCornerArea;
     hotResizableAreaLeft?: HotCornerArea;
     hotResizableAreaBottom?: HotCornerArea;
+    translate?: XY;
+    overflowTranslate?: XY;
 }
 
 export interface BlockPayload {
@@ -270,7 +274,16 @@ export class Block<T = IBlockOptions> extends Node {
         bottomRight: { x: 0, y: 0 },
     };
 
+    #overflowCords: XY = {
+        x: 0,
+        y: 0,
+    };
+
     #keyframeIterations: any = {};
+
+    __clipPath?: Path2D;
+
+    __childClipping?: (b: Block) => void;
 
     __childAdjustment?: (b: Block) => void;
 
@@ -364,6 +377,22 @@ export class Block<T = IBlockOptions> extends Node {
         return blocks;
     }
 
+    __clippingPath() {
+        if (!this.isOverflowVisible) {
+            this.__clipPath = new Path2D();
+            this.__clipShape();
+        }
+    }
+
+    __clipShape() {
+        this.__clipPath?.rect(
+            this.getLeft.x,
+            this.getTop.y,
+            this.getRealWidth,
+            this.getRealHeight
+        );
+    }
+
     __hotLines() {
         const size = this.hotCornerSize();
         const radius = this.hotCornerRadius();
@@ -372,7 +401,8 @@ export class Block<T = IBlockOptions> extends Node {
         const background = this.hotCornerBackgroundColor();
         const lineWidth = this.hotLineStrokeWidth();
         const lineColor = this.hotLineStrokeColor();
-
+        this.context.save();
+        this.__childClipping?.(this as Block);
         this.context.setLineDash([]);
         this.context.beginPath();
         this.context.moveTo(
@@ -505,26 +535,29 @@ export class Block<T = IBlockOptions> extends Node {
         } else {
             this.hotCornerBottomRightFunc()?.(this.context);
         }
+
+        this.context.restore();
     }
 
     __adjustBlocks(): void {
-        const cacheR = this.rotate();
-        this.rotate(0);
+        this.__clippingPath();
         if (this.__childAdjustment) this.__childAdjustment(this as Block);
         this.__childAdjustment = undefined;
+        const cacheR = this.rotate();
+        this.rotate(0);
         this.listOnlyChilds((b: Block) => {
             if (b.position() === "absolute") return;
-            b.rotationCenterX(this.getCenterX);
-            b.rotationCenterY(this.getCenterY);
-            b.rotate(cacheR);
+
             const x =
                 (b.options.x || 0) +
                 this.getLeft.x +
+                this.#overflowCords.x +
                 this.marginLeft() +
                 this.paddingLeft();
             const y =
                 (b.options.y || 0) +
                 this.getTop.y +
+                this.#overflowCords.y +
                 this.marginTop() +
                 this.paddingTop();
 
@@ -533,8 +566,10 @@ export class Block<T = IBlockOptions> extends Node {
             // these values causing error while rotating
             // b.ownOptions.width = b.getRealWidth;
             if (
-                this.getRealWidth - (this.paddingRight() + this.paddingLeft()) <
-                    b.getRealWidth ||
+                (this.getRealWidth -
+                    (this.paddingRight() + this.paddingLeft()) <
+                    b.getRealWidth &&
+                    this.getRealWidth > b.minWidth()) ||
                 b.getRealWidth < b.maxWidth()
             )
                 width =
@@ -547,9 +582,10 @@ export class Block<T = IBlockOptions> extends Node {
 
             // b.ownOptions.height = b.getRealHeight;
             if (
-                this.getRealHeight -
+                (this.getRealHeight -
                     (this.paddingTop() + this.paddingBottom()) <
-                    b.getRealHeight ||
+                    b.getRealHeight &&
+                    this.getRealHeight > b.minHeight()) ||
                 b.getRealHeight < b.maxHeight()
             ) {
                 height =
@@ -560,14 +596,22 @@ export class Block<T = IBlockOptions> extends Node {
                             (this.paddingTop() + this.paddingBottom()))
                     );
             }
-            b.__childAdjustment = (b) => {
+            const centerX = this.rotationCenterX();
+            const centerY = this.rotationCenterY();
+            b.__childAdjustment = (b: Block) => {
+                b.rotationCenterX(centerX);
+                b.rotationCenterY(centerY);
+                b.rotate(cacheR);
                 b.x(x);
                 b.y(y);
                 if (width !== undefined) b.width(width);
                 if (height !== undefined) b.height(height);
-                // b.rotationCenterX(this.getCenterX);
-                // b.rotationCenterY(this.getCenterY);
             };
+            if (this.__clipPath) {
+                b.__childClipping = (b: Block) => {
+                    b.context?.clip(this.__clipPath!, "nonzero");
+                };
+            }
         });
         this.rotate(cacheR);
     }
@@ -927,7 +971,6 @@ export class Block<T = IBlockOptions> extends Node {
     }): O {
         const startsWithNum = /^\d/;
         if (val && typeof val === "string" && startsWithNum.test(val)) {
-
             if (val.endsWith("px")) return Number(val.split("px")[0]) as O;
             else if (val.endsWith("%"))
                 return fromPercentage(
@@ -1307,6 +1350,18 @@ export class Block<T = IBlockOptions> extends Node {
     }
     marginRight(opt?: number | string) {
         return this.__valueHandler(opt, "marginRight", 0, true);
+    }
+
+    overflow(opt?: Overflow) {
+        return this.__valueHandler(opt, "overflow", "visible", false);
+    }
+
+    overflowX(opt?: Overflow) {
+        return this.__valueHandler(opt, "overflowX", "visible", false);
+    }
+
+    overflowY(opt?: Overflow) {
+        return this.__valueHandler(opt, "overflowY", "visible", false);
     }
 
     cornerTopLeft(opt?: XY) {
@@ -2172,7 +2227,30 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.top() !== undefined) this.top(0);
             else if (this.bottom() !== undefined) this.bottom(0);
         }
+        return t;
     }
+
+    overflowTranslate(opt?: XY) {
+        const t = this.__valueHandler(opt, "overflowTranslate", { x: 0, y: 0 });
+        this.#overflowCords.x += t.x;
+        this.#overflowCords.y += t.y;
+        return t;
+    }
+    get isOverflowXScroll() {
+        return this.overflow() === "scroll" || this.overflowX() === "scroll";
+    }
+    get isOverflowYScroll() {
+        return this.overflow() === "scroll" || this.overflowY() === "scroll";
+    }
+
+    get isOverflowVisible() {
+        return (
+            this.overflow() === "visible" &&
+            this.overflowX() === "visible" &&
+            this.overflowY() === "visible"
+        );
+    }
+
     bind(block: Block, ...options: (keyof IBlockOptions)[]) {
         this.__bindOptions.push({ bindTo: block, options: options });
     }
@@ -2182,6 +2260,7 @@ export class Block<T = IBlockOptions> extends Node {
     rotate(opt?: number): number {
         const cacheRotate = this.ownOptions["rotate"] || 0;
         const rotate = this.__valueHandler(opt, "rotate", 0);
+        // console.trace(rotate, this.ownOptions.backgroundColor)
         const diffR = rotate - cacheRotate;
         if (diffR !== 0) this.#updateCornerByRot(diffR);
         return rotate;
