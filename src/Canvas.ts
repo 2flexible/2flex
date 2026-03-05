@@ -77,17 +77,7 @@ export class Canvas {
 
     __domCanvas: CanvasDOMManager;
     #tree: Tree;
-    #canvasEvents: CanvasEvents = {
-        click: { func: undefined, events: [] },
-        dblclick: { func: undefined, events: [] },
-        mousedown: { func: undefined, events: [] },
-        mouseup: { func: undefined, events: [] },
-        mousemove: { func: undefined, events: [] },
-        mouseenter: { func: undefined, events: [] },
-        mouseleave: { func: undefined, events: [] },
-        mouseout: { func: undefined, events: [] },
-        mouseover: { func: undefined, events: [] },
-    };
+    #canvasEvents: CanvasEvents = {};
     #defaultOptions = {
         history: true,
         zoom: "center",
@@ -314,6 +304,10 @@ export class Canvas {
         return this.canvas.getBoundingClientRect();
     }
 
+    get isFocused(){
+        return this.#isFocused
+    }
+
     getCursorPosition(event: { clientX: number; clientY: number }) {
         return {
             x: event.clientX - this.canvasBounding.left,
@@ -393,6 +387,8 @@ export class Canvas {
     }
 
     registerEvent(event: string, callFunc: CustomEvent<Event>) {
+        if (!this.#canvasEvents[event])
+            this.#canvasEvents[event] = { func: undefined, events: [] };
         if (
             this.#canvasEvents[event].events.includes(callFunc) ||
             typeof callFunc !== "function"
@@ -404,7 +400,8 @@ export class Canvas {
     }
     removeEvent(event: string, callFunc: CustomEvent<Event>) {
         if (
-            !this.#canvasEvents[event].events.includes(callFunc) ||
+            (this.#canvasEvents[event] &&
+                !this.#canvasEvents[event].events.includes(callFunc)) ||
             typeof callFunc !== "function"
         )
             return;

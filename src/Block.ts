@@ -236,7 +236,7 @@ export interface BlockPayload {
     additionalParams: any[];
 }
 
-type BlockEvent = { [key: string]: CustomEvent<Event> };
+type BlockEvent = { [key: string]: CustomEvent<any>[] };
 
 export class Block<T = IBlockOptions> extends Node {
     canvas: Canvas | any;
@@ -249,17 +249,7 @@ export class Block<T = IBlockOptions> extends Node {
         resize: false,
         selected: false,
     };
-    __events: any = {
-        click: [],
-        dblclick: [],
-        mousedown: [],
-        mouseup: [],
-        mousemove: [],
-        mouseenter: [],
-        mouseleave: [],
-        mouseout: [],
-        mouseover: [],
-    };
+    __events: BlockEvent = {};
     __addedEvents: string[] = [];
 
     __animationOn: any = [];
@@ -3048,8 +3038,30 @@ export class Block<T = IBlockOptions> extends Node {
         this.__eventHandler<MouseEvent>("mousemove", out);
     }
 
+    keydown(_func: (event: KeyboardEvent) => void) {
+        const down = (event: KeyboardEvent) => {
+            if (this.canvas?.isFocused) {
+                event.preventDefault();
+                _func(event);
+                this.canvas?.invokeChange();
+            }
+        };
+        this.__eventHandler<KeyboardEvent>("keydown", down);
+    }
+
+    keyup(_func: (event: KeyboardEvent) => void) {
+        const up = (event: KeyboardEvent) => {
+            if (this.canvas?.isFocused) {
+                event.preventDefault();
+                _func(event);
+                this.canvas?.invokeChange();
+            }
+        };
+        this.__eventHandler<KeyboardEvent>("keyup", up);
+    }
+
     __eventHandler<E extends Event>(
-        type: IMouseEvents,
+        type: string,
         _func: CustomEvent<E>,
         identify?: string
     ) {
@@ -3057,6 +3069,7 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.__addedEvents.includes(identify)) return;
             else this.__addedEvents.push(identify);
         }
+        if (!this.__events[type]) this.__events[type] = [];
         if (this.canvas) this.canvas?.registerEvent(type, _func);
         else this.__events[type].push(_func);
     }
