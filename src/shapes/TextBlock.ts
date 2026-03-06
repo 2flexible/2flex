@@ -14,6 +14,7 @@ import type {
     TextRendering,
 } from "../ShapeBlock";
 import type { IBlock } from "../types";
+import { inRange } from "../Utils";
 
 export interface ITextOptions {
     text?: string;
@@ -33,6 +34,8 @@ export interface ITextOptions {
     wordSpacing?: string;
     letterSpacing?: string;
     direction?: TextDirection;
+    editable?: boolean;
+    resizeLineHeight?: boolean;
 }
 
 export class TextBlock extends ShapeBlock<ITextOptions> {
@@ -40,6 +43,15 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
     #letterSpecs: {
         [key: string]: { x: number; y: number; width: number; height: number };
     } = {};
+    #letterNodes?: {
+        prev: null;
+        next: null;
+        letter: string;
+        width: number;
+        height: number;
+        x: number;
+        y: number;
+    };
     #updateText?: () => void;
 
     constructor(text: string, options: IBlock<ITextOptions>) {
@@ -55,13 +67,23 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         this.#updateText = undefined;
 
         const words = this.#wrapText();
+        let sumOfHeights = 0;
+
+        if (this.resizeLineHeight())
+            sumOfHeights =
+                (this.height() -
+                    words.reduce((p, n) => p + n.height - this.y(), 0)) /
+                (words.length - 1);
+
+        let heightP = 0;
         let heights = 0;
         for (let i = 0, len = words.length; i < len; i++) {
+            if (i !== 0) heightP = sumOfHeights;
             if (this.fill()) {
                 super.fillText({
                     text: words[i].words,
                     x: this.x(),
-                    y: words[i].height,
+                    y: words[i].height + heightP,
                     maxWidth: words[i].width,
                 });
             }
@@ -70,13 +92,13 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                 super.strokeText({
                     text: words[i].words,
                     x: this.x(),
-                    y: words[i].height,
+                    y: words[i].height + heightP,
                     maxWidth: words[i].width,
                 });
             }
             if (i === len - 1) heights = words[i].height - this.y();
         }
-        this.height(heights);
+        if (!this.resizeLineHeight()) this.height(heights);
         this.rotate(cacheR);
     }
 
@@ -90,13 +112,15 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         let wrapH = 0;
         let heights = [];
         let heightW = 0;
+        let wrapX = 0;
         const spaceW = super.measureText(" ").width;
 
         for (let [key, values] of Object.entries(this.#letterSpecs)) {
             wrapW += values.width + spaceW;
             if (wrapW > this.width()) {
                 wrapW = values.width + spaceW;
-                wrapH = Math.max(...heights);
+                wrapX = 0;
+                wrapH += Math.max(...heights);
                 const wordM = super.measureText(words);
                 heightW += wordM.hangingBaseline;
                 texts.push({
@@ -107,10 +131,10 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                 words = "";
                 heights = [];
             }
-            // last space issue
+            this.#letterSpecs[key].x = this.x() + wrapX;
+            this.#letterSpecs[key].y = this.y() + wrapH;
+            wrapX += values.width + spaceW;
             words += key + " ";
-            values.x = this.x() + wrapW;
-            values.y = this.y() + wrapH;
             heights.push(values.height);
         }
         const wordM = super.measureText(words);
@@ -120,6 +144,69 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
             height: this.y() + heightW + wordM.hangingBaseline,
         });
         return texts;
+    }
+
+    editable(opt?: boolean) {
+        const editable = this.__valueHandler(opt, "editable", false);
+        if (!editable) return;
+        const beforeValues: any = {};
+        // using nodes
+        let foundText;
+        let foundTextIdx = 0;
+
+        let foundLetter = "";
+        let foundIdx = 0;
+        this.mousedown((event: MouseEvent) => {
+            super.font(this.#format_font);
+            const initCords = this.canvas?.getCursorPosition(event);
+            foundText = undefined;
+            foundTextIdx = 0;
+
+            for (const [key, values] of Object.entries(this.#letterSpecs)) {
+                foundTextIdx += 1;
+                if (
+                    inRange(initCords.x, values.x, values.x + values.width) &&
+                    inRange(initCords.y, values.y, values.y + values.height)
+                ) {
+                    foundText = key;
+                    break;
+                }
+            }
+
+            foundLetter = "";
+            foundIdx = 0;
+
+            if (foundText) {
+                let realX = this.#letterSpecs[foundText].x;
+                let realY = this.#letterSpecs[foundText].y;
+                for (let [idk, letter] of Object.entries(foundText)) {
+                    const measure = super.measureText(letter);
+                    if (
+                        inRange(initCords.x, realX, realX + measure.width) &&
+                        inRange(
+                            initCords.y,
+                            realY,
+                            realY + measure.hangingBaseline
+                        )
+                    ) {
+                        foundLetter = letter;
+                        foundIdx = Number(idk);
+                        break;
+                    }
+                    realX += measure.width;
+                }
+            }
+            console.log(foundLetter, foundIdx);
+            beforeValues[this.nodeId!] = {};
+        });
+        this.keydown((e: KeyboardEvent) => {
+            console.log(e.key);
+            if (e.key === "Backspace") {
+                if (foundIdx >= 0) foundIdx -= 1;
+                else {
+                }
+            }
+        });
     }
 
     text(opt?: string): string {
@@ -183,6 +270,9 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         return width;
     }
 
+    resizeLineHeight(opt?: boolean) {
+        return this.__valueHandler(opt, "resizeLineHeight", false);
+    }
     scale(opt?: number): void {
         super.scale(opt);
         this.fontSize(this.fontSize() * (opt || 1));
