@@ -16,6 +16,8 @@ import type {
 import type { IBlock } from "../types";
 import { inRange } from "../Utils";
 
+type Wrap = "letter" | "word";
+
 export interface ITextOptions {
     text?: string;
     color?: string;
@@ -36,23 +38,37 @@ export interface ITextOptions {
     direction?: TextDirection;
     editable?: boolean;
     resizeLineHeight?: boolean;
+    wrap?: Wrap;
+}
+
+interface LetterNode {
+    nodeId?: number;
+    prev?: LetterNode;
+    next?: LetterNode;
+    letter?: string;
+    width: number;
+    wordWidth: number;
+    height: number;
+    x: number;
+    y: number;
 }
 
 export class TextBlock extends ShapeBlock<ITextOptions> {
-    #splitedText: string[] = [];
-    #letterSpecs: {
-        [key: string]: { x: number; y: number; width: number; height: number };
-    } = {};
-    #letterNodes?: {
-        prev: null;
-        next: null;
-        letter: string;
-        width: number;
-        height: number;
-        x: number;
-        y: number;
+    #letterNode: LetterNode = {
+        nodeId: 0,
+        prev: undefined,
+        next: undefined,
+        letter: "",
+        width: 0,
+        wordWidth: 0,
+        height: 0,
+        x: 0,
+        y: 0,
     };
     #updateText?: () => void;
+    #stopTraverseSign = 0;
+    #editable = false;
+    #caretDrawer?: () => void;
 
     constructor(text: string, options: IBlock<ITextOptions>) {
         super(options);
@@ -101,6 +117,10 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         if (!this.resizeLineHeight()) this.height(heights);
         this.rotate(cacheR);
     }
+    __hotLines(): void {
+        if (!this.#editable) super.__hotLines();
+        else this.#caretDrawer?.();
+    }
 
     get #format_font() {
         return `${this.fontStyle()} ${this.fontVariant()} ${this.fontWeight()} ${this.fontSize()}px ${this.fontFamily()}`;
@@ -110,36 +130,35 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         let words = "";
         let wrapW = 0;
         let wrapH = 0;
-        let heights = [];
+        let heights: number[] = [];
         let heightW = 0;
         let wrapX = 0;
-        const spaceW = super.measureText(" ").width;
-
-        for (let [key, values] of Object.entries(this.#letterSpecs)) {
-            wrapW += values.width + spaceW;
-            if (wrapW > this.width()) {
-                wrapW = values.width + spaceW;
+        this.#traverseLetterNodes((node) => {
+            wrapW += this.isWrapWord ? node.wordWidth : node.width;
+            if (wrapW >= this.width()) {
+                wrapW = this.isWrapWord ? node.wordWidth : node.width;
                 wrapX = 0;
                 wrapH += Math.max(...heights);
                 const wordM = super.measureText(words);
                 heightW += wordM.hangingBaseline;
                 texts.push({
-                    words: words.slice(0, words.length - 1),
+                    words: words,
                     width: wordM.width,
                     height: this.y() + heightW,
                 });
                 words = "";
                 heights = [];
             }
-            this.#letterSpecs[key].x = this.x() + wrapX;
-            this.#letterSpecs[key].y = this.y() + wrapH;
-            wrapX += values.width + spaceW;
-            words += key + " ";
-            heights.push(values.height);
-        }
+
+            node.x = this.x() + wrapX;
+            node.y = this.y() + wrapH;
+            wrapX += node.width;
+            words += node.letter;
+            heights.push(node.height);
+        });
         const wordM = super.measureText(words);
         texts.push({
-            words: words.slice(0, words.length - 1),
+            words: words,
             width: wordM.width,
             height: this.y() + heightW + wordM.hangingBaseline,
         });
@@ -150,63 +169,89 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         const editable = this.__valueHandler(opt, "editable", false);
         if (!editable) return;
         const beforeValues: any = {};
-        // using nodes
-        let foundText;
-        let foundTextIdx = 0;
 
-        let foundLetter = "";
-        let foundIdx = 0;
-        this.mousedown((event: MouseEvent) => {
-            super.font(this.#format_font);
+        this.dblclick((e) => {
+            this.#editable = true;
+        });
+
+        let foundNode: LetterNode | undefined;
+        let foundNodeId: number | undefined;
+        const dummyLetter: LetterNode = {
+            nodeId: undefined,
+            prev: undefined,
+            next: undefined,
+            letter: "",
+            width: 0,
+            wordWidth: 0,
+            height: 0,
+            x: 0,
+            y: 0,
+        };
+        const click = (event: MouseEvent) => {
+            if (!this.checkInBound(event)) this.#editable = false;
+            if (!this.#editable) return;
             const initCords = this.canvas?.getCursorPosition(event);
-            foundText = undefined;
-            foundTextIdx = 0;
-
-            for (const [key, values] of Object.entries(this.#letterSpecs)) {
-                foundTextIdx += 1;
+            this.#traverseLetterNodes((node) => {
                 if (
-                    inRange(initCords.x, values.x, values.x + values.width) &&
-                    inRange(initCords.y, values.y, values.y + values.height)
+                    inRange(initCords.x, node.x, node.x + node.width) &&
+                    inRange(initCords.y, node.y, node.y + node.height)
                 ) {
-                    foundText = key;
-                    break;
-                }
-            }
-
-            foundLetter = "";
-            foundIdx = 0;
-
-            if (foundText) {
-                let realX = this.#letterSpecs[foundText].x;
-                let realY = this.#letterSpecs[foundText].y;
-                for (let [idk, letter] of Object.entries(foundText)) {
-                    const measure = super.measureText(letter);
-                    if (
-                        inRange(initCords.x, realX, realX + measure.width) &&
+                    if (inRange(initCords.x, node.x, node.x + node.width / 2)) {
+                        foundNode = node.prev || node;
+                    } else if (
                         inRange(
-                            initCords.y,
-                            realY,
-                            realY + measure.hangingBaseline
+                            initCords.x,
+                            node.x + node.width / 2,
+                            node.x + node.width
                         )
                     ) {
-                        foundLetter = letter;
-                        foundIdx = Number(idk);
-                        break;
+                        foundNode = node;
                     }
-                    realX += measure.width;
+                    this.#stopTraverse(true);
                 }
+            });
+            if (foundNode) {
+                foundNodeId = foundNode.nodeId;
+                this.#drawCaret(
+                    foundNode.x + foundNode.width,
+                    foundNode.y + foundNode.height,
+                    foundNode.x + foundNode.width,
+                    foundNode.y
+                );
             }
-            console.log(foundLetter, foundIdx);
-            beforeValues[this.nodeId!] = {};
-        });
+        };
         this.keydown((e: KeyboardEvent) => {
-            console.log(e.key);
+            if (!foundNode || foundNodeId === undefined) return;
+            beforeValues[this.nodeId!] = {};
             if (e.key === "Backspace") {
-                if (foundIdx >= 0) foundIdx -= 1;
-                else {
+                if (foundNodeId > 0) {
+                    this.#removeLetterNode(foundNode);
+                    foundNodeId -= 1;
                 }
+            } else if (e.key === "Tab") {
+                dummyLetter.letter = "    ";
+                this.#addAfter(foundNode, dummyLetter);
+                if (foundNodeId !== undefined) foundNodeId += 4;
+            } else {
+                dummyLetter.letter = e.key;
+                this.#addAfter(foundNode, dummyLetter);
+                if (foundNodeId !== undefined) foundNodeId += 1;
             }
+            if (foundNodeId !== undefined) {
+                foundNode = this.#findNode(foundNodeId);
+            }
+            if (foundNode) {
+                this.#drawCaret(
+                    foundNode.x + foundNode.width,
+                    foundNode.y + foundNode.height,
+                    foundNode.x + foundNode.width,
+                    foundNode.y
+                );
+            }
+            dummyLetter.letter = "";
         });
+
+        this.__eventHandler("click", click, "editableClick");
     }
 
     text(opt?: string): string {
@@ -214,23 +259,117 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         const text = this.__valueHandler(opt, "text", "");
         if (text.length !== cacheT.length) {
             this.#updateText = () => {
-                this.#splitedText = text.split(" ");
+                const splitedText = text.split("");
                 let x = 0;
-                const spaceW = super.measureText(" ").width;
-                for (let i = 0, len = this.#splitedText.length; i < len; i++) {
-                    const letter = this.#splitedText[i];
-                    const measure = super.measureText(this.#splitedText[i]);
-                    this.#letterSpecs[letter] = {
-                        x: this.x() + x,
-                        y: measure.hangingBaseline + this.y(),
+                let prevNode = this.#letterNode;
+                let pendingNode = undefined;
+                let wordWidth = 0;
+                for (let i = 0, len = splitedText.length; i < len; i++) {
+                    const measure = super.measureText(splitedText[i]);
+                    const node = {
+                        nodeId: i + 1,
+                        prev: prevNode,
+                        next: undefined,
+                        letter: splitedText[i],
                         width: measure.width,
+                        wordWidth: 0,
                         height: measure.hangingBaseline,
+                        x: x,
+                        y: measure.hangingBaseline + this.y(),
                     };
-                    x += measure.width + spaceW;
+                    prevNode.next = node;
+                    prevNode = prevNode.next;
+                    if (!pendingNode) pendingNode = prevNode;
+                    wordWidth += measure.width;
+                    if (splitedText[i] === " ") {
+                        pendingNode.wordWidth = wordWidth;
+                        pendingNode = undefined;
+                        wordWidth = 0;
+                    }
+                    x += measure.width;
                 }
             };
         }
         return text;
+    }
+
+    #traverseLetterNodes(_func: (node: LetterNode) => void) {
+        let next: LetterNode | undefined = this.#letterNode;
+        this.#stopTraverse(false);
+        while (next && this.#stopTraverseSign) {
+            _func(next);
+            next = next.next;
+        }
+    }
+
+    #addAfter(targetNode: LetterNode, newNode: LetterNode) {
+        let letters = "";
+        this.#traverseLetterNodes((node) => {
+            if (targetNode.nodeId === node.nodeId) {
+                newNode.next = node.next;
+                newNode.prev = node;
+                node.next = newNode;
+            }
+            letters += node.letter;
+        });
+        this.text(letters);
+    }
+
+    #addBefore(targetNode: LetterNode, newNode: LetterNode) {
+        let prevNode = this.#letterNode;
+        this.#traverseLetterNodes((node) => {
+            if (targetNode.nodeId === node.nodeId) {
+                prevNode.next = newNode;
+                newNode.prev = prevNode;
+                newNode.next = node;
+                this.#stopTraverse(true);
+            }
+            prevNode = node;
+        });
+    }
+
+    #findNode(nodeId: number): LetterNode | undefined {
+        let foundNode;
+        this.#traverseLetterNodes((node) => {
+            if (nodeId === node.nodeId) {
+                foundNode = node;
+                this.#stopTraverse(true);
+            }
+        });
+        return foundNode;
+    }
+
+    #stopTraverse(stop: boolean) {
+        if (stop) this.#stopTraverseSign = 0;
+        else this.#stopTraverseSign = 1;
+    }
+    #removeLetterNode(targetNode: LetterNode) {
+        let prevNode = this.#letterNode;
+        let letters = "";
+        this.#traverseLetterNodes((node) => {
+            if (targetNode.nodeId === node.nodeId) {
+                prevNode.next = node.next;
+            } else letters += node.letter;
+            prevNode = node;
+        });
+        this.text(letters);
+    }
+
+    #drawCaret(x: number, y: number, width: number, height: number) {
+        if (!this.context) return;
+        this.#caretDrawer = () => {
+            this.context.beginPath();
+            this.context.moveTo(x, y);
+            this.context.lineTo(width, height);
+            this.context.strokeStyle = "red";
+            this.context.lineWidth = 2;
+            this.context.stroke();
+        };
+        this.canvas?.invokeChange();
+    }
+
+    get isWrapWord() {
+        return this.wrap() === "word";
     }
 
     fontFamily(opt?: string) {
@@ -272,6 +411,10 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
 
     resizeLineHeight(opt?: boolean) {
         return this.__valueHandler(opt, "resizeLineHeight", false);
+    }
+
+    wrap(opt?: Wrap) {
+        return this.__valueHandler(opt, "wrap", "word");
     }
     scale(opt?: number): void {
         super.scale(opt);
