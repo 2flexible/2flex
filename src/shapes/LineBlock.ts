@@ -1,5 +1,5 @@
 import { ShapeBlock } from "../ShapeBlock";
-import type { Block } from "../Block";
+import type { Block, RelativeType } from "../Block";
 import type { IBlock } from "../types";
 import { checkInBound, getPrototype } from "../Utils";
 
@@ -242,8 +242,13 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         return inBound;
     }
     x(opt?: number | string): number {
-        const cacheX = this.ownOptions.x || 0;
+        let cacheX = this.ownOptions.x || 0;
         const x = super.x(opt);
+        if (!opt) return x;
+        cacheX = this.__unitConverter<RelativeType, number>({
+            val: cacheX,
+            widthRelated: true,
+        });
         const diffX = x - cacheX;
         if (diffX !== 0) {
             this.startX(this.startX() + diffX);
@@ -253,8 +258,13 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
     }
 
     y(opt?: number | string): number {
-        const cacheY = this.ownOptions.y || 0;
+        let cacheY = this.ownOptions.y || 0;
         const y = super.y(opt);
+        if (!opt) return y;
+        cacheY = this.__unitConverter<RelativeType, number>({
+            val: cacheY,
+            widthRelated: false,
+        });
         const diffY = y - cacheY;
         if (diffY !== 0) {
             this.startY(this.startY() + diffY);
@@ -263,10 +273,15 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         return y;
     }
     width(opt?: number | string): number {
-        const cacheW = this.ownOptions.width || 0;
+        let cacheW = this.ownOptions.width || 0;
         const w = super.width(opt);
+        if (!opt) return w;
         if (w < this.minWidth() && !this.horizontalFlipResize())
             return this.minWidth();
+        cacheW = this.__unitConverter<RelativeType, number>({
+            val: cacheW,
+            widthRelated: true,
+        });
         const diffW = w - cacheW;
         if (diffW) {
             const cR = this.rotate();
@@ -289,10 +304,17 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         return w;
     }
     height(opt?: number | string): number {
-        const cacheH = this.ownOptions.height || 0;
+        let cacheH = this.ownOptions.height || 0;
         const h = super.height(opt);
+        if (!opt) return h;
+
         if (h < this.minHeight() && !this.verticalFlipResize())
             return this.minHeight();
+        
+        cacheH = this.__unitConverter<RelativeType, number>({
+            val: cacheH,
+            widthRelated: false,
+        });
         const diffH = h - cacheH;
         if (diffH) {
             const cR = this.rotate();

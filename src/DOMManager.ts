@@ -62,7 +62,7 @@ export class CanvasDOMManager {
 
     changeStyle(options: ICssProperties) {
         for (const [key, value] of Object.entries(options)) {
-            if (Object.hasOwn(this.canvas.style, key))
+            if (key in this.canvas.style)
                 this.canvas.style.setProperty(key, value as string);
         }
     }

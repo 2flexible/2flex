@@ -1,6 +1,6 @@
 import { SnapshotObject, Timestamp } from "./types";
 
-export type NodeId = number | undefined
+export type NodeId = number | undefined;
 
 export class Node {
     childNodes: Node[];
@@ -60,8 +60,9 @@ export class Tree {
     head: Node;
     #currentSnapshot = 0;
     #snapshots: Snapshots | any = {};
-    snapshotSize: number = 100;
+    snapshotSize: number = 0;
     #nodes: Node[] = [];
+    #sortedBy?: string;
     #latestNodeId = 1;
 
     constructor(snapshotSize?: number) {
@@ -82,7 +83,7 @@ export class Tree {
                 current &&
                 Object.getPrototypeOf(current).constructor.name !== "Node"
             ) {
-                this.assignNodeId(current)
+                this.assignNodeId(current);
                 if (_func) _func(current as T);
                 nodes.push(current);
             }
@@ -100,10 +101,13 @@ export class Tree {
 
     listSortedChilds<T>(_func: (element: T) => void, sort?: string) {
         const sortedNodes = this.#nodes;
-        if (sort)
+        if (sort && this.#sortedBy !== sort) {
             sortedNodes.sort(
                 (a: any, b: any) => a.ownOptions[sort] - b.ownOptions[sort]
             );
+            this.#nodes = sortedNodes;
+            this.#sortedBy = sort;
+        }
         for (let i = 0, len = sortedNodes.length; i < len; i++) {
             _func(sortedNodes[i] as T);
         }

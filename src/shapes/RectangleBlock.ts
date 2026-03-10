@@ -26,7 +26,6 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
     draw(
         _func?: ((context: CanvasRenderingContext2D) => void) | undefined
     ): void {
-        this.context.beginPath();
         const cacheR = this.rotate();
         this.rotate(0);
         this.context.roundRect(
@@ -43,8 +42,11 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         this.borderRight();
         this.rotate(cacheR);
     }
-    borderRadius(opt?: number[]): number[] {
+    borderRadius(opt?: number[] | number): number[] {
         const radius = this.__valueHandler(opt, "borderRadius", [0, 0, 0, 0]);
+        if (typeof radius === "number") {
+            return [radius, radius, radius, radius];
+        }
         let defRadius: number[] = radius;
         switch (radius.length) {
             case 1:

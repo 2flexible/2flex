@@ -34,19 +34,6 @@ import type {
     CustomEvent,
 } from "./types";
 
-export type IMouseEvents =
-    | "click"
-    | "dblclick"
-    | "mousedown"
-    | "mouseup"
-    | "mousemove"
-    | "mouseenter"
-    | "mouseleave"
-    | "mouseout"
-    | "mouseover"
-    | "draggable"
-    | "selectable";
-
 export type Easing =
     | "linear"
     | "ease"
@@ -105,7 +92,7 @@ export type JustifySelf =
     | "right";
 export type FlexGrow = number;
 export type FlexShrink = number;
-export type FlexBasis = number | string;
+export type FlexBasis = RelativeType;
 export type Flex = [FlexGrow, FlexShrink, FlexBasis];
 export type PlaceSelf = AlignSelf & JustifySelf;
 export type Position = "static" | "relative" | "absolute" | "sticky" | "fixed";
@@ -120,33 +107,34 @@ export interface HotCornerArea {
 
 export type Overflow = "visible" | "hidden" | "clip" | "scroll" | "auto";
 
+export type RelativeType = number | string;
+
 export interface IBlockOptions {
     [key: string]: any;
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-    minWidth?: number;
-    minHeight?: number;
-    maxWidth?: number;
-    maxHeight?: number;
+    x?: RelativeType;
+    y?: RelativeType;
+    width?: RelativeType;
+    height?: RelativeType;
+    minWidth?: RelativeType;
+    minHeight?: RelativeType;
+    maxWidth?: RelativeType;
+    maxHeight?: RelativeType;
     position?: Position;
-    top?: number;
-    bottom?: number;
-    left?: number;
-    right?: number;
+    top?: RelativeType;
+    bottom?: RelativeType;
+    left?: RelativeType;
+    right?: RelativeType;
     selectable?: boolean;
-    padding?: [number, number, number, number];
-    paddingTop?: number;
-    paddingRight?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    margin?: [number, number, number, number];
-    marginTop?: number;
-    marginRight?: number;
-    marginBottom?: number;
-    marginLeft?: number;
-    fillRule?: string;
+    padding?: [RelativeType, RelativeType, RelativeType, RelativeType];
+    paddingTop?: RelativeType;
+    paddingRight?: RelativeType;
+    paddingBottom?: RelativeType;
+    paddingLeft?: RelativeType;
+    margin?: [RelativeType, RelativeType, RelativeType, RelativeType];
+    marginTop?: RelativeType;
+    marginRight?: RelativeType;
+    marginBottom?: RelativeType;
+    marginLeft?: RelativeType;
     zIndex?: number;
     draggable?: boolean;
     onDrag?: (event: MouseEvent) => void;
@@ -197,8 +185,8 @@ export interface IBlockOptions {
     resizable?: boolean;
     onResize?: (event: MouseEvent) => void;
     hidden?: boolean;
-    rotationCenterX?: number;
-    rotationCenterY?: number;
+    rotationCenterX?: RelativeType;
+    rotationCenterY?: RelativeType;
     cornerTopLeft?: XY;
     cornerTopRight?: XY;
     cornerBottomLeft?: XY;
@@ -292,9 +280,11 @@ export class Block<T = IBlockOptions> extends Node {
         this.__adjustBlocks();
         this.position();
         if (this.hidden()) {
-            this.listAllChilds((n: Block) => {
-                n.hidden(true);
-            });
+            if (this.childNodes.length !== 0) {
+                this.listAllChilds((n: Block) => {
+                    n.hidden(true);
+                });
+            }
             return;
         }
         this.__isSelected();
@@ -533,77 +523,89 @@ export class Block<T = IBlockOptions> extends Node {
         this.__clippingPath();
         if (this.__childAdjustment) this.__childAdjustment(this as Block);
         this.__childAdjustment = undefined;
-        const cacheR = this.rotate();
-        this.rotate(0);
-        this.listOnlyChilds((b: Block) => {
-            if (b.position() === "absolute") return;
+        if (this.childNodes.length !== 0) {
+            const cacheR = this.rotate();
+            this.rotate(0);
+            this.listOnlyChilds((b: Block) => {
+                if (b.position() === "absolute") return;
+                const initX =
+                    this.__unitConverter<RelativeType, number>({
+                        val: b.options.x,
+                        widthRelated: true,
+                    }) || 0;
+                const initY =
+                    this.__unitConverter<RelativeType, number>({
+                        val: b.options.y,
+                        widthRelated: true,
+                    }) || 0;
 
-            const x =
-                (b.options.x || 0) +
-                this.getLeft.x +
-                this.#overflowCords.x +
-                this.marginLeft() +
-                this.paddingLeft();
-            const y =
-                (b.options.y || 0) +
-                this.getTop.y +
-                this.#overflowCords.y +
-                this.marginTop() +
-                this.paddingTop();
+                const x =
+                    initX +
+                    this.getLeft.x +
+                    this.#overflowCords.x +
+                    this.marginLeft() +
+                    this.paddingLeft();
+                const y =
+                    initY +
+                    this.getTop.y +
+                    this.#overflowCords.y +
+                    this.marginTop() +
+                    this.paddingTop();
 
-            let width: number, height: number;
+                let width: number, height: number;
 
-            // these values causing error while rotating
-            // b.ownOptions.width = b.getRealWidth;
-            if (
-                (this.getRealWidth -
-                    (this.paddingRight() + this.paddingLeft()) <
-                    b.getRealWidth &&
-                    this.getRealWidth > b.minWidth()) ||
-                b.getRealWidth < b.maxWidth()
-            )
-                width =
-                    b.getRealWidth +
-                    -(
-                        b.getRealWidth -
-                        (this.getRealWidth -
-                            (this.paddingRight() + this.paddingLeft()))
-                    );
+                // these values causing error while rotating
+                // b.ownOptions.width = b.getRealWidth;
+                if (
+                    (this.getRealWidth -
+                        (this.paddingRight() + this.paddingLeft()) <
+                        b.getRealWidth &&
+                        this.getRealWidth > b.minWidth()) ||
+                    b.getRealWidth < b.maxWidth()
+                )
+                    width =
+                        b.getRealWidth +
+                        -(
+                            b.getRealWidth -
+                            (this.getRealWidth -
+                                (this.paddingRight() + this.paddingLeft()))
+                        );
 
-            // b.ownOptions.height = b.getRealHeight;
-            if (
-                (this.getRealHeight -
-                    (this.paddingTop() + this.paddingBottom()) <
-                    b.getRealHeight &&
-                    this.getRealHeight > b.minHeight()) ||
-                b.getRealHeight < b.maxHeight()
-            ) {
-                height =
-                    b.getRealHeight +
-                    -(
-                        b.getRealHeight -
-                        (this.getRealHeight -
-                            (this.paddingTop() + this.paddingBottom()))
-                    );
-            }
-            const centerX = this.rotationCenterX();
-            const centerY = this.rotationCenterY();
-            b.__childAdjustment = (b: Block) => {
-                b.rotationCenterX(centerX);
-                b.rotationCenterY(centerY);
-                b.rotate(cacheR);
-                b.x(x);
-                b.y(y);
-                if (width !== undefined) b.width(width);
-                if (height !== undefined) b.height(height);
-            };
-            if (this.__clipPath) {
-                b.__childClipping = (b: Block) => {
-                    b.context?.clip(this.__clipPath!, "nonzero");
+                // b.ownOptions.height = b.getRealHeight;
+                if (
+                    (this.getRealHeight -
+                        (this.paddingTop() + this.paddingBottom()) <
+                        b.getRealHeight &&
+                        this.getRealHeight > b.minHeight()) ||
+                    b.getRealHeight < b.maxHeight()
+                ) {
+                    height =
+                        b.getRealHeight +
+                        -(
+                            b.getRealHeight -
+                            (this.getRealHeight -
+                                (this.paddingTop() + this.paddingBottom()))
+                        );
+                }
+                const centerX = this.rotationCenterX();
+                const centerY = this.rotationCenterY();
+                b.__childAdjustment = (b: Block) => {
+                    b.rotationCenterX(centerX);
+                    b.rotationCenterY(centerY);
+                    b.rotate(cacheR);
+                    b.x(x);
+                    b.y(y);
+                    if (width !== undefined) b.width(width);
+                    if (height !== undefined) b.height(height);
                 };
-            }
-        });
-        this.rotate(cacheR);
+                if (this.__clipPath) {
+                    b.__childClipping = (b: Block) => {
+                        b.context?.clip(this.__clipPath!, "nonzero");
+                    };
+                }
+            });
+            this.rotate(cacheR);
+        }
     }
 
     __initCordinates() {
@@ -612,16 +614,16 @@ export class Block<T = IBlockOptions> extends Node {
             y: this.y(),
         });
         this.cornerTopRight({
-            x: this.x() + this.options?.width! || 0,
+            x: this.x() + this.width(),
             y: this.y(),
         });
         this.cornerBottomLeft({
             x: this.x(),
-            y: this.y() + this.options?.height! || 0,
+            y: this.y() + this.height(),
         });
         this.cornerBottomRight({
-            x: this.x() + this.options?.width! || 0,
-            y: this.y() + this.options?.height! || 0,
+            x: this.x() + this.width(),
+            y: this.y() + this.height(),
         });
 
         const centerX = this.getCenterX;
@@ -959,8 +961,7 @@ export class Block<T = IBlockOptions> extends Node {
         val?: T;
         widthRelated?: boolean;
     }): O {
-        const startsWithNum = /^\d/;
-        if (val && typeof val === "string" && startsWithNum.test(val)) {
+        if (val && typeof val === "string" && /^\d/.test(val)) {
             if (val.endsWith("px")) return Number(val.split("px")[0]) as O;
             else if (val.endsWith("%"))
                 return fromPercentage(
@@ -1017,10 +1018,12 @@ export class Block<T = IBlockOptions> extends Node {
         defaultOpt: O,
         widthRelated?: boolean
     ): O {
-        let val = this.__unitConverter<T, O>({
-            val: opt,
-            widthRelated: widthRelated,
-        });
+        let val = opt as O;
+        if (opt !== undefined)
+            val = this.__unitConverter<T, O>({
+                val: opt,
+                widthRelated: widthRelated,
+            });
         return this.__cacheOption(val, option, defaultOpt);
     }
 
@@ -1036,9 +1039,14 @@ export class Block<T = IBlockOptions> extends Node {
         return this.ownOptions[option];
     }
 
-    x(opt?: number | string): number {
-        const cacheX = this.ownOptions["x"] || 0;
+    x(opt?: RelativeType): number {
+        let cacheX = this.ownOptions["x"];
         const x = this.__valueHandler(opt, "x", 0, true);
+        if (!opt) return x;
+        cacheX = this.__unitConverter<RelativeType, number>({
+            val: cacheX,
+            widthRelated: true,
+        });
         const diffX = x - cacheX;
         if (diffX !== 0) {
             const cacheR = this.rotate();
@@ -1065,9 +1073,15 @@ export class Block<T = IBlockOptions> extends Node {
         return x;
     }
 
-    y(opt?: number | string): number {
-        const cacheY = this.ownOptions["y"] || 0;
+    y(opt?: RelativeType): number {
+        let cacheY = this.ownOptions["y"];
         const y = this.__valueHandler(opt, "y", 0, true);
+        if (!opt) return y;
+
+        cacheY = this.__unitConverter<RelativeType, number>({
+            val: cacheY,
+            widthRelated: false,
+        });
         const diffY = y - cacheY;
         if (cacheY !== y && diffY !== 0) {
             const cacheR = this.rotate();
@@ -1094,11 +1108,20 @@ export class Block<T = IBlockOptions> extends Node {
         return y;
     }
 
-    width(opt?: number | string): number {
-        const cacheW = this.ownOptions.width || 0;
+    width(opt?: RelativeType): number {
+        let cacheW = this.ownOptions["width"];
         const w = this.__valueHandler(opt, "width", 0, true);
+
+        if (!opt) return w;
+
         if (w < this.minWidth() && !this.horizontalFlipResize())
             return this.minWidth();
+
+        cacheW = this.__unitConverter<RelativeType, number>({
+            val: cacheW,
+            widthRelated: true,
+        });
+
         const diffW = w - cacheW;
         if (diffW !== 0) {
             const cacheR = this.rotate();
@@ -1117,11 +1140,16 @@ export class Block<T = IBlockOptions> extends Node {
         return w;
     }
 
-    height(opt?: number | string): number {
-        const cacheH = this.ownOptions.height || 0;
+    height(opt?: RelativeType): number {
+        let cacheH = this.ownOptions["height"];
         const h = this.__valueHandler(opt, "height", 0, false);
+        if (!opt) return h;
         if (h < this.minHeight() && !this.verticalFlipResize())
             return this.minHeight();
+        cacheH = this.__unitConverter<RelativeType, number>({
+            val: cacheH,
+            widthRelated: false,
+        });
         const diffH = h - cacheH;
         if (diffH !== 0) {
             const cacheR = this.rotate();
@@ -1139,27 +1167,17 @@ export class Block<T = IBlockOptions> extends Node {
         }
         return h;
     }
-    minWidth(opt?: number | string): number {
+    minWidth(opt?: RelativeType): number {
         return this.__valueHandler(opt, "minWidth", 0, true);
     }
-    minHeight(opt?: number | string): number {
+    minHeight(opt?: RelativeType): number {
         return this.__valueHandler(opt, "minHeight", 0, true);
     }
-    maxWidth(opt?: number | string): number {
-        return this.__valueHandler(
-            opt,
-            "maxWidth",
-            this.ownOptions.width || 0,
-            true
-        );
+    maxWidth(opt?: RelativeType): number {
+        return this.__valueHandler(opt, "maxWidth", this.width(), true);
     }
-    maxHeight(opt?: number | string): number {
-        return this.__valueHandler(
-            opt,
-            "maxHeight",
-            this.ownOptions.height || 0,
-            false
-        );
+    maxHeight(opt?: RelativeType): number {
+        return this.__valueHandler(opt, "maxHeight", this.height(), false);
     }
     position(opt?: Position) {
         // @TODO: z index has no effect on the static
@@ -1186,8 +1204,6 @@ export class Block<T = IBlockOptions> extends Node {
                         Math.abs(this.canvas?.width - this.getRealWidth) -
                             this.right()!
                     );
-                // this.rotationCenterX(this.getCenterX);
-                // this.rotationCenterY(this.getCenterY);
                 this.rotate(0);
             }
         } else if (pos === "fixed") {
@@ -1251,16 +1267,16 @@ export class Block<T = IBlockOptions> extends Node {
 
         return pos;
     }
-    top(opt?: number | string) {
+    top(opt?: RelativeType) {
         return this.__valueHandler(opt, "top", undefined, false);
     }
-    bottom(opt?: number | string) {
+    bottom(opt?: RelativeType) {
         return this.__valueHandler(opt, "bottom", undefined, false);
     }
-    left(opt?: number | string) {
+    left(opt?: RelativeType) {
         return this.__valueHandler(opt, "left", undefined, true);
     }
-    right(opt?: number | string) {
+    right(opt?: RelativeType) {
         return this.__valueHandler(opt, "right", undefined, true);
     }
     padding(opt?: number[]): number[] {
@@ -1290,16 +1306,16 @@ export class Block<T = IBlockOptions> extends Node {
         }
         return padding;
     }
-    paddingTop(opt?: number | string) {
+    paddingTop(opt?: RelativeType) {
         return this.__valueHandler(opt, "paddingTop", 0, false);
     }
-    paddingBottom(opt?: number | string) {
+    paddingBottom(opt?: RelativeType) {
         return this.__valueHandler(opt, "paddingBottom", 0, false);
     }
-    paddingLeft(opt?: number | string) {
+    paddingLeft(opt?: RelativeType) {
         return this.__valueHandler(opt, "paddingLeft", 0, true);
     }
-    paddingRight(opt?: number | string) {
+    paddingRight(opt?: RelativeType) {
         return this.__valueHandler(opt, "paddingRight", 0, true);
     }
     margin(opt?: number[]): number[] {
@@ -1329,16 +1345,16 @@ export class Block<T = IBlockOptions> extends Node {
         }
         return margin;
     }
-    marginTop(opt?: number | string) {
+    marginTop(opt?: RelativeType) {
         return this.__valueHandler(opt, "marginTop", 0, false);
     }
-    marginBottom(opt?: number | string) {
+    marginBottom(opt?: RelativeType) {
         return this.__valueHandler(opt, "marginBottom", 0, false);
     }
-    marginLeft(opt?: number | string) {
+    marginLeft(opt?: RelativeType) {
         return this.__valueHandler(opt, "marginLeft", 0, true);
     }
-    marginRight(opt?: number | string) {
+    marginRight(opt?: RelativeType) {
         return this.__valueHandler(opt, "marginRight", 0, true);
     }
 
@@ -1360,6 +1376,7 @@ export class Block<T = IBlockOptions> extends Node {
             x: 0,
             y: 0,
         });
+        if (!opt) return corner;
         const diffX = corner.x - cacheCords.x;
         if (diffX !== 0) {
             this.hotCornerTopLeft({
@@ -1391,6 +1408,8 @@ export class Block<T = IBlockOptions> extends Node {
             x: 0,
             y: 0,
         });
+        if (!opt) return corner;
+
         const diffX = corner.x - cacheCords.x;
         if (diffX !== 0) {
             this.hotCornerTopRight({
@@ -1422,6 +1441,8 @@ export class Block<T = IBlockOptions> extends Node {
             x: 0,
             y: 0,
         });
+        if (!opt) return corner;
+
         const diffX = corner.x - cacheCords.x;
         if (diffX !== 0) {
             this.hotCornerBottomLeft({
@@ -1453,6 +1474,8 @@ export class Block<T = IBlockOptions> extends Node {
             x: 0,
             y: 0,
         });
+        if (!opt) return corner;
+
         const diffX = corner.x - cacheCords.x;
         if (diffX !== 0) {
             this.hotCornerBottomRight({
@@ -2019,10 +2042,10 @@ export class Block<T = IBlockOptions> extends Node {
         return this.__valueHandler(opt, "hotAreaSize", 15);
     }
 
-    rotationCenterX(opt?: number | string) {
+    rotationCenterX(opt?: RelativeType) {
         return this.__valueHandler(opt, "rotationCenterX", 0, true);
     }
-    rotationCenterY(opt?: number | string) {
+    rotationCenterY(opt?: RelativeType) {
         return this.__valueHandler(opt, "rotationCenterY", 0, false);
     }
     rotationTopLeft(opt?: boolean) {
@@ -2141,19 +2164,19 @@ export class Block<T = IBlockOptions> extends Node {
     gridRow(opt?: number[]) {
         return this.__valueHandler(opt, "gridRow", []);
     }
-    gridRowStart(opt?: number | string) {
+    gridRowStart(opt?: RelativeType) {
         return this.__valueHandler(opt, "gridRowStart", 0);
     }
-    gridRowEnd(opt?: number | string) {
+    gridRowEnd(opt?: RelativeType) {
         return this.__valueHandler(opt, "gridRowEnd", 0);
     }
     gridColumn(opt?: number[]) {
         return this.__valueHandler(opt, "gridColumn", []);
     }
-    gridColumnStart(opt?: number | string) {
+    gridColumnStart(opt?: RelativeType) {
         return this.__valueHandler(opt, "gridColumnStart", 0);
     }
-    gridColumnEnd(opt?: number | string) {
+    gridColumnEnd(opt?: RelativeType) {
         return this.__valueHandler(opt, "gridColumnEnd", 0);
     }
     gridArea(opt?: number[] | string) {
@@ -2163,10 +2186,6 @@ export class Block<T = IBlockOptions> extends Node {
         this.gridRowEnd(gridArea[2] || "auto");
         this.gridColumnEnd(gridArea[3] || "auto");
         return gridArea;
-    }
-
-    fillRule(opt?: CanvasFillRule): CanvasFillRule {
-        return this.__valueHandler(opt, "fillRule", "nonzero");
     }
 
     zIndex(opt?: number) {
@@ -2250,7 +2269,7 @@ export class Block<T = IBlockOptions> extends Node {
     rotate(opt?: number): number {
         const cacheRotate = this.ownOptions["rotate"] || 0;
         const rotate = this.__valueHandler(opt, "rotate", 0);
-        // console.trace(rotate, this.ownOptions.backgroundColor)
+        if (!opt) return rotate;
         const diffR = rotate - cacheRotate;
         if (diffR !== 0) this.#updateCornerByRot(diffR);
         return rotate;

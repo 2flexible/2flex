@@ -25,7 +25,7 @@ export interface ITextOptions {
     strokeColor?: string;
     fontFamily?: string;
     fontWeight?: FontWeight;
-    fontSize?: string;
+    fontSize?: number | string;
     fontStyle?: FontStyle;
     fontVariant?: FontVariant;
     fontStretch?: FontStretch;

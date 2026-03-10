@@ -12,7 +12,7 @@ export type LineDashOffset = number;
 export type LineDash = number[];
 export type LineWidth = number;
 export type LineCapOpt = "butt" | "round" | "square";
-export type FillRule = "nonzero" | "evenodd";
+export type FillRule = CanvasFillRule;
 export type strokeStyle = string;
 export type FillStyle = string;
 export type Fill = boolean;
@@ -137,6 +137,11 @@ export interface PointInStroke extends CursorPos {
     path?: Path2D;
 }
 
+export interface Clip {
+    path?: Path2D;
+    fillRule?: CanvasFillRule;
+}
+
 interface ShapeFilters {
     [key: string]: string | undefined;
     blur?: string;
@@ -240,37 +245,43 @@ export interface IShapeOptions {
     wordSpacing?: string;
     letterSpacing?: string;
     direction?: TextDirection;
-
+    clip?: Clip;
     pathData?: string;
 }
 export class ShapeBlock<T> extends Block<T | IShapeOptions> {
     #gradient?: CanvasGradient;
     #dataPath?: Path2D;
-    __filters: ShapeFilters = {
-        blur: undefined,
-        brightness: undefined,
-        contrast: undefined,
-        dropShadow: undefined,
-        grayscale: undefined,
-        hueRotate: undefined,
-        saturate: undefined,
-        sepia: undefined,
-    };
+    __filters: ShapeFilters = {};
+    #filterStr?: string;
 
     constructor(options: IBlock<IShapeOptions>) {
         super(options);
     }
     render(): void {
+        this.__adjustBlocks();
+        this.position();
         if (this.hidden()) {
-            this.listAllChilds((n: Block) => {
-                n.hidden(true);
-            });
+            if (this.childNodes.length !== 0) {
+                this.listAllChilds((n: Block) => {
+                    n.hidden(true);
+                });
+            }
             return;
         }
         this.beginPath();
         this.context?.save();
+        this.__childClipping?.(this as Block);
         this.context?.translate(this.rotationCenterX(), this.rotationCenterY());
         this.context?.rotate(this.rotate());
+        // @TODO: add features for vertical or horizantal flipping
+        // this.context?.setTransform(
+        //     this.__isHorizontalFlipped ? -1 : 1,
+        //     0,
+        //     0,
+        //     this.__isVerticalFlipped ? -1 : 1,
+        //     !this.__isHorizontalFlipped ? this.rotationCenterX() : 0,
+        //     !this.__isVerticalFlipped ? this.rotationCenterY() : 0
+        // );
         this.context?.translate(
             -this.rotationCenterX(),
             -this.rotationCenterY()
@@ -284,6 +295,7 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         if (this.ownOptions.fillRect) this.fillRect();
         if (this.ownOptions.rect) this.rect();
         if (this.ownOptions.strokeStyle) this.strokeStyle();
+        if (this.ownOptions.clip) this.clip();
 
         this.draw();
 
@@ -307,6 +319,18 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
     closePath(): void {
         this.context?.closePath();
         this.#dataPath?.closePath();
+    }
+    clip(opt?: Clip) {
+        const { path, fillRule } = this.__valueHandler<Clip, Clip>(
+            opt,
+            "clip",
+            {
+                path: undefined,
+                fillRule: "nonzero",
+            }
+        );
+        if (path) return this.context?.clip(path, fillRule);
+        else return this.context?.clip(fillRule);
     }
     fill(opt?: Fill) {
         const fill = this.__valueHandler(opt, "fill", false);
@@ -757,11 +781,20 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
     }
 
     #contextFilter() {
-        let allStr = "";
-        for (const [key, value] of Object.entries(this.__filters)) {
-            if (value) allStr += ` ${key + value}`;
+        if (!this.#filterStr) {
+            const entries = Object.entries(this.__filters);
+            if (entries.length !== 0) {
+                let allStr = "";
+                for (const [key, value] of Object.entries(this.__filters)) {
+                    if (value) allStr += ` ${key + value}`;
+                }
+                this.#filterStr = allStr;
+            }
         }
-        if (this.context) this.context.filter = allStr;
+        console.log(this.#filterStr);
+        if (this.context && this.#filterStr) {
+            this.context.filter = this.#filterStr;
+        }
     }
 
     #filterHandler(filter?: BaseFilters, value?: string | number | number[]) {
@@ -804,6 +837,7 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
                 break;
         }
         this.__filters[filter] = `(${value})`;
+        this.#filterStr = undefined;
     }
 
     blur(opt?: number) {
@@ -822,7 +856,7 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         return contrast;
     }
     dropShadow(opt?: [number, number, number, string][]) {
-        const dropShadow = this.__valueHandler(opt, "dropShadow", []);
+        const dropShadow = this.__valueHandler(opt, "dropShadow", undefined);
         this.#filterHandler("drop-shadow", dropShadow);
         return dropShadow;
     }
