@@ -148,7 +148,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                 wrapX = 0;
                 wrapH += Math.max(...heights);
                 const wordM = super.measureText(words);
-                heightW += wordM.hangingBaseline;
+                heightW += wordM.fontBoundingBoxAscent;
                 texts.push({
                     words: words,
                     width: wordM.width,
@@ -168,7 +168,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         texts.push({
             words: words,
             width: wordM.width,
-            height: this.y() + heightW + wordM.hangingBaseline,
+            height: this.y() + heightW + wordM.fontBoundingBoxAscent,
         });
         return texts;
     }
@@ -304,7 +304,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                 let pendingNode = undefined;
                 let wordWidth = 0;
                 const measure = super.measureText("");
-                this.#letterNode.height = measure.hangingBaseline;
+                this.#letterNode.height = measure.fontBoundingBoxAscent;
                 for (let i = 0, len = splitedText.length; i < len; i++) {
                     const measure = super.measureText(splitedText[i]);
                     const node = {
@@ -314,9 +314,9 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                         letter: splitedText[i],
                         width: measure.width,
                         wordWidth: 0,
-                        height: measure.hangingBaseline,
+                        height: measure.fontBoundingBoxAscent,
                         x: x,
-                        y: measure.hangingBaseline + this.y(),
+                        y: measure.fontBoundingBoxAscent + this.y(),
                     };
                     prevNode.next = node;
                     prevNode = prevNode.next;

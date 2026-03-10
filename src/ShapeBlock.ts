@@ -791,7 +791,6 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
                 this.#filterStr = allStr;
             }
         }
-        console.log(this.#filterStr);
         if (this.context && this.#filterStr) {
             this.context.filter = this.#filterStr;
         }
