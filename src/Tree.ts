@@ -90,6 +90,7 @@ export class Tree {
             if (current?.childNodes) Q.unshift(...current?.childNodes);
         }
         this.#nodes = nodes;
+        this.#sortedBy = undefined;
     }
 
     assignNodeId(node: Node) {
