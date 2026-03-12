@@ -9,7 +9,10 @@ interface StickyLine {
     y: number;
 }
 
+type LineType = "line" | "cubicBezier";
+
 interface ILineOptions {
+    lineType: LineType;
     startX?: number;
     startY?: number;
     endX?: number;
@@ -175,7 +178,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         this.context.stroke(this.pathC4);
         this.context.fill(this.pathC4);
 
-        if (this.startControllable()) {
+        if (this.startControllable() && this.lineType() === "cubicBezier") {
             this.beginPath();
             this.context.moveTo(this.startX(), this.startY());
             this.context.lineTo(this.startControlX(), this.startControlY());
@@ -195,7 +198,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             this.context.fill(this.pathC2);
         }
 
-        if (this.endControllable()) {
+        if (this.endControllable() && this.lineType() === "cubicBezier") {
             this.beginPath();
             this.context.moveTo(this.endX(), this.endY());
             this.context.lineTo(this.endControlX(), this.endControlY());
@@ -241,14 +244,17 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         else this.canvas?.registerZIndex({ out: this.zIndex() });
         return inBound;
     }
+
+    lineType(opt?: LineType) {
+        return this.__valueHandler(opt, "type", "line");
+    }
+
     x(opt?: number | string): number {
-        let cacheX = this.ownOptions.x || 0;
-        const x = super.x(opt);
-        if (!opt) return x;
-        cacheX = this.__unitConverter<RelativeType, number>({
-            val: cacheX,
-            widthRelated: true,
+        let cacheX = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.x || 0,
+            widthRelated: false,
         });
+        const x = super.x(opt);
         const diffX = x - cacheX;
         if (diffX !== 0) {
             this.startX(this.startX() + diffX);
@@ -258,13 +264,11 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
     }
 
     y(opt?: number | string): number {
-        let cacheY = this.ownOptions.y || 0;
-        const y = super.y(opt);
-        if (!opt) return y;
-        cacheY = this.__unitConverter<RelativeType, number>({
-            val: cacheY,
+        let cacheY = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.y || 0,
             widthRelated: false,
         });
+        const y = super.y(opt);
         const diffY = y - cacheY;
         if (diffY !== 0) {
             this.startY(this.startY() + diffY);
@@ -273,15 +277,13 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         return y;
     }
     width(opt?: number | string): number {
-        let cacheW = this.ownOptions.width || 0;
+        let cacheW = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.width || 0,
+            widthRelated: false,
+        });
         const w = super.width(opt);
-        if (!opt) return w;
         if (w < this.minWidth() && !this.horizontalFlipResize())
             return this.minWidth();
-        cacheW = this.__unitConverter<RelativeType, number>({
-            val: cacheW,
-            widthRelated: true,
-        });
         const diffW = w - cacheW;
         if (diffW) {
             const cR = this.rotate();
@@ -304,17 +306,15 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         return w;
     }
     height(opt?: number | string): number {
-        let cacheH = this.ownOptions.height || 0;
+        const cacheH = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.height || 0,
+            widthRelated: false,
+        });
         const h = super.height(opt);
-        if (!opt) return h;
 
         if (h < this.minHeight() && !this.verticalFlipResize())
             return this.minHeight();
-        
-        cacheH = this.__unitConverter<RelativeType, number>({
-            val: cacheH,
-            widthRelated: false,
-        });
+
         const diffH = h - cacheH;
         if (diffH) {
             const cR = this.rotate();
@@ -338,7 +338,10 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
     }
 
     startX(opt?: number) {
-        const cacheX = this.ownOptions.startX || 0;
+        const cacheX = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.startX || 0,
+            widthRelated: false,
+        });
         let x = this.__valueHandler<number, number | undefined>(
             opt,
             "startX",
@@ -346,11 +349,15 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         );
         if (x === undefined) x = this.x();
         const diffX = x - cacheX;
-        if (diffX !== 0) this.startControlX(this.startControlX() + diffX);
+        if (diffX !== 0 && this.lineType() == "cubicBezier")
+            this.startControlX(this.startControlX() + diffX);
         return x;
     }
     startY(opt?: number) {
-        const cacheY = this.ownOptions.startY || 0;
+        const cacheY = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.startY || 0,
+            widthRelated: false,
+        });
         let y = this.__valueHandler<number, number | undefined>(
             opt,
             "startY",
@@ -358,11 +365,15 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         );
         if (y === undefined) y = this.y();
         const diffY = y - cacheY;
-        if (diffY !== 0) this.startControlY(this.startControlY() + diffY);
+        if (diffY !== 0 && this.lineType() == "cubicBezier")
+            this.startControlY(this.startControlY() + diffY);
         return y;
     }
     endX(opt?: number) {
-        const cacheX = this.ownOptions.endX || 0;
+        const cacheX = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.endX || 0,
+            widthRelated: false,
+        });
         let x = this.__valueHandler<number, number | undefined>(
             opt,
             "endX",
@@ -370,11 +381,15 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         );
         if (x === undefined) x = this.x() + this.width();
         const diffX = x - cacheX;
-        if (diffX !== 0) this.endControlX(this.endControlX() + diffX);
+        if (diffX !== 0 && this.lineType() == "cubicBezier")
+            this.endControlX(this.endControlX() + diffX);
         return x;
     }
     endY(opt?: number) {
-        const cacheY = this.ownOptions.endY || 0;
+        const cacheY = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.endY || 0,
+            widthRelated: false,
+        });
         let y = this.__valueHandler<number, number | undefined>(
             opt,
             "endY",
@@ -382,7 +397,8 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         );
         if (y === undefined) y = this.y() + this.height();
         const diffY = y - cacheY;
-        if (diffY !== 0) this.endControlY(this.endControlY() + diffY);
+        if (diffY !== 0 && this.lineType() == "cubicBezier")
+            this.endControlY(this.endControlY() + diffY);
         return y;
     }
     startControlX(opt?: number) {
@@ -439,7 +455,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
 
     startControllable(opt?: boolean) {
         const draggable = this.__valueHandler(opt, "startControllable", false);
-        if (draggable)
+        if (draggable && this.lineType() === "cubicBezier")
             this.#draggablePoints(
                 "startControlX",
                 "startControlY",
@@ -450,7 +466,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
     }
     endControllable(opt?: boolean) {
         const draggable = this.__valueHandler(opt, "endControllable", false);
-        if (draggable)
+        if (draggable && this.lineType() === "cubicBezier")
             this.#draggablePoints(
                 "endControlX",
                 "endControlY",
