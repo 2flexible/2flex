@@ -75,7 +75,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         super(options);
         this.text(text);
     }
-
+  
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         const cacheR = this.rotate();
         this.rotate(0);
@@ -148,7 +148,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                 wrapX = 0;
                 wrapH += Math.max(...heights);
                 const wordM = super.measureText(words);
-                heightW += wordM.fontBoundingBoxAscent;
+                heightW += wordM.actualBoundingBoxAscent;
                 texts.push({
                     words: words,
                     width: wordM.width,
@@ -168,7 +168,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         texts.push({
             words: words,
             width: wordM.width,
-            height: this.y() + heightW + wordM.fontBoundingBoxAscent,
+            height: this.y() + heightW + wordM.actualBoundingBoxAscent,
         });
         return texts;
     }
@@ -304,7 +304,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                 let pendingNode = undefined;
                 let wordWidth = 0;
                 const measure = super.measureText("");
-                this.#letterNode.height = measure.fontBoundingBoxAscent;
+                this.#letterNode.height = measure.actualBoundingBoxAscent;
                 for (let i = 0, len = splitedText.length; i < len; i++) {
                     const measure = super.measureText(splitedText[i]);
                     const node = {
@@ -314,9 +314,9 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                         letter: splitedText[i],
                         width: measure.width,
                         wordWidth: 0,
-                        height: measure.fontBoundingBoxAscent,
+                        height: measure.actualBoundingBoxAscent,
                         x: x,
-                        y: measure.fontBoundingBoxAscent + this.y(),
+                        y: measure.actualBoundingBoxAscent + this.y(),
                     };
                     prevNode.next = node;
                     prevNode = prevNode.next;
