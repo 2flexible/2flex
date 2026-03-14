@@ -6,6 +6,8 @@ export class Node {
     childNodes: Node[];
     parentNode?: Node;
     nodeId?: NodeId;
+    __sortedNodes: Node[] = [];
+    __sortedBy?: string;
 
     constructor() {
         this.childNodes = [];
@@ -19,15 +21,21 @@ export class Node {
                 this.childNodes.push(node[i]);
             }
         }
+        this.__sortedNodes = this.childNodes;
     }
 
     listAllChilds<T>(_func: (element: T) => void) {
         const Q: Node[] = [this];
+        this.__sortedNodes = [];
         while (Q.length > 0) {
             let current: Node | undefined = Q.shift();
-            if (current && current !== this) _func(current as T);
+            if (current && current !== this) {
+                _func(current as T);
+                this.__sortedNodes.push(current);
+            }
             if (current?.childNodes) Q.unshift(...current.childNodes);
         }
+        this.__sortedBy = undefined;
     }
 
     listOnlyChilds<B>(
@@ -35,6 +43,20 @@ export class Node {
     ) {
         for (let i = 0, len = this.childNodes.length; i < len; i++) {
             _func(this.childNodes[i] as B, i, this.childNodes.length);
+        }
+    }
+
+    listSortedChilds<T>(_func: (element: T) => void, sort?: string) {
+        const sortedNodes = this.__sortedNodes;
+        if (sort && this.__sortedBy !== sort) {
+            sortedNodes.sort(
+                (a: any, b: any) => a.ownOptions[sort] - b.ownOptions[sort]
+            );
+            this.__sortedNodes = sortedNodes;
+            this.__sortedBy = sort;
+        }
+        for (let i = 0, len = sortedNodes.length; i < len; i++) {
+            _func(sortedNodes[i] as T);
         }
     }
 
@@ -61,8 +83,6 @@ export class Tree {
     #currentSnapshot = 0;
     #snapshots: Snapshots | any = {};
     snapshotSize: number = 0;
-    #nodes: Node[] = [];
-    #sortedBy?: string;
     #latestNodeId = 1;
 
     constructor(snapshotSize?: number) {
@@ -74,43 +94,17 @@ export class Tree {
         this.head.addChild(...node);
     }
 
-    preOrderTraversal<T>(head: Node, _func?: (node: T) => void) {
-        const Q = [head || this.head];
-        const nodes: Node[] = [];
-        while (Q.length > 0) {
-            let current: Node = Q.shift() as Node;
-            if (
-                current &&
-                Object.getPrototypeOf(current).constructor.name !== "Node"
-            ) {
-                this.assignNodeId(current);
-                if (_func) _func(current as T);
-                nodes.push(current);
-            }
-            if (current?.childNodes) Q.unshift(...current?.childNodes);
-        }
-        this.#nodes = nodes;
-        this.#sortedBy = undefined;
+    preOrderTraversal<T>(_func?: (node: T) => void) {
+        this.head.listAllChilds((current: Node) => {
+            this.assignNodeId(current);
+            if (_func) _func(current as T);
+        });
     }
 
     assignNodeId(node: Node) {
         if (node.nodeId === undefined) {
             node.nodeId = this.#latestNodeId;
             this.#latestNodeId += 1;
-        }
-    }
-
-    listSortedChilds<T>(_func: (element: T) => void, sort?: string) {
-        const sortedNodes = this.#nodes;
-        if (sort && this.#sortedBy !== sort) {
-            sortedNodes.sort(
-                (a: any, b: any) => a.ownOptions[sort] - b.ownOptions[sort]
-            );
-            this.#nodes = sortedNodes;
-            this.#sortedBy = sort;
-        }
-        for (let i = 0, len = sortedNodes.length; i < len; i++) {
-            _func(sortedNodes[i] as T);
         }
     }
 
