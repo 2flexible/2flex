@@ -217,8 +217,6 @@ export interface IBlockOptions {
     hotResizableAreaRight?: HotCornerArea;
     hotResizableAreaLeft?: HotCornerArea;
     hotResizableAreaBottom?: HotCornerArea;
-    translate?: XY;
-    overflowTranslate?: XY;
     onRender?: () => void;
 }
 
@@ -329,7 +327,7 @@ export class Block<T = IBlockOptions> extends Node {
         };
     }
     __isSelected() {
-        this.__hotLines();
+        // this.__hotLines();
         if (this.__runningEvents.selected) {
             if (this.canvas?.whoIsTheFirst(this.zIndex())) this.__hotLines();
             else this.__runningEvents.selected = false;
@@ -2339,8 +2337,8 @@ export class Block<T = IBlockOptions> extends Node {
         this.width(this.width() * scale);
         this.height(this.height() * scale);
     }
-    translate(opt?: XY) {
-        const t = this.__valueHandler(opt, "translate", { x: 0, y: 0 });
+    __translate(t: { x: number; y: number }) {
+        if (this.ownOptions.position === "fixed") return;
         this.x(this.x() + t.x);
         this.y(this.y() + t.y);
         if (this.ownOptions.position == "absolute") {
@@ -2356,14 +2354,11 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.top() !== undefined) this.top(0);
             else if (this.bottom() !== undefined) this.bottom(0);
         }
-        return t;
     }
 
-    overflowTranslate(opt?: XY) {
-        const t = this.__valueHandler(opt, "overflowTranslate", { x: 0, y: 0 });
+    __overflowTranslate(t: { x: number; y: number }) {
         this.__overflowCords.x += t.x;
         this.__overflowCords.y += t.y;
-        return t;
     }
     get isOverflowXScroll() {
         return this.overflow() === "scroll" || this.overflowX() === "scroll";
@@ -2999,6 +2994,19 @@ export class Block<T = IBlockOptions> extends Node {
         if (inBound) this.canvas?.registerZIndex({ in: this.zIndex() });
         else this.canvas?.registerZIndex({ out: this.zIndex() });
         return inBound;
+    }
+
+    contextMenu(_func: (event: MouseEvent) => void) {
+        const out = (event: MouseEvent) => {
+            if (
+                this.checkInBound(event) &&
+                this.canvas?.whoIsTheFirst(this.zIndex())
+            ) {
+                _func(event);
+                this.canvas?.invokeChange();
+            }
+        };
+        this.__eventHandler<MouseEvent>("contextmenu", out);
     }
 
     click(_func: (event: MouseEvent) => void) {

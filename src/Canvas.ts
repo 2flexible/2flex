@@ -572,7 +572,7 @@ export class Canvas {
                         this.__positionCords.y -= (y - beforeY) * scaleFactor;
 
                         this.invokeChange((block) => {
-                            block.translate({
+                            block.__translate({
                                 x: this.__positionCords.x - beforeX,
                                 y: 0,
                             });
@@ -586,7 +586,7 @@ export class Canvas {
                         this.__positionCords.x -= (x - beforeX) * scaleFactor;
                         this.__positionCords.y -= (y - beforeY) * scaleFactor;
                         this.invokeChange((block) => {
-                            block.translate({
+                            block.__translate({
                                 x: this.__positionCords.x - beforeX,
                                 y: this.__positionCords.y - beforeY,
                             });
@@ -628,7 +628,7 @@ export class Canvas {
                             // this.__positionCords.y +=
                             //     y / (this.__positionCords.z * scale) -
                             //     y / this.__positionCords.z;
-                            block.translate({
+                            block.__translate({
                                 x: beforeX - this.__positionCords.x,
                                 y: 0,
                             });
@@ -643,7 +643,7 @@ export class Canvas {
                                 y / (this.__positionCords.z * invScale) -
                                 y / this.__positionCords.z;
 
-                            block.translate({
+                            block.__translate({
                                 x: this.__positionCords.x - beforeX,
                                 y: this.__positionCords.y - beforeY,
                             });
@@ -717,14 +717,14 @@ export class Canvas {
                         let diffY = event.clientY - initY;
                         if (diffX !== 0) {
                             this.invokeChange((block: Block) => {
-                                block.translate({ x: diffX - beforeX, y: 0 });
+                                block.__translate({ x: diffX - beforeX, y: 0 });
                             });
                             this.__positionCords.x += diffX;
                             beforeX = diffX;
                         }
                         if (diffY !== 0) {
                             this.invokeChange((block: Block) => {
-                                block.translate({ x: 0, y: diffY - beforeY });
+                                block.__translate({ x: 0, y: diffY - beforeY });
                             });
                             this.__positionCords.y += diffY;
                             beforeY = diffY;
@@ -744,7 +744,7 @@ export class Canvas {
 
     #setCanvasPosition() {
         this.invokeChange((block: Block) => {
-            block.translate({
+            block.__translate({
                 x: block.x() + this.__positionCords.x,
                 y: block.y() + this.__positionCords.y,
             });
@@ -774,12 +774,12 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.isOverflowXScroll
                             ) {
-                                block.overflowTranslate({
+                                block.__overflowTranslate({
                                     x: -moveSpeed,
                                     y: 0,
                                 });
                                 inBound = true;
-                            } else block.translate({ x: -moveSpeed, y: 0 });
+                            } else block.__translate({ x: -moveSpeed, y: 0 });
                         });
                         if (!inBound) this.__positionCords.x -= moveSpeed;
                     } else {
@@ -788,9 +788,9 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.isOverflowXScroll
                             ) {
-                                block.overflowTranslate({ x: moveSpeed, y: 0 });
+                                block.__overflowTranslate({ x: moveSpeed, y: 0 });
                                 inBound = true;
-                            } else block.translate({ x: moveSpeed, y: 0 });
+                            } else block.__translate({ x: moveSpeed, y: 0 });
                         });
                         if (!inBound) this.__positionCords.x += moveSpeed;
                     }
@@ -801,9 +801,9 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.isOverflowYScroll
                             ) {
-                                block.overflowTranslate({ x: 0, y: moveSpeed });
+                                block.__overflowTranslate({ x: 0, y: moveSpeed });
                                 inBound = true;
-                            } else block.translate({ x: 0, y: moveSpeed });
+                            } else block.__translate({ x: 0, y: moveSpeed });
                         });
                         if (!inBound) this.__positionCords.y += moveSpeed;
                     } else {
@@ -812,12 +812,12 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.isOverflowYScroll
                             ) {
-                                block.overflowTranslate({
+                                block.__overflowTranslate({
                                     x: 0,
                                     y: -moveSpeed,
                                 });
                                 inBound = true;
-                            } else block.translate({ x: 0, y: -moveSpeed });
+                            } else block.__translate({ x: 0, y: -moveSpeed });
                         });
                         if (!inBound) this.__positionCords.y -= moveSpeed;
                     }
