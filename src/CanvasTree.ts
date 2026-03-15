@@ -29,6 +29,7 @@ export class CanvasTree {
     preOrderTraversal<T>(_func?: (node: T) => void) {
         this.nodes = [];
         this.head.listAllChilds((current: Node) => {
+            if (current === this.head) return;
             this.assignNodeId(current);
             if (_func) _func(current as T);
             this.nodes.push(current);
