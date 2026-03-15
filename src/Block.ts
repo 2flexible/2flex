@@ -266,9 +266,9 @@ export class Block<T = IBlockOptions> extends Node {
     #lastOrder: number;
 
     __clipPath?: Path2D;
-    __childClipping?: (b: Block) => void;
+    __childClipping?: (b: Block<T>) => void;
 
-    __childAdjustment?: (b: Block) => void;
+    __childAdjustment?: (b: Block<T>) => void;
 
     constructor(options: IBlock<T>) {
         super();
@@ -304,12 +304,12 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     render() {
-        this.__childClipping?.(this as Block);
-        this.__childAdjustment?.(this as Block);
+        this.__childClipping?.(this);
+        this.__childAdjustment?.(this);
 
         this.__clippingPath();
         this.__adjustChildBlocks();
-        
+
         this.position();
 
         if (this.hidden() || this.__hidden) {
@@ -329,6 +329,7 @@ export class Block<T = IBlockOptions> extends Node {
         };
     }
     __isSelected() {
+        this.__hotLines();
         if (this.__runningEvents.selected) {
             if (this.canvas?.whoIsTheFirst(this.zIndex())) this.__hotLines();
             else this.__runningEvents.selected = false;
@@ -379,7 +380,7 @@ export class Block<T = IBlockOptions> extends Node {
         };
         super.removeChild(child);
         child.__childAdjustment = undefined;
-        child.__childClipping = undefined
+        child.__childClipping = undefined;
         this.canvas?.invokeNodeListing();
         this.canvas?.__clearEvents(child);
         this.canvas?.__takeBlockSnapshot(this, before);
@@ -1016,23 +1017,23 @@ export class Block<T = IBlockOptions> extends Node {
         widthRelated?: boolean;
     }): O {
         if (val && typeof val === "string" && /^\d/.test(val)) {
+            const size = widthRelated ? this.parentWidth : this.parentHeight;
+            const space = widthRelated
+                ? this.__widthSpaces
+                : this.__heightSpaces;
             if (val.endsWith("px")) return Number(val.split("px")[0]) as O;
             else if (val.endsWith("%")) {
-                return (fromPercentage(
-                    Number(val.split("%")[0]),
-                    this.parentNode?.width() || this.canvas?.width || 1
-                ) - this.__widthSpaces) as O;
+                return (fromPercentage(Number(val.split("%")[0]), size || 1) -
+                    space) as O;
             } else if (val.endsWith("rem"))
                 return (fromRem(
                     Number(val.split("rem")[0]),
                     this.canvas?.width || 1
-                ) - this.__widthSpaces) as O;
-            else if (val.endsWith("em"))
-                return (fromEm(
-                    Number(val.split("em")[0]),
-                    this.parentNode?.width() || this.canvas?.width || 1
-                ) - this.__widthSpaces) as O;
-            else if (
+                ) - space) as O;
+            else if (val.endsWith("em")) {
+                return (fromEm(Number(val.split("em")[0]), size || 1) -
+                    space) as O;
+            } else if (
                 val.endsWith("vh") &&
                 widthRelated !== undefined &&
                 widthRelated === false
@@ -1049,7 +1050,7 @@ export class Block<T = IBlockOptions> extends Node {
                 return (fromVW(
                     Number(val.split("vw")[0]),
                     this.canvas?.width || 1
-                ) - this.__widthSpaces) as O;
+                ) - space) as O;
             else if (val.endsWith("cm"))
                 return fromCm(Number(val.split("cm")[0])) as O;
             else if (val.endsWith("mm"))
@@ -1064,6 +1065,25 @@ export class Block<T = IBlockOptions> extends Node {
                 return fromPt(Number(val.split("pt")[0])) as O;
         }
         return val as O;
+    }
+
+    get parentWidth() {
+        if (this.#isBlock) return this.parentNode?.width();
+        return this.canvas?.width;
+    }
+
+    get parentHeight() {
+        if (this.#isBlock) return this.parentNode?.height();
+        return this.canvas?.height;
+    }
+
+    get #isBlock() {
+        if (
+            this.parentNode &&
+            Object.getPrototypeOf(this.parentNode).constructor.name !== "Node"
+        )
+            return true;
+        return false;
     }
     get __widthSpaces() {
         return (
@@ -1258,14 +1278,15 @@ export class Block<T = IBlockOptions> extends Node {
                 else if (this.bottom() !== undefined)
                     this.y(
                         Math.abs(
-                            this.canvas?.height || 1 - this.getRealHeight
+                            (this.canvas?.height || 1) - this.getRealHeight
                         ) - this.bottom()!
                     );
                 if (this.left() !== undefined) this.x(this.left());
                 else if (this.right() !== undefined)
                     this.x(
-                        Math.abs(this.canvas?.width || 1 - this.getRealWidth) -
-                            this.right()!
+                        Math.abs(
+                            (this.canvas?.width || 1) - this.getRealWidth
+                        ) - this.right()!
                     );
                 this.rotate(0);
             }
@@ -1273,13 +1294,13 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.top() !== undefined) this.y(this.top()!);
             else if (this.bottom() !== undefined)
                 this.y(
-                    Math.abs(this.canvas?.height || 1 - this.height()) -
+                    Math.abs((this.canvas?.height || 1) - this.height()) -
                         this.bottom()!
                 );
             if (this.left() !== undefined) this.x(+this.left()!);
             else if (this.right() !== undefined)
                 this.x(
-                    +Math.abs(this.canvas?.width || 1 - this.width()) -
+                    +Math.abs((this.canvas?.width || 1) - this.width()) -
                         this.right()!
                 );
         } else if (pos === "sticky") {
@@ -1290,7 +1311,7 @@ export class Block<T = IBlockOptions> extends Node {
                 this.getBottom.y >= (this.canvas?.height || 1) - this.bottom()!
             ) {
                 this.y(
-                    Math.abs(this.canvas?.height || 1 - this.getRealHeight) -
+                    Math.abs((this.canvas?.height || 1) - this.getRealHeight) -
                         this.bottom()!
                 );
             }
@@ -1301,7 +1322,7 @@ export class Block<T = IBlockOptions> extends Node {
                 this.getRight.x >= (this.canvas?.width || 1) - this.right()!
             ) {
                 this.x(
-                    Math.abs(this.canvas?.width || 1 - this.getRealWidth) -
+                    Math.abs((this.canvas?.width || 1) - this.getRealWidth) -
                         this.right()!
                 );
             }
@@ -1309,14 +1330,14 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.left() !== undefined) this.x(this.left()!);
             else if (this.right() !== undefined)
                 this.x(
-                    Math.abs(this.canvas?.width || 1 - this.getRealWidth) -
+                    Math.abs((this.canvas?.width || 1) - this.getRealWidth) -
                         this.right()!
                 );
             if (this.top() !== undefined) {
                 this.y(this.top());
             } else if (this.bottom() !== undefined)
                 this.y(
-                    Math.abs(this.canvas?.height || 1 - this.getRealHeight) -
+                    Math.abs((this.canvas?.height || 1) - this.getRealHeight) -
                         this.bottom()!
                 );
         } else if (pos === "relative") {
