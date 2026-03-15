@@ -1,8 +1,14 @@
-import { Tree, Node, NodeId } from "./Tree";
+import { Node, NodeId } from "./Node";
+import { CanvasTree } from "./CanvasTree";
 import { CanvasDOMManager } from "./DOMManager";
 import { getPrototype, xIntersect, yIntersect } from "./Utils";
 import type { Block, IBlockOptions, BlockPayload } from "./Block";
-import type { ICssProperties, SnapshotObject, CustomEvent } from "./types";
+import type {
+    ICssProperties,
+    SnapshotObject,
+    CustomEvent,
+    SnapshotSize,
+} from "./types";
 import { defaultBlocks } from "./defaultBlocks";
 
 export type Composite =
@@ -41,7 +47,7 @@ interface CanvasOptions {
     keyboardMovement?: boolean;
     mouseMovement?: boolean;
     history?: boolean;
-    historySize?: number;
+    historySize?: SnapshotSize;
     x?: number;
     y?: number;
     z?: number;
@@ -49,6 +55,11 @@ interface CanvasOptions {
     alpha?: number;
     composite?: Composite;
 }
+
+interface DefaultCanvasOptions
+    extends Required<{
+        [K in keyof CanvasOptions]-?: CanvasOptions[K];
+    }> {}
 
 interface CanvasEvent {
     func?: CustomEvent<Event>;
@@ -79,34 +90,18 @@ export class Canvas {
     #htmlCanvas?: HTMLCanvasElement;
     #boundingClient?: DOMRect;
 
-    __domCanvas: CanvasDOMManager;
-    #tree: Tree;
-    #canvasEvents: CanvasEvents = {};
-    #defaultOptions = {
-        history: true,
-        historySize: 100,
-        zoom: "center",
-        zoomSpeed: 1.2,
-        zoomInvSpeed: 0.8,
-        moveSpeed: 10,
-        keyboardMovement: true,
-        mouseMovement: true,
-        x: 0,
-        y: 0,
-        z: 1,
-        fps: 60,
-        composite: "source-over",
-        alpha: 1.0,
-    };
-    currentCursor: string = "auto";
-    __animations: any = [];
-    #higherBlockZIndex: number = 0;
-    #handledNodes: { [key: number]: boolean } = {};
+    #domCanvas: CanvasDOMManager;
+    #tree: CanvasTree;
+    #canvasEvents: CanvasEvents;
+    #defaultOptions: DefaultCanvasOptions;
+    currentCursor: string;
+    #higherBlockZIndex: number;
+    #handledNodes: { [key: number]: boolean };
     #initTime?: number;
-    #highZIndex = 1;
     #isFocused = false;
 
-    __positionCords: { x: number; y: number; z: number } = { x: 0, y: 0, z: 1 };
+    __animations: any = [];
+    __positionCords: { x: number; y: number; z: number };
 
     constructor(
         canvasId?: string,
@@ -119,10 +114,32 @@ export class Canvas {
         this.width = width || 300;
         this.height = height || 300;
 
-        if (this.options) this.setOptions();
-        this.#tree = new Tree(this.#defaultOptions.historySize);
+        this.currentCursor = "auto";
+        this.#higherBlockZIndex = 0;
+        this.#handledNodes = {};
+        this.#canvasEvents = {};
+        this.#defaultOptions = {
+            history: true,
+            historySize: 100,
+            zoom: "center",
+            zoomSpeed: 1.2,
+            zoomInvSpeed: 0.8,
+            moveSpeed: 10,
+            keyboardMovement: true,
+            mouseMovement: true,
+            x: 0,
+            y: 0,
+            z: 1,
+            fps: 60,
+            composite: "source-over",
+            alpha: 1.0,
+        };
+        this.__positionCords = { x: 0, y: 0, z: 1 };
 
-        this.__domCanvas = new CanvasDOMManager(
+        if (this.options) this.setOptions();
+        this.#tree = new CanvasTree(this.#defaultOptions.historySize);
+
+        this.#domCanvas = new CanvasDOMManager(
             this.canvasId,
             this.width,
             this.height
@@ -132,12 +149,12 @@ export class Canvas {
     }
 
     get context(): CanvasRenderingContext2D {
-        if (!this.#context) this.#context = this.__domCanvas.context;
+        if (!this.#context) this.#context = this.#domCanvas.context;
         return this.#context;
     }
 
     get canvas(): HTMLCanvasElement {
-        if (!this.#htmlCanvas) this.#htmlCanvas = this.__domCanvas.canvas;
+        if (!this.#htmlCanvas) this.#htmlCanvas = this.#domCanvas.canvas;
         return this.#htmlCanvas;
     }
 
@@ -189,31 +206,33 @@ export class Canvas {
                     if (!Object.hasOwn(this.#defaultOptions, key))
                         styleOptions[key] = value;
                 }
-                this.__domCanvas.changeStyle(this.options);
+                this.#domCanvas.changeStyle(this.options);
             }
             if (this.#defaultOptions.history) this.#snapshotHandler();
             if (this.#defaultOptions.mouseMovement) this.#handMove();
             if (this.#defaultOptions.keyboardMovement) this.#keyboardMove();
             if (this.#defaultOptions.zoom == "point") this.#pointZoom();
-            else if (this.#defaultOptions.zoom == "center")
-                this.#centerZoom();
+            else if (this.#defaultOptions.zoom == "center") this.#centerZoom();
             this.canvas.addEventListener("focusin", () => {
                 this.#isFocused = true;
             });
             this.canvas.addEventListener("focusout", () => {
                 this.#isFocused = false;
             });
+            this.#setCanvasPosition();
+            this.#setCanvasZoom();
         };
     }
     add(...block: Block[]) {
         this.#tree.addNodes(block);
         this.#initTime = new Date().getTime();
-        this.#tree.preOrderTraversal<Block>(this.#tree.head, (b: Block) => {
+        this.#tree.preOrderTraversal<Block>((b: Block) => {
             if (!this.#handledNodes[b.nodeId!]) {
                 this.__handleOptions(b);
                 this.__collectEvents(b);
                 this.__takeInitSnaphshot(b);
-                b.hidden(!this.inBoundElement(b));
+                b.__initCordinates();
+                b.__hidden = !this.inBoundElement(b);
                 b.render();
                 this.__animations.push(...b.__animationOn);
             }
@@ -222,8 +241,6 @@ export class Canvas {
             this.animationInvoker(this.__animations);
 
         this.#registerDomEvent();
-        this.#setCanvasPosition();
-        this.#setCanvasZoom();
     }
 
     remove(block: Block) {
@@ -331,14 +348,11 @@ export class Canvas {
         };
     }
 
-    whoIsTheFirst(zIndex: number) {
+    whoIsTheFirst(zIndex?: number) {
         return this.#higherBlockZIndex === zIndex;
     }
 
-    registerZIndex(inOutZ: {
-        in: number | undefined;
-        out: number | undefined;
-    }) {
+    registerZIndex(inOutZ: { in?: number; out?: number }) {
         let inBlock = inOutZ["in"];
         let outBlock = inOutZ["out"];
         if (inBlock && inBlock > this.#higherBlockZIndex) {
@@ -355,27 +369,23 @@ export class Canvas {
         for (const [key, value] of Object.entries(block.ownOptions)) {
             getPrototype(block, key)?.value.call(block, value);
         }
-        if (!block.ownOptions.zIndex) {
-            block.ownOptions.zIndex = this.#highZIndex;
+        if (block.zIndex() === undefined) {
+            block.ownOptions.zIndex = block.nodeId;
         }
-        if (block.ownOptions.zIndex > this.#highZIndex)
-            this.#highZIndex = block.ownOptions.zIndex + 1;
-        else this.#highZIndex += 1;
-
         this.#handledNodes[block.nodeId!] = true;
     }
 
     #handleBindOptions(block: Block) {
-         if (block.__bindOptions.length !== 0){
-             for (const opt of block.__bindOptions) {
-                 for (const key of opt.options) {
-                     getPrototype(block, key as string)?.value.call(
-                         block,
-                         opt.bindTo.ownOptions[key]
-                     );
-                 }
-             }
-         }
+        if (block.__bindOptions.length !== 0) {
+            for (const opt of block.__bindOptions) {
+                for (const key of opt.options) {
+                    getPrototype(block, key as string)?.value.call(
+                        block,
+                        opt.bindTo.ownOptions[key]
+                    );
+                }
+            }
+        }
     }
 
     __takeInitSnaphshot(block: Block) {
@@ -384,7 +394,7 @@ export class Canvas {
         this.#tree.takeSanpshot(this.#initTime!, null, dummy);
     }
 
-    __takeBlockSnapshot(parentBlock: Block, before: any) {
+    __takeBlockSnapshot<T>(parentBlock: Block<T>, before: any) {
         const after: any = {};
         after[parentBlock.nodeId!] = {
             childNodes: [...parentBlock.childNodes],
@@ -399,7 +409,7 @@ export class Canvas {
         }
     }
 
-    __clearEvents(block: Block) {
+    __clearEvents<T>(block: Block<T>) {
         for (const key in block.__events) {
             for (const event of block.__events[key])
                 this.removeEvent(key, event);
@@ -441,13 +451,13 @@ export class Canvas {
         for (const key in this.#canvasEvents) {
             const func = this.#canvasEvents[key].func as CustomEvent<Event>;
             if (func !== undefined) {
-                const eventFunc = this.__domCanvas.getListener(key);
+                const eventFunc = this.#domCanvas.getListener(key);
                 if (eventFunc && !eventFunc.includes(func)) {
                     for (let i = 0, len = eventFunc.length; i < len; i++) {
-                        this.__domCanvas.removeEventListener(key, eventFunc[i]);
+                        this.#domCanvas.removeEventListener(key, eventFunc[i]);
                     }
                 }
-                this.__domCanvas.addEventListener(key, func);
+                this.#domCanvas.addEventListener(key, func);
                 this.#canvasEvents[key].func = undefined;
             }
         }
@@ -457,19 +467,23 @@ export class Canvas {
         this.context.save();
         this.clearRect();
         this.#registerDomEvent();
-        this.#tree.listSortedChilds((b: Block) => {
-            if (this.#handledNodes[b.nodeId!]) {
-                this.#handleBindOptions(b);
-                if (_func) _func(b);
-                b.hidden(!this.inBoundElement(b));
-                b.render();
-            }
-        }, "zIndex");
+        this.#tree.head.listOnlyChilds(
+            (b: Block) => {
+                if (this.#handledNodes[b.nodeId!]) {
+                    this.#handleBindOptions(b);
+                    if (_func) _func(b);
+                    b.__hidden = !this.inBoundElement(b);
+                    b.render();
+                }
+            },
+            "zIndex",
+            this.#tree.nodes
+        );
     }
 
     invokeNodeListing() {
         this.#initTime = new Date().getTime();
-        this.#tree.preOrderTraversal<Block>(this.#tree.head);
+        this.#tree.preOrderTraversal<Block>();
     }
 
     takeSnapshot(before: SnapshotObject, after: SnapshotObject) {
@@ -523,9 +537,9 @@ export class Canvas {
             // getting true frame per second
             const delta = timestamp - lastFrame;
             if (lastFrame && delta < this.#defaultOptions.fps / 1000) return;
-            this.context.restore();
-            this.context.save();
-            this.clearRect();
+            // this.context.restore();
+            // this.context.save();
+            // this.clearRect();
             for (let anime of animations) {
                 anime(timestamp);
             }
@@ -646,10 +660,10 @@ export class Canvas {
         this.context.clearRect(0, 0, this.width, this.height);
     }
 
-    changeCursor(cur: string) {
+    changeCursor(cur?: string) {
         cur = cur || "auto";
         this.currentCursor = cur;
-        return this.__domCanvas.changeStyle({
+        return this.#domCanvas.changeStyle({
             cursor: cur,
         } as any);
     }
@@ -666,7 +680,7 @@ export class Canvas {
             if (!this.#defaultOptions.mouseMovement) return;
             if (event.code == "Space") {
                 if (!isKeyDown) {
-                    (this.__domCanvas as any).changeStyle({ cursor: "grab" });
+                    (this.#domCanvas as any).changeStyle({ cursor: "grab" });
                     isKeyDown = true;
                 }
             }
@@ -682,7 +696,7 @@ export class Canvas {
                 if (event.buttons == 0) {
                     isMouseDown = false;
                     if (isKeyDown)
-                        (this.__domCanvas as any).changeStyle({
+                        (this.#domCanvas as any).changeStyle({
                             cursor: "grab",
                         });
                 }
@@ -696,7 +710,7 @@ export class Canvas {
                         isMouseDown = true;
                     }
                     if (isMouseDown) {
-                        (this.__domCanvas as any).changeStyle({
+                        (this.#domCanvas as any).changeStyle({
                             cursor: "grabbing",
                         });
                         let diffX = event.clientX - initX;
@@ -723,7 +737,7 @@ export class Canvas {
 
         window.addEventListener("keyup", (event) => {
             if (!this.#defaultOptions.mouseMovement) return;
-            (this.__domCanvas as any).changeStyle({ cursor: "auto" });
+            (this.#domCanvas as any).changeStyle({ cursor: "auto" });
             isKeyDown = false;
         });
     }

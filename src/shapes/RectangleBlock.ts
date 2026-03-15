@@ -28,7 +28,7 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
     ): void {
         const cacheR = this.rotate();
         this.rotate(0);
-        this.context.roundRect(
+        this.context?.roundRect(
             this.x(),
             this.y(),
             this.width(),

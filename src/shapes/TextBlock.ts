@@ -16,7 +16,7 @@ import type {
 import type { IBlock } from "../types";
 import { inRange } from "../Utils";
 
-type Wrap = "letter" | "word";
+type Wrap = "letter" | "word" | "nowrap";
 
 export interface ITextOptions {
     text?: string;
@@ -75,7 +75,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         super(options);
         this.text(text);
     }
-  
+
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         const cacheR = this.rotate();
         this.rotate(0);
@@ -141,17 +141,22 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         let heights: number[] = [];
         let heightW = 0;
         let wrapX = 0;
+        const isWrap = this.wrap() !== "nowrap";
         this.#traverseLetterNodes((node) => {
-            wrapW += this.isWrapWord ? node.wordWidth : node.width;
-            if (wrapW >= this.width()) {
+            wrapW += isWrap
+                ? this.isWrapWord
+                    ? node.wordWidth
+                    : node.width
+                : 0;
+            if (wrapW >= this.width() && this.wrap()) {
                 wrapW = this.isWrapWord ? node.wordWidth : node.width;
                 wrapX = 0;
                 wrapH += Math.max(...heights);
                 const wordM = super.measureText(words);
-                heightW += wordM.actualBoundingBoxAscent;
+                heightW += wordM?.actualBoundingBoxAscent || 0;
                 texts.push({
                     words: words,
-                    width: wordM.width,
+                    width: wordM?.width || 0,
                     height: this.y() + heightW,
                 });
                 words = "";
@@ -167,8 +172,8 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         const wordM = super.measureText(words);
         texts.push({
             words: words,
-            width: wordM.width,
-            height: this.y() + heightW + wordM.actualBoundingBoxAscent,
+            width: wordM?.width || 0,
+            height: this.y() + heightW + (wordM?.actualBoundingBoxAscent || 0),
         });
         return texts;
     }
@@ -213,7 +218,10 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
             if (!this.#editable) return;
             this.#highlightDrawer = undefined;
             dbClick = false;
-            const initCords = this.canvas?.getCursorPosition(event);
+            const initCords = this.canvas?.getCursorPosition(event) || {
+                x: 0,
+                y: 0,
+            };
             this.#traverseLetterNodes((node) => {
                 if (
                     inRange(initCords.x, node.x, node.x + node.width) &&
@@ -304,7 +312,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                 let pendingNode = undefined;
                 let wordWidth = 0;
                 const measure = super.measureText("");
-                this.#letterNode.height = measure.actualBoundingBoxAscent;
+                this.#letterNode.height = measure?.actualBoundingBoxAscent || 0;
                 for (let i = 0, len = splitedText.length; i < len; i++) {
                     const measure = super.measureText(splitedText[i]);
                     const node = {
@@ -312,22 +320,22 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                         prev: prevNode,
                         next: undefined,
                         letter: splitedText[i],
-                        width: measure.width,
+                        width: measure?.width || 0,
                         wordWidth: 0,
-                        height: measure.actualBoundingBoxAscent,
+                        height: measure?.actualBoundingBoxAscent || 0,
                         x: x,
-                        y: measure.actualBoundingBoxAscent + this.y(),
+                        y: measure?.actualBoundingBoxAscent || 0 + this.y(),
                     };
                     prevNode.next = node;
                     prevNode = prevNode.next;
                     if (!pendingNode) pendingNode = prevNode;
-                    wordWidth += measure.width;
+                    wordWidth += measure?.width || 0;
                     if (splitedText[i] === " " || i === len - 1) {
                         pendingNode.wordWidth = wordWidth;
                         pendingNode = undefined;
                         wordWidth = 0;
                     }
-                    x += measure.width;
+                    x += measure?.width || 0;
                 }
             };
         }
@@ -354,7 +362,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
             letters += node.letter;
         });
         this.text(letters);
-        this.canvas.invokeChange();
+        this.canvas?.invokeChange();
     }
 
     #addBefore(targetNode: LetterNode, newNode: LetterNode) {
@@ -395,12 +403,12 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
             prevNode = node;
         });
         this.text(letters);
-        this.canvas.invokeChange();
+        this.canvas?.invokeChange();
     }
 
     #drawCaret(x: number, y: number, width: number, height: number) {
-        if (!this.context) return;
         this.#caretDrawer = () => {
+            if (!this.context) return;
             this.context.beginPath();
             this.context.moveTo(x, y);
             this.context.lineTo(width, height);
@@ -414,6 +422,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
     #drawHighlight(x: number, y: number, width: number, height: number) {
         if (!this.context) return;
         this.#highlightDrawer = () => {
+            if (!this.context) return;
             this.context.beginPath();
             this.context.fillStyle = "rgba(0, 13, 255, 0.47)";
             this.context.fillRect(x, y, width, height);
@@ -467,7 +476,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
     }
 
     wrap(opt?: Wrap) {
-        return this.__valueHandler(opt, "wrap", "word");
+        return this.__valueHandler(opt, "wrap", "nowrap");
     }
     scale(opt?: number): void {
         super.scale(opt);

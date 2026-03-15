@@ -19,9 +19,8 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
     constructor(options: IBlock<ICircleOptions>) {
         super(options);
     }
-    draw(
-        _func?: ((context: CanvasRenderingContext2D) => void) | undefined
-    ): void {
+    draw(_func?: (context: CanvasRenderingContext2D) => void): void {
+        if (!this.context) return;
         this.context.lineJoin = "round";
         this.context.lineCap = "round";
         if (!this.#isAngleEmpty) {
@@ -74,7 +73,7 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
     radiusX(opt?: number) {
         const cacheR = this.rotate();
         this.rotate(0);
-        const r = this.__valueHandler(opt, "radiusX", 0);
+        const r = this.__valueHandler(opt, "radiusX", 0, true);
         const diffR = this.width() - r;
         this.rotate(cacheR);
         if (diffR !== 0) return r + diffR;

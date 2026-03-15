@@ -5,7 +5,7 @@ import {
     RGBA,
     StepsEasing,
 } from "./types";
-import { Node } from "./Tree";
+import { Node } from "./Node";
 
 export function fromPercentage(from: number, parentS: number) {
     return (from * parentS) / 100;

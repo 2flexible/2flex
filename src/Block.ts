@@ -1,5 +1,5 @@
 import type { Canvas } from "./Canvas";
-import { Node, NodeId } from "./Tree";
+import { Node, NodeId } from "./Node";
 import {
     checkInBound,
     fromCm,
@@ -109,6 +109,13 @@ export type Overflow = "visible" | "hidden" | "clip" | "scroll" | "auto";
 
 export type RelativeType = number | string;
 
+interface RunningEvents {
+    drag: boolean;
+    rotate: boolean;
+    resize: boolean;
+    selected: boolean;
+}
+
 export interface IBlockOptions {
     [key: string]: any;
     x?: RelativeType;
@@ -140,7 +147,6 @@ export interface IBlockOptions {
     onDrag?: (event: MouseEvent) => void;
     dragX?: boolean;
     dragY?: boolean;
-    visible?: boolean;
     rotate?: number;
     onRotate?: (event: MouseEvent) => void;
     order?: number;
@@ -167,7 +173,6 @@ export interface IBlockOptions {
     hotCornerBackgroundColor?: string;
     hotLineStrokeWidth?: number;
     hotLineStrokeColor?: string;
-    rotationRadius?: number;
     rotationTopLeft?: boolean;
     rotationTopRight?: boolean;
     rotationBottomLeft?: boolean;
@@ -185,6 +190,7 @@ export interface IBlockOptions {
     resizable?: boolean;
     onResize?: (event: MouseEvent) => void;
     hidden?: boolean;
+    important?: IBlockOptions;
     rotationCenterX?: RelativeType;
     rotationCenterY?: RelativeType;
     cornerTopLeft?: XY;
@@ -213,6 +219,7 @@ export interface IBlockOptions {
     hotResizableAreaBottom?: HotCornerArea;
     translate?: XY;
     overflowTranslate?: XY;
+    onRender?: () => void;
 }
 
 export interface BlockPayload {
@@ -226,41 +233,39 @@ export interface BlockPayload {
 
 type BlockEvent = { [key: string]: CustomEvent<any>[] };
 
+export interface BindOptions {
+    bindTo: Block;
+    options: (keyof IBlockOptions)[];
+}
+
 export class Block<T = IBlockOptions> extends Node {
-    canvas: Canvas | any;
+    declare parentNode?: Block;
+    declare childNodes: Block[];
+
+    canvas?: Canvas;
     ownOptions: IBlock<T>;
     options: IBlock<T>;
-    __bindOptions: { bindTo: Block; options: (keyof IBlockOptions)[] }[] = [];
-    __runningEvents = {
-        drag: false,
-        rotate: false,
-        resize: false,
-        selected: false,
-    };
-    __events: BlockEvent = {};
-    __addedEvents: string[] = [];
 
+    __hidden = false;
+    __bindOptions: BindOptions[];
+
+    __runningEvents: RunningEvents;
+    __events: BlockEvent;
+    __addedEvents: string[];
+
+    #isVerticalFlipped: boolean;
+    #isHorizontalFlipped: boolean;
+
+    #rotationCorners: HotCornerArea;
+    __overflowCords: XY;
+
+    // @Todo: need to fix types
+    #keyframeIterations: any = {};
     __animationOn: any = [];
 
-    #isVerticalFlipped = false;
-    #isHorizontalFlipped = false;
-
-    #rotaionCorners: HotCornerArea = {
-        topLeft: { x: 0, y: 0 },
-        bottomLeft: { x: 0, y: 0 },
-        topRight: { x: 0, y: 0 },
-        bottomRight: { x: 0, y: 0 },
-    };
-
-    #overflowCords: XY = {
-        x: 0,
-        y: 0,
-    };
-
-    #keyframeIterations: any = {};
+    #lastOrder: number;
 
     __clipPath?: Path2D;
-
     __childClipping?: (b: Block) => void;
 
     __childAdjustment?: (b: Block) => void;
@@ -269,25 +274,59 @@ export class Block<T = IBlockOptions> extends Node {
         super();
         this.options = { ...options };
         this.ownOptions = { ...options };
-        this.__initCordinates();
+        this.__bindOptions = [];
+        this.__runningEvents = {
+            drag: false,
+            rotate: false,
+            resize: false,
+            selected: false,
+        };
+        this.__events = {};
+        this.__addedEvents = [];
+        this.#isVerticalFlipped = false;
+        this.#isHorizontalFlipped = false;
+        this.#rotationCorners = {
+            topLeft: { x: 0, y: 0 },
+            bottomLeft: { x: 0, y: 0 },
+            topRight: { x: 0, y: 0 },
+            bottomRight: { x: 0, y: 0 },
+        };
+        this.__overflowCords = {
+            x: 0,
+            y: 0,
+        };
+
+        this.#lastOrder = 0;
     }
 
-    get context(): CanvasRenderingContext2D {
+    get context(): CanvasRenderingContext2D | undefined {
         return this.canvas?.context;
     }
 
     render() {
-        this.__adjustBlocks();
+        this.__childClipping?.(this as Block);
+        this.__childAdjustment?.(this as Block);
+
+        this.__clippingPath();
+        this.__adjustChildBlocks();
+        
         this.position();
-        if (this.hidden()) {
-            if (this.childNodes.length !== 0) {
-                this.listAllChilds((n: Block) => {
-                    n.hidden(true);
-                });
-            }
+
+        if (this.hidden() || this.__hidden) {
             return;
         }
         this.__isSelected();
+        this.onRender()?.();
+    }
+    onRender(opt?: () => void) {
+        const onRender = this.__valueHandler<
+            () => void,
+            (() => void) | undefined
+        >(opt, "onRender", undefined);
+
+        return () => {
+            onRender?.();
+        };
     }
     __isSelected() {
         if (this.__runningEvents.selected) {
@@ -311,39 +350,45 @@ export class Block<T = IBlockOptions> extends Node {
         };
     }
 
-    addChild(...node: Node[]): void {
-        const exists = this.childNodes.some((r) => node.includes(r));
+    addChild(...blocks: Block[]): void {
+        const exists = blocks.filter((r) => !this.childNodes.includes(r));
         let before: any = {};
         before[this.nodeId!] = {
             childNodes: [...this.childNodes],
         };
-        super.addChild(...node);
-        if (exists) return;
-        this.canvas?.invokeNodeListing();
+        super.addChild(...exists);
+        if (exists.length === 0) return;
         this.listOnlyChilds((b: Block) => {
+            if (b.order() === undefined) {
+                b.order(this.#lastOrder);
+                this.#lastOrder += 1;
+            }
             this.canvas?.__handleOptions(b);
             this.canvas?.__collectEvents(b);
             this.canvas?.__takeInitSnaphshot(before);
             this.canvas?.__takeBlockSnapshot(this, before);
         });
+        this.canvas?.invokeNodeListing();
     }
 
-    removeChild<T>(child: T): void {
-        if (!this.childNodes.includes(child as Node)) return;
+    removeChild(child: Block): void {
+        if (!this.childNodes.includes(child)) return;
         let before: any = {};
         before[this.nodeId!] = {
             childNodes: [...this.childNodes],
         };
         super.removeChild(child);
+        child.__childAdjustment = undefined;
+        child.__childClipping = undefined
         this.canvas?.invokeNodeListing();
         this.canvas?.__clearEvents(child);
         this.canvas?.__takeBlockSnapshot(this, before);
     }
 
-    __addChildInternal(...node: Node[]) {
+    __addChildInternal(...node: Block[]) {
         super.addChild(...node);
     }
-    __removeChildInternal<T>(child: T): void {
+    __removeChildInternal(child: Block): void {
         super.removeChild(child);
     }
 
@@ -374,6 +419,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __hotLines() {
+        if (!this.context) return;
         const size = this.hotCornerSize();
         const radius = this.hotCornerRadius();
         const strokeWidth = this.hotCornerStrokeWidth();
@@ -382,7 +428,6 @@ export class Block<T = IBlockOptions> extends Node {
         const lineWidth = this.hotLineStrokeWidth();
         const lineColor = this.hotLineStrokeColor();
         this.context.save();
-        this.__childClipping?.(this as Block);
         this.context.setLineDash([]);
         this.context.beginPath();
         this.context.moveTo(
@@ -519,13 +564,11 @@ export class Block<T = IBlockOptions> extends Node {
         this.context.restore();
     }
 
-    __adjustBlocks(): void {
-        this.__clippingPath();
-        if (this.__childAdjustment) this.__childAdjustment(this as Block);
-        this.__childAdjustment = undefined;
+    __adjustChildBlocks(): void {
         if (this.childNodes.length !== 0) {
             const cacheR = this.rotate();
             this.rotate(0);
+            let z = this.zIndex() || 0;
             this.listOnlyChilds((b: Block) => {
                 if (b.position() === "absolute") return;
                 const initX =
@@ -542,18 +585,19 @@ export class Block<T = IBlockOptions> extends Node {
                 const x =
                     initX +
                     this.getLeft.x +
-                    this.#overflowCords.x +
+                    this.__overflowCords.x +
                     this.marginLeft() +
                     this.paddingLeft();
                 const y =
                     initY +
                     this.getTop.y +
-                    this.#overflowCords.y +
+                    this.__overflowCords.y +
                     this.marginTop() +
                     this.paddingTop();
 
                 let width: number, height: number;
 
+                z += 1;
                 // these values causing error while rotating
                 // b.ownOptions.width = b.getRealWidth;
                 if (
@@ -568,7 +612,9 @@ export class Block<T = IBlockOptions> extends Node {
                         -(
                             b.getRealWidth -
                             (this.getRealWidth -
-                                (this.paddingRight() + this.paddingLeft()))
+                                (this.paddingRight() +
+                                    this.paddingLeft() +
+                                    this.marginRight()))
                         );
 
                 // b.ownOptions.height = b.getRealHeight;
@@ -584,12 +630,16 @@ export class Block<T = IBlockOptions> extends Node {
                         -(
                             b.getRealHeight -
                             (this.getRealHeight -
-                                (this.paddingTop() + this.paddingBottom()))
+                                (this.paddingTop() +
+                                    this.paddingBottom() +
+                                    this.marginBottom()))
                         );
                 }
                 const centerX = this.rotationCenterX();
                 const centerY = this.rotationCenterY();
+
                 b.__childAdjustment = (b: Block) => {
+                    b.hidden(this.hidden());
                     b.rotationCenterX(centerX);
                     b.rotationCenterY(centerY);
                     b.rotate(cacheR);
@@ -597,6 +647,7 @@ export class Block<T = IBlockOptions> extends Node {
                     b.y(y);
                     if (width !== undefined) b.width(width);
                     if (height !== undefined) b.height(height);
+                    b.zIndex(z);
                 };
                 if (this.__clipPath) {
                     b.__childClipping = (b: Block) => {
@@ -609,6 +660,9 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __initCordinates() {
+        this.padding();
+        this.margin();
+
         this.cornerTopLeft({
             x: this.x(),
             y: this.y(),
@@ -884,7 +938,7 @@ export class Block<T = IBlockOptions> extends Node {
             },
         });
 
-        this.#rotaionCorners = {
+        this.#rotationCorners = {
             topLeft: { ...this.hotRotCornerTopLeft() },
             bottomLeft: { ...this.hotRotCornerBottomLeft() },
             topRight: { ...this.hotRotCornerTopRight() },
@@ -963,39 +1017,39 @@ export class Block<T = IBlockOptions> extends Node {
     }): O {
         if (val && typeof val === "string" && /^\d/.test(val)) {
             if (val.endsWith("px")) return Number(val.split("px")[0]) as O;
-            else if (val.endsWith("%"))
-                return fromPercentage(
+            else if (val.endsWith("%")) {
+                return (fromPercentage(
                     Number(val.split("%")[0]),
-                    (this.parentNode as Block)?.width() || this.width()
-                ) as O;
-            else if (val.endsWith("rem"))
-                return fromRem(
+                    this.parentNode?.width() || this.canvas?.width || 1
+                ) - this.__widthSpaces) as O;
+            } else if (val.endsWith("rem"))
+                return (fromRem(
                     Number(val.split("rem")[0]),
-                    this.canvas?.width
-                ) as O;
+                    this.canvas?.width || 1
+                ) - this.__widthSpaces) as O;
             else if (val.endsWith("em"))
-                return fromEm(
+                return (fromEm(
                     Number(val.split("em")[0]),
-                    (this.parentNode as Block)?.width() || this.width()
-                ) as O;
+                    this.parentNode?.width() || this.canvas?.width || 1
+                ) - this.__widthSpaces) as O;
             else if (
                 val.endsWith("vh") &&
                 widthRelated !== undefined &&
                 widthRelated === false
             )
-                return fromVH(
+                return (fromVH(
                     Number(val.split("vh")[0]),
-                    this.canvas?.height
-                ) as O;
+                    this.canvas?.height || 1
+                ) - this.__heightSpaces) as O;
             else if (
                 val.endsWith("vw") &&
                 widthRelated !== undefined &&
                 widthRelated === true
             )
-                return fromVW(
+                return (fromVW(
                     Number(val.split("vw")[0]),
-                    this.canvas?.width
-                ) as O;
+                    this.canvas?.width || 1
+                ) - this.__widthSpaces) as O;
             else if (val.endsWith("cm"))
                 return fromCm(Number(val.split("cm")[0])) as O;
             else if (val.endsWith("mm"))
@@ -1011,20 +1065,39 @@ export class Block<T = IBlockOptions> extends Node {
         }
         return val as O;
     }
-
+    get __widthSpaces() {
+        return (
+            this.paddingRight() +
+            this.paddingLeft() +
+            this.marginLeft() +
+            this.marginRight()
+        );
+    }
+    get __heightSpaces() {
+        return (
+            this.paddingTop() +
+            this.paddingBottom() +
+            this.marginBottom() +
+            this.marginTop()
+        );
+    }
     __valueHandler<T, O>(
         opt: T | undefined,
         option: string,
         defaultOpt: O,
         widthRelated?: boolean
     ): O {
-        let val = opt as O;
-        if (opt !== undefined)
-            val = this.__unitConverter<T, O>({
-                val: opt,
-                widthRelated: widthRelated,
-            });
-        return this.__cacheOption(val, option, defaultOpt);
+        const important =
+            this.ownOptions.important?.[option] !== undefined
+                ? this.ownOptions.important?.[option]
+                : opt;
+        const cached = this.__cacheOption(important as O, option, defaultOpt);
+        let val = this.__unitConverter<T, O>({
+            val: cached as any,
+            widthRelated: widthRelated,
+        });
+        // return  this.__cacheOption(val, option, defaultOpt)
+        return val;
     }
 
     __cacheOption<T>(
@@ -1040,13 +1113,11 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     x(opt?: RelativeType): number {
-        let cacheX = this.ownOptions["x"];
-        const x = this.__valueHandler(opt, "x", 0, true);
-        if (!opt) return x;
-        cacheX = this.__unitConverter<RelativeType, number>({
-            val: cacheX,
+        let cacheX = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.x || 0,
             widthRelated: true,
         });
+        const x = this.__valueHandler(opt, "x", 0, true);
         const diffX = x - cacheX;
         if (diffX !== 0) {
             const cacheR = this.rotate();
@@ -1074,14 +1145,11 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     y(opt?: RelativeType): number {
-        let cacheY = this.ownOptions["y"];
-        const y = this.__valueHandler(opt, "y", 0, true);
-        if (!opt) return y;
-
-        cacheY = this.__unitConverter<RelativeType, number>({
-            val: cacheY,
+        let cacheY = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.y || 0,
             widthRelated: false,
         });
+        const y = this.__valueHandler(opt, "y", 0, true);
         const diffY = y - cacheY;
         if (cacheY !== y && diffY !== 0) {
             const cacheR = this.rotate();
@@ -1109,18 +1177,14 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     width(opt?: RelativeType): number {
-        let cacheW = this.ownOptions["width"];
-        const w = this.__valueHandler(opt, "width", 0, true);
-
-        if (!opt) return w;
-
-        if (w < this.minWidth() && !this.horizontalFlipResize())
-            return this.minWidth();
-
-        cacheW = this.__unitConverter<RelativeType, number>({
-            val: cacheW,
+        let cacheW = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.width || 0,
             widthRelated: true,
         });
+
+        const w = this.__valueHandler(opt, "width", 0, true);
+        if (w < this.minWidth() && !this.horizontalFlipResize())
+            return this.minWidth();
 
         const diffW = w - cacheW;
         if (diffW !== 0) {
@@ -1141,15 +1205,13 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     height(opt?: RelativeType): number {
-        let cacheH = this.ownOptions["height"];
-        const h = this.__valueHandler(opt, "height", 0, false);
-        if (!opt) return h;
-        if (h < this.minHeight() && !this.verticalFlipResize())
-            return this.minHeight();
-        cacheH = this.__unitConverter<RelativeType, number>({
-            val: cacheH,
+        let cacheH = this.__unitConverter<RelativeType, number>({
+            val: this.ownOptions.height || 0,
             widthRelated: false,
         });
+        const h = this.__valueHandler(opt, "height", 0, false);
+        if (h < this.minHeight() && !this.verticalFlipResize())
+            return this.minHeight();
         const diffH = h - cacheH;
         if (diffH !== 0) {
             const cacheR = this.rotate();
@@ -1195,13 +1257,14 @@ export class Block<T = IBlockOptions> extends Node {
                 if (this.top() !== undefined) this.y(this.top());
                 else if (this.bottom() !== undefined)
                     this.y(
-                        Math.abs(this.canvas?.height - this.getRealHeight) -
-                            this.bottom()!
+                        Math.abs(
+                            this.canvas?.height || 1 - this.getRealHeight
+                        ) - this.bottom()!
                     );
                 if (this.left() !== undefined) this.x(this.left());
                 else if (this.right() !== undefined)
                     this.x(
-                        Math.abs(this.canvas?.width - this.getRealWidth) -
+                        Math.abs(this.canvas?.width || 1 - this.getRealWidth) -
                             this.right()!
                     );
                 this.rotate(0);
@@ -1210,23 +1273,24 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.top() !== undefined) this.y(this.top()!);
             else if (this.bottom() !== undefined)
                 this.y(
-                    Math.abs(this.canvas?.height - this.height()) -
+                    Math.abs(this.canvas?.height || 1 - this.height()) -
                         this.bottom()!
                 );
             if (this.left() !== undefined) this.x(+this.left()!);
             else if (this.right() !== undefined)
                 this.x(
-                    +Math.abs(this.canvas?.width - this.width()) - this.right()!
+                    +Math.abs(this.canvas?.width || 1 - this.width()) -
+                        this.right()!
                 );
         } else if (pos === "sticky") {
             if (this.top() !== undefined && this.getTop.y <= this.top()!) {
                 this.y(this.top());
             } else if (
                 this.bottom() !== undefined &&
-                this.getBottom.y >= this.canvas?.height - this.bottom()!
+                this.getBottom.y >= (this.canvas?.height || 1) - this.bottom()!
             ) {
                 this.y(
-                    Math.abs(this.canvas?.height - this.getRealHeight) -
+                    Math.abs(this.canvas?.height || 1 - this.getRealHeight) -
                         this.bottom()!
                 );
             }
@@ -1234,10 +1298,10 @@ export class Block<T = IBlockOptions> extends Node {
                 this.x(this.left());
             } else if (
                 this.right() !== undefined &&
-                this.getRight.x >= this.canvas?.width - this.right()!
+                this.getRight.x >= (this.canvas?.width || 1) - this.right()!
             ) {
                 this.x(
-                    Math.abs(this.canvas?.width - this.getRealWidth) -
+                    Math.abs(this.canvas?.width || 1 - this.getRealWidth) -
                         this.right()!
                 );
             }
@@ -1245,14 +1309,14 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.left() !== undefined) this.x(this.left()!);
             else if (this.right() !== undefined)
                 this.x(
-                    Math.abs(this.canvas?.width - this.getRealWidth) -
+                    Math.abs(this.canvas?.width || 1 - this.getRealWidth) -
                         this.right()!
                 );
             if (this.top() !== undefined) {
                 this.y(this.top());
             } else if (this.bottom() !== undefined)
                 this.y(
-                    Math.abs(this.canvas?.height - this.getRealHeight) -
+                    Math.abs(this.canvas?.height || 1 - this.getRealHeight) -
                         this.bottom()!
                 );
         } else if (pos === "relative") {
@@ -1279,9 +1343,17 @@ export class Block<T = IBlockOptions> extends Node {
     right(opt?: RelativeType) {
         return this.__valueHandler(opt, "right", undefined, true);
     }
-    padding(opt?: number[]): number[] {
+    padding(opt?: number[] | number): number[] {
         const padding = this.__valueHandler(opt, "padding", []);
+        if (typeof padding === "number") {
+            this.paddingTop(padding);
+            this.paddingBottom(padding);
+            this.paddingLeft(padding);
+            this.paddingRight(padding);
+            return padding;
+        }
         this.paddingTop(padding[0] || 0);
+
         switch (padding.length) {
             case 1:
                 this.paddingBottom(padding[0]);
@@ -1346,16 +1418,48 @@ export class Block<T = IBlockOptions> extends Node {
         return margin;
     }
     marginTop(opt?: RelativeType) {
-        return this.__valueHandler(opt, "marginTop", 0, false);
+        const cacheM =
+            this.__unitConverter<RelativeType, number>({
+                val: this.ownOptions.marginTop,
+                widthRelated: false,
+            }) || 0;
+        const m = this.__valueHandler(opt, "marginTop", 0, false);
+        const diffM = m - cacheM;
+        if (diffM !== 0) this.y(this.y() + diffM);
+        return m;
     }
     marginBottom(opt?: RelativeType) {
-        return this.__valueHandler(opt, "marginBottom", 0, false);
+        const cacheM =
+            this.__unitConverter<RelativeType, number>({
+                val: this.ownOptions.marginBottom,
+                widthRelated: false,
+            }) || 0;
+        const m = this.__valueHandler(opt, "marginBottom", 0, false);
+        const diffM = m - cacheM;
+        if (diffM !== 0) this.y(this.y() - diffM);
+        return m;
     }
     marginLeft(opt?: RelativeType) {
-        return this.__valueHandler(opt, "marginLeft", 0, true);
+        const cacheM =
+            this.__unitConverter<RelativeType, number>({
+                val: this.ownOptions.marginLeft,
+                widthRelated: true,
+            }) || 0;
+        const m = this.__valueHandler(opt, "marginLeft", 0, true);
+        const diffM = m - cacheM;
+        if (diffM !== 0) this.x(this.x() + diffM);
+        return m;
     }
     marginRight(opt?: RelativeType) {
-        return this.__valueHandler(opt, "marginRight", 0, true);
+        const cacheM =
+            this.__unitConverter<RelativeType, number>({
+                val: this.ownOptions.marginRight,
+                widthRelated: true,
+            }) || 0;
+        const m = this.__valueHandler(opt, "marginRight", 0, true);
+        const diffM = m - cacheM;
+        if (diffM !== 0) this.x(this.x() - diffM);
+        return m;
     }
 
     overflow(opt?: Overflow) {
@@ -1376,7 +1480,6 @@ export class Block<T = IBlockOptions> extends Node {
             x: 0,
             y: 0,
         });
-        if (!opt) return corner;
         const diffX = corner.x - cacheCords.x;
         if (diffX !== 0) {
             this.hotCornerTopLeft({
@@ -1408,8 +1511,6 @@ export class Block<T = IBlockOptions> extends Node {
             x: 0,
             y: 0,
         });
-        if (!opt) return corner;
-
         const diffX = corner.x - cacheCords.x;
         if (diffX !== 0) {
             this.hotCornerTopRight({
@@ -1441,8 +1542,6 @@ export class Block<T = IBlockOptions> extends Node {
             x: 0,
             y: 0,
         });
-        if (!opt) return corner;
-
         const diffX = corner.x - cacheCords.x;
         if (diffX !== 0) {
             this.hotCornerBottomLeft({
@@ -1474,8 +1573,6 @@ export class Block<T = IBlockOptions> extends Node {
             x: 0,
             y: 0,
         });
-        if (!opt) return corner;
-
         const diffX = corner.x - cacheCords.x;
         if (diffX !== 0) {
             this.hotCornerBottomRight({
@@ -1651,12 +1748,12 @@ export class Block<T = IBlockOptions> extends Node {
         const diffX = corner.x - cacheCorner.x;
         if (diffX !== 0) {
             this.#updateAreaCordX("hotRotatableAreaTopLeft", diffX);
-            this.#rotaionCorners.topLeft.x = corner.x;
+            this.#rotationCorners.topLeft.x = corner.x;
         }
         const diffY = corner.y - cacheCorner.y;
         if (diffY !== 0) {
             this.#updateAreaCordY("hotRotatableAreaTopLeft", diffY);
-            this.#rotaionCorners.topLeft.y = corner.y;
+            this.#rotationCorners.topLeft.y = corner.y;
         }
         return corner;
     }
@@ -1673,12 +1770,12 @@ export class Block<T = IBlockOptions> extends Node {
         const diffX = corner.x - cacheCorner.x;
         if (diffX !== 0) {
             this.#updateAreaCordX("hotRotatableAreaTopRight", diffX);
-            this.#rotaionCorners.topRight.x = corner.x;
+            this.#rotationCorners.topRight.x = corner.x;
         }
         const diffY = corner.y - cacheCorner.y;
         if (diffY !== 0) {
             this.#updateAreaCordY("hotRotatableAreaTopRight", diffY);
-            this.#rotaionCorners.topRight.y = corner.y;
+            this.#rotationCorners.topRight.y = corner.y;
         }
         return corner;
     }
@@ -1695,12 +1792,12 @@ export class Block<T = IBlockOptions> extends Node {
         const diffX = corner.x - cacheCorner.x;
         if (diffX !== 0) {
             this.#updateAreaCordX("hotRotatableAreaBottomLeft", diffX);
-            this.#rotaionCorners.bottomLeft.x = corner.x;
+            this.#rotationCorners.bottomLeft.x = corner.x;
         }
         const diffY = corner.y - cacheCorner.y;
         if (diffY !== 0) {
             this.#updateAreaCordY("hotRotatableAreaBottomLeft", diffY);
-            this.#rotaionCorners.bottomLeft.y = corner.y;
+            this.#rotationCorners.bottomLeft.y = corner.y;
         }
         return corner;
     }
@@ -1717,12 +1814,12 @@ export class Block<T = IBlockOptions> extends Node {
         const diffX = corner.x - cacheCorner.x;
         if (diffX !== 0) {
             this.#updateAreaCordX("hotRotatableAreaBottomRight", diffX);
-            this.#rotaionCorners.bottomRight.x = corner.x;
+            this.#rotationCorners.bottomRight.x = corner.x;
         }
         const diffY = corner.y - cacheCorner.y;
         if (diffY !== 0) {
             this.#updateAreaCordY("hotRotatableAreaBottomRight", diffY);
-            this.#rotaionCorners.bottomRight.y = corner.y;
+            this.#rotationCorners.bottomRight.y = corner.y;
         }
         return corner;
     }
@@ -2097,7 +2194,6 @@ export class Block<T = IBlockOptions> extends Node {
     dragY(opt?: boolean): boolean {
         return this.__valueHandler(opt, "dragY", true);
     }
-
     hotCornerSize(opt?: number) {
         return this.__valueHandler(opt, "hotCornerSize", 5);
     }
@@ -2122,11 +2218,16 @@ export class Block<T = IBlockOptions> extends Node {
     hotAreaGap(opt?: number) {
         return this.__valueHandler(opt, "hotAreaGap", 0);
     }
-
     hidden(opt?: boolean) {
         return this.__valueHandler(opt, "hidden", false);
     }
-
+    important(opt?: IBlock<T>) {
+        return this.__valueHandler<IBlock<T>, IBlock<T> | undefined>(
+            opt,
+            "important",
+            undefined
+        );
+    }
     flex(opt?: Flex) {
         const flex = this.__valueHandler(opt, "flex", [
             this.flexGrow(),
@@ -2188,10 +2289,10 @@ export class Block<T = IBlockOptions> extends Node {
         return gridArea;
     }
 
-    zIndex(opt?: number) {
-        const cacheX = this.ownOptions.zIndex || undefined;
+    zIndex(opt?: number): number | undefined {
+        const cacheZ = this.ownOptions.zIndex || undefined;
         const z = this.__valueHandler(opt, "zIndex", undefined);
-        if (z !== cacheX) this.canvas?.invokeChange();
+        if (z !== cacheZ) this.canvas?.invokeNodeListing();
         return z;
     }
 
@@ -2201,13 +2302,11 @@ export class Block<T = IBlockOptions> extends Node {
         for (const [key, value] of Object.entries(options)) {
             const obj = getPrototype(this, key);
             let beforeValue = obj?.value.call(this);
-            if (beforeValue !== value) {
-                obj?.value.call(this, value);
-                before[this.nodeId!] = {};
-                after[this.nodeId!] = {};
-                before[this.nodeId!][key] = beforeValue;
-                after[this.nodeId!][key] = value;
-            }
+            obj?.value.call(this, value);
+            before[this.nodeId!] = {};
+            after[this.nodeId!] = {};
+            before[this.nodeId!][key] = beforeValue;
+            after[this.nodeId!][key] = value;
         }
         if (Object.keys(before).length !== 0) {
             this.canvas?.takeSnapshot(before, after);
@@ -2241,8 +2340,8 @@ export class Block<T = IBlockOptions> extends Node {
 
     overflowTranslate(opt?: XY) {
         const t = this.__valueHandler(opt, "overflowTranslate", { x: 0, y: 0 });
-        this.#overflowCords.x += t.x;
-        this.#overflowCords.y += t.y;
+        this.__overflowCords.x += t.x;
+        this.__overflowCords.y += t.y;
         return t;
     }
     get isOverflowXScroll() {
@@ -2269,7 +2368,6 @@ export class Block<T = IBlockOptions> extends Node {
     rotate(opt?: number): number {
         const cacheRotate = this.ownOptions["rotate"] || 0;
         const rotate = this.__valueHandler(opt, "rotate", 0);
-        if (!opt) return rotate;
         const diffR = rotate - cacheRotate;
         if (diffR !== 0) this.#updateCornerByRot(diffR);
         return rotate;
@@ -2800,6 +2898,7 @@ export class Block<T = IBlockOptions> extends Node {
         if (easing === "linear") return linear(0, 1);
         else if (easing == "step-start") return steps(1, "jump-start");
         else if (easing == "step-end") return steps(1, "jump-end");
+        // try if you can replase these with prebuilt functions
         else if (easing == "ease") return cubicBezier(0.25, 0.1, 0.25, 1);
         else if (easing == "ease-in") return cubicBezier(0.42, 0, 1, 1);
         else if (easing == "ease-out") return cubicBezier(0, 0, 0.58, 1);
@@ -3089,7 +3188,8 @@ export class Block<T = IBlockOptions> extends Node {
             else this.__addedEvents.push(identify);
         }
         if (!this.__events[type]) this.__events[type] = [];
-        if (this.canvas) this.canvas?.registerEvent(type, _func);
+        if (this.canvas)
+            this.canvas?.registerEvent(type, _func as CustomEvent<Event>);
         else this.__events[type].push(_func);
     }
     selectable(opt?: boolean): boolean {
@@ -3170,7 +3270,10 @@ export class Block<T = IBlockOptions> extends Node {
             )
                 return;
 
-            let { x, y } = this.canvas?.getCursorPosition(event);
+            let { x, y } = this.canvas?.getCursorPosition(event) || {
+                x: 0,
+                y: 0,
+            };
             if (!this.__runningEvents.rotate) {
                 let cursor: string | undefined = undefined;
                 if (
@@ -3276,9 +3379,9 @@ export class Block<T = IBlockOptions> extends Node {
                         this.rotate(
                             radian -
                                 Math.atan2(
-                                    this.#rotaionCorners.topLeft.y -
+                                    this.#rotationCorners.topLeft.y -
                                         this.getCenterY,
-                                    this.#rotaionCorners.topLeft.x -
+                                    this.#rotationCorners.topLeft.x -
                                         this.getCenterX
                                 )
                         );
@@ -3286,9 +3389,9 @@ export class Block<T = IBlockOptions> extends Node {
                         this.rotate(
                             radian -
                                 Math.atan2(
-                                    this.#rotaionCorners.topRight.y -
+                                    this.#rotationCorners.topRight.y -
                                         this.getCenterY,
-                                    this.#rotaionCorners.topRight.x -
+                                    this.#rotationCorners.topRight.x -
                                         this.getCenterX
                                 )
                         );
@@ -3296,9 +3399,9 @@ export class Block<T = IBlockOptions> extends Node {
                         this.rotate(
                             radian -
                                 Math.atan2(
-                                    this.#rotaionCorners.bottomRight.y -
+                                    this.#rotationCorners.bottomRight.y -
                                         this.getCenterY,
-                                    this.#rotaionCorners.bottomRight.x -
+                                    this.#rotationCorners.bottomRight.x -
                                         this.getCenterX
                                 )
                         );
@@ -3306,9 +3409,9 @@ export class Block<T = IBlockOptions> extends Node {
                         this.rotate(
                             radian -
                                 Math.atan2(
-                                    this.#rotaionCorners.bottomLeft.y -
+                                    this.#rotationCorners.bottomLeft.y -
                                         this.getCenterY,
-                                    this.#rotaionCorners.bottomLeft.x -
+                                    this.#rotationCorners.bottomLeft.x -
                                         this.getCenterX
                                 )
                         );
@@ -3364,7 +3467,10 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.__runningEvents.rotate) return;
             beforeCords = { x: 0, y: 0 };
             if (inBound) {
-                initCords = this.canvas?.getCursorPosition(event);
+                initCords = this.canvas?.getCursorPosition(event) || {
+                    x: 0,
+                    y: 0,
+                };
                 this.__runningEvents.resize = true;
                 beforeValues[this.nodeId!] = {
                     x: this.x(),
@@ -3380,7 +3486,10 @@ export class Block<T = IBlockOptions> extends Node {
             if (!this.__runningEvents.selected || this.__runningEvents.rotate)
                 return;
 
-            const { x, y } = this.canvas?.getCursorPosition(event);
+            const { x, y } = this.canvas?.getCursorPosition(event) || {
+                x: 0,
+                y: 0,
+            };
             if (!this.__runningEvents.resize) {
                 let cursor: string | undefined = undefined;
                 bottomResize = rightResize = topResize = leftResize = false;
@@ -3848,7 +3957,7 @@ export class Block<T = IBlockOptions> extends Node {
         this.mousedown((event) => {
             if (this.__runningEvents.resize || this.__runningEvents.rotate)
                 return;
-            initCords = this.canvas?.getCursorPosition(event);
+            initCords = this.canvas?.getCursorPosition(event) || { x: 0, y: 0 };
             beforeCords = { x: 0, y: 0 };
             beforeValues[this.nodeId!] = {
                 x: this.x(),

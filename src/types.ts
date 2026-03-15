@@ -10,7 +10,11 @@ export type RGBA = [number, number, number, number];
 
 export type Timestamp = number;
 
-export type SnapshotObject = { nodeId: IBlockOptions };
+export interface SnapshotObject {
+    [key: string]: IBlockOptions;
+}
+
+export type SnapshotSize = number
 
 export type LinearEasing = (t: number) => number;
 export type CubicBezier = (t: number, duration: number) => number;
