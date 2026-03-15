@@ -94,20 +94,20 @@ interface LayoutOptions extends GridLayout, FlexLayout {
 }
 
 export class LayoutBlock extends Block<LayoutOptions> {
-    #containerX?: number = undefined;
-    #containerY?: number = undefined;
+    #containerX?: number;
+    #containerY?: number;
 
-    #startXPos: number[] = [];
-    #startYPos: number[] = [];
+    #startXPos: number[];
+    #startYPos: number[];
 
-    #columnsGap: number[] = [];
-    #rowsGap: number[] = [];
+    #columnsGap: number[];
+    #rowsGap: number[];
 
-    #blocksWidth: number[] = [];
-    #blocksHeight: number[] = [];
+    #blocksWidth: number[];
+    #blocksHeight: number[];
 
-    #layoutCols: number[] = [];
-    #layoutRows: number[] = [];
+    #layoutCols: number[];
+    #layoutRows: number[];
 
     #invokerLayout?: () => void;
     #justifyInvoker?: () => void;
@@ -115,33 +115,23 @@ export class LayoutBlock extends Block<LayoutOptions> {
     #alignInvoker?: () => void;
     #alignItemsInvoker?: () => void;
 
-    #childBlocks: Block[] = [];
-
-    #lastOrder = 0;
     constructor(options: IBlock<LayoutOptions>) {
         super(options);
         this.options = options;
+
+        this.#startXPos = [];
+        this.#startYPos = [];
+        this.#columnsGap = [];
+        this.#rowsGap = [];
+        this.#blocksWidth = [];
+        this.#blocksHeight = [];
+        this.#layoutCols = [];
+        this.#layoutRows = [];
     }
-    addChild(...block: Block[]): void {
-        super.addChild(...block);
-        this.listOnlyChilds((b: Block, idx: number) => {
-            this.canvas?.__handleOptions(b);
-            if (b.order() === undefined) {
-                b.order(this.#lastOrder);
-                this.#lastOrder += 1;
-            } else if (idx >= b.order()!) {
-                b.order(b.order()! - 1);
-            }
-        });
-        this.#childBlocks = this.childNodes as Block[];
-        this.#childBlocks.sort(
-            (a, b) => (a.order() as number) - (b.order() as number)
-        );
-    }
-    __adjustBlocks(): void {
+
+    __adjustChildBlocks(): void {
         const cacheR = this.rotate();
         this.rotate(0);
-        if (this.__childAdjustment) this.__childAdjustment(this as Block);
 
         this.#invokerLayout?.();
         this.#justifyInvoker?.();
@@ -160,30 +150,28 @@ export class LayoutBlock extends Block<LayoutOptions> {
         let adjustedW = 0;
         let adjustedH = 0;
 
+        let z = this.zIndex() || 0;
+
         if (this.#isGrid) {
             adjustedW =
                 (realW - containerW) / (this.#layoutCols[0] || 1) -
-                    (this.paddingRight() +
-                        this.paddingLeft() +
-                        this.gapColumn()) /
+                    (this.__widthSpaces + this.gapColumn()) /
                         (this.#layoutCols[0] || 1) || 1;
 
             adjustedH =
                 (realH - containerH) / (this.#layoutRows[0] || 1) -
-                    (this.paddingTop() + this.paddingBottom() + this.gapRow()) /
+                    (this.__heightSpaces + this.gapRow()) /
                         (this.#layoutRows[0] || 1) || 1;
         } else {
             adjustedW =
-                (realW - containerW) / this.#childBlocks.length -
-                    (this.paddingRight() +
-                        this.paddingLeft() +
-                        this.gapColumn()) /
-                        this.#childBlocks.length || 1;
+                (realW - containerW) / this.childNodes.length -
+                    (this.__widthSpaces + this.gapColumn()) /
+                        this.childNodes.length || 1;
 
             adjustedH =
-                (realH - containerH) / this.#childBlocks.length -
-                    (this.paddingBottom() + this.paddingTop() + this.gapRow()) /
-                        this.#childBlocks.length || 1;
+                (realH - containerH) / this.childNodes.length -
+                    (this.__heightSpaces + this.gapRow()) /
+                        this.childNodes.length || 1;
         }
 
         this.listOnlyChilds((b: Block) => {
@@ -209,10 +197,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         if (blockH > realH || blockH < b.maxHeight())
                             bHeightResize = -(
                                 blockH -
-                                (realH -
-                                    (this.paddingBottom() +
-                                        this.paddingTop() +
-                                        this.gapRow()))
+                                (realH - (this.__heightSpaces + this.gapRow()))
                             );
 
                         if (containerW > realW || blockW < b.maxWidth())
@@ -225,9 +210,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             bWidthResize = -(
                                 blockW -
                                 (realW -
-                                    (this.paddingLeft() +
-                                        this.paddingRight() +
-                                        this.gapColumn()))
+                                    (this.__widthSpaces + this.gapColumn()))
                             );
                     }
                 } else {
@@ -236,9 +219,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             bWidthResize = -(
                                 blockW -
                                 (realW -
-                                    (this.paddingRight() +
-                                        this.paddingLeft() +
-                                        this.gapColumn()))
+                                    (this.__widthSpaces + this.gapColumn()))
                             );
                         if (containerH > realH || blockH < b.maxHeight())
                             bHeightResize = adjustedH;
@@ -249,29 +230,42 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         if (blockH > realH || blockH < b.maxHeight())
                             bHeightResize = -(
                                 blockH -
-                                (realH -
-                                    (this.paddingTop() +
-                                        this.paddingBottom() +
-                                        this.gapRow()))
+                                (realH - (this.__heightSpaces + this.gapRow()))
                             );
                     }
                 }
             }
             const width = b.width() + bWidthResize;
             const height = b.height() + bHeightResize;
+
             const x =
-                b.x() + this.getLeft.x + this.marginLeft() + this.paddingLeft();
+                b.x() +
+                this.__overflowCords.x +
+                this.getLeft.x +
+                this.marginLeft() +
+                this.paddingLeft();
             const y =
-                b.y() + this.getTop.y + this.marginTop() + this.paddingTop();
+                b.y() +
+                this.__overflowCords.y +
+                this.getTop.y +
+                this.marginTop() +
+                this.paddingTop();
+            z += 1;
 
             b.__childAdjustment = (b) => {
+                b.rotate(cacheR);
                 b.x(x);
                 b.y(y);
                 b.width(width);
                 b.height(height);
+                b.zIndex(z);
             };
-            b.rotate(cacheR);
-        });
+            if (this.__clipPath) {
+                b.__childClipping = (b: Block) => {
+                    b.context?.clip(this.__clipPath!, "nonzero");
+                };
+            }
+        }, "order");
         this.#blocksWidth = [];
         this.#blocksHeight = [];
         this.#layoutCols = [];
@@ -284,6 +278,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
         this.#rowsGap = [];
         this.rotate(cacheR);
     }
+
     layout(opt?: ILayout) {
         const layout = this.__valueHandler<ILayout, ILayout>(
             opt,
@@ -293,7 +288,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
         if (layout == "inline-flex" || layout == "inline-grid") {
             if (!this.getRealWidth)
                 this.width(
-                    this.#childBlocks.reduce(
+                    this.childNodes.reduce(
                         (prev, curr) => prev + curr.width(),
                         0
                     )
@@ -301,7 +296,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
 
             if (!this.getRealHeight)
                 this.height(
-                    this.#childBlocks.reduce(
+                    this.childNodes.reduce(
                         (prev, curr) => prev + curr.height(),
                         0
                     )
@@ -584,28 +579,28 @@ export class LayoutBlock extends Block<LayoutOptions> {
         }
     }
     #start(_type: TypeContent) {
-        const _func1 = () => {
+        const _justify_cont_func = () => {
             if (this.#isGrid) this.#containerX = 0;
             else {
                 if (this.#isFlexCol) this.#containerY = 0;
                 else this.#containerX = 0;
             }
         };
-        const _func2 = () => {
+        const _align_cont_func = () => {
             if (this.#isGrid) this.#containerY = 0;
             else {
                 if (this.#isFlexCol) this.#containerX = 0;
                 else if (this.#isWrap) this.#containerY = 0;
             }
         };
-        const _func3 = () => {
-            for (let i = 0, len = this.#childBlocks.length; i < len; i++) {
+        const _justify_func = () => {
+            for (let i = 0, len = this.childNodes.length; i < len; i++) {
                 this.#startXPos.push(0);
             }
         };
-        const _func4 = () => {
+        const _align_func = () => {
             if (this.#isGrid) {
-                for (let i = 0, len = this.#childBlocks.length; i < len; i++) {
+                for (let i = 0, len = this.childNodes.length; i < len; i++) {
                     this.#startYPos.push(0);
                 }
             } else {
@@ -648,10 +643,16 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 }
             }
         };
-        this.#checkLayoutType(_type, _func1, _func2, _func3, _func4);
+        this.#checkLayoutType(
+            _type,
+            _justify_cont_func,
+            _align_cont_func,
+            _justify_func,
+            _align_func
+        );
     }
     #end(_type: TypeContent) {
-        const _func1 = () => {
+        const _justify_cont_func = () => {
             if (this.#isGrid) {
                 this.#containerX = Math.abs(
                     this.getRealWidth - this.#containerW
@@ -690,7 +691,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 }
             }
         };
-        const _func2 = () => {
+        const _align_cont_func = () => {
             if (this.#isGrid) {
                 this.#containerY = Math.abs(
                     this.getRealHeight - this.#containerH
@@ -706,27 +707,27 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 }
             }
         };
-        const _func3 = () => {
+        const _justify_func = () => {
             for (
-                let i = 0, col = 0, len = this.#childBlocks.length;
+                let i = 0, col = 0, len = this.childNodes.length;
                 i < len;
                 i++, col++
             ) {
                 this.#startXPos.push(
-                    this.#blocksWidth[col] - this.#childBlocks[i].width()
+                    this.#blocksWidth[col] - this.childNodes[i].width()
                 );
                 if (col === this.#blocksWidth.length) col = 0;
             }
         };
-        const _func4 = () => {
+        const _align_func = () => {
             if (this.#isGrid) {
                 for (
-                    let i = 0, row = 0, len = this.#childBlocks.length;
+                    let i = 0, row = 0, len = this.childNodes.length;
                     i < len;
                     i++
                 ) {
                     this.#startYPos.push(
-                        this.#blocksHeight[row] - this.#childBlocks[i].height()
+                        this.#blocksHeight[row] - this.childNodes[i].height()
                     );
                     if (i === this.#blocksWidth.length - 1) row++;
                 }
@@ -751,8 +752,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             this.#startXPos.push(
                                 colW +
                                     (this.#blocksWidth[i] -
-                                        this.#childBlocks[j + rows]
-                                            .getRealWidth)
+                                        this.childNodes[j + rows].getRealWidth)
                             );
                         }
                     }
@@ -777,18 +777,23 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             this.#startYPos.push(
                                 colH +
                                     (this.#blocksHeight[i] -
-                                        this.#childBlocks[l + cols]
-                                            .getRealHeight)
+                                        this.childNodes[l + cols].getRealHeight)
                             );
                         }
                     }
                 }
             }
         };
-        this.#checkLayoutType(_type, _func1, _func2, _func3, _func4);
+        this.#checkLayoutType(
+            _type,
+            _justify_cont_func,
+            _align_cont_func,
+            _justify_func,
+            _align_func
+        );
     }
     #center(_type: TypeContent) {
-        const _func1 = () => {
+        const _justify_cont_func = () => {
             if (this.#isGrid) {
                 let startX = this.getRealWidth / 2 - this.#containerW / 2;
                 this.#containerX = startX > 0 ? startX : 0;
@@ -826,7 +831,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 }
             }
         };
-        const _func2 = () => {
+        const _align_cont_func = () => {
             if (this.#isGrid) {
                 const startY = this.getRealHeight - this.#containerH;
                 this.#containerY =
@@ -844,29 +849,29 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 }
             }
         };
-        const _func3 = () => {
+        const _justify_func = () => {
             for (
-                let i = 0, col = 0, len = this.#childBlocks.length;
+                let i = 0, col = 0, len = this.childNodes.length;
                 i < len;
                 i++, col++
             ) {
                 this.#startXPos.push(
                     this.#blocksWidth[col] / 2 -
-                        this.#childBlocks[i].getRealWidth / 2
+                        this.childNodes[i].getRealWidth / 2
                 );
                 if (this.#blocksWidth.length === col) col = 0;
             }
         };
-        const _func4 = () => {
+        const _align_func = () => {
             if (this.#isGrid) {
                 for (
-                    let i = 0, row = 0, len = this.#childBlocks.length;
+                    let i = 0, row = 0, len = this.childNodes.length;
                     i < len;
                     i++, row++
                 ) {
                     this.#startYPos.push(
                         this.#blocksHeight[row] / 2 -
-                            this.#childBlocks[i].getRealHeight / 2
+                            this.childNodes[i].getRealHeight / 2
                     );
                     if (this.#blocksHeight.length - 1 === row) row = 0;
                 }
@@ -888,8 +893,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             this.#startXPos.push(
                                 containerW +
                                     (this.#blocksWidth[i] -
-                                        this.#childBlocks[j + row]
-                                            .getRealWidth) /
+                                        this.childNodes[j + row].getRealWidth) /
                                         2
                             );
                         }
@@ -911,7 +915,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             this.#startYPos.push(
                                 containerH +
                                     (this.#blocksHeight[i] -
-                                        this.#childBlocks[j + col]
+                                        this.childNodes[j + col]
                                             .getRealHeight) /
                                         2
                             );
@@ -920,10 +924,16 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 }
             }
         };
-        this.#checkLayoutType(_type, _func1, _func2, _func3, _func4);
+        this.#checkLayoutType(
+            _type,
+            _justify_cont_func,
+            _align_cont_func,
+            _justify_func,
+            _align_func
+        );
     }
     #spaceBetween(_type: TypeContent) {
-        const _func1 = () => {
+        const _justify_cont_func = () => {
             if (this.#isGrid) {
                 let gap = this.getRealWidth - this.#containerW;
                 const nCols =
@@ -950,7 +960,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         let gap = this.getRealHeight - this.#containerH;
                         gap =
                             gap > 0
-                                ? gap / (this.#childBlocks.length - 1 || 1)
+                                ? gap / (this.childNodes.length - 1 || 1)
                                 : 0;
                         this.gapRow(gap);
                     }
@@ -973,14 +983,14 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         let gap = this.getRealWidth - this.#containerW;
                         this.gapColumn(
                             gap > 0
-                                ? gap / (this.#childBlocks.length - 1 || 1)
+                                ? gap / (this.childNodes.length - 1 || 1)
                                 : 0
                         );
                     }
                 }
             }
         };
-        const _func2 = () => {
+        const _align_cont_func = () => {
             if (this.#isGrid) {
                 let gap = this.getRealHeight - this.#containerH;
                 this.gapRow(gap > 0 ? gap / (this.#layoutRows[0] || 1) : 0);
@@ -1002,10 +1012,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
             }
         };
 
-        this.#checkLayoutType(_type, _func1, _func2);
+        this.#checkLayoutType(_type, _justify_cont_func, _align_cont_func);
     }
     #spaceAround(_type: TypeContent) {
-        const _func1 = () => {
+        const _justify_cont_func = () => {
             if (this.#isGrid) {
                 let gap = this.getRealWidth - this.#containerW;
                 gap = gap > 0 ? gap / this.#layoutCols[0] : 0;
@@ -1029,7 +1039,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     } else {
                         let gap = this.getRealHeight - this.#containerH;
-                        gap = gap > 0 ? gap / this.#childBlocks.length : 0;
+                        gap = gap > 0 ? gap / this.childNodes.length : 0;
                         this.gapRow(gap);
                         this.#containerY = gap / 2;
                     }
@@ -1049,14 +1059,14 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     } else {
                         let gap = this.getRealWidth - this.#containerW;
-                        gap = gap > 0 ? gap / this.#childBlocks.length : 0;
+                        gap = gap > 0 ? gap / this.childNodes.length : 0;
                         this.gapColumn(gap);
                         this.#containerX = gap / 2;
                     }
                 }
             }
         };
-        const _func2 = () => {
+        const _align_cont_func = () => {
             if (this.#isGrid) {
                 let gap = this.getRealHeight - this.#containerH;
                 gap = gap > 0 ? gap / this.#layoutRows[0] : 0;
@@ -1078,10 +1088,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
             }
         };
 
-        this.#checkLayoutType(_type, _func1, _func2);
+        this.#checkLayoutType(_type, _justify_cont_func, _align_cont_func);
     }
     #spaceEvenly(_type: TypeContent) {
-        const _func1 = () => {
+        const _justify_cont_func = () => {
             if (this.#isGrid) {
                 let gap = this.getRealWidth - this.#containerW;
                 gap = gap > 0 ? gap / (this.#layoutCols[0] + 1) : 0;
@@ -1104,8 +1114,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     } else {
                         let gap = this.getRealHeight - this.#containerH;
-                        gap =
-                            gap > 0 ? gap / (this.#childBlocks.length + 1) : 0;
+                        gap = gap > 0 ? gap / (this.childNodes.length + 1) : 0;
                         this.gapRow(gap);
                         this.#containerY = gap;
                     }
@@ -1127,15 +1136,14 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     } else {
                         let gap = this.getRealWidth - this.#containerW;
-                        gap =
-                            gap > 0 ? gap / (this.#childBlocks.length + 1) : 0;
+                        gap = gap > 0 ? gap / (this.childNodes.length + 1) : 0;
                         this.gapColumn(gap);
                         this.#containerX = gap;
                     }
                 }
             }
         };
-        const _func2 = () => {
+        const _align_cont_func = () => {
             if (this.#isGrid) {
                 let gap = this.getRealHeight - this.#containerH;
                 gap = gap > 0 ? gap / (this.#layoutRows[0] + 1) : 0;
@@ -1159,7 +1167,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
             }
         };
 
-        this.#checkLayoutType(_type, _func1, _func2);
+        this.#checkLayoutType(_type, _justify_cont_func, _align_cont_func);
     }
 
     #flexRow() {
@@ -1192,10 +1200,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
 
         this.listOnlyChilds((block: Block, idx: number) => {
             block.rotate(0);
-            const blockW = block.getRealWidth;
+            const blockW = block.width();
             if (this.#isWrap) {
                 wrapWidth += blockW;
-                if (wrapWidth > this.getRealWidth) {
+                if (wrapWidth > this.width()) {
                     rowIdx += 1;
                     startY += containerH + gapRow;
                     startX =
@@ -1219,7 +1227,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                     wrapWidth = blockW;
                 }
             }
-            const x = startX;
+            const x = startX + block.marginLeft();
             const y = startY + (this.#startYPos[idx] || 0);
 
             if (containerH < block.getRealHeight)
@@ -1235,10 +1243,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 if (width !== undefined) b.width(width);
             };
             wrapWidth += gapCol;
-            startX += gapCol + blockW;
+            startX += gapCol + blockW + block.marginRight();
             containerW += blockW;
             colIdx += 1;
-        });
+        }, "order");
         this.#blocksWidth.push(containerW);
         this.#blocksHeight.push(containerH);
         this.#layoutCols.push(colIdx);
@@ -1275,7 +1283,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
 
         this.listOnlyChilds((block: Block, idx: number) => {
             block.rotate(0);
-            const blockH = block.getRealHeight;
+            const blockH = block.height();
 
             if (this.#isWrap) {
                 wrapHeight += blockH;
@@ -1306,7 +1314,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
             }
 
             const x = startX + (this.#startXPos[idx] || 0);
-            const y = startY;
+            const y = startY + block.marginTop();
 
             if (containerW < block.getRealWidth)
                 containerW = block.getRealWidth;
@@ -1321,10 +1329,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 if (height !== undefined) b.height(height);
             };
             wrapHeight += gapRow;
-            startY += gapRow + blockH;
+            startY += gapRow + blockH + block.marginBottom();
             containerH += blockH;
             rowIdx += 1;
-        });
+        }, "order");
         this.#blocksWidth.push(containerW);
         this.#blocksHeight.push(containerH);
         this.#layoutCols.push(1);
@@ -1362,7 +1370,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
         const autoHeights = this.gridTemplateRows().filter(
             (item: any) => item !== "auto"
         );
-        const nRows = Math.ceil(this.#childBlocks.length / cols.length);
+        const nRows = Math.ceil(this.childNodes.length / cols.length);
 
         let rHeight = (autoHeights as number[]).reduce(
             (p: number, c: number) => p + c,
@@ -1395,7 +1403,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 const idx =
                     (this.#layoutCols[0] - 1) * rowCount + rowCount + colIdx;
 
-                const block = this.#childBlocks[idx];
+                const block = this.childNodes[idx];
                 if (!block) continue;
                 block.rotate(0);
                 const blockW = block.width();
