@@ -24,6 +24,9 @@ import {
     getPrototype,
     rotateCordinates,
     inRange,
+    namedColors,
+    hslToRgba,
+    rgbaToArray,
 } from "./Utils";
 import type {
     CubicBezier,
@@ -59,19 +62,6 @@ export type Duration = number;
 export type IterationStart = number;
 export type PlaybackRate = number;
 export type AutoStart = boolean;
-
-export interface KeyFrame {
-    autoStart: AutoStart;
-    iterations?: Iterations;
-    delay?: Delay;
-    direction?: Direction;
-    duration?: Duration;
-    easing?: Easing;
-    composite?: Composite;
-    iterationStart?: IterationStart;
-    playbackRate?: PlaybackRate;
-    onFinish?: () => void;
-}
 
 export type AlignSelf =
     | "normal"
@@ -117,6 +107,7 @@ interface RunningEvents {
 }
 
 export interface IBlockOptions {
+    // @Todo: fix any type issue
     [key: string]: any;
     x?: RelativeType;
     y?: RelativeType;
@@ -236,6 +227,50 @@ export interface BindOptions {
     options: (keyof IBlockOptions)[];
 }
 
+export type IteratableOpts = { [K in keyof IBlockOptions]: IBlockOptions[K][] };
+
+export interface KeyFrame {
+    [key: string]: KeyFrame[keyof KeyFrame];
+    autoStart?: AutoStart;
+    iterations?: Iterations;
+    delay?: Delay;
+    direction?: Direction;
+    duration?: Duration;
+    easing?: Easing;
+    iterationStart?: IterationStart;
+    playbackRate?: PlaybackRate;
+    onFinish?: () => void;
+}
+
+export type AnimationKeyframe = KeyFrame & IteratableOpts;
+
+interface KeyframesConfig {
+    currentIdx?: number;
+    currentVal?: IBlockOptions[keyof IBlockOptions];
+    breakPoints?: IteratableOpts;
+    iterDirection?: number;
+    invoker?: any;
+    category: IBlockOptions[keyof IBlockOptions];
+}
+
+interface KeyframeIterationConfigs {
+    isRunning: boolean;
+    isFinished: boolean;
+    isReverse: boolean;
+    elapsedTime: number;
+    prevTime: number;
+    iter: number;
+    // need to fix this any type KeyframesConfig
+    keyframes?: {};
+}
+
+interface KeyframeIterations {
+    [key: number]: KeyframeIterationConfigs &
+        Required<{ [K in keyof KeyFrame]-?: KeyFrame[K] }>;
+}
+
+export type Animator = (timestamp: number) => void;
+
 export class Block<T = IBlockOptions> extends Node {
     declare parentNode?: Block;
     declare childNodes: Block[];
@@ -257,9 +292,8 @@ export class Block<T = IBlockOptions> extends Node {
     #rotationCorners: HotCornerArea;
     __overflowCords: XY;
 
-    // @Todo: need to fix types
-    #keyframeIterations: any = {};
-    __animationOn: any = [];
+    #keyframeIterations: KeyframeIterations;
+    __animations: Animator[];
 
     #lastOrder: number;
 
@@ -293,6 +327,9 @@ export class Block<T = IBlockOptions> extends Node {
             x: 0,
             y: 0,
         };
+
+        this.__animations = [];
+        this.#keyframeIterations = {};
 
         this.#lastOrder = 0;
     }
@@ -364,6 +401,7 @@ export class Block<T = IBlockOptions> extends Node {
             }
             this.canvas?.__handleOptions(b);
             this.canvas?.__collectEvents(b);
+            this.canvas?.__collectAnimations(b);
             this.canvas?.__takeInitSnaphshot(before);
             this.canvas?.__takeBlockSnapshot(this, before);
         });
@@ -1014,53 +1052,65 @@ export class Block<T = IBlockOptions> extends Node {
         val?: T;
         widthRelated?: boolean;
     }): O {
-        if (val && typeof val === "string" && /^\d/.test(val)) {
-            const size = widthRelated ? this.parentWidth : this.parentHeight;
-            const space = widthRelated
-                ? this.__widthSpaces
-                : this.__heightSpaces;
-            if (val.endsWith("px")) return Number(val.split("px")[0]) as O;
-            else if (val.endsWith("%")) {
-                return (fromPercentage(Number(val.split("%")[0]), size || 1) -
-                    space) as O;
-            } else if (val.endsWith("rem"))
-                return (fromRem(
-                    Number(val.split("rem")[0]),
-                    this.canvas?.width || 1
-                ) - space) as O;
-            else if (val.endsWith("em")) {
-                return (fromEm(Number(val.split("em")[0]), size || 1) -
-                    space) as O;
-            } else if (
-                val.endsWith("vh") &&
-                widthRelated !== undefined &&
-                widthRelated === false
-            )
-                return (fromVH(
-                    Number(val.split("vh")[0]),
-                    this.canvas?.height || 1
-                ) - this.__heightSpaces) as O;
-            else if (
-                val.endsWith("vw") &&
-                widthRelated !== undefined &&
-                widthRelated === true
-            )
-                return (fromVW(
-                    Number(val.split("vw")[0]),
-                    this.canvas?.width || 1
-                ) - space) as O;
-            else if (val.endsWith("cm"))
-                return fromCm(Number(val.split("cm")[0])) as O;
-            else if (val.endsWith("mm"))
-                return fromMm(Number(val.split("mm")[0])) as O;
-            else if (val.endsWith("q"))
-                return fromQ(Number(val.split("q")[0])) as O;
-            else if (val.endsWith("in"))
-                return fromIn(Number(val.split("in")[0])) as O;
-            else if (val.endsWith("pc"))
-                return fromPc(Number(val.split("pc")[0])) as O;
-            else if (val.endsWith("pt"))
-                return fromPt(Number(val.split("pt")[0])) as O;
+        if (val && typeof val === "string") {
+            if (val in namedColors) {
+                colorToRgba(val);
+            } else if (val.startsWith("#")) {
+                return hexToRgba(val) as O;
+            } else if (val.startsWith("hsl")) {
+                return hslToRgba(val) as O;
+            } else if (/^\d/.test(val)) {
+                const size = widthRelated
+                    ? this.parentWidth
+                    : this.parentHeight;
+                const space = widthRelated
+                    ? this.__widthSpaces
+                    : this.__heightSpaces;
+                if (val.endsWith("px")) return Number(val.split("px")[0]) as O;
+                else if (val.endsWith("%")) {
+                    return (fromPercentage(
+                        Number(val.split("%")[0]),
+                        size || 1
+                    ) - space) as O;
+                } else if (val.endsWith("rem"))
+                    return (fromRem(
+                        Number(val.split("rem")[0]),
+                        this.canvas?.width || 1
+                    ) - space) as O;
+                else if (val.endsWith("em")) {
+                    return (fromEm(Number(val.split("em")[0]), size || 1) -
+                        space) as O;
+                } else if (
+                    val.endsWith("vh") &&
+                    widthRelated !== undefined &&
+                    widthRelated === false
+                )
+                    return (fromVH(
+                        Number(val.split("vh")[0]),
+                        this.canvas?.height || 1
+                    ) - this.__heightSpaces) as O;
+                else if (
+                    val.endsWith("vw") &&
+                    widthRelated !== undefined &&
+                    widthRelated === true
+                )
+                    return (fromVW(
+                        Number(val.split("vw")[0]),
+                        this.canvas?.width || 1
+                    ) - space) as O;
+                else if (val.endsWith("cm"))
+                    return fromCm(Number(val.split("cm")[0])) as O;
+                else if (val.endsWith("mm"))
+                    return fromMm(Number(val.split("mm")[0])) as O;
+                else if (val.endsWith("q"))
+                    return fromQ(Number(val.split("q")[0])) as O;
+                else if (val.endsWith("in"))
+                    return fromIn(Number(val.split("in")[0])) as O;
+                else if (val.endsWith("pc"))
+                    return fromPc(Number(val.split("pc")[0])) as O;
+                else if (val.endsWith("pt"))
+                    return fromPt(Number(val.split("pt")[0])) as O;
+            }
         }
         return val as O;
     }
@@ -1109,7 +1159,7 @@ export class Block<T = IBlockOptions> extends Node {
             this.ownOptions.important?.[option] !== undefined
                 ? this.ownOptions.important?.[option]
                 : opt;
-        const cached = this.__cacheOption(important as O, option, defaultOpt);
+        const cached = this.__cacheOption(important, option, defaultOpt);
         let val = this.__unitConverter<T, O>({
             val: cached as any,
             widthRelated: widthRelated,
@@ -1118,11 +1168,11 @@ export class Block<T = IBlockOptions> extends Node {
         return val;
     }
 
-    __cacheOption<T>(
-        opt: T | undefined,
+    __cacheOption<T, O>(
+        opt: T,
         option: keyof IBlock<IBlockOptions>,
-        defaultOpt: T
-    ): T {
+        defaultOpt: O
+    ) {
         // @Todo: fix type issue over the generic readonly a.k.a (as any)
         if (opt !== undefined) (this.ownOptions[option] as any) = opt;
         else if (this.ownOptions[option] === undefined)
@@ -2378,9 +2428,7 @@ export class Block<T = IBlockOptions> extends Node {
     bind(block: Block, ...options: (keyof IBlockOptions)[]) {
         this.__bindOptions.push({ bindTo: block, options: options });
     }
-    reset() {
-        this.ownOptions = this.options;
-    }
+
     rotate(opt?: number): number {
         const cacheRotate = this.ownOptions["rotate"] || 0;
         const rotate = this.__valueHandler(opt, "rotate", 0);
@@ -2502,65 +2550,59 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     #updateCornerbyRot(corner: string, diffR: number) {
-        const c = this.__rotateCorners(
-            this.ownOptions[corner].x,
-            this.ownOptions[corner].y,
-            diffR
-        );
-        this.ownOptions[corner].x = c.x;
-        this.ownOptions[corner].y = c.y;
+        const cordsArea = this.ownOptions[corner] as XY;
+        if (!cordsArea) return;
+        const c = this.__rotateCorners(cordsArea.x, cordsArea.y, diffR);
+        cordsArea.x = c.x;
+        cordsArea.y = c.y;
     }
 
     #updateCornerAreabyRot(corner: string, diffR: number) {
+        const cordsArea = this.ownOptions[corner] as HotCornerArea;
+        if (!cordsArea) return;
         const a = this.__rotateCorners(
-            this.ownOptions[corner].topLeft.x,
-            this.ownOptions[corner].topLeft.y,
+            cordsArea.topLeft.x,
+            cordsArea.topLeft.y,
             diffR
         );
         const b = this.__rotateCorners(
-            this.ownOptions[corner].topRight.x,
-            this.ownOptions[corner].topRight.y,
+            cordsArea?.topRight.x,
+            cordsArea.topRight.y,
             diffR
         );
         const c = this.__rotateCorners(
-            this.ownOptions[corner].bottomLeft.x,
-            this.ownOptions[corner].bottomLeft.y,
+            cordsArea.bottomLeft.x,
+            cordsArea.bottomLeft.y,
             diffR
         );
         const d = this.__rotateCorners(
-            this.ownOptions[corner].bottomRight.x,
-            this.ownOptions[corner].bottomRight.y,
+            cordsArea.bottomRight.x,
+            cordsArea.bottomRight.y,
             diffR
         );
 
-        this.ownOptions[corner].topLeft = { x: a.x, y: a.y };
-        this.ownOptions[corner].topRight = { x: b.x, y: b.y };
-        this.ownOptions[corner].bottomLeft = { x: c.x, y: c.y };
-        this.ownOptions[corner].bottomRight = { x: d.x, y: d.y };
+        cordsArea.topLeft = { x: a.x, y: a.y };
+        cordsArea.topRight = { x: b.x, y: b.y };
+        cordsArea.bottomLeft = { x: c.x, y: c.y };
+        cordsArea.bottomRight = { x: d.x, y: d.y };
     }
 
     #updateAreaCordX(corner: string, x: number) {
-        if (!this.ownOptions[corner]) return;
-        this.ownOptions[corner].topLeft.x =
-            this.ownOptions[corner].topLeft.x + x;
-        this.ownOptions[corner].topRight.x =
-            this.ownOptions[corner].topRight.x + x;
-        this.ownOptions[corner].bottomLeft.x =
-            this.ownOptions[corner].bottomLeft.x + x;
-        this.ownOptions[corner].bottomRight.x =
-            this.ownOptions[corner].bottomRight.x + x;
+        const cordsArea = this.ownOptions[corner] as HotCornerArea;
+        if (!cordsArea) return;
+        cordsArea.topLeft.x += x;
+        cordsArea.topRight.x += x;
+        cordsArea.bottomLeft.x += x;
+        cordsArea.bottomRight.x = cordsArea.bottomRight.x + x;
     }
 
     #updateAreaCordY(corner: string, y: number) {
-        if (!this.ownOptions[corner]) return;
-        this.ownOptions[corner].topLeft.y =
-            this.ownOptions[corner].topLeft.y + y;
-        this.ownOptions[corner].topRight.y =
-            this.ownOptions[corner].topRight.y + y;
-        this.ownOptions[corner].bottomLeft.y =
-            this.ownOptions[corner].bottomLeft.y + y;
-        this.ownOptions[corner].bottomRight.y =
-            this.ownOptions[corner].bottomRight.y + y;
+        const cordsArea = this.ownOptions[corner] as HotCornerArea;
+        if (!cordsArea) return;
+        cordsArea.topLeft.y += y;
+        cordsArea.topRight.y += y;
+        cordsArea.bottomLeft.y += y;
+        cordsArea.bottomRight.y += y;
     }
     __rotateCorners(x: number, y: number, radian: number) {
         return rotateCordinates(
@@ -2572,262 +2614,225 @@ export class Block<T = IBlockOptions> extends Node {
         );
     }
 
-    animate(keyframes: KeyFrame[], callback?: (timestamp: number) => void) {
+    animate(keyframes: AnimationKeyframe, callback?: Animator) {
         const animationId = new Date().getTime();
+        const dumyFunc = () => {};
+        const {
+            autoStart,
+            iterations,
+            delay,
+            direction,
+            duration,
+            easing,
+            iterationStart,
+            playbackRate,
+            onFinish,
+            ...options
+        } = keyframes;
+
         this.#keyframeIterations[animationId] = {
             isRunning: true,
             isFinished: false,
             isReverse: false,
+            iter: 1,
+            prevTime: 0,
+            elapsedTime: 0,
+
+            autoStart: autoStart || true,
+            iterations: iterations || 1,
+            delay: delay || 0,
+            direction: direction || "normal",
+            duration: duration || 1,
+            easing: easing || "linear",
+            iterationStart: iterationStart || 0.0,
+            playbackRate: playbackRate || 1,
+            onFinish: onFinish || dumyFunc,
         };
-        for (let [index, keyframe] of Object.entries(keyframes)) {
-            const composite = keyframe.composite || "replace";
+        this.#keyframeIterations[animationId]["keyframes"] = {};
 
-            let maxLen = 0;
-            for (let [key, value] of Object.entries(keyframe)) {
-                if (key in this.options) {
-                    if (composite === "add" && maxLen < value.length)
-                        maxLen = value.length;
-                    else if (composite === "accumulate") {
-                        let prevVal = 0;
-                        (keyframe as any)[key] = value.map(
-                            (item: number, index: number) => {
-                                if (!(index in [0, 1])) {
-                                    item += prevVal;
-                                } else {
-                                    prevVal += item;
-                                }
-                                return item;
-                            }
-                        );
-                    }
-                }
+        for (let [key, keyframe] of Object.entries(options)) {
+            const obj = getPrototype(this, key);
+
+            let validKeyframe = keyframe.map((i: any) =>
+                this.__unitConverter({ val: i })
+            );
+            // fix type issue
+            let category: any = typeof validKeyframe;
+            if (validKeyframe.includes("rgba")) {
+                validKeyframe = keyframe.map((i: any) => rgbaToArray(i));
+                category = "color";
             }
-            let direction = keyframe["direction"] || "normal";
-            const iterationStart = keyframe["iterationStart"] || 0.0;
 
-            for (let [key, value] of Object.entries(keyframe)) {
-                if (key in this.options) {
-                    const obj = getPrototype(this, key);
-                    this.#keyframeIterations[animationId][index] = {
-                        iter: 1,
-                        initValues: {},
-                        prevTime: 0,
-                        elapsedTime: 0,
-                    };
-                    this.#keyframeIterations[animationId][index]["initValues"][
-                        key
-                    ] = obj?.value.call(this);
-                    for (
-                        let i = value.length, maxVal = value[i - 1];
-                        i < maxLen;
-                        i++
-                    )
-                        value.push(maxVal);
-                    if (
-                        direction === "reverse" ||
-                        direction === "alternate-reverse"
-                    )
-                        value.reverse();
+            if (direction === "reverse" || direction === "alternate-reverse")
+                validKeyframe.reverse();
 
-                    let currentVal = value[0];
-                    let idx = 0;
-                    let iterDirection = 1;
-                    if (iterationStart) {
-                        idx = Math.round(iterationStart * value.length - 1);
-                        if (direction === "normal" || direction === "reverse")
-                            idx = 0;
-                        currentVal = value[idx];
-                        if (idx === value.length - 1) iterDirection *= -1;
-                    }
-                    if (key.includes("color") || key.includes("Color")) {
-                        value = value.map((i: string) => this.#colorHandler(i));
-                    }
-                    this.#keyframeIterations[animationId][index][key] = {
-                        currentIdx: idx,
-                        currentVal: currentVal,
-                        breakPoints: value,
-                        iterDirection: iterDirection,
-                        invoker: obj,
-                    };
-                } else {
-                    this.#keyframeIterations[animationId][index][key] = value;
-                }
-            }
-            const animator = (timestamp: number) => {
-                const anime = this.#keyframeIterations[animationId];
-                const keyF = anime[index];
-                if (keyF.auotStart && keyF.autoStart === false) return;
-                let isFinished = anime["isFinished"];
-                const delay = keyF.delay || 0;
+            let iterDirection = 1;
 
+            const idx = Math.round(
+                (iterationStart || 0.0) * (validKeyframe.length - 1)
+            );
+            const currentVal = validKeyframe[idx];
+
+            if (idx === validKeyframe.length - 1) iterDirection *= -1;
+
+            // fix type issue
+            (this.#keyframeIterations[animationId]["keyframes"] as any)[key] = {
+                currentIdx: idx,
+                currentVal: currentVal,
+                breakPoints: validKeyframe,
+                iterDirection: iterDirection,
+                category: category,
+                invoker: obj,
+            };
+        }
+
+        const animator: Animator = (timestamp: number) => {
+            const anime = this.#keyframeIterations[animationId];
+            if (anime.autoStart === false) return;
+            let isFinished = anime["isFinished"];
+
+            if (anime.delay <= timestamp && !isFinished && anime["isRunning"]) {
                 if (callback) callback(timestamp);
 
-                if (delay <= timestamp && !isFinished && anime["isRunning"]) {
-                    const playBackRate = keyF.playbackRate || 1;
-                    const direction = keyF.direction || "normal";
-                    const duration = keyF.duration || 0;
-                    const iterations = keyF.iterations || undefined;
-                    const iter = keyF.iter;
-                    const elapsedTime = anime["elapsedTime"];
-                    const prevTime = anime["prevTime"];
+                const playBackRate = anime.playbackRate;
+                const direction = anime.direction;
+                const duration = anime.duration;
+                const iterations = anime.iterations;
+                const iter = anime.iter;
+                const elapsedTime = anime.elapsedTime;
+                const prevTime = anime.prevTime;
 
-                    this.#keyframeIterations[animationId]["elapsedTime"] =
-                        timestamp - prevTime;
-                    this.#keyframeIterations[animationId]["prevTime"] =
-                        timestamp;
+                anime.elapsedTime = timestamp - prevTime;
+                anime.prevTime = timestamp;
+                
+                if (!anime.isRunning) return;
 
-                    if (!anime["isRunning"]) return;
-                    if (iter === iterations + 1)
-                        isFinished = this.#keyframeIterations[animationId][
-                            "isFinished"
-                        ] = true;
-
-                    if (
-                        iterations !== undefined &&
-                        iterations !== Infinity &&
-                        Math.floor((duration * iter) / 1000) ===
-                            Math.floor(timestamp / 1000)
-                    )
-                        this.#keyframeIterations[animationId][index][
-                            "iter"
-                        ] += 1;
-                    const easing = this.easingHanndler(keyF.easing || "ease")(
-                        elapsedTime / duration || 0,
-                        duration
-                    );
-                    for (let [key, value] of Object.entries(keyF)) {
-                        if (!(key in this.options)) continue;
-                        let valueT = value as any;
-
-                        if (isFinished) {
-                            if (keyF.onFinish) keyF.onFinish();
-                            valueT.invoker?.value.call(
-                                this,
-                                valueT["breakPoints"][0]
-                            );
-                            continue;
-                        }
-
-                        let currentIdx = valueT["currentIdx"];
-                        let iterDirection = valueT["iterDirection"];
-                        let nextIdx = currentIdx + iterDirection;
-
-                        let startVal = valueT["breakPoints"][currentIdx];
-                        let endVal = valueT["breakPoints"][nextIdx];
-                        let currentVal = valueT["currentVal"];
-                        let statement = null;
-
-                        if (key.includes("color") || key.includes("Color")) {
-                            currentVal = this.#colorHandler(currentVal);
-
-                            const R =
-                                lerp(startVal[0], endVal[0], easing) -
-                                startVal[0];
-                            const G =
-                                lerp(startVal[1], endVal[1], easing) -
-                                startVal[1];
-                            const B =
-                                lerp(startVal[2], endVal[2], easing) -
-                                startVal[2];
-                            const A =
-                                lerp(startVal[3], endVal[3], easing) -
-                                startVal[3];
-
-                            currentVal = [
-                                currentVal[0] + R,
-                                currentVal[1] + G,
-                                currentVal[2] + B,
-                                currentVal[3] + A,
-                            ];
-                            statement =
-                                ((startVal[0] <= endVal[0] &&
-                                    currentVal[0] >= endVal[0]) ||
-                                    (startVal[0] >= endVal[0] &&
-                                        currentVal[0] <= endVal[0])) &&
-                                ((startVal[1] <= endVal[1] &&
-                                    currentVal[1] >= endVal[1]) ||
-                                    (startVal[1] >= endVal[1] &&
-                                        currentVal[1] <= endVal[1])) &&
-                                ((startVal[2] <= endVal[2] &&
-                                    currentVal[2] >= endVal[2]) ||
-                                    (startVal[2] >= endVal[2] &&
-                                        currentVal[2] <= endVal[2])) &&
-                                ((startVal[3] <= endVal[3] &&
-                                    currentVal[3] >= endVal[3]) ||
-                                    (startVal[3] >= endVal[3] &&
-                                        currentVal[3] <= endVal[3]));
-                        } else {
-                            currentVal +=
-                                (lerp(startVal, endVal, easing) - startVal) *
-                                playBackRate;
-                            statement =
-                                (startVal <= endVal && currentVal >= endVal) ||
-                                (startVal >= endVal && currentVal <= endVal);
-                        }
-
-                        if (statement) {
-                            currentIdx += iterDirection;
-                            if (
-                                nextIdx === valueT["breakPoints"].length - 1 ||
-                                nextIdx === 0
-                            ) {
-                                if (
-                                    direction == "normal" ||
-                                    direction === "reverse"
-                                ) {
-                                    currentIdx = 0;
-                                    currentVal = valueT["breakPoints"][0];
-                                    this.#keyframeIterations[animationId][
-                                        index
-                                    ]["time"] = 0;
-                                } else if (
-                                    direction == "alternate" ||
-                                    direction == "alternate-reverse"
-                                ) {
-                                    iterDirection *= -1;
-                                    this.#keyframeIterations[animationId][
-                                        index
-                                    ]["time"] = 0;
-                                }
-                            }
-                            this.#keyframeIterations[animationId][index][key][
-                                "currentIdx"
-                            ] = currentIdx;
-                        }
-                        if (key.includes("color") || key.includes("Color"))
-                            currentVal = rgbaRepresenter(currentVal);
-                        this.#keyframeIterations[animationId][index][key][
-                            "currentVal"
-                        ] = currentVal;
-                        this.#keyframeIterations[animationId][index][key][
-                            "iterDirection"
-                        ] = iterDirection;
-                        valueT.invoker?.value.call(this, currentVal);
-                    }
+                if (iter === iterations + 1) {
+                    isFinished = true;
+                    this.animationFinish(animationId);
                 }
-                this.render();
-            };
-            this.__animationOn.push(animator);
-        }
+
+                if (
+                    iterations !== undefined &&
+                    iterations !== Infinity &&
+                    Math.floor((duration * iter) / 1000) ===
+                        Math.floor(timestamp / 1000)
+                )
+                    this.#keyframeIterations[animationId].iter += 1;
+
+                const easing = this.easingHanndler(anime.easing)(
+                    elapsedTime / duration,
+                    duration
+                );
+                if (!anime.keyframes) return;
+                for (let [key, value] of Object.entries(anime.keyframes)) {
+                    let valueT = value as any;
+
+                    if (isFinished) {
+                        if (anime.onFinish) anime.onFinish();
+                        valueT.invoker?.value.call(
+                            this,
+                            valueT["breakPoints"][0]
+                        );
+                        continue;
+                    }
+
+                    let currentIdx = valueT.currentIdx;
+                    let iterDirection = valueT.iterDirection;
+                    let nextIdx = currentIdx + iterDirection;
+
+                    let startVal = valueT.breakPoints[currentIdx];
+                    let endVal = valueT.breakPoints[nextIdx];
+                    let currentVal = valueT.currentVal;
+
+                    let statement = null;
+
+                    if (valueT.category.includes("color")) {
+                        const R =
+                            lerp(startVal[0], endVal[0], easing) - startVal[0];
+                        const G =
+                            lerp(startVal[1], endVal[1], easing) - startVal[1];
+                        const B =
+                            lerp(startVal[2], endVal[2], easing) - startVal[2];
+                        const A =
+                            lerp(startVal[3], endVal[3], easing) - startVal[3];
+
+                        currentVal = rgbaRepresenter([
+                            currentVal[0] + R,
+                            currentVal[1] + G,
+                            currentVal[2] + B,
+                            currentVal[3] + A,
+                        ]);
+
+                        statement =
+                            ((startVal[0] <= endVal[0] &&
+                                currentVal[0] >= endVal[0]) ||
+                                (startVal[0] >= endVal[0] &&
+                                    currentVal[0] <= endVal[0])) &&
+                            ((startVal[1] <= endVal[1] &&
+                                currentVal[1] >= endVal[1]) ||
+                                (startVal[1] >= endVal[1] &&
+                                    currentVal[1] <= endVal[1])) &&
+                            ((startVal[2] <= endVal[2] &&
+                                currentVal[2] >= endVal[2]) ||
+                                (startVal[2] >= endVal[2] &&
+                                    currentVal[2] <= endVal[2])) &&
+                            ((startVal[3] <= endVal[3] &&
+                                currentVal[3] >= endVal[3]) ||
+                                (startVal[3] >= endVal[3] &&
+                                    currentVal[3] <= endVal[3]));
+                    } else {
+                        currentVal +=
+                            (lerp(startVal, endVal, easing) - startVal) *
+                            playBackRate;
+                        statement =
+                            (startVal <= endVal && currentVal >= endVal) ||
+                            (startVal >= endVal && currentVal <= endVal);
+                    }
+                    console.log(currentVal);
+
+                    if (statement) {
+                        currentIdx += iterDirection;
+                        if (
+                            nextIdx === valueT.breakPoints.length - 1 ||
+                            nextIdx === 0
+                        ) {
+                            if (
+                                direction == "normal" ||
+                                direction === "reverse"
+                            ) {
+                                currentIdx = 0;
+                                currentVal = valueT.breakPoints[0];
+                                this.#keyframeIterations[animationId][
+                                    "time"
+                                ] = 0;
+                            } else if (
+                                direction == "alternate" ||
+                                direction == "alternate-reverse"
+                            ) {
+                                iterDirection *= -1;
+                                this.#keyframeIterations[animationId][
+                                    "time"
+                                ] = 0;
+                            }
+                        }
+                        valueT.currentIdx = currentIdx;
+                    }
+
+                    valueT.currentVal = currentVal;
+                    valueT.iterDirection = iterDirection;
+
+                    valueT.invoker?.value.call(this, currentVal);
+                }
+            }
+        };
+        this.__animationHandler(animator);
         return animationId;
     }
 
-    #colorHandler(color: string): RGBA {
-        if (color.startsWith("rgb") || color.startsWith("rgba")) {
-            const splitted = color.split(/[,()\s]+/);
-            return [
-                Number(splitted[1]),
-                Number(splitted[2]),
-                Number(splitted[3]),
-                Number(splitted[4]),
-            ];
-        } else if (color.startsWith("#")) {
-            return hexToRgba(color);
-        } else if (color.startsWith("hsl")) {
-        } else {
-            return colorToRgba(color);
-        }
-        return [0, 0, 0, 0];
+    __animationHandler(animator: Animator) {
+        if (!this.canvas) this.__animations.push(animator);
+        else this.canvas.registerAnimation(String(this.nodeId), animator);
     }
 
     animationStart(animationId: number) {
@@ -2844,70 +2849,26 @@ export class Block<T = IBlockOptions> extends Node {
         this.#keyframeIterations[animationId]["isFinished"] = false;
         this.#keyframeIterations[animationId]["isReverse"] = true;
     }
-    animationUpdateDelay(
-        animationId: number,
-        keyFrameCount: number,
-        value: Delay
-    ) {
-        this.#keyframeIterations[animationId][keyFrameCount]["updateDelay"] =
-            value;
+    animationUpdateDelay(animationId: number, value: Delay) {
+        this.#keyframeIterations[animationId]["updateDelay"] = value;
     }
-    animationPlaybackRate(
-        animationId: number,
-        keyFrameCount: number,
-        value: PlaybackRate
-    ) {
-        this.#keyframeIterations[animationId][keyFrameCount]["playbackRate"] =
-            value;
+    animationPlaybackRate(animationId: number, value: PlaybackRate) {
+        this.#keyframeIterations[animationId]["playbackRate"] = value;
     }
-    animationDirection(
-        animationId: number,
-        keyFrameCount: number,
-        value: Direction
-    ) {
-        this.#keyframeIterations[animationId][keyFrameCount]["direction"] =
-            value;
+    animationDirection(animationId: number, value: Direction) {
+        this.#keyframeIterations[animationId]["direction"] = value;
     }
-    animationDuration(
-        animationId: number,
-        keyFrameCount: number,
-        value: Duration
-    ) {
-        this.#keyframeIterations[animationId][keyFrameCount]["duration"] =
-            value;
+    animationDuration(animationId: number, value: Duration) {
+        this.#keyframeIterations[animationId]["duration"] = value;
     }
-    animationIterationStart(
-        animationId: number,
-        keyFrameCount: number,
-        value: IterationStart
-    ) {
-        this.#keyframeIterations[animationId][keyFrameCount]["iterationStart"] =
-            value;
+    animationIterationStart(animationId: number, value: IterationStart) {
+        this.#keyframeIterations[animationId]["iterationStart"] = value;
     }
-    animationComposite(
-        animationId: number,
-        keyFrameCount: number,
-        value: Composite
-    ) {
-        this.#keyframeIterations[animationId][keyFrameCount]["composite"] =
-            value;
+    animationIterations(animationId: number, value: Iterations) {
+        this.#keyframeIterations[animationId]["iterations"] = value;
     }
-    animationIterations(
-        animationId: number,
-        keyFrameCount: number,
-        value: Iterations
-    ) {
-        this.#keyframeIterations[animationId][keyFrameCount]["iterations"] =
-            value;
-    }
-
-    animationAutoStart(
-        animationId: number,
-        keyFrameCount: number,
-        value: AutoStart
-    ) {
-        this.#keyframeIterations[animationId][keyFrameCount]["autoStart"] =
-            value;
+    animationAutoStart(animationId: number, value: AutoStart) {
+        this.#keyframeIterations[animationId]["autoStart"] = value;
     }
 
     easingHanndler(easing: Easing): (t: number, duration: number) => number {
@@ -3909,24 +3870,23 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
     #areaHorizontalFlip(area: string, reverse: boolean) {
-        let flipArea =
-            this.ownOptions[area].topLeft.x - this.ownOptions[area].topRight.x;
+        const cornerArea = this.ownOptions[area] as HotCornerArea;
+        let flipArea = cornerArea.topLeft.x - cornerArea.topRight.x;
         if (reverse) flipArea = -flipArea;
-        this.ownOptions[area].topLeft.x += flipArea;
-        this.ownOptions[area].topRight.x += flipArea;
-        this.ownOptions[area].bottomLeft.x += flipArea;
-        this.ownOptions[area].bottomRight.x += flipArea;
+        cornerArea.topLeft.x += flipArea;
+        cornerArea.topRight.x += flipArea;
+        cornerArea.bottomLeft.x += flipArea;
+        cornerArea.bottomRight.x += flipArea;
     }
 
     #areaVerticalFlip(area: string, reverse: boolean) {
-        let flipArea =
-            this.ownOptions[area].topLeft.y -
-            this.ownOptions[area].bottomLeft.y;
+        const cornerArea = this.ownOptions[area] as HotCornerArea;
+        let flipArea = cornerArea.topLeft.y - cornerArea.bottomLeft.y;
         if (reverse) flipArea = -flipArea;
-        this.ownOptions[area].topLeft.y += flipArea;
-        this.ownOptions[area].topRight.y += flipArea;
-        this.ownOptions[area].bottomLeft.y += flipArea;
-        this.ownOptions[area].bottomRight.y += flipArea;
+        cornerArea.topLeft.y += flipArea;
+        cornerArea.topRight.y += flipArea;
+        cornerArea.bottomLeft.y += flipArea;
+        cornerArea.bottomRight.y += flipArea;
     }
 
     #chooseCursor(defaultCursor: string) {

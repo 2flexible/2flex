@@ -228,7 +228,7 @@ export const namedColors: { [key: string]: string } = {
     teal: "#008080",
     aqua: "#00ffff",
 };
-export function hexToRgba(hex: string): RGBA {
+export function hexToRgba(hex: string) {
     hex = hex.substring(1);
     let RR = hex.slice(0, 2) as any;
     let GG = hex.slice(2, 4) as any;
@@ -243,16 +243,53 @@ export function hexToRgba(hex: string): RGBA {
     RR = parseInt(RR, 16);
     GG = parseInt(GG, 16);
     BB = parseInt(BB, 16);
-    return [RR, GG, BB, AA];
+    return `rgba(${RR}, ${GG}, ${BB}, ${AA})`;
 }
 
-export function hslToRgba() {}
+export function hslToRgba(hsl: string): string {
+    const colors = hsl.match(/\d+\.?\d*/g) || [];
+    let H = 0;
+    let S = 0;
+    let L = 0;
+    if (colors[0]) H = Number(colors[0]);
+    if (colors[1]) S = Number(colors[1]) / 100;
+    if (colors[2]) L = Number(colors[2]) / 100;
 
-export function colorToRgba(color: string): RGBA {
+    if (S === 0) return rgbaRepresenter([L, L, L]);
+    const C = (1 - (2 * L - 1)) * S;
+    const Hd = H / 60;
+    let RGB = { R: 0, G: 0, B: 0 };
+    const X = C * (1 - Math.abs((Hd % 2) - 1));
+    if (0 < Hd && Hd < 1) RGB = { R: C, G: X, B: 0 };
+    else if (1 <= Hd && Hd <= 2) RGB = { R: X, G: C, B: 0 };
+    else if (2 <= Hd && Hd <= 3) RGB = { R: 0, G: C, B: X };
+    else if (3 <= Hd && Hd <= 4) RGB = { R: 0, G: X, B: C };
+    else if (4 <= Hd && Hd <= 5) RGB = { R: X, G: 0, B: C };
+    else if (5 <= Hd && Hd <= 6) RGB = { R: C, G: 0, B: X };
+    const m = L - C / 2;
+    RGB.R = (RGB.R + m) * 255;
+    RGB.G = (RGB.G + m) * 255;
+    RGB.B = (RGB.B + m) * 255;
+    return rgbaRepresenter([RGB.R, RGB.G, RGB.B]);
+}
+
+export function colorToRgba(color: string) {
     return hexToRgba(namedColors[color]);
 }
-export function rgbaRepresenter(rgba: string): string {
+export function rgbaRepresenter(rgba: number[]): string {
     return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] || 1})`;
+}
+export function rgbaToArray(rgba: string) {
+    const colors = rgba.match(/\d+\.?\d*/g) || [];
+    let R = 0;
+    let G = 0;
+    let B = 0;
+    let A = 1;
+    if (colors[0]) R = Number(colors[0]);
+    if (colors[1]) G = Number(colors[1]);
+    if (colors[2]) B = Number(colors[2]);
+    if (colors[3]) A = Number(colors[3]);
+    return [R, G, B, A];
 }
 export function getPrototype(obj: any, key: string) {
     let proto = Object.getPrototypeOf(obj);

@@ -1,8 +1,8 @@
-import { Node, NodeId } from "./Node";
+import { Node } from "./Node";
 import { CanvasTree } from "./CanvasTree";
 import { CanvasDOMManager } from "./DOMManager";
 import { getPrototype, xIntersect, yIntersect } from "./Utils";
-import type { Block, IBlockOptions, BlockPayload } from "./Block";
+import type { Block, IBlockOptions, BlockPayload, Animator } from "./Block";
 import type {
     ICssProperties,
     SnapshotObject,
@@ -80,6 +80,15 @@ interface Payload {
     blocks: BlockPayload[];
 }
 
+interface BlockAnimation {
+    animations: Animator[];
+    func?: Animator;
+}
+
+interface CanvasAnimations {
+    [key: string]: BlockAnimation;
+}
+
 export class Canvas {
     canvasId: string;
     width: number;
@@ -99,8 +108,9 @@ export class Canvas {
     #handledNodes: { [key: number]: boolean };
     #initTime?: number;
     #isFocused = false;
+    #animations: CanvasAnimations;
+    #reservedAnimation?: number;
 
-    __animations: any = [];
     __positionCords: { x: number; y: number; z: number };
 
     constructor(
@@ -134,6 +144,8 @@ export class Canvas {
             composite: "source-over",
             alpha: 1.0,
         };
+        this.#animations = {};
+
         this.__positionCords = { x: 0, y: 0, z: 1 };
 
         if (this.options) this.setOptions();
@@ -230,22 +242,20 @@ export class Canvas {
             if (!this.#handledNodes[b.nodeId!]) {
                 this.__handleOptions(b);
                 this.__collectEvents(b);
+                this.__collectAnimations(b);
                 this.__takeInitSnaphshot(b);
                 b.__initCordinates();
                 b.__hidden = !this.inBoundElement(b);
                 b.render();
-                this.__animations.push(...b.__animationOn);
             }
         });
-        if (this.__animations.length !== 0)
-            this.animationInvoker(this.__animations);
-
         this.#registerDomEvent();
     }
 
     remove(block: Block) {
         this.#tree.head.removeChild(block);
         this.__clearEvents(block);
+        this.__clearAnimations(block);
         this.invokeNodeListing();
         // @Todo: take snapshot for this
     }
@@ -402,6 +412,35 @@ export class Canvas {
         this.#tree.takeSanpshot(this.#initTime!, before, after);
     }
 
+    __collectAnimations(block: Block) {
+        for (const func of block.__animations) {
+            this.registerAnimation(String(block.nodeId), func);
+        }
+    }
+
+    __clearAnimations(block: Block) {
+        this.removeAnimation(String(block.nodeId));
+    }
+
+    registerAnimation(nodeId: string, func: Animator) {
+        if (!this.#animations[nodeId])
+            this.#animations[nodeId] = { animations: [] };
+        this.#animations[nodeId].animations.push(func);
+        this.#buildAnimatonFunc(nodeId, this.#animations[nodeId].animations);
+        this.#handleAnimation();
+    }
+
+    #buildAnimatonFunc(nodeId: string, animations: Animator[]) {
+        this.#animations[nodeId].func = (timestamp: number) => {
+            for (const func of animations) func(timestamp);
+        };
+    }
+
+    removeAnimation(nodeId: string) {
+        delete this.#animations[nodeId];
+        this.#handleAnimation();
+    }
+
     __collectEvents(block: Block) {
         for (const key in block.__events) {
             for (const event of block.__events[key])
@@ -530,23 +569,37 @@ export class Canvas {
         return true;
     }
 
-    animationInvoker(animations: any) {
+    #handleAnimation() {
+        if (
+            Object.entries(this.#animations).length !== 0 &&
+            this.#reservedAnimation === undefined
+        )
+            this.animationInvoker();
+        else if (
+            Object.entries(this.#animations).length === 0 &&
+            this.#reservedAnimation !== undefined
+        ) {
+            cancelAnimationFrame(this.#reservedAnimation);
+        }
+    }
+
+    animationInvoker() {
         let lastFrame = 0;
         const framer = (timestamp: number) => {
+            const obj = Object.entries(this.#animations);
+            if (obj.length === 0) return;
             requestAnimationFrame(framer);
             // getting true frame per second
             const delta = timestamp - lastFrame;
             if (lastFrame && delta < this.#defaultOptions.fps / 1000) return;
-            // this.context.restore();
-            // this.context.save();
-            // this.clearRect();
-            for (let anime of animations) {
-                anime(timestamp);
+            for (let [nodeId, anime] of obj) {
+                anime.func?.(timestamp);
             }
             const execTime = delta % this.#defaultOptions.fps;
             lastFrame = timestamp - execTime;
+            this.invokeChange();
         };
-        requestAnimationFrame(framer);
+        this.#reservedAnimation = requestAnimationFrame(framer);
     }
     #pointZoom() {
         window.addEventListener(
@@ -788,7 +841,10 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.isOverflowXScroll
                             ) {
-                                block.__overflowTranslate({ x: moveSpeed, y: 0 });
+                                block.__overflowTranslate({
+                                    x: moveSpeed,
+                                    y: 0,
+                                });
                                 inBound = true;
                             } else block.__translate({ x: moveSpeed, y: 0 });
                         });
@@ -801,7 +857,10 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.isOverflowYScroll
                             ) {
-                                block.__overflowTranslate({ x: 0, y: moveSpeed });
+                                block.__overflowTranslate({
+                                    x: 0,
+                                    y: moveSpeed,
+                                });
                                 inBound = true;
                             } else block.__translate({ x: 0, y: moveSpeed });
                         });
