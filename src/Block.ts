@@ -27,6 +27,7 @@ import {
     namedColors,
     hslToRgba,
     rgbaToArray,
+    clamp,
 } from "./Utils";
 import type {
     CubicBezier,
@@ -236,6 +237,7 @@ export interface KeyFrame {
     delay?: Delay;
     direction?: Direction;
     duration?: Duration;
+    composite?: Composite;
     easing?: Easing;
     iterationStart?: IterationStart;
     playbackRate?: PlaybackRate;
@@ -257,9 +259,10 @@ interface KeyframeIterationConfigs {
     isRunning: boolean;
     isFinished: boolean;
     isReverse: boolean;
-    elapsedTime: number;
-    prevTime: number;
+    startTime: number;
     iter: number;
+    currentOptIdx: number;
+    maxKeyframeLen: number;
     // need to fix this any type KeyframesConfig
     keyframes?: {};
 }
@@ -2627,6 +2630,7 @@ export class Block<T = IBlockOptions> extends Node {
             iterationStart,
             playbackRate,
             onFinish,
+            composite,
             ...options
         } = keyframes;
 
@@ -2634,15 +2638,17 @@ export class Block<T = IBlockOptions> extends Node {
             isRunning: true,
             isFinished: false,
             isReverse: false,
-            iter: 1,
-            prevTime: 0,
-            elapsedTime: 0,
+            iter: 0,
+            startTime: 0,
+            currentOptIdx: 0,
+            maxKeyframeLen: 0,
 
-            autoStart: autoStart || true,
-            iterations: iterations || 1,
+            autoStart: autoStart || false,
+            iterations: iterations || Infinity,
             delay: delay || 0,
             direction: direction || "normal",
-            duration: duration || 1,
+            composite: composite || "replace",
+            duration: duration || 1000,
             easing: easing || "linear",
             iterationStart: iterationStart || 0.0,
             playbackRate: playbackRate || 1,
@@ -2650,17 +2656,46 @@ export class Block<T = IBlockOptions> extends Node {
         };
         this.#keyframeIterations[animationId]["keyframes"] = {};
 
+        let maxBreakPointLen = 0;
         for (let [key, keyframe] of Object.entries(options)) {
             const obj = getPrototype(this, key);
 
-            let validKeyframe = keyframe.map((i: any) =>
+            let validKeyframe = keyframe;
+            const keyframes = keyframe.map((i: any) =>
                 this.__unitConverter({ val: i })
             );
             // fix type issue
             let category: any = typeof validKeyframe;
-            if (validKeyframe.includes("rgba")) {
+
+            if (keyframes.includes("rgba")) {
                 validKeyframe = keyframe.map((i: any) => rgbaToArray(i));
                 category = "color";
+            }
+
+            if (composite && composite === "accumulate") {
+                let stairCase = [0, 0, 0, 0];
+                if (keyframes.includes("rgba")) {
+                    for (const [i, rgbs] of Object.entries(validKeyframe)) {
+                        validKeyframe[Number(i)] = [
+                            rgbs[0] + stairCase[0],
+                            rgbs[1] + stairCase[1],
+                            rgbs[2] + stairCase[2],
+                            rgbs[3] + stairCase[3],
+                        ];
+                        stairCase = [
+                            rgbs[0] + stairCase[0],
+                            rgbs[1] + stairCase[1],
+                            rgbs[2] + stairCase[2],
+                            rgbs[3] + stairCase[3],
+                        ];
+                    }
+                } else {
+                    let stairCase = 0;
+                    for (const [idx, val] of Object.entries(validKeyframe)) {
+                        validKeyframe[Number(idx)] = val + stairCase;
+                        stairCase += val;
+                    }
+                }
             }
 
             if (direction === "reverse" || direction === "alternate-reverse")
@@ -2671,9 +2706,12 @@ export class Block<T = IBlockOptions> extends Node {
             const idx = Math.round(
                 (iterationStart || 0.0) * (validKeyframe.length - 1)
             );
-            const currentVal = validKeyframe[idx];
+            let currentVal = validKeyframe[idx] as any;
 
             if (idx === validKeyframe.length - 1) iterDirection *= -1;
+
+            if (validKeyframe.length > maxBreakPointLen)
+                maxBreakPointLen = (validKeyframe as any).length as number;
 
             // fix type issue
             (this.#keyframeIterations[animationId]["keyframes"] as any)[key] = {
@@ -2685,55 +2723,52 @@ export class Block<T = IBlockOptions> extends Node {
                 invoker: obj,
             };
         }
-
+        this.#keyframeIterations[animationId]["maxKeyframeLen"] =
+            maxBreakPointLen;
         const animator: Animator = (timestamp: number) => {
             const anime = this.#keyframeIterations[animationId];
             if (anime.autoStart === false) return;
-            let isFinished = anime["isFinished"];
+            let isFinished = anime.isFinished;
 
-            if (anime.delay <= timestamp && !isFinished && anime["isRunning"]) {
+            if (anime.delay <= timestamp && !isFinished && anime.isRunning) {
                 if (callback) callback(timestamp);
 
                 const playBackRate = anime.playbackRate;
                 const direction = anime.direction;
-                const duration = anime.duration;
-                const iterations = anime.iterations;
-                const iter = anime.iter;
-                const elapsedTime = anime.elapsedTime;
-                const prevTime = anime.prevTime;
+                const currentOptIdx = anime.currentOptIdx;
 
-                anime.elapsedTime = timestamp - prevTime;
-                anime.prevTime = timestamp;
-                
-                if (!anime.isRunning) return;
-
-                if (iter === iterations + 1) {
-                    isFinished = true;
-                    this.animationFinish(animationId);
+                if (!anime.startTime) {
+                    anime.iter -= 1;
+                    anime.startTime = timestamp + anime.delay;
                 }
+                if (!anime.isRunning || !anime.keyframes) return;
 
                 if (
-                    iterations !== undefined &&
-                    iterations !== Infinity &&
-                    Math.floor((duration * iter) / 1000) ===
-                        Math.floor(timestamp / 1000)
-                )
-                    this.#keyframeIterations[animationId].iter += 1;
+                    anime.iterations !== Infinity &&
+                    anime.iter === anime.iterations
+                ) {
+                    isFinished = true;
+                    this.animationFinish(animationId);
+                    if (anime.onFinish) anime.onFinish();
+                }
 
                 const easing = this.easingHanndler(anime.easing)(
-                    elapsedTime / duration,
-                    duration
+                    clamp((timestamp - anime.startTime) / anime.duration, 0, 1),
+                    1 / anime.duration
                 );
-                if (!anime.keyframes) return;
-                for (let [key, value] of Object.entries(anime.keyframes)) {
+
+                for (let [idx, [key, value]] of Object.entries(
+                    Object.entries(anime.keyframes)
+                )) {
+                    if (
+                        anime.composite == "replace" &&
+                        currentOptIdx !== Number(idx)
+                    )
+                        continue;
                     let valueT = value as any;
 
                     if (isFinished) {
-                        if (anime.onFinish) anime.onFinish();
-                        valueT.invoker?.value.call(
-                            this,
-                            valueT["breakPoints"][0]
-                        );
+                        valueT.invoker?.value.call(this, valueT.breakPoints[0]);
                         continue;
                     }
 
@@ -2747,15 +2782,36 @@ export class Block<T = IBlockOptions> extends Node {
 
                     let statement = null;
 
-                    if (valueT.category.includes("color")) {
+                    if (valueT.category === "color") {
+                        const cancelOutR =
+                            startVal[0] < endVal[0] ? startVal[0] : endVal[0];
+                        const cancelOutG =
+                            startVal[1] < endVal[1] ? startVal[1] : endVal[1];
+                        const cancelOutB =
+                            startVal[2] < endVal[2] ? startVal[2] : endVal[2];
+                        const cancelOutA =
+                            startVal[3] < endVal[3] ? startVal[3] : endVal[3];
+
                         const R =
-                            lerp(startVal[0], endVal[0], easing) - startVal[0];
+                            (lerp(startVal[0], endVal[0], easing) -
+                                cancelOutR) *
+                                playBackRate +
+                            cancelOutR;
                         const G =
-                            lerp(startVal[1], endVal[1], easing) - startVal[1];
+                            (lerp(startVal[1], endVal[1], easing) -
+                                cancelOutG) *
+                                playBackRate +
+                            cancelOutG;
                         const B =
-                            lerp(startVal[2], endVal[2], easing) - startVal[2];
+                            (lerp(startVal[2], endVal[2], easing) -
+                                cancelOutB) *
+                                playBackRate +
+                            cancelOutB;
                         const A =
-                            lerp(startVal[3], endVal[3], easing) - startVal[3];
+                            (lerp(startVal[3], endVal[3], easing) -
+                                cancelOutA) *
+                                playBackRate +
+                            cancelOutA;
 
                         currentVal = rgbaRepresenter([
                             currentVal[0] + R,
@@ -2782,48 +2838,56 @@ export class Block<T = IBlockOptions> extends Node {
                                 (startVal[3] >= endVal[3] &&
                                     currentVal[3] <= endVal[3]));
                     } else {
-                        currentVal +=
-                            (lerp(startVal, endVal, easing) - startVal) *
-                            playBackRate;
+                        const cancelOut = startVal < endVal ? startVal : endVal;
+                        currentVal =
+                            (lerp(startVal, endVal, easing) - cancelOut) *
+                                playBackRate +
+                            cancelOut;
                         statement =
                             (startVal <= endVal && currentVal >= endVal) ||
                             (startVal >= endVal && currentVal <= endVal);
                     }
-                    console.log(currentVal);
-
                     if (statement) {
                         currentIdx += iterDirection;
+                        if (currentIdx === valueT.breakPoints.length - 1)
+                            anime.currentOptIdx += 1;
                         if (
                             nextIdx === valueT.breakPoints.length - 1 ||
                             nextIdx === 0
                         ) {
                             if (
-                                direction == "normal" ||
+                                direction === "normal" ||
                                 direction === "reverse"
                             ) {
                                 currentIdx = 0;
                                 currentVal = valueT.breakPoints[0];
-                                this.#keyframeIterations[animationId][
-                                    "time"
-                                ] = 0;
                             } else if (
                                 direction == "alternate" ||
                                 direction == "alternate-reverse"
                             ) {
-                                iterDirection *= -1;
-                                this.#keyframeIterations[animationId][
-                                    "time"
-                                ] = 0;
+                                valueT.iterDirection *= -1;
                             }
                         }
+                        anime.startTime = timestamp + anime.delay;
                         valueT.currentIdx = currentIdx;
                     }
 
                     valueT.currentVal = currentVal;
-                    valueT.iterDirection = iterDirection;
-
                     valueT.invoker?.value.call(this, currentVal);
                 }
+
+                if (
+                    anime.startTime &&
+                    anime.startTime === timestamp + anime.delay
+                ) {
+                    anime.iter += 1;
+                }
+
+                if (
+                    anime.currentOptIdx >=
+                    Object.entries(anime.keyframes).length
+                )
+                    anime.currentOptIdx = 0;
             }
         };
         this.__animationHandler(animator);
@@ -2844,13 +2908,14 @@ export class Block<T = IBlockOptions> extends Node {
     }
     animationFinish(animationId: number) {
         this.#keyframeIterations[animationId]["isFinished"] = true;
+        this.#keyframeIterations[animationId]["isRunning"] = false;
     }
     animationReverse(animationId: number) {
         this.#keyframeIterations[animationId]["isFinished"] = false;
         this.#keyframeIterations[animationId]["isReverse"] = true;
     }
-    animationUpdateDelay(animationId: number, value: Delay) {
-        this.#keyframeIterations[animationId]["updateDelay"] = value;
+    animationDelay(animationId: number, value: Delay) {
+        this.#keyframeIterations[animationId]["delay"] = value;
     }
     animationPlaybackRate(animationId: number, value: PlaybackRate) {
         this.#keyframeIterations[animationId]["playbackRate"] = value;

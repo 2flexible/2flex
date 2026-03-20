@@ -10,6 +10,7 @@ import {
 } from "./shapes/index";
 import { LayoutBlock } from "./LayoutBlock";
 import { ShapeBlock } from "./ShapeBlock";
+import { cubicBezier } from "./Utils";
 export {
     Canvas,
     Block,
@@ -21,4 +22,5 @@ export {
     TextBlock,
     ImageBlock,
     VideoBlock,
+    cubicBezier,
 };

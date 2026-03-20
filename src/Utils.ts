@@ -210,6 +210,11 @@ export function steps(step: number, position: JumpPosition): StepsEasing {
         return x * t + x * stepness;
     };
 }
+
+export function clamp(num: number, min: number, max: number) {
+    return Math.min(Math.max(num, min), max);
+}
+
 export const namedColors: { [key: string]: string } = {
     black: "#000000",
     silver: "#c0c0c0",
