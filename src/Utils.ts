@@ -109,7 +109,7 @@ export function rotateCordinates(
 }
 
 // This is based on `WebCore/platform/graphics/UnitBezier.h` in WebKit.
-export function cubicBezier(
+export function bezierEasing(
     p1x: number,
     p1y: number,
     p2x: number,
@@ -166,6 +166,21 @@ export function cubicBezier(
         let t = solveCurveX(x, duration);
         return ((ay * t + by) * t + cy) * t;
     };
+}
+
+export function cubicBezier(
+    p0: number,
+    p1: number,
+    p2: number,
+    p3: number,
+    t: number
+) {
+    return (
+        p0 * (1 - t) ** 3 +
+        3 * p1 * t * (1 - t) ** 2 +
+        3 * p2 * (1 - t) * t ** 2 +
+        p3 * t ** 3
+    );
 }
 
 export function lerp(start: number, end: number, t: number) {

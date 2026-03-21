@@ -14,7 +14,7 @@ import {
     fromVH,
     fromVW,
     radianToDegree,
-    cubicBezier,
+    bezierEasing,
     lerp,
     linear,
     steps,
@@ -272,7 +272,7 @@ interface KeyframeIterations {
         Required<{ [K in keyof KeyFrame]-?: KeyFrame[K] }>;
 }
 
-export type Animator = (timestamp: number) => void;
+export type Animator = (timestamp: number, easing: number) => void;
 
 export class Block<T = IBlockOptions> extends Node {
     declare parentNode?: Block;
@@ -2731,8 +2731,6 @@ export class Block<T = IBlockOptions> extends Node {
             let isFinished = anime.isFinished;
 
             if (anime.delay <= timestamp && !isFinished && anime.isRunning) {
-                if (callback) callback(timestamp);
-
                 const playBackRate = anime.playbackRate;
                 const direction = anime.direction;
                 const currentOptIdx = anime.currentOptIdx;
@@ -2756,6 +2754,8 @@ export class Block<T = IBlockOptions> extends Node {
                     clamp((timestamp - anime.startTime) / anime.duration, 0, 1),
                     1 / anime.duration
                 );
+
+                if (callback) callback(timestamp, easing);
 
                 for (let [idx, [key, value]] of Object.entries(
                     Object.entries(anime.keyframes)
@@ -2941,10 +2941,10 @@ export class Block<T = IBlockOptions> extends Node {
         else if (easing == "step-start") return steps(1, "jump-start");
         else if (easing == "step-end") return steps(1, "jump-end");
         // try if you can replase these with prebuilt functions
-        else if (easing == "ease") return cubicBezier(0.25, 0.1, 0.25, 1);
-        else if (easing == "ease-in") return cubicBezier(0.42, 0, 1, 1);
-        else if (easing == "ease-out") return cubicBezier(0, 0, 0.58, 1);
-        else if (easing == "ease-in-out") return cubicBezier(0.42, 0, 0.58, 1);
+        else if (easing == "ease") return bezierEasing(0.25, 0.1, 0.25, 1);
+        else if (easing == "ease-in") return bezierEasing(0.42, 0, 1, 1);
+        else if (easing == "ease-out") return bezierEasing(0, 0, 0.58, 1);
+        else if (easing == "ease-in-out") return bezierEasing(0.42, 0, 0.58, 1);
         else return easing;
     }
 
