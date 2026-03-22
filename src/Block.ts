@@ -272,7 +272,8 @@ interface KeyframeIterations {
         Required<{ [K in keyof KeyFrame]-?: KeyFrame[K] }>;
 }
 
-export type Animator = (timestamp: number, easing: number) => void;
+export type Animator = (timestamp: number) => void;
+export type CallbackAnimator = (timestamp: number, easing: number) => void;
 
 export class Block<T = IBlockOptions> extends Node {
     declare parentNode?: Block;
@@ -2617,7 +2618,7 @@ export class Block<T = IBlockOptions> extends Node {
         );
     }
 
-    animate(keyframes: AnimationKeyframe, callback?: Animator) {
+    animate(keyframes: AnimationKeyframe, callback?: CallbackAnimator) {
         const animationId = new Date().getTime();
         const dumyFunc = () => {};
         const {
@@ -2754,7 +2755,6 @@ export class Block<T = IBlockOptions> extends Node {
                     clamp((timestamp - anime.startTime) / anime.duration, 0, 1),
                     1 / anime.duration
                 );
-
                 if (callback) callback(timestamp, easing);
 
                 for (let [idx, [key, value]] of Object.entries(
@@ -2940,7 +2940,6 @@ export class Block<T = IBlockOptions> extends Node {
         if (easing === "linear") return linear(0, 1);
         else if (easing == "step-start") return steps(1, "jump-start");
         else if (easing == "step-end") return steps(1, "jump-end");
-        // try if you can replase these with prebuilt functions
         else if (easing == "ease") return bezierEasing(0.25, 0.1, 0.25, 1);
         else if (easing == "ease-in") return bezierEasing(0.42, 0, 1, 1);
         else if (easing == "ease-out") return bezierEasing(0, 0, 0.58, 1);
