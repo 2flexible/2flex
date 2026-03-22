@@ -3790,16 +3790,40 @@ export class Block<T = IBlockOptions> extends Node {
                         diffDy = diffH;
                     }
                     if (leftResize) {
-                        this.x(this.x() + diffDx * reverseX);
-                        this.width(this.width() - diffDx * reverseX);
+                        const widthR = this.width() - diffDx * reverseX;
+                        if (
+                            (widthR > 0 && !this.horizontalFlipResize()) ||
+                            this.horizontalFlipResize()
+                        ) {
+                            this.x(this.x() + diffDx * reverseX);
+                            this.width(this.width() - diffDx * reverseX);
+                        }
                     } else if (rightResize) {
-                        this.width(this.width() + diffDx * reverseX);
+                        const widthR = this.width() + diffDx * reverseX;
+                        if (
+                            (widthR > 0 && !this.horizontalFlipResize()) ||
+                            this.horizontalFlipResize()
+                        ) {
+                            this.width(widthR);
+                        }
                     }
                     if (topResize) {
-                        this.y(this.y() + diffDy * reverseY);
-                        this.height(this.height() - diffDy * reverseY);
+                        const heightR = this.height() - diffDy * reverseY;
+                        if (
+                            (heightR > 0 && !this.verticalFlipResize()) ||
+                            this.verticalFlipResize()
+                        ) {
+                            this.y(this.y() + diffDy * reverseY);
+                            this.height(heightR);
+                        }
                     } else if (bottomResize) {
-                        this.height(this.height() + diffDy * reverseY);
+                        const heightR = this.height() + diffDy * reverseY;
+                        if (
+                            (heightR > 0 && !this.verticalFlipResize()) ||
+                            this.verticalFlipResize()
+                        ) {
+                            this.height(heightR);
+                        }
                     }
                     this.#adjustCordsToFLip();
                     this.onResize()(event);
@@ -3875,17 +3899,17 @@ export class Block<T = IBlockOptions> extends Node {
                 this.#isHorizontalFlipped
             );
 
-            this.ownOptions["hotResizableAreaTop"]!.topLeft.x =
-                this.cornerTopRight().x - this.hotAreaSize();
+            // this.ownOptions["hotResizableAreaTop"]!.topLeft.x =
+            //     this.cornerTopRight().x - this.hotAreaSize();
 
-            this.ownOptions["hotResizableAreaTop"]!.bottomLeft.x =
-                this.cornerBottomRight().x - this.hotAreaSize();
+            // this.ownOptions["hotResizableAreaTop"]!.bottomLeft.x =
+            //     this.cornerBottomRight().x - this.hotAreaSize();
 
-            this.ownOptions["hotResizableAreaTop"]!.topRight.x =
-                this.cornerTopLeft().x + this.hotAreaSize();
+            // this.ownOptions["hotResizableAreaTop"]!.topRight.x =
+            //     this.cornerTopLeft().x + this.hotAreaSize();
 
-            this.ownOptions["hotResizableAreaTop"]!.bottomRight.x =
-                this.cornerBottomLeft().x + this.hotAreaSize();
+            // this.ownOptions["hotResizableAreaTop"]!.bottomRight.x =
+            //     this.cornerBottomLeft().x + this.hotAreaSize();
         }
 
         if (this.__isVerticalFlipped !== this.#isVerticalFlipped) {
