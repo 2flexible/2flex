@@ -8,6 +8,7 @@ import type {
     SnapshotObject,
     CustomEvent,
     SnapshotSize,
+    inOut,
 } from "./types";
 import { defaultBlocks } from "./defaultBlocks";
 
@@ -362,7 +363,7 @@ export class Canvas {
         return this.#higherBlockZIndex === zIndex;
     }
 
-    registerZIndex(inOutZ: { in?: number; out?: number }) {
+    registerZIndex(inOutZ: inOut) {
         let inBlock = inOutZ["in"];
         let outBlock = inOutZ["out"];
         if (inBlock && inBlock > this.#higherBlockZIndex) {
@@ -413,6 +414,7 @@ export class Canvas {
     }
 
     __collectAnimations(block: Block) {
+        // console.log(block)
         for (const func of block.__animations) {
             this.registerAnimation(String(block.nodeId), func);
         }

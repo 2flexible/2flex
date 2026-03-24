@@ -36,6 +36,7 @@ import type {
     RGBA,
     StepsEasing,
     CustomEvent,
+    inOut,
 } from "./types";
 
 export type Easing =
@@ -368,7 +369,7 @@ export class Block<T = IBlockOptions> extends Node {
         };
     }
     __isSelected() {
-        // this.__hotLines();
+        this.__hotLines();
         if (this.__runningEvents.selected) {
             if (this.canvas?.whoIsTheFirst(this.zIndex())) this.__hotLines();
             else this.__runningEvents.selected = false;
@@ -3016,9 +3017,13 @@ export class Block<T = IBlockOptions> extends Node {
             bottomRight.x,
             bottomRight.y
         );
-        if (inBound) this.canvas?.registerZIndex({ in: this.zIndex() });
-        else this.canvas?.registerZIndex({ out: this.zIndex() });
+        if (inBound) this.registerZIndex({ in: this.zIndex() });
+        else this.registerZIndex({ out: this.zIndex() });
         return inBound;
+    }
+
+    registerZIndex(inOut: inOut) {
+        if (this.selectable()) this.canvas?.registerZIndex(inOut);
     }
 
     contextMenu(_func: (event: MouseEvent) => void) {
@@ -3272,11 +3277,11 @@ export class Block<T = IBlockOptions> extends Node {
             } else inBound = this.checkInBound(e);
 
             if (inBound) {
-                this.canvas?.registerZIndex({ in: this.zIndex() });
+                this.registerZIndex({ in: this.zIndex() });
                 if (this.canvas?.whoIsTheFirst(this.zIndex()))
                     this.__runningEvents.selected = true;
             } else {
-                this.canvas?.registerZIndex({ out: this.zIndex() });
+                this.registerZIndex({ out: this.zIndex() });
                 this.__runningEvents.selected = false;
             }
             this.canvas?.invokeChange();
@@ -3312,8 +3317,8 @@ export class Block<T = IBlockOptions> extends Node {
                 beforeValues[this.nodeId!] = {
                     rotate: this.rotate(),
                 };
-                this.canvas?.registerZIndex({ in: this.zIndex() });
-            } else this.canvas?.registerZIndex({ out: this.zIndex() });
+                this.registerZIndex({ in: this.zIndex() });
+            } else this.registerZIndex({ out: this.zIndex() });
         };
 
         const mousemove = (event: MouseEvent) => {
@@ -3423,7 +3428,7 @@ export class Block<T = IBlockOptions> extends Node {
             }
 
             if (this.__runningEvents.rotate) {
-                this.canvas?.registerZIndex({ in: this.zIndex() });
+                this.registerZIndex({ in: this.zIndex() });
                 if (this.canvas?.whoIsTheFirst(this.zIndex())) {
                     let radian = Math.atan2(
                         y - this.rotationCenterY(),
@@ -3532,8 +3537,8 @@ export class Block<T = IBlockOptions> extends Node {
                     width: this.width(),
                     height: this.height(),
                 };
-                this.canvas?.registerZIndex({ in: this.zIndex() });
-            } else this.canvas?.registerZIndex({ out: this.zIndex() });
+                this.registerZIndex({ in: this.zIndex() });
+            } else this.registerZIndex({ out: this.zIndex() });
         };
 
         const mousemove = (event: MouseEvent) => {
@@ -3746,7 +3751,7 @@ export class Block<T = IBlockOptions> extends Node {
                 }
             }
             if (this.__runningEvents.resize) {
-                this.canvas?.registerZIndex({ in: this.zIndex() });
+                this.registerZIndex({ in: this.zIndex() });
                 if (this.canvas?.whoIsTheFirst(this.zIndex())) {
                     let diffX = x - initCords.x;
                     let diffY = y - initCords.y;
@@ -4047,7 +4052,7 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.__runningEvents.resize || this.__runningEvents.rotate)
                 return;
             if (this.__runningEvents.drag) {
-                this.canvas?.registerZIndex({ in: this.zIndex() });
+                this.registerZIndex({ in: this.zIndex() });
                 if (this.canvas?.whoIsTheFirst(this.zIndex())) {
                     const { x, y } = this.canvas?.getCursorPosition(event);
                     let diffX = x - initCords.x;

@@ -26,3 +26,5 @@ export type JumpPosition =
     | "jump-none"
     | "jump-both";
 export type CustomEvent<E = Event> = (event: E & Event) => void;
+
+export type inOut = { in?: number; out?: number }
