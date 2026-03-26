@@ -108,9 +108,12 @@ interface RunningEvents {
     selected: boolean;
 }
 
+export type SelfType = "self" | "parent";
+
 export interface IBlockOptions {
     // @Todo: fix any type issue
     [key: string]: any;
+    name?: string;
     x?: RelativeType;
     y?: RelativeType;
     width?: RelativeType;
@@ -124,6 +127,9 @@ export interface IBlockOptions {
     bottom?: RelativeType;
     left?: RelativeType;
     right?: RelativeType;
+    overflow?: Overflow;
+    overflowX?: Overflow;
+    overflowY?: Overflow;
     selectable?: boolean;
     padding?: [RelativeType, RelativeType, RelativeType, RelativeType];
     paddingTop?: RelativeType;
@@ -166,6 +172,7 @@ export interface IBlockOptions {
     hotCornerBackgroundColor?: string;
     hotLineStrokeWidth?: number;
     hotLineStrokeColor?: string;
+    hotLines?: boolean;
     rotationTopLeft?: boolean;
     rotationTopRight?: boolean;
     rotationBottomLeft?: boolean;
@@ -186,6 +193,7 @@ export interface IBlockOptions {
     important?: IBlockOptions;
     rotationCenterX?: RelativeType;
     rotationCenterY?: RelativeType;
+    rotationCenter?: SelfType;
     cornerTopLeft?: XY;
     cornerTopRight?: XY;
     cornerBottomLeft?: XY;
@@ -347,17 +355,21 @@ export class Block<T = IBlockOptions> extends Node {
         this.__childClipping?.(this);
         this.__childAdjustment?.(this);
 
+        this.position();
+
         this.__clippingPath();
         this.__adjustChildBlocks();
 
-        this.position();
+        if (this.hidden() || this.__hidden) return;
 
-        if (this.hidden() || this.__hidden) {
-            return;
-        }
         this.__isSelected();
         this.onRender()?.();
     }
+
+    name(opt?: string) {
+        return this.__valueHandler(opt, "name", undefined);
+    }
+
     onRender(opt?: () => void) {
         const onRender = this.__valueHandler<
             () => void,
@@ -369,9 +381,9 @@ export class Block<T = IBlockOptions> extends Node {
         };
     }
     __isSelected() {
-        this.__hotLines();
-        if (this.__runningEvents.selected) {
-            if (this.canvas?.whoIsTheFirst(this.zIndex())) this.__hotLines();
+        // this.__hotLines();
+        if (this.__runningEvents.selected && this.hotLines()) {
+            if (this.ImFirst) this.__hotLines();
             else this.__runningEvents.selected = false;
         }
     }
@@ -399,18 +411,24 @@ export class Block<T = IBlockOptions> extends Node {
         };
         super.addChild(...exists);
         if (exists.length === 0) return;
+        let z = this.zIndex() || 0;
+
+        this.canvas?.invokeNodeListing();
         this.listOnlyChilds((b: Block) => {
             if (b.order() === undefined) {
                 b.order(this.#lastOrder);
                 this.#lastOrder += 1;
             }
+            z += 1;
+            b.zIndex(z);
             this.canvas?.__handleOptions(b);
             this.canvas?.__collectEvents(b);
             this.canvas?.__collectAnimations(b);
+            b.__initCordinates();
             this.canvas?.__takeInitSnaphshot(before);
             this.canvas?.__takeBlockSnapshot(this, before);
         });
-        this.canvas?.invokeNodeListing();
+        this.invokeChange();
     }
 
     removeChild(child: Block): void {
@@ -453,10 +471,10 @@ export class Block<T = IBlockOptions> extends Node {
 
     __clipShape() {
         this.__clipPath?.rect(
-            this.getLeft.x,
-            this.getTop.y,
-            this.getRealWidth,
-            this.getRealHeight
+            this.getLeft.x + this.__leftSpace,
+            this.getTop.y + this.__topSpace,
+            this.getRealWidth - this.__widthSpaces,
+            this.getRealHeight - this.__heightSpaces
         );
     }
 
@@ -606,6 +624,10 @@ export class Block<T = IBlockOptions> extends Node {
         this.context.restore();
     }
 
+    hotLines(opt?: boolean) {
+        return this.__valueHandler(opt, "hotLines", true);
+    }
+
     __adjustChildBlocks(): void {
         if (this.childNodes.length !== 0) {
             const cacheR = this.rotate();
@@ -613,6 +635,8 @@ export class Block<T = IBlockOptions> extends Node {
             let z = this.zIndex() || 0;
             this.listOnlyChilds((b: Block) => {
                 if (b.position() === "absolute") return;
+                const cacheBlockR = b.rotate();
+                b.rotate(0);
                 const initX =
                     this.__unitConverter<RelativeType, number>({
                         val: b.options.x,
@@ -640,38 +664,34 @@ export class Block<T = IBlockOptions> extends Node {
                 let width: number, height: number;
 
                 z += 1;
-                // these values causing error while rotating
-                // b.ownOptions.width = b.getRealWidth;
                 if (
-                    (this.getRealWidth -
-                        (this.paddingRight() + this.paddingLeft()) <
-                        b.getRealWidth &&
-                        this.getRealWidth > b.minWidth()) ||
-                    b.getRealWidth < b.maxWidth()
+                    (this.width() - (this.paddingRight() + this.paddingLeft()) <
+                        b.width() &&
+                        this.width() > b.minWidth()) ||
+                    b.width() < b.maxWidth()
                 )
                     width =
-                        b.getRealWidth +
+                        b.width() +
                         -(
-                            b.getRealWidth -
-                            (this.getRealWidth -
+                            b.width() -
+                            (this.width() -
                                 (this.paddingRight() +
                                     this.paddingLeft() +
                                     this.marginRight()))
                         );
 
-                // b.ownOptions.height = b.getRealHeight;
                 if (
-                    (this.getRealHeight -
+                    (this.height() -
                         (this.paddingTop() + this.paddingBottom()) <
-                        b.getRealHeight &&
-                        this.getRealHeight > b.minHeight()) ||
-                    b.getRealHeight < b.maxHeight()
+                        b.height() &&
+                        this.height() > b.minHeight()) ||
+                    b.height() < b.maxHeight()
                 ) {
                     height =
-                        b.getRealHeight +
+                        b.height() +
                         -(
-                            b.getRealHeight -
-                            (this.getRealHeight -
+                            b.height() -
+                            (this.height() -
                                 (this.paddingTop() +
                                     this.paddingBottom() +
                                     this.marginBottom()))
@@ -682,9 +702,11 @@ export class Block<T = IBlockOptions> extends Node {
 
                 b.__childAdjustment = (b: Block) => {
                     b.hidden(this.hidden());
-                    b.rotationCenterX(centerX);
-                    b.rotationCenterY(centerY);
-                    b.rotate(cacheR);
+                    if (b.rotationCenter() === "parent") {
+                        b.rotationCenterX(centerX);
+                        b.rotationCenterY(centerY);
+                        b.rotate(cacheR);
+                    } else b.rotate(cacheBlockR);
                     b.x(x);
                     b.y(y);
                     if (width !== undefined) b.width(width);
@@ -1138,21 +1160,28 @@ export class Block<T = IBlockOptions> extends Node {
             return true;
         return false;
     }
+
+    get __leftSpace() {
+        return this.paddingLeft() + this.marginLeft();
+    }
+
+    get __rightSpace() {
+        return this.paddingRight() + this.marginRight();
+    }
+
+    get __topSpace() {
+        return this.paddingTop() + this.marginTop();
+    }
+
+    get __bottomSpace() {
+        return this.paddingBottom() + this.marginBottom();
+    }
+
     get __widthSpaces() {
-        return (
-            this.paddingRight() +
-            this.paddingLeft() +
-            this.marginLeft() +
-            this.marginRight()
-        );
+        return this.__leftSpace + this.__rightSpace;
     }
     get __heightSpaces() {
-        return (
-            this.paddingTop() +
-            this.paddingBottom() +
-            this.marginBottom() +
-            this.marginTop()
-        );
+        return this.__topSpace + this.__bottomSpace;
     }
     __valueHandler<T, O>(
         opt: T | undefined,
@@ -1330,16 +1359,14 @@ export class Block<T = IBlockOptions> extends Node {
                 if (this.top() !== undefined) this.y(this.top());
                 else if (this.bottom() !== undefined)
                     this.y(
-                        Math.abs(
-                            (this.canvas?.height || 1) - this.getRealHeight
-                        ) - this.bottom()!
+                        Math.abs((this.canvas?.height || 1) - this.height()) -
+                            this.bottom()!
                     );
                 if (this.left() !== undefined) this.x(this.left());
                 else if (this.right() !== undefined)
                     this.x(
-                        Math.abs(
-                            (this.canvas?.width || 1) - this.getRealWidth
-                        ) - this.right()!
+                        Math.abs((this.canvas?.width || 1) - this.width()) -
+                            this.right()!
                     );
                 this.rotate(0);
             }
@@ -1364,7 +1391,7 @@ export class Block<T = IBlockOptions> extends Node {
                 this.getBottom.y >= (this.canvas?.height || 1) - this.bottom()!
             ) {
                 this.y(
-                    Math.abs((this.canvas?.height || 1) - this.getRealHeight) -
+                    Math.abs((this.canvas?.height || 1) - this.height()) -
                         this.bottom()!
                 );
             }
@@ -1375,7 +1402,7 @@ export class Block<T = IBlockOptions> extends Node {
                 this.getRight.x >= (this.canvas?.width || 1) - this.right()!
             ) {
                 this.x(
-                    Math.abs((this.canvas?.width || 1) - this.getRealWidth) -
+                    Math.abs((this.canvas?.width || 1) - this.width()) -
                         this.right()!
                 );
             }
@@ -1383,14 +1410,14 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.left() !== undefined) this.x(this.left()!);
             else if (this.right() !== undefined)
                 this.x(
-                    Math.abs((this.canvas?.width || 1) - this.getRealWidth) -
+                    Math.abs((this.canvas?.width || 1) - this.width()) -
                         this.right()!
                 );
             if (this.top() !== undefined) {
                 this.y(this.top());
             } else if (this.bottom() !== undefined)
                 this.y(
-                    Math.abs((this.canvas?.height || 1) - this.getRealHeight) -
+                    Math.abs((this.canvas?.height || 1) - this.height()) -
                         this.bottom()!
                 );
         } else if (pos === "relative") {
@@ -1400,7 +1427,7 @@ export class Block<T = IBlockOptions> extends Node {
                 this.x(this.x() - this.right()!);
             if (this.top() !== undefined) this.y(this.y() + this.top()!);
             else if (this.bottom() !== undefined)
-                this.y(this.y() + this.bottom()!);
+                this.y(this.y() - this.bottom()!);
         }
 
         return pos;
@@ -2212,7 +2239,9 @@ export class Block<T = IBlockOptions> extends Node {
     hotAreaSize(opt?: number) {
         return this.__valueHandler(opt, "hotAreaSize", 15);
     }
-
+    rotationCenter(opt?: SelfType) {
+        return this.__valueHandler(opt, "rotationCenter", "self", true);
+    }
     rotationCenterX(opt?: RelativeType) {
         return this.__valueHandler(opt, "rotationCenterX", 0, true);
     }
@@ -2384,7 +2413,7 @@ export class Block<T = IBlockOptions> extends Node {
         }
         if (Object.keys(before).length !== 0) {
             this.canvas?.takeSnapshot(before, after);
-            this.canvas?.invokeChange();
+            this.invokeChange();
         }
     }
     scale(opt?: number) {
@@ -2404,17 +2433,17 @@ export class Block<T = IBlockOptions> extends Node {
             else if (this.bottom() !== undefined)
                 this.bottom(this.bottom()! - t.y);
         } else if (this.ownOptions.position == "relative") {
-            if (this.left() !== undefined) this.left(0);
-            else if (this.right() !== undefined) this.right(0);
-            if (this.top() !== undefined) this.top(0);
-            else if (this.bottom() !== undefined) this.bottom(0);
+            // if (this.left() !== undefined) this.left(0);
+            // else if (this.right() !== undefined) this.right(0);
+            // if (this.top() !== undefined) this.top(0);
+            // else if (this.bottom() !== undefined) this.bottom(0);
         }
     }
-
     __overflowTranslate(t: { x: number; y: number }) {
         this.__overflowCords.x += t.x;
         this.__overflowCords.y += t.y;
     }
+
     get isOverflowXScroll() {
         return this.overflow() === "scroll" || this.overflowX() === "scroll";
     }
@@ -2430,7 +2459,7 @@ export class Block<T = IBlockOptions> extends Node {
         );
     }
 
-    bind(block: Block, ...options: (keyof IBlockOptions)[]) {
+    bind(block: Block, options: (keyof IBlockOptions)[]) {
         this.__bindOptions.push({ bindTo: block, options: options });
     }
 
@@ -3026,116 +3055,100 @@ export class Block<T = IBlockOptions> extends Node {
         if (this.selectable()) this.canvas?.registerZIndex(inOut);
     }
 
+    get ImFirst() {
+        return this.canvas?.whoIsTheFirst(this.zIndex());
+    }
+
+    invokeChange() {
+        this.canvas?.invokeChange();
+    }
+
     contextMenu(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (
-                this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
+            if (this.checkInBound(event) && this.ImFirst) {
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
             }
         };
-        this.__eventHandler<MouseEvent>("contextmenu", out);
+        this.eventHandler<MouseEvent>("contextmenu", out);
     }
 
     click(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (
-                this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
+            if (this.checkInBound(event) && this.ImFirst) {
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
             }
         };
-        this.__eventHandler<MouseEvent>("click", out);
+        this.eventHandler<MouseEvent>("click", out);
     }
 
     dblclick(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (
-                this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
+            if (this.checkInBound(event) && this.ImFirst) {
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
             }
         };
-        this.__eventHandler<MouseEvent>("dblclick", out);
+        this.eventHandler<MouseEvent>("dblclick", out);
     }
 
     mousedown(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (
-                this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
+            if (this.checkInBound(event) && this.ImFirst) {
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
             }
         };
-        this.__eventHandler<MouseEvent>("mousedown", out);
+        this.eventHandler<MouseEvent>("mousedown", out);
     }
 
     mouseup(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (
-                this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
+            if (this.checkInBound(event) && this.ImFirst) {
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
             }
         };
-        this.__eventHandler<MouseEvent>("mouseup", out);
+        this.eventHandler<MouseEvent>("mouseup", out);
     }
 
     mousemove(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (
-                this.checkInBound(event) &&
-                this.canvas?.whoIsTheFirst(this.zIndex())
-            ) {
+            if (this.checkInBound(event) && this.ImFirst) {
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
             }
         };
-        this.__eventHandler<MouseEvent>("mousemove", out);
+        this.eventHandler<MouseEvent>("mousemove", out);
     }
 
     mouseenter(_func: (event: MouseEvent) => void) {
         let isMouseEnter = false;
         const enter = (event: MouseEvent) => {
             if (this.checkInBound(event)) {
-                if (
-                    this.canvas?.whoIsTheFirst(this.zIndex()) &&
-                    !isMouseEnter
-                ) {
+                if (this.ImFirst && !isMouseEnter) {
                     _func(event);
-                    this.canvas?.invokeChange();
+                    this.invokeChange();
                     isMouseEnter = true;
                 }
             } else isMouseEnter = false;
         };
-        this.__eventHandler<MouseEvent>("mousemove", enter);
+        this.eventHandler<MouseEvent>("mousemove", enter);
     }
 
     mouseleave(_func: (event: MouseEvent) => void) {
         let isMouseLeave = false;
         const leave = (event: MouseEvent) => {
             if (!this.checkInBound(event)) {
-                if (
-                    !this.canvas?.whoIsTheFirst(this.zIndex()) &&
-                    !isMouseLeave
-                ) {
+                if (!this.ImFirst && !isMouseLeave) {
                     _func(event);
-                    this.canvas?.invokeChange();
+                    this.invokeChange();
                     isMouseLeave = true;
                 }
             } else isMouseLeave = false;
         };
-        this.__eventHandler<MouseEvent>("mousemove", leave);
+        this.eventHandler<MouseEvent>("mousemove", leave);
     }
     /** @Todo
      mouseover and mouseout
@@ -3172,11 +3185,11 @@ export class Block<T = IBlockOptions> extends Node {
 
             if (isMouseOver) {
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
                 isMouseOver = false;
             }
         };
-        this.__eventHandler<MouseEvent>("mousemove", over);
+        this.eventHandler<MouseEvent>("mousemove", over);
     }
     mouseout(_func: (event: MouseEvent) => void) {
         const mouseLeave: any = {};
@@ -3208,11 +3221,11 @@ export class Block<T = IBlockOptions> extends Node {
 
             if (isMouseLeave) {
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
                 isMouseLeave = false;
             }
         };
-        this.__eventHandler<MouseEvent>("mousemove", out);
+        this.eventHandler<MouseEvent>("mousemove", out);
     }
 
     keydown(_func: (event: KeyboardEvent) => void) {
@@ -3220,10 +3233,10 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.canvas?.isFocused) {
                 event.preventDefault();
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
             }
         };
-        this.__eventHandler<KeyboardEvent>("keydown", down);
+        this.eventHandler<KeyboardEvent>("keydown", down);
     }
 
     keyup(_func: (event: KeyboardEvent) => void) {
@@ -3231,13 +3244,24 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.canvas?.isFocused) {
                 event.preventDefault();
                 _func(event);
-                this.canvas?.invokeChange();
+                this.invokeChange();
             }
         };
-        this.__eventHandler<KeyboardEvent>("keyup", up);
+        this.eventHandler<KeyboardEvent>("keyup", up);
     }
 
-    __eventHandler<E extends Event>(
+    wheel(_func: (event: WheelEvent) => void) {
+        const wheel = (event: WheelEvent) => {
+            if (this.canvas?.isFocused) {
+                event.preventDefault();
+                _func(event);
+                this.invokeChange();
+            }
+        };
+        this.eventHandler<WheelEvent>("wheel", wheel);
+    }
+
+    eventHandler<E extends Event>(
         type: string,
         _func: CustomEvent<E>,
         identify?: string
@@ -3278,15 +3302,14 @@ export class Block<T = IBlockOptions> extends Node {
 
             if (inBound) {
                 this.registerZIndex({ in: this.zIndex() });
-                if (this.canvas?.whoIsTheFirst(this.zIndex()))
-                    this.__runningEvents.selected = true;
+                if (this.ImFirst) this.__runningEvents.selected = true;
             } else {
                 this.registerZIndex({ out: this.zIndex() });
                 this.__runningEvents.selected = false;
             }
-            this.canvas?.invokeChange();
+            this.invokeChange();
         };
-        this.__eventHandler("click", click, "selectable");
+        this.eventHandler("click", click, "selectable");
         return selectable;
     }
 
@@ -3429,7 +3452,7 @@ export class Block<T = IBlockOptions> extends Node {
 
             if (this.__runningEvents.rotate) {
                 this.registerZIndex({ in: this.zIndex() });
-                if (this.canvas?.whoIsTheFirst(this.zIndex())) {
+                if (this.ImFirst) {
                     let radian = Math.atan2(
                         y - this.rotationCenterY(),
                         x - this.rotationCenterX()
@@ -3476,7 +3499,7 @@ export class Block<T = IBlockOptions> extends Node {
                         );
                     }
                     this.onRotate()(event);
-                    this.canvas?.invokeChange();
+                    this.invokeChange();
                 }
             }
         };
@@ -3491,9 +3514,9 @@ export class Block<T = IBlockOptions> extends Node {
                 this.canvas?.takeSnapshot(beforeValues, dummy);
             }
         };
-        this.__eventHandler("mousedown", mousedown, "rotatableDown");
-        this.__eventHandler("mousemove", mousemove, "rotatableMove");
-        this.__eventHandler("mouseup", mouseup, "rotatableUp");
+        this.eventHandler("mousedown", mousedown, "rotatableDown");
+        this.eventHandler("mousemove", mousemove, "rotatableMove");
+        this.eventHandler("mouseup", mouseup, "rotatableUp");
         return rotatable;
     }
 
@@ -3752,7 +3775,7 @@ export class Block<T = IBlockOptions> extends Node {
             }
             if (this.__runningEvents.resize) {
                 this.registerZIndex({ in: this.zIndex() });
-                if (this.canvas?.whoIsTheFirst(this.zIndex())) {
+                if (this.ImFirst) {
                     let diffX = x - initCords.x;
                     let diffY = y - initCords.y;
                     const rightC = this.#rightCornerRad;
@@ -3832,7 +3855,7 @@ export class Block<T = IBlockOptions> extends Node {
                     }
                     this.#adjustCordsToFLip();
                     this.onResize()(event);
-                    this.canvas?.invokeChange();
+                    this.invokeChange();
                 }
             }
         };
@@ -3853,9 +3876,9 @@ export class Block<T = IBlockOptions> extends Node {
             }
         };
 
-        this.__eventHandler("mousedown", mousedown, "resizableDown");
-        this.__eventHandler("mousemove", mousemove, "resizableMove");
-        this.__eventHandler("mouseup", mouseup, "resizableUp");
+        this.eventHandler("mousedown", mousedown, "resizableDown");
+        this.eventHandler("mousemove", mousemove, "resizableMove");
+        this.eventHandler("mouseup", mouseup, "resizableUp");
         return resizable;
     }
 
@@ -4053,8 +4076,8 @@ export class Block<T = IBlockOptions> extends Node {
                 return;
             if (this.__runningEvents.drag) {
                 this.registerZIndex({ in: this.zIndex() });
-                if (this.canvas?.whoIsTheFirst(this.zIndex())) {
-                    const { x, y } = this.canvas?.getCursorPosition(event);
+                if (this.ImFirst) {
+                    const { x, y } = this.canvas?.getCursorPosition(event) || {x: 0, y: 0};
                     let diffX = x - initCords.x;
                     let diffY = y - initCords.y;
                     if (diffX !== 0 && this.dragX()) {
@@ -4070,7 +4093,7 @@ export class Block<T = IBlockOptions> extends Node {
                         beforeCords.y = diffY;
                     }
                     this.onDrag()(event);
-                    this.canvas?.invokeChange();
+                    this.invokeChange();
                 }
             }
         };
@@ -4084,16 +4107,12 @@ export class Block<T = IBlockOptions> extends Node {
                         y: this.y(),
                     };
                     this.canvas?.takeSnapshot(beforeValues, after);
-                    this.canvas?.invokeChange();
+                    this.invokeChange();
                 }
             }
         };
-        this.__eventHandler<MouseEvent>(
-            "mousemove",
-            mousemove,
-            "draggableMove"
-        );
-        this.__eventHandler<MouseEvent>("mouseup", mouseup, "draggableUp");
+        this.eventHandler<MouseEvent>("mousemove", mousemove, "draggableMove");
+        this.eventHandler<MouseEvent>("mouseup", mouseup, "draggableUp");
 
         return draggable;
     }

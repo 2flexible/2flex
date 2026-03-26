@@ -2,7 +2,7 @@ import { ShapeBlock } from "../ShapeBlock";
 import type { FillStyle } from "../ShapeBlock";
 import type { IBlock } from "../types";
 
-export type BorderStyle = "solid" | "dotted";
+export type BorderStyle = "solid" | "dotted" | undefined;
 
 export interface IRectangleOptions {
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
@@ -81,17 +81,17 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         return border;
     }
     borderWidth(opt?: number) {
-        const borderWidth = this.__valueHandler(opt, "borderWidth", 0);
+        const borderWidth = this.__valueHandler(opt, "borderWidth", undefined);
         super.lineWidth(borderWidth);
         return borderWidth;
     }
     borderColor(opt?: string) {
-        const borderColor = this.__valueHandler(opt, "borderColor", "black");
+        const borderColor = this.__valueHandler(opt, "borderColor", undefined);
         super.strokeStyle(borderColor);
         return borderColor;
     }
     borderStyle(opt?: BorderStyle): BorderStyle {
-        return this.__valueHandler(opt, "borderStyle", "solid");
+        return this.__valueHandler(opt, "borderStyle", undefined);
     }
     borderTop(opt?: string) {
         const borderTop = this.__valueHandler(opt, "borderTop", undefined);
@@ -223,18 +223,18 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
                 total += stepHeight * 2;
             }
         }
-        this.borderWidth(borderWidth);
-        this.borderStyle(borderStyle);
-        this.borderColor(borderColor);
+        if (this.borderWidth() === undefined) this.borderWidth(borderWidth);
+        if (this.borderStyle() === undefined) this.borderStyle(borderStyle);
+        if (this.borderColor() === undefined) this.borderColor(borderColor);
         return { borderStyleArrWidth, borderStyleArrHeight };
     }
 
     __clipShape() {
         this.__clipPath?.roundRect(
-            this.getLeft.x,
-            this.getTop.y,
-            this.getRealWidth,
-            this.getRealHeight, 
+            this.getLeft.x + this.__leftSpace,
+            this.getTop.y + this.__topSpace,
+            this.getRealWidth - this.__widthSpaces,
+            this.getRealHeight - this.__heightSpaces,
             this.borderRadius()
         );
     }

@@ -298,13 +298,13 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
             dummyLetter.letter = "";
         });
 
-        this.__eventHandler("mousedown", mousedown, "editableClick");
+        this.eventHandler("mousedown", mousedown, "editableClick");
     }
 
     text(opt?: string): string {
         const cacheT = this.ownOptions.text || "";
         const text = this.__valueHandler(opt, "text", "");
-        if (text.length !== cacheT.length) {
+        if (text !== cacheT) {
             this.#updateText = () => {
                 const splitedText = text.split("");
                 let x = 0;
