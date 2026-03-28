@@ -230,7 +230,9 @@ export interface BlockPayload {
     additionalParams: any[];
 }
 
-type BlockEvent = { [key: string]: CustomEvent<any>[] };
+type BlockEvent = {
+    [key: string]: { funcs: CustomEvent<any>[]; identified: string[] };
+};
 
 export interface BindOptions {
     bindTo: Block;
@@ -280,6 +282,7 @@ interface KeyframeIterations {
     [key: number]: KeyframeIterationConfigs &
         Required<{ [K in keyof KeyFrame]-?: KeyFrame[K] }>;
 }
+type Flipped = { vertical: boolean; horizontal: boolean };
 
 export type Animator = (timestamp: number) => void;
 export type CallbackAnimator = (timestamp: number, easing: number) => void;
@@ -297,10 +300,8 @@ export class Block<T = IBlockOptions> extends Node {
 
     __runningEvents: RunningEvents;
     __events: BlockEvent;
-    __addedEvents: string[];
 
-    #isVerticalFlipped: boolean;
-    #isHorizontalFlipped: boolean;
+    #flipped: Flipped;
 
     #rotationCorners: HotCornerArea;
     __overflowCords: XY;
@@ -315,6 +316,10 @@ export class Block<T = IBlockOptions> extends Node {
 
     __childAdjustment?: (b: Block<T>) => void;
 
+    #changedCache: {
+        [key: string]: boolean;
+    };
+
     constructor(options: IBlock<T>) {
         super();
         this.options = { ...options };
@@ -327,9 +332,8 @@ export class Block<T = IBlockOptions> extends Node {
             selected: false,
         };
         this.__events = {};
-        this.__addedEvents = [];
-        this.#isVerticalFlipped = false;
-        this.#isHorizontalFlipped = false;
+
+        this.#flipped = { vertical: false, horizontal: false };
         this.#rotationCorners = {
             topLeft: { x: 0, y: 0 },
             bottomLeft: { x: 0, y: 0 },
@@ -345,6 +349,8 @@ export class Block<T = IBlockOptions> extends Node {
         this.#keyframeIterations = {};
 
         this.#lastOrder = 0;
+
+        this.#changedCache = {};
     }
 
     get context(): CanvasRenderingContext2D | undefined {
@@ -352,6 +358,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     render() {
+        if (!this.__isHidden) this.context?.save();
         this.__childClipping?.(this);
         this.__childAdjustment?.(this);
 
@@ -360,10 +367,13 @@ export class Block<T = IBlockOptions> extends Node {
         this.__clippingPath();
         this.__adjustChildBlocks();
 
-        if (this.hidden() || this.__hidden) return;
+        if (this.__isHidden) {
+            return;
+        }
 
         this.__isSelected();
         this.onRender()?.();
+        this.context?.restore();
     }
 
     name(opt?: string) {
@@ -404,6 +414,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     addChild(...blocks: Block[]): void {
+        const oldChildsLen = this.childNodes.length;
         const exists = blocks.filter((r) => !this.childNodes.includes(r));
         let before: any = {};
         before[this.nodeId!] = {
@@ -427,6 +438,11 @@ export class Block<T = IBlockOptions> extends Node {
             b.__initCordinates();
             this.canvas?.__takeInitSnaphshot(before);
             this.canvas?.__takeBlockSnapshot(this, before);
+        });
+        this.setChangeCache({
+            option: "childNodes",
+            old: oldChildsLen,
+            current: this.childNodes.length,
         });
         this.invokeChange();
     }
@@ -629,14 +645,35 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __adjustChildBlocks(): void {
-        if (this.childNodes.length !== 0) {
+        if (this.childNodes.length !== 0 || this.useCacheAdjust) {
             const cacheR = this.rotate();
             this.rotate(0);
             let z = this.zIndex() || 0;
+
+            const pWidth = this.width();
+            const pHeight = this.height();
+
+            const pPaddingLeft = this.paddingLeft();
+            const pPaddingRight = this.paddingRight();
+            const pPaddingTop = this.paddingTop();
+            const pPaddingBottom = this.paddingBottom();
+
+            const pMarginLeft = this.marginLeft();
+            const pMarginRight = this.marginRight();
+            const pMarginTop = this.marginTop();
+            const pMarginBottom = this.marginBottom();
+
+            const centerX = this.rotationCenterX();
+            const centerY = this.rotationCenterY();
+
+            const cornerLeftX = this.getLeft.x;
+            const cornerTopY = this.getTop.y;
+
             this.listOnlyChilds((b: Block) => {
                 if (b.position() === "absolute") return;
                 const cacheBlockR = b.rotate();
                 b.rotate(0);
+
                 const initX =
                     this.__unitConverter<RelativeType, number>({
                         val: b.options.x,
@@ -650,55 +687,46 @@ export class Block<T = IBlockOptions> extends Node {
 
                 const x =
                     initX +
-                    this.getLeft.x +
+                    cornerLeftX +
                     this.__overflowCords.x +
-                    this.marginLeft() +
-                    this.paddingLeft();
+                    pMarginLeft +
+                    pPaddingLeft;
                 const y =
                     initY +
-                    this.getTop.y +
+                    cornerTopY +
                     this.__overflowCords.y +
-                    this.marginTop() +
-                    this.paddingTop();
+                    pMarginTop +
+                    pPaddingTop;
 
                 let width: number, height: number;
 
                 z += 1;
                 if (
-                    (this.width() - (this.paddingRight() + this.paddingLeft()) <
-                        b.width() &&
-                        this.width() > b.minWidth()) ||
+                    (pWidth - (pPaddingRight + pPaddingLeft) < b.width() &&
+                        pWidth > b.minWidth()) ||
                     b.width() < b.maxWidth()
                 )
                     width =
                         b.width() +
                         -(
                             b.width() -
-                            (this.width() -
-                                (this.paddingRight() +
-                                    this.paddingLeft() +
-                                    this.marginRight()))
+                            (pWidth -
+                                (pPaddingRight + pPaddingLeft + pMarginRight))
                         );
 
                 if (
-                    (this.height() -
-                        (this.paddingTop() + this.paddingBottom()) <
-                        b.height() &&
-                        this.height() > b.minHeight()) ||
+                    (pHeight - (pPaddingTop + pPaddingBottom) < b.height() &&
+                        pHeight > b.minHeight()) ||
                     b.height() < b.maxHeight()
                 ) {
                     height =
                         b.height() +
                         -(
                             b.height() -
-                            (this.height() -
-                                (this.paddingTop() +
-                                    this.paddingBottom() +
-                                    this.marginBottom()))
+                            (pHeight -
+                                (pPaddingTop + pPaddingBottom + pMarginBottom))
                         );
                 }
-                const centerX = this.rotationCenterX();
-                const centerY = this.rotationCenterY();
 
                 b.__childAdjustment = (b: Block) => {
                     b.hidden(this.hidden());
@@ -721,6 +749,31 @@ export class Block<T = IBlockOptions> extends Node {
             });
             this.rotate(cacheR);
         }
+    }
+
+    get useCacheAdjust() {
+        if (
+            this.optionHasChanged("childNodes") ||
+            this.optionHasChanged("x") ||
+            this.optionHasChanged("y") ||
+            this.optionHasChanged("width") ||
+            this.optionHasChanged("height") ||
+            this.optionHasChanged("zIndex") ||
+            this.optionHasChanged("paddingLeft") ||
+            this.optionHasChanged("paddingRight") ||
+            this.optionHasChanged("paddingBottom") ||
+            this.optionHasChanged("paddingTop") ||
+            this.optionHasChanged("marginLeft") ||
+            this.optionHasChanged("marginRight") ||
+            this.optionHasChanged("marginBottom") ||
+            this.optionHasChanged("marginTop") ||
+            this.optionHasChanged("rotationCenterX") ||
+            this.optionHasChanged("rotationCenterY") ||
+            this.optionHasChanged("rotate") ||
+            this.optionHasChanged("hidden")
+        )
+            return true;
+        return false;
     }
 
     __initCordinates() {
@@ -1012,6 +1065,10 @@ export class Block<T = IBlockOptions> extends Node {
         this.#updateCornerByRot(this.rotate());
     }
 
+    get __isHidden() {
+        return this.hidden() || this.__hidden;
+    }
+
     get __isHorizontalFlipped() {
         let topLeft = this.cornerTopLeft();
         let topRight = this.cornerTopRight();
@@ -1193,12 +1250,13 @@ export class Block<T = IBlockOptions> extends Node {
             this.ownOptions.important?.[option] !== undefined
                 ? this.ownOptions.important?.[option]
                 : opt;
+        const oldVal = this.ownOptions[option];
         const cached = this.__cacheOption(important, option, defaultOpt);
         let val = this.__unitConverter<T, O>({
             val: cached as any,
             widthRelated: widthRelated,
         });
-        // return  this.__cacheOption(val, option, defaultOpt)
+        this.setChangeCache({ option: option, current: val, old: oldVal });
         return val;
     }
 
@@ -1212,6 +1270,33 @@ export class Block<T = IBlockOptions> extends Node {
         else if (this.ownOptions[option] === undefined)
             (this.ownOptions[option] as any) = defaultOpt;
         return this.ownOptions[option];
+    }
+
+    setChangeCache({
+        option,
+        current,
+        old,
+    }: {
+        option: string;
+        current?: any;
+        old?: any;
+    }) {
+        if (current && old) {
+            this.#changedCache[option] = current !== old;
+        }
+    }
+
+    optionHasChanged(option: string) {
+        if (this.#changedCache[option]) {
+            const changed = this.#changedCache[option];
+            this.#changedCache[option] = false;
+            return changed;
+        }
+        return false;
+    }
+
+    get cacheChanges() {
+        return this.#changedCache;
     }
 
     x(opt?: RelativeType): number {
@@ -3266,14 +3351,15 @@ export class Block<T = IBlockOptions> extends Node {
         _func: CustomEvent<E>,
         identify?: string
     ) {
+        if (!this.__events[type])
+            this.__events[type] = { funcs: [], identified: [] };
         if (identify) {
-            if (this.__addedEvents.includes(identify)) return;
-            else this.__addedEvents.push(identify);
+            if (this.__events[type]["identified"].includes(identify)) return;
+            else this.__events[type]["identified"].push(identify);
         }
-        if (!this.__events[type]) this.__events[type] = [];
         if (this.canvas)
             this.canvas?.registerEvent(type, _func as CustomEvent<Event>);
-        else this.__events[type].push(_func);
+        else this.__events[type]["funcs"].push(_func);
     }
     selectable(opt?: boolean): boolean {
         const selectable = this.__valueHandler(opt, "selectable", false);
@@ -3883,48 +3969,48 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     #adjustCordsToFLip() {
-        if (this.__isHorizontalFlipped !== this.#isHorizontalFlipped) {
-            this.#isHorizontalFlipped = !this.#isHorizontalFlipped;
+        if (this.__isHorizontalFlipped !== this.isHorizontalFlipped) {
+            this.#flipped.horizontal = !this.isHorizontalFlipped;
 
             this.#areaHorizontalFlip(
                 "hotResizableAreaLeft",
-                !this.#isHorizontalFlipped
+                !this.isHorizontalFlipped
             );
             this.#areaHorizontalFlip(
                 "hotResizableAreaRight",
-                this.#isHorizontalFlipped
+                this.isHorizontalFlipped
             );
             this.#areaHorizontalFlip(
                 "hotResizableAreaTopLeft",
-                !this.#isHorizontalFlipped
+                !this.isHorizontalFlipped
             );
             this.#areaHorizontalFlip(
                 "hotResizableAreaTopRight",
-                this.#isHorizontalFlipped
+                this.isHorizontalFlipped
             );
             this.#areaHorizontalFlip(
                 "hotResizableAreaBottomLeft",
-                !this.#isHorizontalFlipped
+                !this.isHorizontalFlipped
             );
             this.#areaHorizontalFlip(
                 "hotResizableAreaBottomRight",
-                this.#isHorizontalFlipped
+                this.isHorizontalFlipped
             );
             this.#areaHorizontalFlip(
                 "hotRotatableAreaBottomLeft",
-                this.#isHorizontalFlipped
+                this.isHorizontalFlipped
             );
             this.#areaHorizontalFlip(
                 "hotRotatableAreaBottomRight",
-                !this.#isHorizontalFlipped
+                !this.isHorizontalFlipped
             );
             this.#areaHorizontalFlip(
                 "hotRotatableAreaTopRight",
-                !this.#isHorizontalFlipped
+                !this.isHorizontalFlipped
             );
             this.#areaHorizontalFlip(
                 "hotRotatableAreaTopLeft",
-                this.#isHorizontalFlipped
+                this.isHorizontalFlipped
             );
 
             // this.ownOptions["hotResizableAreaTop"]!.topLeft.x =
@@ -3940,51 +4026,60 @@ export class Block<T = IBlockOptions> extends Node {
             //     this.cornerBottomLeft().x + this.hotAreaSize();
         }
 
-        if (this.__isVerticalFlipped !== this.#isVerticalFlipped) {
-            this.#isVerticalFlipped = !this.#isVerticalFlipped;
+        if (this.__isVerticalFlipped !== this.isVerticalFlipped) {
+            this.#flipped.vertical = !this.isVerticalFlipped;
 
             this.#areaVerticalFlip(
                 "hotResizableAreaTop",
-                !this.#isVerticalFlipped
+                !this.isVerticalFlipped
             );
             this.#areaVerticalFlip(
                 "hotResizableAreaBottom",
-                this.#isVerticalFlipped
+                this.isVerticalFlipped
             );
             this.#areaVerticalFlip(
                 "hotResizableAreaTopLeft",
-                !this.#isVerticalFlipped
+                !this.isVerticalFlipped
             );
             this.#areaVerticalFlip(
                 "hotResizableAreaTopRight",
-                !this.#isVerticalFlipped
+                !this.isVerticalFlipped
             );
             this.#areaVerticalFlip(
                 "hotResizableAreaBottomLeft",
-                this.#isVerticalFlipped
+                this.isVerticalFlipped
             );
             this.#areaVerticalFlip(
                 "hotResizableAreaBottomRight",
-                this.#isVerticalFlipped
+                this.isVerticalFlipped
             );
             this.#areaVerticalFlip(
                 "hotRotatableAreaBottomLeft",
-                !this.#isVerticalFlipped
+                !this.isVerticalFlipped
             );
             this.#areaVerticalFlip(
                 "hotRotatableAreaBottomRight",
-                !this.#isVerticalFlipped
+                !this.isVerticalFlipped
             );
             this.#areaVerticalFlip(
                 "hotRotatableAreaTopRight",
-                this.#isVerticalFlipped
+                this.isVerticalFlipped
             );
             this.#areaVerticalFlip(
                 "hotRotatableAreaTopLeft",
-                this.#isVerticalFlipped
+                this.isVerticalFlipped
             );
         }
     }
+
+    get isVerticalFlipped() {
+        return this.#flipped.vertical;
+    }
+
+    get isHorizontalFlipped() {
+        return this.#flipped.horizontal;
+    }
+
     #areaHorizontalFlip(area: string, reverse: boolean) {
         const cornerArea = this.ownOptions[area] as HotCornerArea;
         let flipArea = cornerArea.topLeft.x - cornerArea.topRight.x;
@@ -4077,7 +4172,10 @@ export class Block<T = IBlockOptions> extends Node {
             if (this.__runningEvents.drag) {
                 this.registerZIndex({ in: this.zIndex() });
                 if (this.ImFirst) {
-                    const { x, y } = this.canvas?.getCursorPosition(event) || {x: 0, y: 0};
+                    const { x, y } = this.canvas?.getCursorPosition(event) || {
+                        x: 0,
+                        y: 0,
+                    };
                     let diffX = x - initCords.x;
                     let diffY = y - initCords.y;
                     if (diffX !== 0 && this.dragX()) {
