@@ -19,19 +19,18 @@ interface ImageOptions {
 }
 
 export class ImageBlock extends ShapeBlock<ImageOptions> {
-    source: ImageSource;
     #cacheImage?: any;
     constructor(source: ImageSource, options: IBlock<ImageOptions>) {
         super(options);
-        this.source = source;
+        this.source(source);
     }
 
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         if (!this.#cacheImage) {
-            if (typeof this.source === "string") {
+            if (typeof this.source() === "string") {
                 this.#cacheImage = new Image();
-                this.#cacheImage.src = this.source;
-            } else this.#cacheImage = this.source;
+                this.#cacheImage.src = this.source();
+            } else this.#cacheImage = this.source();
             this.#cacheImage.addEventListener("load", () => this.#drawImage());
         } else this.#drawImage();
     }
@@ -119,6 +118,10 @@ export class ImageBlock extends ShapeBlock<ImageOptions> {
                 x = this.x();
             }
         }
+    }
+
+    source(opt?: ImageSource) {
+        return this.__valueHandler(opt, "source", undefined);
     }
 
     get isRepeat() {

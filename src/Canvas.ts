@@ -414,7 +414,6 @@ export class Canvas {
     }
 
     __collectAnimations(block: Block) {
-        // console.log(block)
         for (const func of block.__animations) {
             this.registerAnimation(String(block.nodeId), func);
         }
@@ -445,14 +444,14 @@ export class Canvas {
 
     __collectEvents(block: Block) {
         for (const key in block.__events) {
-            for (const event of block.__events[key])
+            for (const event of block.__events[key]["funcs"])
                 this.registerEvent(key, event);
         }
     }
 
     __clearEvents<T>(block: Block<T>) {
         for (const key in block.__events) {
-            for (const event of block.__events[key])
+            for (const event of block.__events[key]["funcs"])
                 this.removeEvent(key, event);
         }
     }
@@ -525,6 +524,10 @@ export class Canvas {
     invokeNodeListing() {
         this.#initTime = new Date().getTime();
         this.#tree.preOrderTraversal<Block>();
+    }
+
+    refreshHead() {
+        this.#tree.head.resetSort();
     }
 
     takeSnapshot(before: SnapshotObject, after: SnapshotObject) {
@@ -888,70 +891,66 @@ export class Canvas {
         );
     }
 
+    undo() {
+        const obj = this.#tree.snapshotInBack();
+        console.log(obj);
+        this.#invokeHistory(obj);
+    }
+
+    redo() {
+        const obj = this.#tree.snapshotInFuture();
+        this.#invokeHistory(obj);
+    }
+
+    #invokeHistory(obj: SnapshotObject) {
+        this.invokeChange((b: Block) => {
+            if (Object.keys(obj).includes(String(b.nodeId))) {
+                for (let [key, value] of Object.entries(obj[b.nodeId!])) {
+                    if (key === "childNodes") {
+                        if (b.childNodes.length !== (value as []).length) {
+                            if ((value as []).length > b.childNodes.length) {
+                                for (let i = 0; i < (value as []).length; i++) {
+                                    if (
+                                        !(value as Node[]).includes(
+                                            b.childNodes[i]
+                                        )
+                                    ) {
+                                        b.__addChildInternal((value as [])[i]);
+                                        this.#tree.assignNodeId(
+                                            (value as [])[i]
+                                        );
+                                        this.__handleOptions((value as [])[i]);
+                                    }
+                                }
+                            } else {
+                                for (let i = 0; i < b.childNodes.length; i++) {
+                                    if (
+                                        !b.childNodes.includes((value as [])[i])
+                                    ) {
+                                        b.childNodes[i].nodeId = undefined;
+                                        b.__removeChildInternal(
+                                            b.childNodes[i]
+                                        );
+                                    }
+                                }
+                            }
+                            this.invokeNodeListing();
+
+                            this.invokeChange();
+                            return;
+                        }
+                    } else getPrototype(b, key)?.value.call(b, value);
+                }
+            }
+        });
+        this.invokeChange();
+    }
+
     #snapshotHandler() {
         window.addEventListener("keydown", (e: KeyboardEvent) => {
             if (!this.#defaultOptions.history || !this.#isFocused) return;
-            let obj;
-            if (e.key === "Z" && e.ctrlKey) obj = this.#tree.snapshotInFuture();
-            else if (e.key === "z" && e.ctrlKey)
-                obj = this.#tree.snapshotInBack();
-            if (!obj) return;
-            this.invokeChange((b: Block) => {
-                if (Object.keys(obj).includes(String(b.nodeId))) {
-                    for (let [key, value] of Object.entries(obj[b.nodeId!])) {
-                        if (key === "childNodes") {
-                            if (b.childNodes.length !== (value as []).length) {
-                                if (
-                                    (value as []).length > b.childNodes.length
-                                ) {
-                                    for (
-                                        let i = 0;
-                                        i < (value as []).length;
-                                        i++
-                                    ) {
-                                        if (
-                                            !(value as Node[]).includes(
-                                                b.childNodes[i]
-                                            )
-                                        ) {
-                                            b.__addChildInternal(
-                                                (value as [])[i]
-                                            );
-                                            this.#tree.assignNodeId(
-                                                (value as [])[i]
-                                            );
-                                            this.__handleOptions(
-                                                (value as [])[i]
-                                            );
-                                        }
-                                    }
-                                } else {
-                                    for (
-                                        let i = 0;
-                                        i < b.childNodes.length;
-                                        i++
-                                    ) {
-                                        if (
-                                            !b.childNodes.includes(
-                                                (value as [])[i]
-                                            )
-                                        ) {
-                                            b.childNodes[i].nodeId = undefined;
-                                            b.__removeChildInternal(
-                                                b.childNodes[i]
-                                            );
-                                        }
-                                    }
-                                }
-                                this.invokeNodeListing();
-                                this.invokeChange();
-                                return;
-                            }
-                        } else getPrototype(b, key)?.value.call(b, value);
-                    }
-                }
-            });
-            this.invokeChange();
+            if (e.key === "Z" && e.ctrlKey) this.redo();
+            else if (e.key === "z" && e.ctrlKey) this.undo();
         });
     }
 }

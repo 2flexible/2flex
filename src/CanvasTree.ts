@@ -27,13 +27,17 @@ export class CanvasTree {
     }
 
     preOrderTraversal<T>(_func?: (node: T) => void) {
-        this.nodes = [];
+        this.refreshNodes();
         this.head.listAllChilds((current: Node) => {
             if (current === this.head) return;
             this.assignNodeId(current);
             if (_func) _func(current as T);
             this.nodes.push(current);
         });
+    }
+
+    refreshNodes() {
+        this.nodes = [];
     }
 
     assignNodeId(node: Node) {
@@ -86,6 +90,7 @@ export class CanvasTree {
                 break;
             }
         }
+        console.log(this.#currentSnapshot, this.#snapshots)
         return this.#snapshots[this.#currentSnapshot];
     }
 

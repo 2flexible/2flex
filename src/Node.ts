@@ -34,7 +34,7 @@ export class Node {
         sort?: string,
         nodes?: Node[]
     ) {
-        const sortedNodes = nodes || this.childNodes ;
+        const sortedNodes = nodes || this.childNodes;
         if (sort && this.#sortedBy !== sort) {
             sortedNodes.sort(
                 (a: any, b: any) => a.ownOptions[sort] - b.ownOptions[sort]
@@ -44,6 +44,10 @@ export class Node {
         for (let i = 0, len = sortedNodes.length; i < len; i++) {
             _func(sortedNodes[i] as B, i, sortedNodes.length);
         }
+    }
+
+    resetSort() {
+        this.#sortedBy = undefined;
     }
 
     removeChild(child: Node) {
