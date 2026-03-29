@@ -330,8 +330,8 @@ export class Canvas {
         this.add(...constructedBlocks);
     }
 
-    registerBlock(block: Block) {
-        this.#registeredBlocks.push(block);
+    registerBlocks(...blocks: Block[]) {
+        this.#registeredBlocks.push(blocks);
     }
 
     find(queries: IBlockOptions): Block[] {
