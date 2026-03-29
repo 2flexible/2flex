@@ -39,6 +39,7 @@ export interface ITextOptions {
     editable?: boolean;
     resizeLineHeight?: boolean;
     wrap?: Wrap;
+    onEdit?: () => void;
 }
 
 interface LetterNode {
@@ -52,6 +53,12 @@ interface LetterNode {
     x: number;
     y: number;
 }
+
+type Text = {
+    words: string;
+    width: number;
+    height: number;
+};
 
 export class TextBlock extends ShapeBlock<ITextOptions> {
     #letterNode: LetterNode = {
@@ -70,10 +77,12 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
     #editable = false;
     #caretDrawer?: () => void;
     #highlightDrawer?: () => void;
+    #words: Text[];
 
     constructor(text: string, options: IBlock<ITextOptions>) {
         super(options);
         this.text(text);
+        this.#words = [];
     }
 
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
@@ -83,7 +92,11 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         this.#updateText?.();
         this.#updateText = undefined;
 
-        const words = this.#wrapText();
+        let words = this.#words;
+        if (!this.useCacheText || this.#words.length === 0) {
+            console.log("text working again");
+            words = this.#wrapText();
+        }
         let sumOfHeights = 0;
 
         if (this.resizeLineHeight())
@@ -121,6 +134,30 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         if (!this.resizeLineHeight()) this.height(heights);
         this.rotate(cacheR);
     }
+
+    get useCacheText() {
+        if (
+            this.optionHasChanged("x") ||
+            this.optionHasChanged("y") ||
+            this.optionHasChanged("width") ||
+            this.optionHasChanged("height") ||
+            this.optionHasChanged("paddingLeft") ||
+            this.optionHasChanged("paddingRight") ||
+            this.optionHasChanged("paddingBottom") ||
+            this.optionHasChanged("paddingTop") ||
+            this.optionHasChanged("marginLeft") ||
+            this.optionHasChanged("marginRight") ||
+            this.optionHasChanged("marginBottom") ||
+            this.optionHasChanged("marginTop") ||
+            this.optionHasChanged("text") ||
+            this.optionHasChanged("rotationCenterX") ||
+            this.optionHasChanged("rotationCenterY") ||
+            this.optionHasChanged("rotate") ||
+            this.optionHasChanged("hidden")
+        )
+            return false;
+        return true;
+    }
     __hotLines(): void {
         if (!this.#editable) {
             super.__hotLines();
@@ -133,7 +170,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
     get #format_font() {
         return `${this.fontStyle()} ${this.fontVariant()} ${this.fontWeight()} ${this.fontSize()}px ${this.fontFamily()}`;
     }
-    #wrapText() {
+    #wrapText(): Text[] {
         const texts: { words: string; width: number; height: number }[] = [];
         let words = "";
         let wrapW = 0;
@@ -175,12 +212,13 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
             width: wordM?.width || 0,
             height: this.y() + heightW + (wordM?.actualBoundingBoxAscent || 0),
         });
+        this.#words = texts;
         return texts;
     }
 
     editable(opt?: boolean) {
-        const editable = this.__valueHandler(opt, "editable", false);
-        if (!editable) return;
+        const editable = this.__valueHandler(opt, "editable", true);
+        if (!editable) return editable;
         const beforeValues: any = {};
 
         let foundNode: LetterNode | undefined;
@@ -200,6 +238,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         let dbClick = false;
 
         this.dblclick(() => {
+            if (!this.isEditbale) return;
             this.#editable = true;
             dbClick = true;
             foundNode = undefined;
@@ -215,7 +254,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
 
         const mousedown = (event: MouseEvent) => {
             if (!this.checkInBound(event)) this.#editable = false;
-            if (!this.#editable) return;
+            if (!this.#editable || this.isEditbale) return;
             this.#highlightDrawer = undefined;
             dbClick = false;
             const initCords = this.canvas?.getCursorPosition(event) || {
@@ -252,7 +291,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
             }
         };
         this.keydown((e: KeyboardEvent) => {
-            if (!this.#editable) return;
+            if (!this.#editable || this.isEditbale) return;
             beforeValues[this.nodeId!] = {};
             if (dbClick) {
                 foundNode = {
@@ -295,10 +334,28 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
                     foundNode.y
                 );
             }
+            this.onEdit()?.(e);
             dummyLetter.letter = "";
         });
 
         this.eventHandler("mousedown", mousedown, "editableClick");
+        return editable;
+    }
+
+    get isEditbale() {
+        return this.ownOptions["editable"]
+            ? this.ownOptions["editable"]
+            : false;
+    }
+
+    onEdit(opt?: (event: KeyboardEvent) => void) {
+        const editE = this.__valueHandler<
+            (event: KeyboardEvent) => void,
+            ((event: KeyboardEvent) => void) | undefined
+        >(opt, "onEdit", undefined);
+        return (event: KeyboardEvent) => {
+            editE?.(event);
+        };
     }
 
     text(opt?: string): string {

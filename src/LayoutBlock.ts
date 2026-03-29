@@ -132,7 +132,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
     }
 
     __adjustChildBlocks(): void {
-        if (this.childNodes.length === 0) return;
+        if (this.childNodes.length === 0 || this.useCacheAdjust) return;
         const cacheR = this.rotate();
         this.rotate(0);
 
@@ -338,7 +338,6 @@ export class LayoutBlock extends Block<LayoutOptions> {
 
         this.rotate(cacheR);
     }
-
     layout(opt?: ILayout) {
         const layout = this.__valueHandler<ILayout, ILayout>(
             opt,

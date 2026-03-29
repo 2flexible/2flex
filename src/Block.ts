@@ -665,7 +665,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __adjustChildBlocks(): void {
-        if (this.childNodes.length !== 0) {
+        if (this.childNodes.length !== 0 || !this.useCacheAdjust) {
             const cacheR = this.rotate();
             this.rotate(0);
             let z = this.zIndex() || 0;
@@ -802,6 +802,10 @@ export class Block<T = IBlockOptions> extends Node {
             this.optionHasChanged("y") ||
             this.optionHasChanged("width") ||
             this.optionHasChanged("height") ||
+            this.optionHasChanged("minWidth") ||
+            this.optionHasChanged("minHeight") ||
+            this.optionHasChanged("maxWidth") ||
+            this.optionHasChanged("maxHeight") ||
             this.optionHasChanged("zIndex") ||
             this.optionHasChanged("paddingLeft") ||
             this.optionHasChanged("paddingRight") ||
@@ -816,8 +820,8 @@ export class Block<T = IBlockOptions> extends Node {
             this.optionHasChanged("rotate") ||
             this.optionHasChanged("hidden")
         )
-            return true;
-        return false;
+            return false;
+        return true;
     }
 
     __initCordinates() {
@@ -1326,7 +1330,8 @@ export class Block<T = IBlockOptions> extends Node {
 
     optionHasChanged(option: string, currentVal?: any) {
         if (this.#changedCache[option]) {
-            if (this.ownOptions[option]) currentVal = this.ownOptions[option];
+            if (Object.hasOwn(this.ownOptions, option))
+                currentVal = this.ownOptions[option];
             const changed = this.#changedCache[option].oldValue !== currentVal;
             this.setChangeCache(option, currentVal);
             return changed;
@@ -3464,8 +3469,9 @@ export class Block<T = IBlockOptions> extends Node {
                 this.__runningEvents.selected = false;
             }
             // Todo: permanent fix, need to fix caching for invokeChange
-            if ((this.optionHasChanged("setInBound"), inBound))
+            if (this.optionHasChanged("setInBound", inBound)) {
                 this.invokeChange();
+            }
             this.setChangeCache("setInBound", inBound);
         };
         this.eventHandler("click", click, "selectable");
