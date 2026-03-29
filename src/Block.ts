@@ -696,7 +696,6 @@ export class Block<T = IBlockOptions> extends Node {
 
             this.listOnlyChilds((b: Block) => {
                 if (b.position() === "absolute") return;
-                const cacheBlockR = b.rotate();
                 b.rotate(0);
 
                 const blockW = this.width();
@@ -2903,7 +2902,6 @@ export class Block<T = IBlockOptions> extends Node {
                     anime.startTime = timestamp + anime.delay;
                 }
                 if (!anime.isRunning || !anime.keyframes) return;
-
                 if (
                     anime.iterations !== Infinity &&
                     anime.iter === anime.iterations
@@ -2931,10 +2929,19 @@ export class Block<T = IBlockOptions> extends Node {
                     let valueT = value as any;
 
                     if (isFinished) {
-                        valueT.invoker?.value.call(this, valueT.breakPoints[0]);
+                        let lastIdx = valueT.breakPoints.length - 1;
+                        if (
+                            anime.direction === "reverse" ||
+                            anime.direction === "alternate-reverse"
+                        )
+                            lastIdx = 0;
+
+                        valueT.invoker?.value.call(
+                            this,
+                            valueT.breakPoints[lastIdx]
+                        );
                         continue;
                     }
-
                     let currentIdx = valueT.currentIdx;
                     let iterDirection = valueT.iterDirection;
                     let nextIdx = currentIdx + iterDirection;
@@ -2944,6 +2951,8 @@ export class Block<T = IBlockOptions> extends Node {
                     let currentVal = valueT.currentVal;
 
                     let statement = null;
+
+                    valueT.invoker?.value.call(this, currentVal);
 
                     if (valueT.category === "color") {
                         const cancelOutR =
@@ -3036,7 +3045,7 @@ export class Block<T = IBlockOptions> extends Node {
                     }
 
                     valueT.currentVal = currentVal;
-                    valueT.invoker?.value.call(this, currentVal);
+                    // valueT.invoker?.value.call(this, currentVal);
                 }
 
                 if (
@@ -3063,20 +3072,32 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     animationStart(animationId: AnimationId) {
-        console.log(this.#keyframeIterations);
-        this.#keyframeIterations[animationId]["isFinished"] = false;
-        this.#keyframeIterations[animationId]["isRunning"] = true;
+        const anime = this.#keyframeIterations[animationId];
+        anime["isFinished"] = false;
+        anime["autoStart"] = true;
+        anime["isRunning"] = true;
+        anime.iter = 0;
+        anime.startTime = 0;
     }
     animationStop(animationId: AnimationId) {
         this.#keyframeIterations[animationId]["isRunning"] = false;
+        this.#keyframeIterations[animationId]["autoStart"] = false;
     }
     animationFinish(animationId: AnimationId) {
         this.#keyframeIterations[animationId]["isFinished"] = true;
         this.#keyframeIterations[animationId]["isRunning"] = false;
+        this.#keyframeIterations[animationId]["autoStart"] = false;
     }
     animationReverse(animationId: AnimationId) {
-        this.#keyframeIterations[animationId]["isFinished"] = false;
-        this.#keyframeIterations[animationId]["isReverse"] = true;
+        const anime = this.#keyframeIterations[animationId];
+        anime["isReverse"] = true;
+        if (anime["direction"] === "normal") anime["direction"] = "reverse";
+        else if (anime["direction"] === "reverse")
+            anime["direction"] = "normal";
+        else if (anime["direction"] === "alternate")
+            anime["direction"] = "alternate-reverse";
+        else if (anime["direction"] === "alternate-reverse")
+            anime["direction"] = "alternate";
     }
     animationDelay(animationId: AnimationId, value: Delay) {
         this.#keyframeIterations[animationId]["delay"] = value;
