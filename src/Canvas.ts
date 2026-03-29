@@ -111,6 +111,7 @@ export class Canvas {
     #isFocused = false;
     #animations: CanvasAnimations;
     #reservedAnimation?: number;
+    #registeredBlocks: any[];
 
     __positionCords: { x: number; y: number; z: number };
 
@@ -158,6 +159,7 @@ export class Canvas {
             this.height
         );
         this.#initTime = new Date().getTime();
+        this.#registeredBlocks = defaultBlocks;
         this.#initCanvas();
     }
 
@@ -297,7 +299,7 @@ export class Canvas {
             if (exists && exists[0]) {
                 foundBlock = exists[0];
             } else {
-                const found = defaultBlocks.filter(
+                const found = this.#registeredBlocks.filter(
                     (b) => b.name === block.name
                 );
                 let invokeClass = found[0];
@@ -326,6 +328,10 @@ export class Canvas {
             if (b) constructedBlocks.push(b);
         }
         this.add(...constructedBlocks);
+    }
+
+    registerBlock(block: Block) {
+        this.#registeredBlocks.push(block);
     }
 
     find(queries: IBlockOptions): Block[] {
