@@ -258,19 +258,18 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         super(options);
     }
     render(): void {
-        this.__adjustBlocks();
+        this.__childClipping?.(this);
+        this.__childAdjustment?.(this);
+
         this.position();
-        if (this.hidden()) {
-            if (this.childNodes.length !== 0) {
-                this.listAllChilds((n: Block) => {
-                    n.hidden(true);
-                });
-            }
-            return;
-        }
+
+        this.__clippingPath();
+        this.__adjustChildBlocks();
+        
+        if (this.__isHidden) return;
+
         this.beginPath();
         this.context?.save();
-        this.__childClipping?.(this as Block);
         this.context?.translate(this.rotationCenterX(), this.rotationCenterY());
         this.context?.rotate(this.rotate());
         // @TODO: add features for vertical or horizantal flipping
@@ -282,10 +281,12 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         //     !this.__isHorizontalFlipped ? this.rotationCenterX() : 0,
         //     !this.__isVerticalFlipped ? this.rotationCenterY() : 0
         // );
+
         this.context?.translate(
             -this.rotationCenterX(),
             -this.rotationCenterY()
         );
+        this.#contextFilter();
         if (this.ownOptions.lineDash) this.lineDash();
         if (this.ownOptions.lineWidth) this.lineWidth();
         if (this.ownOptions.lineCap) this.lineCap();
@@ -299,18 +300,16 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
 
         this.draw();
 
-        this.#contextFilter();
-
         if (this.ownOptions.fill) this.fill();
         if (this.ownOptions.stroke) this.stroke();
-
         this.context?.restore();
 
         this.__isSelected();
+        this.onRender()?.();
     }
 
     draw(_func?: (context: CanvasRenderingContext2D) => void) {
-        if (_func) _func(this.context);
+        if (_func) _func(this.context!);
     }
 
     beginPath() {
@@ -661,13 +660,19 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
             }
         );
         if (path)
-            return this.context?.isPointInPath(
-                path,
-                x,
-                y,
-                fillRule || "nonzero"
+            return (
+                this.context?.isPointInPath(
+                    path,
+                    x,
+                    y,
+                    fillRule || "nonzero"
+                ) || false
             );
-        else return this.context.isPointInPath(x, y, fillRule || "nonzero");
+        else
+            return (
+                this.context?.isPointInPath(x, y, fillRule || "nonzero") ||
+                false
+            );
     }
     pointInStroke(opt: PointInStroke): boolean {
         const { path, x, y } = this.__valueHandler(opt, "pointInStroke", {
@@ -675,8 +680,8 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
             x: 0,
             y: 0,
         });
-        if (path) return this.context?.isPointInStroke(path, x, y);
-        else return this.context?.isPointInStroke(x, y);
+        if (path) return this.context?.isPointInStroke(path, x, y) || false;
+        else return this.context?.isPointInStroke(x, y) || false;
     }
 
     font(opt?: Font) {
@@ -814,8 +819,8 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
                     if (typeof i == "string") _s += i;
                     else {
                         _s += `${i}px`;
-                        if (idx !== arr.length - 1) _s += " ";
                     }
+                    if (idx !== arr.length - 1) _s += " ";
                 });
                 value = _s;
                 break;
