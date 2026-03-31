@@ -1,26 +1,20 @@
 {
-    "name": "2flex",
-    "version": "1.0.0",
-    "description": "",
-    "main": "index.js",
+    "name": "root",
+    "private": true,
     "scripts": {
-        "start": "npm run watch",
-        "watch": "tsc ./src/* --watch",
-        "build": "",
-        "test:tsc": "tsc -p ./tsconfig.json --outDir src/tests",
-        "test:web": "npm run dev --prefix ./src/tests/browser-test/",
-        "rollup": "npx rollup -w -c ./rollup.config.mjs",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "format": "prettier --ignore-unknown '**/*' --write"
     },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
     "type": "module",
     "devDependencies": {
-        "@rollup/plugin-node-resolve": "^16.0.1",
-        "@rollup/plugin-typescript": "^12.1.4",
         "@types/node": "^24.0.13",
-        "tslib": "^2.8.1",
+        "nx": "22.6.3",
+        "premove": "^4.0.0",
+        "prettier": "3.8.1",
+        "tsup": "^8.5.1",
         "typescript": "^5.8.3"
-    }
+    },
+    "workspaces": [
+        "packages/*"
+    ],
+    "nx": {}
 }
