@@ -33,8 +33,10 @@
         "!src/tests"
     ],
     "scripts": {
-        "clean": "premove ./lib ./tsbuild",
+        "clean": "premove ./lib ./tsbuild ./coverage",
         "build": "tsup --tsconfig tsconfig.json",
-        "compile": "tsc --build"
-    }
+        "compile": "tsc --build",
+        "test": "vitest"
+    },
+    "devDependencies": {}
 }

@@ -2,7 +2,8 @@
     "name": "root",
     "private": true,
     "scripts": {
-        "format": "prettier --ignore-unknown '**/*' --write"
+        "format": "prettier  --ignore-unknown '**/*' --write",
+        "test": "nx affected -t=test"
     },
     "type": "module",
     "devDependencies": {
@@ -11,7 +12,8 @@
         "premove": "^4.0.0",
         "prettier": "3.8.1",
         "tsup": "^8.5.1",
-        "typescript": "^5.8.3"
+        "typescript": "^5.8.3",
+        "@vitest/coverage-v8": "^4.1.2"
     },
     "workspaces": [
         "packages/*"
