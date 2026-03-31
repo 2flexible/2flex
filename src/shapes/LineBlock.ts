@@ -1,7 +1,7 @@
 import { ShapeBlock } from "../ShapeBlock";
 import type { Block, RelativeType } from "../Block";
 import type { IBlock } from "../types";
-import { checkInBound, getPrototype } from "../Utils";
+import { checkInBound, cubicBezier, getPrototype } from "../Utils";
 
 interface StickyLine {
     block?: Block;
@@ -69,6 +69,13 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         height: undefined,
     };
 
+    #oldCords = {
+        x: this.ownOptions.x || 0,
+        y: this.ownOptions.y || 0,
+        width: this.ownOptions.width || 0,
+        height: this.ownOptions.height || 0,
+    };
+
     constructor(options: IBlock<ILineOptions>) {
         super(options);
     }
@@ -81,6 +88,15 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             if (this.joinTo() !== undefined) this.joinTo()!.__hotLines();
         }
         if (this.__editable) this.__runningEvents.selected = false;
+    }
+
+    __initCordinates(): void {
+        this.#boundingBox();
+        this.ownOptions.x = this.#oldCords.x;
+        this.ownOptions.y = this.#oldCords.y;
+        this.ownOptions.width = this.#oldCords.width;
+        this.ownOptions.height = this.#oldCords.height;
+        super.__initCordinates();
     }
 
     joinTo(opt?: LineBlock) {
@@ -105,20 +121,26 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             this.path = new Path2D();
             this.path!.moveTo(this.startX(), this.startY());
         }
-        this.path!.bezierCurveTo(
-            this.startControlX(),
-            this.startControlY(),
-            this.endControlX(),
-            this.endControlY(),
-            this.endX(),
-            this.endY()
-        );
+
+        if (this.lineType() === "cubicBezier") {
+            this.path!.bezierCurveTo(
+                this.startControlX(),
+                this.startControlY(),
+                this.endControlX(),
+                this.endControlY(),
+                this.endX(),
+                this.endY()
+            );
+        } else {
+            this.path!.lineTo(this.endX(), this.endY());
+        }
         if (this.closePath()) this.path!.closePath();
-        if (this.fill()) this.context.fill(this.path!);
-        if (this.stroke()) this.context.stroke(this.path!);
+        if (this.fill()) this.context?.fill(this.path!);
+        if (this.stroke()) this.context?.stroke(this.path!);
     }
 
     __hotLines(): void {
+        if (!this.context) return;
         if (!this.__editable) {
             if (!this.__joined) super.__hotLines();
             return;
@@ -221,7 +243,10 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
     }
 
     checkInBound(_event: MouseEvent): boolean {
-        const { x, y } = this.canvas.getCursorPosition(_event);
+        const { x, y } = this.canvas?.getCursorPosition(_event) || {
+            x: 0,
+            y: 0,
+        };
         let inBound = false;
         this.lineWidth();
         if (!this.__runningEvents.selected) {
@@ -254,6 +279,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             val: this.ownOptions.x || 0,
             widthRelated: false,
         });
+        // this.ownOptions.x = this.#oldCords.x;
         const x = super.x(opt);
         const diffX = x - cacheX;
         if (diffX !== 0) {
@@ -262,12 +288,12 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         }
         return x;
     }
-
     y(opt?: number | string): number {
         let cacheY = this.__unitConverter<RelativeType, number>({
             val: this.ownOptions.y || 0,
             widthRelated: false,
         });
+        // this.ownOptions.y = this.#oldCords.y;
         const y = super.y(opt);
         const diffY = y - cacheY;
         if (diffY !== 0) {
@@ -285,7 +311,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         if (w < this.minWidth() && !this.horizontalFlipResize())
             return this.minWidth();
         const diffW = w - cacheW;
-        if (diffW) {
+        if (diffW !== 0) {
             const cR = this.rotate();
             this.rotate(0);
             const joined = this.joinTo();
@@ -301,6 +327,8 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
                 if (this.endX() > this.startX()) this.endX(this.endX() + diffW);
                 else this.startX(this.startX() + diffW);
             }
+            // this.ownOptions.width = this.#oldCords.width;
+
             this.rotate(cR);
         }
         return w;
@@ -316,7 +344,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             return this.minHeight();
 
         const diffH = h - cacheH;
-        if (diffH) {
+        if (diffH !== 0) {
             const cR = this.rotate();
             this.rotate(0);
             const joined = this.joinTo();
@@ -332,6 +360,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
                 if (this.endY() > this.startY()) this.endY(this.endY() + diffH);
                 else this.startY(this.startY() + diffH);
             }
+            // this.ownOptions.height = this.#oldCords.height;
             this.rotate(cR);
         }
         return h;
@@ -485,14 +514,20 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         if (!editable) return editable;
 
         const dblclick = (event: MouseEvent) => {
-            const { x, y } = this.canvas?.getCursorPosition(event);
+            const { x, y } = this.canvas?.getCursorPosition(event) || {
+                x: 0,
+                y: 0,
+            };
             if (this.#pathInBound(x, y, this.path!)) {
                 this.__editable = true;
                 this.canvas?.invokeChange();
             }
         };
         const click = (event: MouseEvent) => {
-            const { x, y } = this.canvas?.getCursorPosition(event);
+            const { x, y } = this.canvas?.getCursorPosition(event) || {
+                x: 0,
+                y: 0,
+            };
             let editable =
                 !this.#pathInBound(x, y, this.path!) &&
                 !this.#pathInBound(x, y, this.pathC1!) &&
@@ -515,12 +550,8 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
                 join.__editable = !editable;
             }
         };
-        this.__eventHandler<MouseEvent>("click", click, "editableClick");
-        this.__eventHandler<MouseEvent>(
-            "dblclick",
-            dblclick,
-            "editableDlclick"
-        );
+        this.eventHandler<MouseEvent>("click", click, "editableClick");
+        this.eventHandler<MouseEvent>("dblclick", dblclick, "editableDlclick");
         return editable;
     }
 
@@ -552,7 +583,10 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
                 pathC3: this.pathC3!,
                 pathC4: this.pathC4!,
             };
-            const { x, y } = this.canvas?.getCursorPosition(event);
+            const { x, y } = this.canvas?.getCursorPosition(event) || {
+                x: 0,
+                y: 0,
+            };
             const inBound = this.#pathInBound(x, y, pointPaths[path]);
 
             if (inBound) {
@@ -603,17 +637,17 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
                 }
             }
         };
-        this.__eventHandler<MouseEvent>(
+        this.eventHandler<MouseEvent>(
             "mousedown",
             mousedown,
             `${identify}Down`
         );
-        this.__eventHandler<MouseEvent>(
+        this.eventHandler<MouseEvent>(
             "mousemove",
             mousemove,
             `${identify}Move`
         );
-        this.__eventHandler<MouseEvent>("mouseup", mouseup, `${identify}Up`);
+        this.eventHandler<MouseEvent>("mouseup", mouseup, `${identify}Up`);
     }
 
     #handleSticky() {
@@ -700,6 +734,13 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         const yMin = Math.min(...this.__points.y);
         const xMax = Math.max(...this.__points.x);
         const yMax = Math.max(...this.__points.y);
+
+        this.#oldCords.x = xMin;
+        this.#oldCords.y = yMin;
+
+        this.#oldCords.width = xMax - xMin;
+        this.#oldCords.height = yMax - yMin;
+
         this.hotCornerTopLeft({
             x: xMin,
             y: yMin,
@@ -716,6 +757,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             x: xMax,
             y: yMax,
         });
+
     }
 
     #findMinMax(p0: number, p1: number, p2: number, p3: number) {
@@ -726,6 +768,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         const points = [];
         const D = Math.pow(b, 2) - 4 * a * c;
         if (D == 0) {
+            cubicBezier;
             const t = -b / (2 * a);
             if (t >= 0 && t <= 1) points.push(t);
         } else if (D > 0) {
@@ -736,17 +779,8 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             if (t2 >= 0 && t2 <= 1) points.push(t2);
         }
         return points.map((i) => {
-            return this.#cubicBezier(p0, p1, p2, p3, i);
+            return cubicBezier(p0, p1, p2, p3, i);
         });
-    }
-
-    #cubicBezier(p0: number, p1: number, p2: number, p3: number, t: number) {
-        const res =
-            p0 * (1 - t) ** 3 +
-            3 * p1 * t * (1 - t) ** 2 +
-            3 * p2 * (1 - t) * t ** 2 +
-            p3 * t ** 3;
-        return res;
     }
 
     closePath(opt?: boolean): boolean {
