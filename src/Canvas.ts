@@ -358,10 +358,10 @@ export class Canvas {
         return this.#isFocused;
     }
 
-    getCursorPosition(event: { clientX: number; clientY: number }) {
+    getCursorPosition(event: MouseEvent) {
         return {
-            x: event.clientX - this.canvasBounding.left,
-            y: event.clientY - this.canvasBounding.top,
+            x: event.pageX - this.canvasBounding.left,
+            y: event.pageY - this.canvasBounding.top,
         };
     }
 
@@ -721,7 +721,12 @@ export class Canvas {
         );
     }
     clearRect() {
-        this.context.clearRect(0, 0, this.width, this.height);
+        this.context.clearRect(
+            0,
+            0,
+            this.canvasBounding.width,
+            this.canvasBounding.height
+        );
     }
 
     changeCursor(cur?: string) {

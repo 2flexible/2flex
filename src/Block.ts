@@ -1380,7 +1380,7 @@ export class Block<T = IBlockOptions> extends Node {
             val: this.ownOptions.y || 0,
             widthRelated: false,
         });
-        const y = this.__valueHandler(opt, "y", 0, true);
+        const y = this.__valueHandler(opt, "y", 0, false);
         const diffY = y - cacheY;
         if (cacheY !== y && diffY !== 0) {
             const cacheR = this.rotate();
@@ -1464,7 +1464,7 @@ export class Block<T = IBlockOptions> extends Node {
         return this.__valueHandler(opt, "minWidth", 0, true);
     }
     minHeight(opt?: RelativeType): number {
-        return this.__valueHandler(opt, "minHeight", 0, true);
+        return this.__valueHandler(opt, "minHeight", 0, false);
     }
     maxWidth(opt?: RelativeType): number {
         return this.__valueHandler(opt, "maxWidth", this.width(), true);
@@ -2920,7 +2920,7 @@ export class Block<T = IBlockOptions> extends Node {
                     clamp((timestamp - anime.startTime) / anime.duration, 0, 1),
                     1 / anime.duration
                 );
-
+                
                 if (callback) callback(timestamp, easing);
 
                 for (let [idx, [key, value]] of Object.entries(
