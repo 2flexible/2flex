@@ -4,7 +4,6 @@ import { ShapeBlock } from "../ShapeBlock";
 interface VideoOptions {}
 
 export class VideoBlock extends ShapeBlock<VideoOptions> {
-    source: HTMLVideoElement;
     #cacheVideo?: HTMLVideoElement;
     #events = {
         isPlaying: false,
@@ -12,13 +11,25 @@ export class VideoBlock extends ShapeBlock<VideoOptions> {
     };
     constructor(source: HTMLVideoElement, options: IBlock<VideoOptions>) {
         super(options);
-        this.source = source;
+        this.source(source);
     }
 
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         if (!this.#cacheVideo) {
-            this.#cacheVideo = this.source;
-            this.#drawVideo();
+            this.#cacheVideo = this.source();
+            if (this.#cacheVideo) this.#drawVideo();
+        } else {
+            this.context?.drawImage(
+                this.#cacheVideo!,
+                0,
+                0,
+                this.width(),
+                this.height(),
+                this.x(),
+                this.y(),
+                this.width(),
+                this.height()
+            );
         }
     }
 
@@ -26,21 +37,11 @@ export class VideoBlock extends ShapeBlock<VideoOptions> {
         const videoPlayAnimator = (timestamp: number) => {
             if (!this.#cacheVideo) return;
             if (this.isPlaying) this.onPlay()(timestamp);
-            this.context?.drawImage(
-                this.#cacheVideo,
-                0,
-                0,
-                400,
-                400,
-                0,
-                0,
-                400,
-                400
-            );
-            this.render();
         };
-
-        this.__animationOn.push(videoPlayAnimator);
+        this.__animationHandler(videoPlayAnimator);
+    }
+    source(opt?: HTMLVideoElement) {
+        return this.__valueHandler(opt, "source", undefined);
     }
     pause() {
         this.#cacheVideo?.pause();
