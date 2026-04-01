@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://2flexible.com/2flex" target="_blank" rel="noopener noreferrer">
-    <img height="150" src="./assets/logo.svg" alt="2flex logo">
+    <img height="150" src="../../assets/logo.svg" alt="2flex logo">
   </a>
 </p>
 <br/>
