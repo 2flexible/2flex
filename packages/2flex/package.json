@@ -32,6 +32,14 @@
         "src",
         "!src/tests"
     ],
+    "keywords": [
+        "2flexible",
+        "too flexible",
+        "2flex",
+        "canvas",
+        "infinite canvas",
+        "draw"
+    ],
     "scripts": {
         "clean": "premove ./lib ./tsbuild ./coverage",
         "build": "tsup --tsconfig tsconfig.json",
