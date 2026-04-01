@@ -20,6 +20,11 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Setup Node
+        with:
+          node-version: 24
+          npm-version: latest
+        run: npm ci
       - name: Build
         run: npm run build:all
       - name: Define Tag
