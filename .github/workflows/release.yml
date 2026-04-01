@@ -23,12 +23,12 @@ jobs:
       - name: Build
         run: npm run build:all
       - name: Define Tag
-          run: |
-            if [ "${GITHUB_REF_NAME}" = "main" ]; then
-              echo "TAG=latest" >> $GITHUB_ENV
-            else
-              echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-            fi
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "TAG=latest" >> $GITHUB_ENV
+          else
+            echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          fi
       - name: Publish Release
         uses: changesets/action@v1
         with:
