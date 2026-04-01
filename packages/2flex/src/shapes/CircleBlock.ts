@@ -8,11 +8,11 @@ interface ICircleOptions {
     radiusY?: number
     startAngle?: number
     endAngle?: number
-    backgroundColor: number
-    border: string
-    borderStyle: BorderStyle
-    borderWidth: number
-    borderColor: string
+    backgroundColor?: number
+    border?: string
+    borderStyle?: BorderStyle
+    borderWidth?: number
+    borderColor?: string
 }
 
 export class CircleBlock extends ShapeBlock<ICircleOptions> {

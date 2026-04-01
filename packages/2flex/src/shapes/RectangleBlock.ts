@@ -6,16 +6,16 @@ export type BorderStyle = 'solid' | 'dotted' | undefined
 
 export interface IRectangleOptions {
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    borderRadius: number[]
-    borderStyle: BorderStyle
-    borderWidth: number
-    borderColor: string
-    backgroundColor: number
-    border: string
-    borderTop: string
-    borderBottom: string
-    borderLeft: string
-    borderRight: string
+    borderRadius?: number[]
+    borderStyle?: BorderStyle
+    borderWidth?: number
+    borderColor?: string
+    backgroundColor?: string
+    border?: string
+    borderTop?: string
+    borderBottom?: string
+    borderLeft?: string
+    borderRight?: string
 }
 
 export class RectangleBlock extends ShapeBlock<IRectangleOptions> {

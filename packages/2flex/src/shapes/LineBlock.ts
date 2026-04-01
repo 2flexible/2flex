@@ -17,10 +17,10 @@ interface ILineOptions {
     startY?: number
     endX?: number
     endY?: number
-    startControlX: number
-    startControlY: number
-    endControlX: number
-    endControlY: number
+    startControlX?: number
+    startControlY?: number
+    endControlX?: number
+    endControlY?: number
     startDraggable?: boolean
     endDraggable?: boolean
     startControllable?: boolean
