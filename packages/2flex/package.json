@@ -1,0 +1,42 @@
+{
+    "name": "@2flexible/2flex",
+    "version": "1.1",
+    "description": "Too flexible infinite canvas library.",
+    "author": "nazarovabuzar",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/2flexible/2flex.git",
+        "directory": "packages/2flex"
+    },
+    "homepage": "https://2flexible/2flex",
+    "type": "module",
+    "types": "lib/index.d.ts",
+    "main": "lib/index.cjs",
+    "module": "lib/index.js",
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./lib/index.d.ts",
+                "default": "./lib/index.js"
+            },
+            "require": {
+                "types": "./lib/index.d.cts",
+                "default": "./lib/index.cjs"
+            }
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "lib",
+        "src",
+        "!src/tests"
+    ],
+    "scripts": {
+        "clean": "premove ./lib ./tsbuild ./coverage",
+        "build": "tsup --tsconfig tsconfig.json",
+        "compile": "tsc --build",
+        "test": "vitest"
+    },
+    "devDependencies": {}
+}
