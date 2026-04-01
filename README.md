@@ -45,7 +45,7 @@ initCanvas.add(block);
 ```
 
 ## Contribute
-See [contributing guide](https://github.com/2flexible/2flex/main/CONTRIBUTING.md) to learn about contributing to 2flex.
+See [contributing guide](https://github.com/2flexible/2flex/blob/main/CONTRIBUTING.md) to learn about contributing to 2flex.
 
 ## License
 This content is released under the [MIT License](http://opensource.org/licenses/MIT).
