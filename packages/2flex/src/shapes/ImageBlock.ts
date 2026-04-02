@@ -2,7 +2,6 @@ import type { IBlock } from '../types'
 import { ShapeBlock } from '../ShapeBlock'
 
 type ObjectFit = 'contain' | 'cover' | 'fill'
-type Smoothing = 'low' | 'medium' | 'high'
 type Repeat = number | 'fill'
 type ImageSource = string | HTMLImageElement
 
@@ -13,13 +12,13 @@ interface ImageOptions {
     clipHeight?: number
     objectFit?: ObjectFit
     smoothing?: boolean
-    smoothingQuality?: Smoothing
+    smoothingQuality?: ImageSmoothingQuality
     repeatX?: Repeat
     repeatY?: Repeat
 }
 
 export class ImageBlock extends ShapeBlock<ImageOptions> {
-    #cacheImage?: any
+    #cacheImage?: HTMLImageElement
     constructor(source: ImageSource, options: IBlock<ImageOptions>) {
         super(options)
         this.source(source)
@@ -29,13 +28,14 @@ export class ImageBlock extends ShapeBlock<ImageOptions> {
         if (!this.#cacheImage) {
             if (typeof this.source() === 'string') {
                 this.#cacheImage = new Image()
-                this.#cacheImage.src = this.source()
+                this.#cacheImage.src = this.source()!
             } else this.#cacheImage = this.source()
-            this.#cacheImage.addEventListener('load', () => this.#drawImage())
+            this.#cacheImage?.addEventListener('load', () => this.#drawImage())
         } else this.#drawImage()
     }
 
     #drawImage() {
+        if (!this.#cacheImage) return
         const fit = this.objectFit()
         let width = this.#cacheImage.width
         let height = this.#cacheImage.height
@@ -130,12 +130,12 @@ export class ImageBlock extends ShapeBlock<ImageOptions> {
 
     smoothing(opt?: boolean) {
         const enabled = this.__valueHandler(opt, 'smoothing', false)
-        if (this.context) this.context.imageSmoothingEnabled = enabled
+        this.imageSmoothingEnabled(enabled)
         return enabled
     }
-    smoothingQuality(opt?: Smoothing) {
+    smoothingQuality(opt?: ImageSmoothingQuality) {
         const quality = this.__valueHandler(opt, 'smoothingQuality', 'low')
-        if (this.context) this.context.imageSmoothingQuality = quality
+        this.imageSmoothingQuality(quality)
         return quality
     }
     repeatX(opt?: Repeat) {
