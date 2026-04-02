@@ -13,18 +13,18 @@ interface ICircleOptions {
     borderStyle?: BorderStyle
     borderWidth?: number
     borderColor?: string
+    innerRadius?: number
 }
 
 export class CircleBlock extends ShapeBlock<ICircleOptions> {
     constructor(options: IBlock<ICircleOptions>) {
         super(options)
+        this.lineJoin('round')
+        this.lineCap('round')
     }
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
-        if (!this.context) return
-        this.context.lineJoin = 'round'
-        this.context.lineCap = 'round'
         if (!this.#isAngleEmpty) {
-            this.context.arc(
+            this.context?.arc(
                 this.getCenterX,
                 this.getCenterY,
                 this.innerRadius(),
@@ -33,7 +33,7 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
                 true
             )
         }
-        this.context.ellipse(
+        this.context?.ellipse(
             this.getCenterX,
             this.getCenterY,
             this.radiusX() / 2,
@@ -46,7 +46,7 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         this.fill()
         this.stroke()
         if (this.#isAngleEmpty) this.beginPath()
-        this.context.arc(
+        this.context?.arc(
             this.getCenterX,
             this.getCenterY,
             this.innerRadius(),
