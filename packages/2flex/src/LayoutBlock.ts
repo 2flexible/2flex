@@ -53,44 +53,43 @@ type TypeContent =
     | 'alignItems'
 
 interface FlexLayout {
-    flexDirection: FlexDirecton
-    flexWrap: FlexWrap
-    flexFlow: FlexFlow
+    flexDirection?: FlexDirecton
+    flexWrap?: FlexWrap
+    flexFlow?: FlexFlow
 }
 
 type Gap = number | number[]
 
 interface GridLayout {
     // grid-template-rows / grid-template-columns|grid-template-areas|grid-template-rows / [grid-auto-flow] grid-auto-columns|[grid-auto-flow] grid-auto-rows / grid-template-columns
-    grid: number[]
-    // @Todo: add Name assignamed to each grid
-    gridTemplateAreas: string[]
-    // gridTemplate: grid-template-rows / grid-template-columns
-    gridTemplate: number[]
-    gridTemplateColumns: number[] | number
-    gridTemplateRows: number[] | number
-
-    gap: Gap
-    columnGap: number
-    rowGap: number
+    grid?: number[]
+    // @Todo?: add Name assignamed to each grid
+    gridTemplateAreas?: string[]
+    // gridTemplate?: grid-template-rows / grid-template-columns
+    gridTemplate?: number[]
+    gridTemplateColumns?: number[] | number
+    gridTemplateRows?: number[] | number
 
     gridAutoRows?: number[]
     gridAutoColumns?: number[]
 
     // @Todo: need to impliment
-    gridAutoFlow: GridAutoFlow
+    gridAutoFlow?: GridAutoFlow
 
-    justifyItems: JustifyItems
+    justifyItems?: JustifyItems
 }
 type ILayout = 'flex' | 'inline-flex' | 'grid' | 'inline-grid'
 
 interface LayoutOptions extends GridLayout, FlexLayout {
-    layout: ILayout
-    justifyContent: JustifyContent
-    alignContent: AlignContent
-    alignItems: AlignItems
-    placeContent: PlaceContent
-    placeItems: PlaceItems
+    layout?: ILayout
+    justifyContent?: JustifyContent
+    alignContent?: AlignContent
+    alignItems?: AlignItems
+    placeContent?: PlaceContent
+    placeItems?: PlaceItems
+    gap?: Gap
+    columnGap?: number
+    rowGap?: number
 }
 
 export class LayoutBlock extends Block<LayoutOptions> {
