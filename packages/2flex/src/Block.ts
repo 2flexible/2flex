@@ -83,7 +83,7 @@ export type FlexShrink = number
 export type FlexBasis = RelativeType
 export type Flex = [FlexGrow, FlexShrink, FlexBasis]
 export type PlaceSelf = AlignSelf & JustifySelf
-export type Position = 'static' | 'relative' | 'absolute' | 'sticky' | 'fixed'
+export type Position = 'relative' | 'absolute' | 'sticky' | 'fixed'
 export type XY = { x: number; y: number }
 
 export interface HotCornerArea {
@@ -1473,34 +1473,14 @@ export class Block<T = IBlockOptions> extends Node {
             'position',
             undefined
         )
-        if (pos === 'static') {
-            if (
-                !this.__runningEvents.drag &&
-                !this.__runningEvents.resize &&
-                !this.__runningEvents.rotate
-            ) {
-                if (this.top() !== undefined) this.y(this.top())
-                else if (this.bottom() !== undefined)
-                    this.y(
-                        Math.abs((this.canvas?.height || 1) - this.height()) -
-                            this.bottom()!
-                    )
-                if (this.left() !== undefined) this.x(this.left())
-                else if (this.right() !== undefined)
-                    this.x(
-                        Math.abs((this.canvas?.width || 1) - this.width()) -
-                            this.right()!
-                    )
-                this.rotate(0)
-            }
-        } else if (pos === 'fixed') {
+        if (pos === 'fixed') {
             if (this.top() !== undefined) this.y(this.top()!)
             else if (this.bottom() !== undefined)
                 this.y(
                     Math.abs((this.canvas?.height || 1) - this.height()) -
                         this.bottom()!
                 )
-            if (this.left() !== undefined) this.x(+this.left()!)
+            if (this.left() !== undefined) this.x(this.left()!)
             else if (this.right() !== undefined)
                 this.x(
                     +Math.abs((this.canvas?.width || 1) - this.width()) -
