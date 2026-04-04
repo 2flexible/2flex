@@ -3753,7 +3753,8 @@ export class Block<T = IBlockOptions> extends Node {
                 let cursor: string | undefined = undefined
                 bottomResize = rightResize = topResize = leftResize = false
                 if (
-                    checkInBound(
+                    this.resizeLeft() &&
+                    (checkInBound(
                         x,
                         y,
                         this.hotResizableAreaLeft().topLeft.x,
@@ -3765,23 +3766,24 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotResizableAreaLeft().bottomRight.x,
                         this.hotResizableAreaLeft().bottomRight.y
                     ) ||
-                    checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaLeft().bottomLeft.x,
-                        this.hotResizableAreaLeft().bottomLeft.y,
-                        this.hotResizableAreaLeft().bottomRight.x,
-                        this.hotResizableAreaLeft().bottomRight.y,
-                        this.hotResizableAreaLeft().topLeft.x,
-                        this.hotResizableAreaLeft().topLeft.y,
-                        this.hotResizableAreaLeft().topRight.x,
-                        this.hotResizableAreaLeft().topRight.y
-                    )
+                        checkInBound(
+                            x,
+                            y,
+                            this.hotResizableAreaLeft().bottomLeft.x,
+                            this.hotResizableAreaLeft().bottomLeft.y,
+                            this.hotResizableAreaLeft().bottomRight.x,
+                            this.hotResizableAreaLeft().bottomRight.y,
+                            this.hotResizableAreaLeft().topLeft.x,
+                            this.hotResizableAreaLeft().topLeft.y,
+                            this.hotResizableAreaLeft().topRight.x,
+                            this.hotResizableAreaLeft().topRight.y
+                        ))
                 ) {
                     leftResize = true
                     cursor = 'ew-resize'
                 } else if (
-                    checkInBound(
+                    this.resizeRight() &&
+                    (checkInBound(
                         x,
                         y,
                         this.hotResizableAreaRight().topLeft.x,
@@ -3793,23 +3795,24 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotResizableAreaRight().bottomRight.x,
                         this.hotResizableAreaRight().bottomRight.y
                     ) ||
-                    checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaRight().bottomLeft.x,
-                        this.hotResizableAreaRight().bottomLeft.y,
-                        this.hotResizableAreaRight().bottomRight.x,
-                        this.hotResizableAreaRight().bottomRight.y,
-                        this.hotResizableAreaRight().topLeft.x,
-                        this.hotResizableAreaRight().topLeft.y,
-                        this.hotResizableAreaRight().topRight.x,
-                        this.hotResizableAreaRight().topRight.y
-                    )
+                        checkInBound(
+                            x,
+                            y,
+                            this.hotResizableAreaRight().bottomLeft.x,
+                            this.hotResizableAreaRight().bottomLeft.y,
+                            this.hotResizableAreaRight().bottomRight.x,
+                            this.hotResizableAreaRight().bottomRight.y,
+                            this.hotResizableAreaRight().topLeft.x,
+                            this.hotResizableAreaRight().topLeft.y,
+                            this.hotResizableAreaRight().topRight.x,
+                            this.hotResizableAreaRight().topRight.y
+                        ))
                 ) {
                     rightResize = true
                     cursor = 'ew-resize'
                 } else if (
-                    checkInBound(
+                    this.resizeTop() &&
+                    (checkInBound(
                         x,
                         y,
                         this.hotResizableAreaTop().topLeft.x,
@@ -3821,24 +3824,25 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotResizableAreaTop().bottomRight.x,
                         this.hotResizableAreaTop().bottomRight.y
                     ) ||
-                    checkInBound(
-                        x,
-                        y,
+                        checkInBound(
+                            x,
+                            y,
 
-                        this.hotResizableAreaTop().topRight.x,
-                        this.hotResizableAreaTop().topRight.y,
-                        this.hotResizableAreaTop().topLeft.x,
-                        this.hotResizableAreaTop().topLeft.y,
-                        this.hotResizableAreaTop().bottomRight.x,
-                        this.hotResizableAreaTop().bottomRight.y,
-                        this.hotResizableAreaTop().bottomLeft.x,
-                        this.hotResizableAreaTop().bottomLeft.y
-                    )
+                            this.hotResizableAreaTop().topRight.x,
+                            this.hotResizableAreaTop().topRight.y,
+                            this.hotResizableAreaTop().topLeft.x,
+                            this.hotResizableAreaTop().topLeft.y,
+                            this.hotResizableAreaTop().bottomRight.x,
+                            this.hotResizableAreaTop().bottomRight.y,
+                            this.hotResizableAreaTop().bottomLeft.x,
+                            this.hotResizableAreaTop().bottomLeft.y
+                        ))
                 ) {
                     topResize = true
                     cursor = 'ns-resize'
                 } else if (
-                    checkInBound(
+                    this.resizeBottom() &&
+                    (checkInBound(
                         x,
                         y,
                         this.hotResizableAreaBottom().topLeft.x,
@@ -3850,24 +3854,25 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotResizableAreaBottom().bottomRight.x,
                         this.hotResizableAreaBottom().bottomRight.y
                     ) ||
-                    checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaBottom().topRight.x,
-                        this.hotResizableAreaBottom().topRight.y,
-                        this.hotResizableAreaBottom().topLeft.x,
-                        this.hotResizableAreaBottom().topLeft.y,
-                        this.hotResizableAreaBottom().bottomRight.x,
-                        this.hotResizableAreaBottom().bottomRight.y,
-                        this.hotResizableAreaBottom().bottomLeft.x,
-                        this.hotResizableAreaBottom().bottomLeft.y
-                    )
+                        checkInBound(
+                            x,
+                            y,
+                            this.hotResizableAreaBottom().topRight.x,
+                            this.hotResizableAreaBottom().topRight.y,
+                            this.hotResizableAreaBottom().topLeft.x,
+                            this.hotResizableAreaBottom().topLeft.y,
+                            this.hotResizableAreaBottom().bottomRight.x,
+                            this.hotResizableAreaBottom().bottomRight.y,
+                            this.hotResizableAreaBottom().bottomLeft.x,
+                            this.hotResizableAreaBottom().bottomLeft.y
+                        ))
                 ) {
                     cursor = 'ns-resize'
                     bottomResize = true
                 }
 
                 if (
+                    this.resizeTopLeft() &&
                     checkInBound(
                         x,
                         y,
@@ -3886,6 +3891,7 @@ export class Block<T = IBlockOptions> extends Node {
                     cursor = 'nwse-resize'
                 }
                 if (
+                    this.resizeTopRight() &&
                     checkInBound(
                         x,
                         y,
@@ -3904,6 +3910,7 @@ export class Block<T = IBlockOptions> extends Node {
                     cursor = 'nesw-resize'
                 }
                 if (
+                    this.resizeBottomLeft() &&
                     checkInBound(
                         x,
                         y,
@@ -3922,6 +3929,7 @@ export class Block<T = IBlockOptions> extends Node {
                     cursor = 'nesw-resize'
                 }
                 if (
+                    this.resizeBottomRight() &&
                     checkInBound(
                         x,
                         y,
