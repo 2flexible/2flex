@@ -5,12 +5,12 @@ import type { IBlock } from '../types'
 export type BorderStyle = 'solid' | 'dotted' | undefined
 
 export interface IRectangleOptions {
+    backgroundColor?: string
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius?: number[]
     borderStyle?: BorderStyle
     borderWidth?: number
     borderColor?: string
-    backgroundColor?: string
     border?: string
     borderTop?: string
     borderBottom?: string

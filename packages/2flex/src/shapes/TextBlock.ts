@@ -1,17 +1,10 @@
 import { BlockPayload } from '../Block'
 import { ShapeBlock } from '../ShapeBlock'
 import type {
-    FontKerning,
-    FontStretch,
     FontStyle,
     FontVariant,
-    FontVariantCaps,
     FontWeight,
     strokeStyle,
-    TextAlign,
-    TextBaseline,
-    TextDirection,
-    TextRendering,
 } from '../ShapeBlock'
 import type { IBlock } from '../types'
 import { inRange } from '../Utils'
@@ -24,18 +17,7 @@ export interface ITextOptions {
     strokeWidth?: number
     strokeColor?: string
     fontFamily?: string
-    fontWeight?: FontWeight
     fontSize?: number | string
-    fontStyle?: FontStyle
-    fontVariant?: FontVariant
-    fontStretch?: FontStretch
-    fontKerning?: FontKerning
-    fontVariantCaps?: FontVariantCaps
-    textBaseline?: TextBaseline
-    textRendering?: TextRendering
-    wordSpacing?: string
-    letterSpacing?: string
-    direction?: TextDirection
     editable?: boolean
     resizeLineHeight?: boolean
     wrap?: Wrap
@@ -516,7 +498,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         return strokeColor
     }
     strokeWidth(opt?: number) {
-        const width = this.__valueHandler(opt, 'border', 0)
+        const width = this.__valueHandler(opt, 'strokeWidth', 0)
         super.lineWidth(width)
         return width
     }

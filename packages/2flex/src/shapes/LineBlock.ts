@@ -26,9 +26,9 @@ interface ILineOptions {
     startControllable?: boolean
     endControllable?: boolean
     lineWidth?: number
-    lineColor?: number
-    backgroundColor?: number
-    closePath?: boolean
+    lineColor?: string
+    backgroundColor?: string
+    closeLine?: boolean
     joinTo?: LineBlock
     controlPointsSize?: number
     editable?: boolean
@@ -134,7 +134,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         } else {
             this.path!.lineTo(this.endX(), this.endY())
         }
-        if (this.closePath()) this.path!.closePath()
+        if (this.closeLine()) this.path!.closePath()
         if (this.fill()) this.context?.fill(this.path!)
         if (this.stroke()) this.context?.stroke(this.path!)
     }
@@ -774,8 +774,8 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         })
     }
 
-    closePath(opt?: boolean): boolean {
-        return this.__valueHandler(opt, 'closePath', false)
+    closeLine(opt?: boolean): boolean {
+        return this.__valueHandler(opt, 'closeLine', false)
     }
     lineColor(opt?: string) {
         const lineColor = this.__valueHandler(opt, 'lineColor', undefined)
