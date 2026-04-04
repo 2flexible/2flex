@@ -2800,7 +2800,7 @@ export class Block<T = IBlockOptions> extends Node {
         let maxBreakPointLen = 0
         for (let [key, keyframe] of Object.entries(options)) {
             const obj = getPrototype(this, key)
-
+            if (!obj) continue
             let validKeyframe = keyframe
             const keyframes = keyframe.map((i: any) =>
                 this.__unitConverter({ val: i })
@@ -2826,7 +2826,9 @@ export class Block<T = IBlockOptions> extends Node {
 
             let currentVal =
                 validKeyframe[idx] +
-                (validKeyframe[idx + 1] || validKeyframe[idx - 1] || 0) *
+                (validKeyframe[idx + 1] ||
+                    validKeyframe[idx - 1] ||
+                    validKeyframe[idx]) *
                     keyframeIterations.iterationStart
 
             if (idx === validKeyframe.length - 1) iterDirection *= -1
@@ -2849,7 +2851,7 @@ export class Block<T = IBlockOptions> extends Node {
             maxBreakPointLen
         const animator: Animator = (timestamp: number) => {
             const anime = this.#keyframeIterations[animationId]
-            if (anime.autoStart === false) return
+            if (anime.autoStart === false || !anime.keyframes) return
             let isFinished = anime.isFinished
 
             if (anime.delay <= timestamp && !isFinished && anime.isRunning) {
@@ -2861,7 +2863,6 @@ export class Block<T = IBlockOptions> extends Node {
                     anime.iter -= 1
                     anime.startTime = timestamp + anime.delay
                 }
-                if (!anime.isRunning || !anime.keyframes) return
                 if (
                     anime.iterations !== Infinity &&
                     anime.iter === anime.iterations
@@ -2875,7 +2876,6 @@ export class Block<T = IBlockOptions> extends Node {
                     clamp((timestamp - anime.startTime) / anime.duration, 0, 1),
                     1 / anime.duration
                 )
-
                 if (callback) callback(timestamp, easing)
 
                 for (let [idx, [key, value]] of Object.entries(
