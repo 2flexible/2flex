@@ -695,8 +695,8 @@ export class Block<T = IBlockOptions> extends Node {
                 if (b.position() === 'absolute') return
                 b.rotate(0)
 
-                const blockW = this.width()
-                const blockH = this.height()
+                const blockW = b.width()
+                const blockH = b.height()
 
                 const initX =
                     this.__unitConverter<RelativeType, number>({
@@ -726,7 +726,7 @@ export class Block<T = IBlockOptions> extends Node {
 
                 z += 1
                 if (
-                    (pWidth - (pPaddingRight + pPaddingLeft) < b.width() &&
+                    (pWidth - (pPaddingRight + pPaddingLeft) < blockW &&
                         pWidth > b.minWidth()) ||
                     blockW < b.maxWidth()
                 )
@@ -739,7 +739,7 @@ export class Block<T = IBlockOptions> extends Node {
                         )
 
                 if (
-                    (pHeight - (pPaddingTop + pPaddingBottom) < b.height() &&
+                    (pHeight - (pPaddingTop + pPaddingBottom) < blockH &&
                         pHeight > b.minHeight()) ||
                     blockH < b.maxHeight()
                 ) {
@@ -4015,8 +4015,10 @@ export class Block<T = IBlockOptions> extends Node {
                     } else if (rightResize) {
                         const widthR = this.width() + diffDx * reverseX
                         if (
-                            (widthR > 0 && !this.horizontalFlipResize()) ||
-                            this.horizontalFlipResize()
+                            widthR < this.maxWidth() &&
+                            ((widthR > this.minWidth() &&
+                                !this.horizontalFlipResize()) ||
+                                this.horizontalFlipResize())
                         ) {
                             this.width(widthR)
                         }
@@ -4024,8 +4026,10 @@ export class Block<T = IBlockOptions> extends Node {
                     if (topResize) {
                         const heightR = this.height() - diffDy * reverseY
                         if (
-                            (heightR > 0 && !this.verticalFlipResize()) ||
-                            this.verticalFlipResize()
+                            heightR < this.maxHeight() &&
+                            ((heightR > this.minHeight() &&
+                                !this.verticalFlipResize()) ||
+                                this.verticalFlipResize())
                         ) {
                             this.y(this.y() + diffDy * reverseY)
                             this.height(heightR)
