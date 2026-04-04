@@ -43,6 +43,7 @@
     "scripts": {
         "clean": "premove ./lib ./tsbuild ./coverage",
         "build": "tsup --tsconfig tsconfig.json",
+        "watch": "tsup --tsconfig tsconfig.json --watch",
         "compile": "tsc --build",
         "test": "vitest"
     },
