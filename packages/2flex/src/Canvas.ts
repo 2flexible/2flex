@@ -812,8 +812,8 @@ export class Canvas {
     #setCanvasPosition() {
         this.invokeChange((block: Block) => {
             block.__translate({
-                x: block.x() + this.__positionCords.x,
-                y: block.y() + this.__positionCords.y,
+                x: this.__positionCords.x,
+                y: this.__positionCords.y,
             })
         })
     }

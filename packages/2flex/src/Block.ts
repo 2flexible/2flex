@@ -1527,7 +1527,8 @@ export class Block<T = IBlockOptions> extends Node {
         } else if (pos === 'relative') {
             const parent = this.#hasParentBlock
             if (this.left() !== undefined) {
-                this.x(this.x() + this.left()!)
+                const leftX = parent ? this.x() : 0
+                this.x(leftX + this.left()!)
             } else if (this.right() !== undefined) {
                 let rightX = 0
                 if (!parent)
@@ -1544,8 +1545,10 @@ export class Block<T = IBlockOptions> extends Node {
                             this.right()!)
                 this.x(rightX)
             }
-            if (this.top() !== undefined) this.y(this.y() + this.top()!)
-            else if (this.bottom() !== undefined) {
+            if (this.top() !== undefined) {
+                const topY = parent ? this.y() : 0
+                this.y(topY + this.top()!)
+            } else if (this.bottom() !== undefined) {
                 let bottomY = 0
                 if (!parent)
                     bottomY =
@@ -2559,17 +2562,26 @@ export class Block<T = IBlockOptions> extends Node {
         if (this.ownOptions.position === 'fixed') return
         this.x(this.x() + t.x)
         this.y(this.y() + t.y)
-        if (this.ownOptions.position == 'absolute') {
-            if (this.left() !== undefined) this.left(this.left()! + t.x)
-            else if (this.right() !== undefined) this.right(this.right()! - t.x)
-            if (this.top() !== undefined) this.top(this.top()! + t.y)
-            else if (this.bottom() !== undefined)
-                this.bottom(this.bottom()! - t.y)
-        } else if (this.ownOptions.position == 'relative') {
-            // if (this.left() !== undefined) this.left(0);
-            // else if (this.right() !== undefined) this.right(0);
-            // if (this.top() !== undefined) this.top(0);
-            // else if (this.bottom() !== undefined) this.bottom(0);
+        if (
+            this.ownOptions.position == 'absolute' ||
+            this.ownOptions.position === 'relative'
+        ) {
+            if (
+                this.ownOptions.position === 'relative' &&
+                this.#hasParentBlock
+            ) {
+                if (this.left() !== undefined) this.left(0)
+                else if (this.right() !== undefined) this.right(0)
+                if (this.top() !== undefined) this.top(0)
+                else if (this.bottom() !== undefined) this.bottom(0)
+            } else {
+                if (this.left() !== undefined) this.left(this.left()! + t.x)
+                else if (this.right() !== undefined)
+                    this.right(this.right()! - t.x)
+                if (this.top() !== undefined) this.top(this.top()! + t.y)
+                else if (this.bottom() !== undefined)
+                    this.bottom(this.bottom()! - t.y)
+            }
         }
     }
     // @TODO: need to fix limits on the overflow
@@ -4217,13 +4229,13 @@ export class Block<T = IBlockOptions> extends Node {
                     let diffY = y - initCords.y
                     if (diffX !== 0 && this.dragX()) {
                         const diff = diffX - beforeCords.x
-                        this.x(this.x() + diff)
+                        this.__translate({ x: diff, y: 0 })
 
                         beforeCords.x = diffX
                     }
                     if (diffY !== 0 && this.dragY()) {
                         const diff = diffY - beforeCords.y
-                        this.y(this.y() + diff)
+                        this.__translate({ x: 0, y: diff })
 
                         beforeCords.y = diffY
                     }
