@@ -2812,7 +2812,6 @@ export class Block<T = IBlockOptions> extends Node {
                 validKeyframe = keyframe.map((i: any) => rgbaToArray(i))
                 category = 'color'
             }
-            
             if (
                 keyframeIterations.direction === 'reverse' ||
                 keyframeIterations.direction === 'alternate-reverse'
@@ -2827,7 +2826,7 @@ export class Block<T = IBlockOptions> extends Node {
 
             let currentVal =
                 validKeyframe[idx] +
-                (validKeyframe[idx + 1] || validKeyframe[idx - 1]) *
+                (validKeyframe[idx + 1] || validKeyframe[idx - 1] || 0) *
                     keyframeIterations.iterationStart
 
             if (idx === validKeyframe.length - 1) iterDirection *= -1
