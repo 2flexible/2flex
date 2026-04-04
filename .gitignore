@@ -143,7 +143,7 @@ vite.config.ts.timestamp-*
 
 # Test fiels
 # src/tests/
-output/
+output
 
 
 .nx/cache

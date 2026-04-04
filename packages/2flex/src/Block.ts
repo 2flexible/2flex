@@ -2812,32 +2812,6 @@ export class Block<T = IBlockOptions> extends Node {
                 category = 'color'
             }
 
-            if (composite && composite === 'accumulate') {
-                let stairCase = [0, 0, 0, 0]
-                if (keyframes.includes('rgba')) {
-                    for (const [i, rgbs] of Object.entries(validKeyframe)) {
-                        validKeyframe[Number(i)] = [
-                            rgbs[0] + stairCase[0],
-                            rgbs[1] + stairCase[1],
-                            rgbs[2] + stairCase[2],
-                            rgbs[3] + stairCase[3],
-                        ]
-                        stairCase = [
-                            rgbs[0] + stairCase[0],
-                            rgbs[1] + stairCase[1],
-                            rgbs[2] + stairCase[2],
-                            rgbs[3] + stairCase[3],
-                        ]
-                    }
-                } else {
-                    let stairCase = 0
-                    for (const [idx, val] of Object.entries(validKeyframe)) {
-                        validKeyframe[Number(idx)] = val + stairCase
-                        stairCase += val
-                    }
-                }
-            }
-
             if (direction === 'reverse' || direction === 'alternate-reverse')
                 validKeyframe.reverse()
 
@@ -3000,8 +2974,33 @@ export class Block<T = IBlockOptions> extends Node {
                     }
                     if (statement) {
                         currentIdx += iterDirection
-                        if (currentIdx === valueT.breakPoints.length - 1)
+                        const lastIdx = valueT.breakPoints.length - 1
+                        if (currentIdx === lastIdx) {
                             anime.currentOptIdx += 1
+                            if (anime.composite === 'accumulate') {
+                                for (const [idx, val] of Object.entries(
+                                    valueT.breakPoints
+                                )) {
+                                    if (valueT.category === 'color') {
+                                        valueT.breakPoints[idx][0] =
+                                            (val as RGBA)[0] +
+                                            valueT.breakPoints[lastIdx][0]
+                                        valueT.breakPoints[idx][1] =
+                                            (val as RGBA)[1] +
+                                            valueT.breakPoints[lastIdx][1]
+                                        valueT.breakPoints[idx][2] =
+                                            (val as RGBA)[2] +
+                                            valueT.breakPoints[lastIdx][2]
+                                        valueT.breakPoints[idx][3] =
+                                            (val as RGBA)[3] +
+                                            valueT.breakPoints[lastIdx][3]
+                                    } else {
+                                        valueT.breakPoints[idx] =
+                                            val + valueT.breakPoints[lastIdx]
+                                    }
+                                }
+                            }
+                        }
                         if (
                             nextIdx === valueT.breakPoints.length - 1 ||
                             nextIdx === 0
@@ -3076,6 +3075,10 @@ export class Block<T = IBlockOptions> extends Node {
             anime['direction'] = 'alternate-reverse'
         else if (anime['direction'] === 'alternate-reverse')
             anime['direction'] = 'alternate'
+        for (const [key, value] of anime.keyframes as any) {
+            ;(anime['keyframes'] as any)[key].breakPoints =
+                value.breakPoints.reverse()
+        }
     }
     animationDelay(animationId: AnimationId, value: Delay) {
         this.#keyframeIterations[animationId]['delay'] = value
