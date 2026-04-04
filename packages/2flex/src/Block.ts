@@ -2796,6 +2796,7 @@ export class Block<T = IBlockOptions> extends Node {
         }
         this.#keyframeIterations[animationId]['keyframes'] = {}
 
+        const keyframeIterations = this.#keyframeIterations[animationId]
         let maxBreakPointLen = 0
         for (let [key, keyframe] of Object.entries(options)) {
             const obj = getPrototype(this, key)
@@ -2811,16 +2812,23 @@ export class Block<T = IBlockOptions> extends Node {
                 validKeyframe = keyframe.map((i: any) => rgbaToArray(i))
                 category = 'color'
             }
-
-            if (direction === 'reverse' || direction === 'alternate-reverse')
+            
+            if (
+                keyframeIterations.direction === 'reverse' ||
+                keyframeIterations.direction === 'alternate-reverse'
+            )
                 validKeyframe.reverse()
 
             let iterDirection = 1
 
             const idx = Math.round(
-                (iterationStart || 0.0) * (validKeyframe.length - 1)
+                keyframeIterations.iterationStart * (validKeyframe.length - 1)
             )
-            let currentVal = validKeyframe[idx] as any
+
+            let currentVal =
+                validKeyframe[idx] +
+                (validKeyframe[idx + 1] || validKeyframe[idx - 1]) *
+                    keyframeIterations.iterationStart
 
             if (idx === validKeyframe.length - 1) iterDirection *= -1
 
