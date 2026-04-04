@@ -738,7 +738,7 @@ export class Block<T = IBlockOptions> extends Node {
                         )
 
                 if (
-                    (pHeight - (pPaddingTop + pPaddingBottom) < blockH &&
+                    (pHeight - (pPaddingTop + pPaddingBottom) < b.height() &&
                         pHeight > b.minHeight()) ||
                     blockH < b.maxHeight()
                 ) {
@@ -1241,17 +1241,17 @@ export class Block<T = IBlockOptions> extends Node {
         return val as O
     }
 
-    get parentWidth() {
-        if (this.#isBlock) return this.parentNode?.width()
-        return this.canvas?.width
+    get parentWidth(): number {
+        if (this.#hasParentBlock) return this.parentNode?.width() || 1
+        return this.canvas?.width || 1
     }
 
-    get parentHeight() {
-        if (this.#isBlock) return this.parentNode?.height()
-        return this.canvas?.height
+    get parentHeight(): number {
+        if (this.#hasParentBlock) return this.parentNode?.height() || 1
+        return this.canvas?.height || 1
     }
 
-    get #isBlock() {
+    get #hasParentBlock() {
         if (
             this.parentNode &&
             Object.getPrototypeOf(this.parentNode).constructor.name !== 'Node'
@@ -1524,13 +1524,43 @@ export class Block<T = IBlockOptions> extends Node {
                         this.bottom()!
                 )
         } else if (pos === 'relative') {
+            const parent = this.#hasParentBlock
             if (this.left() !== undefined) {
                 this.x(this.x() + this.left()!)
-            } else if (this.right() !== undefined)
-                this.x(this.x() - this.right()!)
+            } else if (this.right() !== undefined) {
+                let rightX = 0
+                if (!parent)
+                    rightX =
+                        Math.abs(this.parentWidth - this.width()) -
+                        this.right()!
+                else
+                    rightX =
+                        this.x() +
+                        (Math.abs(
+                            this.parentWidth -
+                                (this.width() + this.parentNode!.__widthSpaces)
+                        ) -
+                            this.right()!)
+                this.x(rightX)
+            }
             if (this.top() !== undefined) this.y(this.y() + this.top()!)
-            else if (this.bottom() !== undefined)
-                this.y(this.y() - this.bottom()!)
+            else if (this.bottom() !== undefined) {
+                let bottomY = 0
+                if (!parent)
+                    bottomY =
+                        Math.abs(this.parentHeight - this.height()) -
+                        this.bottom()!
+                else
+                    bottomY =
+                        this.y() +
+                        (Math.abs(
+                            this.parentHeight -
+                                (this.height() +
+                                    this.parentNode!.__heightSpaces)
+                        ) -
+                            this.bottom()!)
+                this.y(bottomY)
+            }
         }
 
         return pos
