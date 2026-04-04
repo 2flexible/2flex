@@ -202,6 +202,7 @@ export interface IBlockOptions {
     hotRotCornerTopRight?: XY
     hotRotCornerBottomLeft?: XY
     hotRotCornerBottomRight?: XY
+    rotatable?: boolean
     hotRotatableAreaTopLeft?: HotCornerArea
     hotRotatableAreaTopRight?: HotCornerArea
     hotRotatableAreaBottomLeft?: HotCornerArea
