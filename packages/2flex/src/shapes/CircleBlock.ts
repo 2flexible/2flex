@@ -2,6 +2,7 @@ import { RelativeType } from '../Block'
 import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
 import type { IBlock } from '../types'
 export type BorderStyle = 'solid' | 'dotted'
+export type CircleBorder = [string | number, BorderStyle, string] | string
 
 interface ICircleOptions extends IShapeOptions {
     startAngle?: number
@@ -34,8 +35,8 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         this.context?.ellipse(
             this.getCenterX,
             this.getCenterY,
-            this.width() / 2,
-            this.height() / 2,
+            this.width() / 2 - this.hotLineStrokeWidth(),
+            this.height() / 2 - this.hotLineStrokeWidth(),
             0,
             this.startAngle(),
             this.endAngle()
@@ -81,7 +82,7 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         this.fill(true)
         return backgroundColor
     }
-    borderWidth(opt?: number) {
+    borderWidth(opt?: RelativeType) {
         const borderWidth = this.__valueHandler(opt, 'borderWidth', 0)
         super.lineWidth(borderWidth)
         return borderWidth
@@ -95,26 +96,39 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         return this.__valueHandler(opt, 'borderStyle', 'solid')
     }
 
-    border(opt?: string) {
-        const border = this.__valueHandler<string, string | undefined>(
-            opt,
-            'border',
-            undefined
-        )
+    border(opt?: CircleBorder) {
+        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
+        const border = this.__valueHandler<
+            CircleBorder | undefined,
+            CircleBorder | undefined
+        >(opt, 'border', undefined)
         if (border) {
-            const borderParsed = border.split(' ') || []
-
-            const borderWidth = this.__unitConverter<string, number>({
-                val: borderParsed[0],
-                widthRelated: true,
-            })
-
-            this.borderWidth(borderWidth)
-            this.borderStyle(borderParsed[1] as BorderStyle)
-            this.borderColor(borderParsed[2])
+            this.borderWidth(border[0])
+            this.borderStyle(border[1] as BorderStyle)
+            this.borderColor(border[2])
             this.stroke(true)
         }
         return border
+    }
+
+    #borderConvert(opt: string): CircleBorder {
+        const splitted = opt.split(' ')
+        const borderWidth = this.__unitConverter<string | number, number>({
+            val: splitted[0],
+            widthRelated: true,
+        })
+        const borderStyle = this.__unitConverter<
+            string | undefined,
+            BorderStyle
+        >({
+            val: splitted[1],
+            widthRelated: false,
+        })
+        const borderColor = this.__unitConverter<string, string>({
+            val: splitted[2],
+            widthRelated: false,
+        })
+        return [borderWidth, borderStyle, borderColor]
     }
     __clipShape() {
         this.__clipPath?.ellipse(
