@@ -22,6 +22,7 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         this.lineCap('round')
     }
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
+        if (!this.context) return
         if (!this.#isAngleEmpty) {
             this.context?.arc(
                 this.getCenterX,
@@ -45,14 +46,15 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         this.fill()
         this.stroke()
         if (this.#isAngleEmpty) this.beginPath()
-        this.context?.arc(
-            this.getCenterX,
-            this.getCenterY,
-            this.innerRadius(),
-            this.endAngle(),
-            this.startAngle(),
-            true
-        )
+        if (!this.#isAngleEmpty)
+            this.context?.arc(
+                this.getCenterX,
+                this.getCenterY,
+                this.innerRadius(),
+                this.endAngle(),
+                this.startAngle(),
+                true
+            )
         this.fillStyle('transparent')
         this.fill(true)
     }
