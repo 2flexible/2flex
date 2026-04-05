@@ -1,7 +1,9 @@
 import type { IBlock } from '../types'
 import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
 
-interface VideoOptions extends IShapeOptions {}
+interface VideoOptions extends IShapeOptions {
+    autoPlay?: boolean
+}
 
 export class VideoBlock extends ShapeBlock<VideoOptions> {
     #cacheVideo?: HTMLVideoElement
@@ -17,7 +19,11 @@ export class VideoBlock extends ShapeBlock<VideoOptions> {
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         if (!this.#cacheVideo) {
             this.#cacheVideo = this.source()
-            if (this.#cacheVideo) this.#drawVideo()
+            if (this.#cacheVideo) {
+                ;(this.#cacheVideo as HTMLVideoElement).muted = true
+                if (this.autoPlay()) this.play()
+                this.#drawVideo()
+            }
         } else {
             this.context?.drawImage(
                 this.#cacheVideo!,
@@ -42,6 +48,9 @@ export class VideoBlock extends ShapeBlock<VideoOptions> {
     }
     source(opt?: HTMLVideoElement) {
         return this.__valueHandler(opt, 'source', undefined)
+    }
+    autoPlay(opt?: boolean) {
+        return this.__valueHandler(opt, 'autoPlay', false)
     }
     pause() {
         this.#cacheVideo?.pause()
