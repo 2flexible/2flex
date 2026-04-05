@@ -2560,7 +2560,7 @@ export class Block<T = IBlockOptions> extends Node {
         this.height(this.height() * scale)
     }
     __translate(t: { x: number; y: number }) {
-        if (this.ownOptions.position === 'fixed') return
+        if (this.ownOptions.position === 'fixed' || this.ownOptions.position === "sticky") return
         this.x(this.x() + t.x)
         this.y(this.y() + t.y)
         if (
