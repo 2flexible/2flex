@@ -231,7 +231,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
 
         const mousedown = (event: MouseEvent) => {
             if (!this.checkInBound(event)) this.#editable = false
-            if (!this.#editable || this.isEditbale) return
+            if (!this.#editable || !this.isEditbale) return
             this.#highlightDrawer = undefined
             dbClick = false
             const initCords = this.canvas?.getCursorPosition(event) || {
@@ -268,7 +268,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
             }
         }
         this.keydown((e: KeyboardEvent) => {
-            if (!this.#editable || this.isEditbale) return
+            if (!this.#editable || !this.isEditbale) return
             beforeValues[this.nodeId!] = {}
             if (dbClick) {
                 foundNode = {
