@@ -65,26 +65,22 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
     }
 
     radius(opt?: number) {
-        const radius = this.__valueHandler(opt, 'radius', 0)
-        this.radiusX(radius)
-        this.radiusY(radius)
+        const radius = this.__valueHandler(opt, 'radius', undefined)
+        if (radius !== undefined) {
+            this.radiusX(radius)
+            this.radiusY(radius)
+        }
         return radius
     }
     radiusX(opt?: number) {
-        const cacheR = this.rotate()
-        this.rotate(0)
         const r = this.__valueHandler(opt, 'radiusX', 0, true)
         const diffR = this.width() - r
-        this.rotate(cacheR)
         if (diffR !== 0) return r + diffR
         return r
     }
     radiusY(opt?: number) {
-        const cacheR = this.rotate()
-        this.rotate(0)
         const r = this.__valueHandler(opt, 'radiusY', 0)
         const diffR = this.height() - r
-        this.rotate(cacheR)
         if (diffR !== 0) return r + diffR
         return r
     }
