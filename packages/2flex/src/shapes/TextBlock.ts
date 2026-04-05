@@ -77,7 +77,6 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
 
         let words = this.#words
         if (!this.useCacheText || this.#words.length === 0) {
-            console.log('text working again')
             words = this.#wrapText()
         }
         let sumOfHeights = 0
