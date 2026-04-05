@@ -1183,7 +1183,7 @@ export class Block<T = IBlockOptions> extends Node {
     }): O {
         if (val && typeof val === 'string') {
             if (val in namedColors) {
-                colorToRgba(val)
+                return colorToRgba(val) as O
             } else if (val.startsWith('#')) {
                 return hexToRgba(val) as O
             } else if (val.startsWith('hsl')) {
@@ -1237,6 +1237,7 @@ export class Block<T = IBlockOptions> extends Node {
                     return fromPc(Number(val.split('pc')[0])) as O
                 else if (val.endsWith('pt'))
                     return fromPt(Number(val.split('pt')[0])) as O
+                else return Number(val) as O
             }
         }
         return val as O
