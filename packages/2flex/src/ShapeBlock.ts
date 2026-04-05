@@ -262,6 +262,9 @@ export interface IShapeOptions {
     drawImage?: DrawImage
     imageSmoothingEnabled?: boolean
     imageSmoothingQuality?: ImageSmoothingQuality
+
+    globalCompositeOperation?: GlobalCompositeOperation
+    globalAlpha?: number
 }
 export class ShapeBlock<T> extends Block<T | IShapeOptions> {
     #gradient?: CanvasGradient
@@ -960,5 +963,21 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         if (this.context && quality !== undefined)
             this.context.imageSmoothingQuality = quality
         return quality
+    }
+
+    globalCompositeOperation(opt?: GlobalCompositeOperation) {
+        const composite = this.__valueHandler(
+            opt,
+            'globalCompsiteOperation',
+            'source-out'
+        )
+        if (this.context && composite)
+            this.context.globalCompositeOperation = composite
+        return composite
+    }
+    globalAlpha(opt?: number) {
+        const alpha = this.__valueHandler(opt, 'globalCompsiteOperation', 1.0)
+        if (this.context && alpha) this.context.globalAlpha = alpha
+        return alpha
     }
 }

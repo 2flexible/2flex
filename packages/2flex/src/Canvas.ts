@@ -12,34 +12,6 @@ import type {
 } from './types'
 import { defaultBlocks } from './defaultBlocks'
 
-export type Composite =
-    | 'source-over'
-    | 'source-in'
-    | 'source-out'
-    | 'source-atop'
-    | 'destination-over'
-    | 'destination-in'
-    | 'destination-out'
-    | 'destination-atop'
-    | 'lighter'
-    | 'copy'
-    | 'xor'
-    | 'multiply'
-    | 'screen'
-    | 'overlay'
-    | 'darken'
-    | 'lighten'
-    | 'color-dodge'
-    | 'color-burn'
-    | 'hard-light'
-    | 'soft-light'
-    | 'difference'
-    | 'exclusion'
-    | 'hue'
-    | 'saturation'
-    | 'color'
-    | 'luminosity'
-
 interface CanvasOptions {
     zoomSpeed?: number
     zoomInvSpeed?: number
@@ -53,8 +25,6 @@ interface CanvasOptions {
     y?: number
     z?: number
     fps?: number
-    alpha?: number
-    composite?: Composite
 }
 
 interface DefaultCanvasOptions extends Required<{
@@ -142,8 +112,6 @@ export class Canvas {
             y: 0,
             z: 1,
             fps: 60,
-            composite: 'source-over',
-            alpha: 1.0,
         }
         this.#animations = {}
 
@@ -208,12 +176,6 @@ export class Canvas {
 
         window.onload = () => {
             if (this.options) {
-                this.context.globalCompositeOperation =
-                    this.options.composite ||
-                    (this.#defaultOptions.composite as GlobalCompositeOperation)
-                this.context.globalAlpha =
-                    this.options.alpha || this.#defaultOptions.alpha
-
                 let styleOptions: { [key: string]: string | number } = {}
                 for (let [key, value] of Object.entries(this.options)) {
                     if (!Object.hasOwn(this.#defaultOptions, key))
