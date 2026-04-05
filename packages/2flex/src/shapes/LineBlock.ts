@@ -1,4 +1,4 @@
-import { ShapeBlock } from '../ShapeBlock'
+import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
 import type { Block, RelativeType } from '../Block'
 import type { IBlock } from '../types'
 import { checkInBound, cubicBezier, getPrototype } from '../Utils'
@@ -11,7 +11,7 @@ interface StickyLine {
 
 type LineType = 'line' | 'cubicBezier'
 
-interface ILineOptions {
+interface ILineOptions extends IShapeOptions {
     lineType: LineType
     startX?: number
     startY?: number

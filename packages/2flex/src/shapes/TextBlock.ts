@@ -4,6 +4,7 @@ import type {
     FontStyle,
     FontVariant,
     FontWeight,
+    IShapeOptions,
     strokeStyle,
 } from '../ShapeBlock'
 import type { IBlock } from '../types'
@@ -11,7 +12,7 @@ import { inRange } from '../Utils'
 
 type Wrap = 'letter' | 'word' | 'nowrap'
 
-export interface ITextOptions {
+export interface ITextOptions extends IShapeOptions {
     text?: string
     color?: string
     strokeWidth?: number

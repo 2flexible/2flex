@@ -1,11 +1,11 @@
 import type { IBlock } from '../types'
-import { ShapeBlock } from '../ShapeBlock'
+import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
 
 type ObjectFit = 'contain' | 'cover' | 'fill'
 type Repeat = number | 'fill'
 type ImageSource = string | HTMLImageElement
 
-interface ImageOptions {
+interface ImageOptions extends IShapeOptions {
     clipX?: number
     clipY?: number
     clipWidth?: number

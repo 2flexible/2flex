@@ -1,8 +1,8 @@
-import { ShapeBlock } from '../ShapeBlock'
+import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
 import type { IBlock } from '../types'
 export type BorderStyle = 'solid' | 'dotted'
 
-interface ICircleOptions {
+interface ICircleOptions extends IShapeOptions {
     radius?: number
     radiusX?: number
     radiusY?: number

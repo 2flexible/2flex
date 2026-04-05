@@ -1,7 +1,7 @@
 import type { IBlock } from '../types'
-import { ShapeBlock } from '../ShapeBlock'
+import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
 
-interface VideoOptions {}
+interface VideoOptions extends IShapeOptions {}
 
 export class VideoBlock extends ShapeBlock<VideoOptions> {
     #cacheVideo?: HTMLVideoElement

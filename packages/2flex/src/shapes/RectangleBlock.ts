@@ -1,10 +1,10 @@
 import { ShapeBlock } from '../ShapeBlock'
-import type { FillStyle } from '../ShapeBlock'
+import type { FillStyle, IShapeOptions } from '../ShapeBlock'
 import type { IBlock } from '../types'
 
 export type BorderStyle = 'solid' | 'dotted' | undefined
 
-export interface IRectangleOptions {
+export interface IRectangleOptions extends IShapeOptions{
     backgroundColor?: string
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius?: number[]
