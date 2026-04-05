@@ -1182,7 +1182,20 @@ export class Block<T = IBlockOptions> extends Node {
         widthRelated?: boolean
     }): O {
         if (val && typeof val === 'string') {
-            if (val in namedColors) {
+            const splitted = val.split(' ')
+            if (
+                splitted[0] !== undefined &&
+                splitted[1] !== undefined &&
+                splitted[2] !== undefined
+            ) {
+                const size = this.__unitConverter({
+                    val: splitted[0],
+                    widthRelated: true,
+                })
+                const style = this.__unitConverter({ val: splitted[1] })
+                const color = this.__unitConverter({ val: splitted[2] })
+                return [size, style, color] as O
+            } else if (namedColors[val]) {
                 return colorToRgba(val) as O
             } else if (val.startsWith('#')) {
                 return hexToRgba(val) as O
@@ -1239,6 +1252,12 @@ export class Block<T = IBlockOptions> extends Node {
                     return fromPt(Number(val.split('pt')[0])) as O
                 else return Number(val) as O
             }
+        } else if (val instanceof Array) {
+            const vals = []
+            for (let i = 0, len = val.length; i < len; i++) {
+                vals.push(this.__unitConverter({ val: val[i] }))
+            }
+            return vals as O
         }
         return val as O
     }
