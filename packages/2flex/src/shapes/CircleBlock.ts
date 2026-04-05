@@ -1,11 +1,9 @@
+import { RelativeType } from '../Block'
 import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
 import type { IBlock } from '../types'
 export type BorderStyle = 'solid' | 'dotted'
 
 interface ICircleOptions extends IShapeOptions {
-    radius?: number
-    radiusX?: number
-    radiusY?: number
     startAngle?: number
     endAngle?: number
     backgroundColor?: number
@@ -36,8 +34,8 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         this.context?.ellipse(
             this.getCenterX,
             this.getCenterY,
-            this.radiusX() / 2,
-            this.radiusY() / 2,
+            this.width() / 2,
+            this.height() / 2,
             0,
             this.startAngle(),
             this.endAngle()
@@ -64,26 +62,6 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         return false
     }
 
-    radius(opt?: number) {
-        const radius = this.__valueHandler(opt, 'radius', undefined)
-        if (radius !== undefined) {
-            this.radiusX(radius)
-            this.radiusY(radius)
-        }
-        return radius
-    }
-    radiusX(opt?: number) {
-        const r = this.__valueHandler(opt, 'radiusX', 0, true)
-        const diffR = this.width() - r
-        if (diffR !== 0) return r + diffR
-        return r
-    }
-    radiusY(opt?: number) {
-        const r = this.__valueHandler(opt, 'radiusY', 0)
-        const diffR = this.height() - r
-        if (diffR !== 0) return r + diffR
-        return r
-    }
     innerRadius(opt?: number) {
         return this.__valueHandler(opt, 'innerRadius', 0)
     }
@@ -142,8 +120,8 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         this.__clipPath?.ellipse(
             this.getCenterX,
             this.getCenterY,
-            this.radiusX() / 2,
-            this.radiusY() / 2,
+            this.width() / 2,
+            this.height() / 2,
             0,
             this.startAngle(),
             this.endAngle()
