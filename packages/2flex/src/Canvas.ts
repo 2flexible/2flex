@@ -900,6 +900,10 @@ export class Canvas {
         )
     }
 
+    get currentPosition() {
+        return this.__positionCords
+    }
+
     undo() {
         const obj = this.#tree.snapshotInBack()
         console.log(obj)
