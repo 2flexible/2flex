@@ -127,12 +127,16 @@ export interface IBlockOptions {
     overflowX?: Overflow
     overflowY?: Overflow
     selectable?: boolean
-    padding?: [RelativeType, RelativeType, RelativeType, RelativeType]
+    padding?:
+        | [RelativeType, RelativeType, RelativeType, RelativeType]
+        | RelativeType
     paddingTop?: RelativeType
     paddingRight?: RelativeType
     paddingBottom?: RelativeType
     paddingLeft?: RelativeType
-    margin?: [RelativeType, RelativeType, RelativeType, RelativeType]
+    margin?:
+        | [RelativeType, RelativeType, RelativeType, RelativeType]
+        | RelativeType
     marginTop?: RelativeType
     marginRight?: RelativeType
     marginBottom?: RelativeType
@@ -1590,7 +1594,7 @@ export class Block<T = IBlockOptions> extends Node {
     right(opt?: RelativeType) {
         return this.__valueHandler(opt, 'right', undefined, true)
     }
-    padding(opt?: number[] | number): number[] {
+    padding(opt?: number[] | RelativeType): number[] {
         const padding = this.__valueHandler(opt, 'padding', [])
         if (typeof padding === 'number') {
             this.paddingTop(padding)
@@ -1599,28 +1603,34 @@ export class Block<T = IBlockOptions> extends Node {
             this.paddingRight(padding)
             return padding
         }
-        this.paddingTop(padding[0] || 0)
+        if (padding[0] !== undefined) this.paddingTop(padding[0] || 0)
 
         switch (padding.length) {
             case 1:
+                if (padding[0] !== undefined) {
                 this.paddingBottom(padding[0])
                 this.paddingLeft(padding[0])
                 this.paddingRight(padding[0])
+                }
                 break
             case 2:
-                this.paddingBottom(padding[0])
+                if (padding[0] !== undefined) this.paddingBottom(padding[0])
+                if (padding[1] !== undefined) {
                 this.paddingLeft(padding[1])
                 this.paddingRight(padding[1])
+                }
                 break
             case 3:
+                if (padding[1] !== undefined) {
                 this.paddingLeft(padding[1])
                 this.paddingRight(padding[1])
-                this.paddingBottom(padding[2])
+                }
+                if (padding[2] !== undefined) this.paddingBottom(padding[2])
                 break
             case 4:
-                this.paddingRight(padding[1])
-                this.paddingBottom(padding[2])
-                this.paddingLeft(padding[3])
+                if (padding[1] !== undefined) this.paddingRight(padding[1])
+                if (padding[2] !== undefined) this.paddingBottom(padding[2])
+                if (padding[3] !== undefined) this.paddingLeft(padding[3])
                 break
         }
         return padding
@@ -1637,8 +1647,15 @@ export class Block<T = IBlockOptions> extends Node {
     paddingRight(opt?: RelativeType) {
         return this.__valueHandler(opt, 'paddingRight', 0, true)
     }
-    margin(opt?: number[]): number[] {
+    margin(opt?: number[] | RelativeType): number[] {
         const margin = this.__valueHandler(opt, 'margin', [])
+        if (typeof margin === 'number') {
+            this.marginTop(margin)
+            this.marginBottom(margin)
+            this.marginLeft(margin)
+            this.marginRight(margin)
+            return margin
+        }
         if (margin[0] !== undefined) this.marginTop(margin[0])
         switch (margin.length) {
             case 1:
