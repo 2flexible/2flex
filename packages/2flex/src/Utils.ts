@@ -299,7 +299,7 @@ export function colorToRgba(color: string) {
 export function rgbaRepresenter(rgba: number[]): string {
     return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] || 1})`
 }
-export function rgbaToArray(rgba: string) {
+export function rgbaToArray(rgba: string):  RGBA {
     const colors = rgba.match(/\d+\.?\d*/g) || []
     let R = 0
     let G = 0

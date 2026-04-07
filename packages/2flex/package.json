@@ -1,6 +1,6 @@
 {
     "name": "@2flexible/2flex",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "Too flexible infinite canvas library.",
     "author": "nazarovabuzar",
     "license": "MIT",
@@ -43,6 +43,7 @@
     "scripts": {
         "clean": "premove ./lib ./tsbuild ./coverage",
         "build": "tsup --tsconfig tsconfig.json",
+        "watch": "tsup --tsconfig tsconfig.json --watch",
         "compile": "tsc --build",
         "test": "vitest"
     },

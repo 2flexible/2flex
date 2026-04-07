@@ -1,16 +1,17 @@
 import { ShapeBlock } from '../ShapeBlock'
-import type { FillStyle } from '../ShapeBlock'
+import type { FillStyle, IShapeOptions } from '../ShapeBlock'
 import type { IBlock } from '../types'
 
 export type BorderStyle = 'solid' | 'dotted' | undefined
+export type RectangleBorder = [number, BorderStyle, string]
 
-export interface IRectangleOptions {
+export interface IRectangleOptions extends IShapeOptions {
+    backgroundColor?: string
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius?: number[]
     borderStyle?: BorderStyle
     borderWidth?: number
     borderColor?: string
-    backgroundColor?: string
     border?: string
     borderTop?: string
     borderBottom?: string
@@ -69,7 +70,8 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         return bg
     }
 
-    border(opt?: string) {
+    border(opt?: RectangleBorder) {
+        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const border = this.__valueHandler(opt, 'border', undefined)
         if (border) {
             const { borderStyleArrWidth } = this.#borderParser(border)
@@ -93,7 +95,8 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
     borderStyle(opt?: BorderStyle): BorderStyle {
         return this.__valueHandler(opt, 'borderStyle', undefined)
     }
-    borderTop(opt?: string) {
+    borderTop(opt?: RectangleBorder) {
+        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const borderTop = this.__valueHandler(opt, 'borderTop', undefined)
         if (borderTop) {
             let { borderStyleArrWidth } = this.#borderParser(borderTop)
@@ -116,7 +119,8 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         return borderTop
     }
 
-    borderRight(opt?: string) {
+    borderRight(opt?: RectangleBorder) {
+        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const borderRight = this.__valueHandler(opt, 'borderRight', undefined)
         if (borderRight) {
             const { borderStyleArrHeight } = this.#borderParser(borderRight)
@@ -141,7 +145,8 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         }
         return borderRight
     }
-    borderBottom(opt?: string) {
+    borderBottom(opt?: RectangleBorder) {
+        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const borderBottom = this.__valueHandler(opt, 'borderBottom', undefined)
         if (borderBottom) {
             let { borderStyleArrWidth } = this.#borderParser(borderBottom)
@@ -163,7 +168,8 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         }
         return borderBottom
     }
-    borderLeft(opt?: string) {
+    borderLeft(opt?: RectangleBorder) {
+        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const borderLeft = this.__valueHandler(opt, 'borderLeft', undefined)
         if (borderLeft) {
             let { borderStyleArrHeight } = this.#borderParser(borderLeft)
@@ -186,16 +192,32 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         }
         return borderLeft
     }
-    // border size, style(required), color
-    #borderParser(obj?: string) {
-        const border = obj?.split(' ') || []
 
-        const borderWidth = this.__unitConverter<string, number>({
-            val: border[0],
+    #borderConvert(opt: string): RectangleBorder {
+        const splitted = opt.split(' ')
+        const borderWidth = this.__unitConverter<string | number, number>({
+            val: splitted[0],
             widthRelated: true,
         })
-        const borderStyle = border[1] as BorderStyle
-        const borderColor = border[2]
+        const borderStyle = this.__unitConverter<
+            string | undefined,
+            BorderStyle
+        >({
+            val: splitted[1],
+            widthRelated: false,
+        })
+        const borderColor = this.__unitConverter<string, string>({
+            val: splitted[2],
+            widthRelated: false,
+        })
+        return [borderWidth, borderStyle, borderColor]
+    }
+
+    // border size, style(required), color
+    #borderParser(obj: RectangleBorder) {
+        const borderWidth = obj[0]
+        const borderStyle = obj[1]
+        const borderColor = obj[2]
 
         const borderStyleArrWidth = []
         const borderStyleArrHeight = []
@@ -219,9 +241,9 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
                 total += stepHeight * 2
             }
         }
-        if (this.borderWidth() === undefined) this.borderWidth(borderWidth)
-        if (this.borderStyle() === undefined) this.borderStyle(borderStyle)
-        if (this.borderColor() === undefined) this.borderColor(borderColor)
+        this.borderWidth(borderWidth)
+        this.borderStyle(borderStyle)
+        this.borderColor(borderColor)
         return { borderStyleArrWidth, borderStyleArrHeight }
     }
 

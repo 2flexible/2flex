@@ -83,7 +83,7 @@ export type FlexShrink = number
 export type FlexBasis = RelativeType
 export type Flex = [FlexGrow, FlexShrink, FlexBasis]
 export type PlaceSelf = AlignSelf & JustifySelf
-export type Position = 'static' | 'relative' | 'absolute' | 'sticky' | 'fixed'
+export type Position = 'relative' | 'absolute' | 'sticky' | 'fixed'
 export type XY = { x: number; y: number }
 
 export interface HotCornerArea {
@@ -202,6 +202,7 @@ export interface IBlockOptions {
     hotRotCornerTopRight?: XY
     hotRotCornerBottomLeft?: XY
     hotRotCornerBottomRight?: XY
+    rotatable?: boolean
     hotRotatableAreaTopLeft?: HotCornerArea
     hotRotatableAreaTopRight?: HotCornerArea
     hotRotatableAreaBottomLeft?: HotCornerArea
@@ -694,8 +695,8 @@ export class Block<T = IBlockOptions> extends Node {
                 if (b.position() === 'absolute') return
                 b.rotate(0)
 
-                const blockW = this.width()
-                const blockH = this.height()
+                const blockW = b.width()
+                const blockH = b.height()
 
                 const initX =
                     this.__unitConverter<RelativeType, number>({
@@ -725,7 +726,7 @@ export class Block<T = IBlockOptions> extends Node {
 
                 z += 1
                 if (
-                    (pWidth - (pPaddingRight + pPaddingLeft) < b.width() &&
+                    (pWidth - (pPaddingRight + pPaddingLeft) < blockW &&
                         pWidth > b.minWidth()) ||
                     blockW < b.maxWidth()
                 )
@@ -1181,8 +1182,8 @@ export class Block<T = IBlockOptions> extends Node {
         widthRelated?: boolean
     }): O {
         if (val && typeof val === 'string') {
-            if (val in namedColors) {
-                colorToRgba(val)
+            if (namedColors[val]) {
+                return colorToRgba(val) as O
             } else if (val.startsWith('#')) {
                 return hexToRgba(val) as O
             } else if (val.startsWith('hsl')) {
@@ -1236,22 +1237,29 @@ export class Block<T = IBlockOptions> extends Node {
                     return fromPc(Number(val.split('pc')[0])) as O
                 else if (val.endsWith('pt'))
                     return fromPt(Number(val.split('pt')[0])) as O
+                else return Number(val) as O
             }
+        } else if (val instanceof Array) {
+            const vals = []
+            for (let i = 0, len = val.length; i < len; i++) {
+                vals.push(this.__unitConverter({ val: val[i] }))
+            }
+            return vals as O
         }
         return val as O
     }
 
-    get parentWidth() {
-        if (this.#isBlock) return this.parentNode?.width()
-        return this.canvas?.width
+    get parentWidth(): number {
+        if (this.#hasParentBlock) return this.parentNode?.width() || 1
+        return this.canvas?.width || 1
     }
 
-    get parentHeight() {
-        if (this.#isBlock) return this.parentNode?.height()
-        return this.canvas?.height
+    get parentHeight(): number {
+        if (this.#hasParentBlock) return this.parentNode?.height() || 1
+        return this.canvas?.height || 1
     }
 
-    get #isBlock() {
+    get #hasParentBlock() {
         if (
             this.parentNode &&
             Object.getPrototypeOf(this.parentNode).constructor.name !== 'Node'
@@ -1473,34 +1481,14 @@ export class Block<T = IBlockOptions> extends Node {
             'position',
             undefined
         )
-        if (pos === 'static') {
-            if (
-                !this.__runningEvents.drag &&
-                !this.__runningEvents.resize &&
-                !this.__runningEvents.rotate
-            ) {
-                if (this.top() !== undefined) this.y(this.top())
-                else if (this.bottom() !== undefined)
-                    this.y(
-                        Math.abs((this.canvas?.height || 1) - this.height()) -
-                            this.bottom()!
-                    )
-                if (this.left() !== undefined) this.x(this.left())
-                else if (this.right() !== undefined)
-                    this.x(
-                        Math.abs((this.canvas?.width || 1) - this.width()) -
-                            this.right()!
-                    )
-                this.rotate(0)
-            }
-        } else if (pos === 'fixed') {
+        if (pos === 'fixed') {
             if (this.top() !== undefined) this.y(this.top()!)
             else if (this.bottom() !== undefined)
                 this.y(
                     Math.abs((this.canvas?.height || 1) - this.height()) -
                         this.bottom()!
                 )
-            if (this.left() !== undefined) this.x(+this.left()!)
+            if (this.left() !== undefined) this.x(this.left()!)
             else if (this.right() !== undefined)
                 this.x(
                     +Math.abs((this.canvas?.width || 1) - this.width()) -
@@ -1544,13 +1532,46 @@ export class Block<T = IBlockOptions> extends Node {
                         this.bottom()!
                 )
         } else if (pos === 'relative') {
+            const parent = this.#hasParentBlock
             if (this.left() !== undefined) {
-                this.x(this.x() + this.left()!)
-            } else if (this.right() !== undefined)
-                this.x(this.x() - this.right()!)
-            if (this.top() !== undefined) this.y(this.y() + this.top()!)
-            else if (this.bottom() !== undefined)
-                this.y(this.y() - this.bottom()!)
+                const leftX = parent ? this.x() : 0
+                this.x(leftX + this.left()!)
+            } else if (this.right() !== undefined) {
+                let rightX = 0
+                if (!parent)
+                    rightX =
+                        Math.abs(this.parentWidth - this.width()) -
+                        this.right()!
+                else
+                    rightX =
+                        this.x() +
+                        (Math.abs(
+                            this.parentWidth -
+                                (this.width() + this.parentNode!.__widthSpaces)
+                        ) -
+                            this.right()!)
+                this.x(rightX)
+            }
+            if (this.top() !== undefined) {
+                const topY = parent ? this.y() : 0
+                this.y(topY + this.top()!)
+            } else if (this.bottom() !== undefined) {
+                let bottomY = 0
+                if (!parent)
+                    bottomY =
+                        Math.abs(this.parentHeight - this.height()) -
+                        this.bottom()!
+                else
+                    bottomY =
+                        this.y() +
+                        (Math.abs(
+                            this.parentHeight -
+                                (this.height() +
+                                    this.parentNode!.__heightSpaces)
+                        ) -
+                            this.bottom()!)
+                this.y(bottomY)
+            }
         }
 
         return pos
@@ -2545,20 +2566,29 @@ export class Block<T = IBlockOptions> extends Node {
         this.height(this.height() * scale)
     }
     __translate(t: { x: number; y: number }) {
-        if (this.ownOptions.position === 'fixed') return
+        if (this.ownOptions.position === 'fixed' || this.ownOptions.position === "sticky") return
         this.x(this.x() + t.x)
         this.y(this.y() + t.y)
-        if (this.ownOptions.position == 'absolute') {
-            if (this.left() !== undefined) this.left(this.left()! + t.x)
-            else if (this.right() !== undefined) this.right(this.right()! - t.x)
-            if (this.top() !== undefined) this.top(this.top()! + t.y)
-            else if (this.bottom() !== undefined)
-                this.bottom(this.bottom()! - t.y)
-        } else if (this.ownOptions.position == 'relative') {
-            // if (this.left() !== undefined) this.left(0);
-            // else if (this.right() !== undefined) this.right(0);
-            // if (this.top() !== undefined) this.top(0);
-            // else if (this.bottom() !== undefined) this.bottom(0);
+        if (
+            this.ownOptions.position == 'absolute' ||
+            this.ownOptions.position === 'relative'
+        ) {
+            if (
+                this.ownOptions.position === 'relative' &&
+                this.#hasParentBlock
+            ) {
+                if (this.left() !== undefined) this.left(0)
+                else if (this.right() !== undefined) this.right(0)
+                if (this.top() !== undefined) this.top(0)
+                else if (this.bottom() !== undefined) this.bottom(0)
+            } else {
+                if (this.left() !== undefined) this.left(this.left()! + t.x)
+                else if (this.right() !== undefined)
+                    this.right(this.right()! - t.x)
+                if (this.top() !== undefined) this.top(this.top()! + t.y)
+                else if (this.bottom() !== undefined)
+                    this.bottom(this.bottom()! - t.y)
+            }
         }
     }
     // @TODO: need to fix limits on the overflow
@@ -2816,10 +2846,11 @@ export class Block<T = IBlockOptions> extends Node {
         }
         this.#keyframeIterations[animationId]['keyframes'] = {}
 
+        const keyframeIterations = this.#keyframeIterations[animationId]
         let maxBreakPointLen = 0
         for (let [key, keyframe] of Object.entries(options)) {
             const obj = getPrototype(this, key)
-
+            if (!obj) continue
             let validKeyframe = keyframe
             const keyframes = keyframe.map((i: any) =>
                 this.__unitConverter({ val: i })
@@ -2831,42 +2862,24 @@ export class Block<T = IBlockOptions> extends Node {
                 validKeyframe = keyframe.map((i: any) => rgbaToArray(i))
                 category = 'color'
             }
-
-            if (composite && composite === 'accumulate') {
-                let stairCase = [0, 0, 0, 0]
-                if (keyframes.includes('rgba')) {
-                    for (const [i, rgbs] of Object.entries(validKeyframe)) {
-                        validKeyframe[Number(i)] = [
-                            rgbs[0] + stairCase[0],
-                            rgbs[1] + stairCase[1],
-                            rgbs[2] + stairCase[2],
-                            rgbs[3] + stairCase[3],
-                        ]
-                        stairCase = [
-                            rgbs[0] + stairCase[0],
-                            rgbs[1] + stairCase[1],
-                            rgbs[2] + stairCase[2],
-                            rgbs[3] + stairCase[3],
-                        ]
-                    }
-                } else {
-                    let stairCase = 0
-                    for (const [idx, val] of Object.entries(validKeyframe)) {
-                        validKeyframe[Number(idx)] = val + stairCase
-                        stairCase += val
-                    }
-                }
-            }
-
-            if (direction === 'reverse' || direction === 'alternate-reverse')
+            if (
+                keyframeIterations.direction === 'reverse' ||
+                keyframeIterations.direction === 'alternate-reverse'
+            )
                 validKeyframe.reverse()
 
             let iterDirection = 1
 
             const idx = Math.round(
-                (iterationStart || 0.0) * (validKeyframe.length - 1)
+                keyframeIterations.iterationStart * (validKeyframe.length - 1)
             )
-            let currentVal = validKeyframe[idx] as any
+
+            let currentVal =
+                validKeyframe[idx] +
+                (validKeyframe[idx + 1] ||
+                    validKeyframe[idx - 1] ||
+                    validKeyframe[idx]) *
+                    keyframeIterations.iterationStart
 
             if (idx === validKeyframe.length - 1) iterDirection *= -1
 
@@ -2888,7 +2901,7 @@ export class Block<T = IBlockOptions> extends Node {
             maxBreakPointLen
         const animator: Animator = (timestamp: number) => {
             const anime = this.#keyframeIterations[animationId]
-            if (anime.autoStart === false) return
+            if (anime.autoStart === false || !anime.keyframes) return
             let isFinished = anime.isFinished
 
             if (anime.delay <= timestamp && !isFinished && anime.isRunning) {
@@ -2900,7 +2913,6 @@ export class Block<T = IBlockOptions> extends Node {
                     anime.iter -= 1
                     anime.startTime = timestamp + anime.delay
                 }
-                if (!anime.isRunning || !anime.keyframes) return
                 if (
                     anime.iterations !== Infinity &&
                     anime.iter === anime.iterations
@@ -2914,7 +2926,13 @@ export class Block<T = IBlockOptions> extends Node {
                     clamp((timestamp - anime.startTime) / anime.duration, 0, 1),
                     1 / anime.duration
                 )
-
+                if (
+                    easing === 1 &&
+                    (anime.direction == 'alternate' ||
+                        anime.direction == 'alternate-reverse')
+                ) {
+                    anime.startTime = timestamp
+                }
                 if (callback) callback(timestamp, easing)
 
                 for (let [idx, [key, value]] of Object.entries(
@@ -3020,8 +3038,33 @@ export class Block<T = IBlockOptions> extends Node {
                     }
                     if (statement) {
                         currentIdx += iterDirection
-                        if (currentIdx === valueT.breakPoints.length - 1)
+                        const lastIdx = valueT.breakPoints.length - 1
+                        if (currentIdx === lastIdx) {
                             anime.currentOptIdx += 1
+                            if (anime.composite === 'accumulate') {
+                                for (const [idx, val] of Object.entries(
+                                    valueT.breakPoints
+                                )) {
+                                    if (valueT.category === 'color') {
+                                        valueT.breakPoints[idx][0] =
+                                            (val as RGBA)[0] +
+                                            valueT.breakPoints[lastIdx][0]
+                                        valueT.breakPoints[idx][1] =
+                                            (val as RGBA)[1] +
+                                            valueT.breakPoints[lastIdx][1]
+                                        valueT.breakPoints[idx][2] =
+                                            (val as RGBA)[2] +
+                                            valueT.breakPoints[lastIdx][2]
+                                        valueT.breakPoints[idx][3] =
+                                            (val as RGBA)[3] +
+                                            valueT.breakPoints[lastIdx][3]
+                                    } else {
+                                        valueT.breakPoints[idx] =
+                                            val + valueT.breakPoints[lastIdx]
+                                    }
+                                }
+                            }
+                        }
                         if (
                             nextIdx === valueT.breakPoints.length - 1 ||
                             nextIdx === 0
@@ -3039,7 +3082,7 @@ export class Block<T = IBlockOptions> extends Node {
                                 valueT.iterDirection *= -1
                             }
                         }
-                        anime.startTime = timestamp + anime.delay
+                        anime.startTime = timestamp
                         valueT.currentIdx = currentIdx
                     }
 
@@ -3096,6 +3139,10 @@ export class Block<T = IBlockOptions> extends Node {
             anime['direction'] = 'alternate-reverse'
         else if (anime['direction'] === 'alternate-reverse')
             anime['direction'] = 'alternate'
+        for (const [key, value] of anime.keyframes as any) {
+            ;(anime['keyframes'] as any)[key].breakPoints =
+                value.breakPoints.reverse()
+        }
     }
     animationDelay(animationId: AnimationId, value: Delay) {
         this.#keyframeIterations[animationId]['delay'] = value
@@ -3733,7 +3780,8 @@ export class Block<T = IBlockOptions> extends Node {
                 let cursor: string | undefined = undefined
                 bottomResize = rightResize = topResize = leftResize = false
                 if (
-                    checkInBound(
+                    this.resizeLeft() &&
+                    (checkInBound(
                         x,
                         y,
                         this.hotResizableAreaLeft().topLeft.x,
@@ -3745,23 +3793,24 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotResizableAreaLeft().bottomRight.x,
                         this.hotResizableAreaLeft().bottomRight.y
                     ) ||
-                    checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaLeft().bottomLeft.x,
-                        this.hotResizableAreaLeft().bottomLeft.y,
-                        this.hotResizableAreaLeft().bottomRight.x,
-                        this.hotResizableAreaLeft().bottomRight.y,
-                        this.hotResizableAreaLeft().topLeft.x,
-                        this.hotResizableAreaLeft().topLeft.y,
-                        this.hotResizableAreaLeft().topRight.x,
-                        this.hotResizableAreaLeft().topRight.y
-                    )
+                        checkInBound(
+                            x,
+                            y,
+                            this.hotResizableAreaLeft().bottomLeft.x,
+                            this.hotResizableAreaLeft().bottomLeft.y,
+                            this.hotResizableAreaLeft().bottomRight.x,
+                            this.hotResizableAreaLeft().bottomRight.y,
+                            this.hotResizableAreaLeft().topLeft.x,
+                            this.hotResizableAreaLeft().topLeft.y,
+                            this.hotResizableAreaLeft().topRight.x,
+                            this.hotResizableAreaLeft().topRight.y
+                        ))
                 ) {
                     leftResize = true
                     cursor = 'ew-resize'
                 } else if (
-                    checkInBound(
+                    this.resizeRight() &&
+                    (checkInBound(
                         x,
                         y,
                         this.hotResizableAreaRight().topLeft.x,
@@ -3773,23 +3822,24 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotResizableAreaRight().bottomRight.x,
                         this.hotResizableAreaRight().bottomRight.y
                     ) ||
-                    checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaRight().bottomLeft.x,
-                        this.hotResizableAreaRight().bottomLeft.y,
-                        this.hotResizableAreaRight().bottomRight.x,
-                        this.hotResizableAreaRight().bottomRight.y,
-                        this.hotResizableAreaRight().topLeft.x,
-                        this.hotResizableAreaRight().topLeft.y,
-                        this.hotResizableAreaRight().topRight.x,
-                        this.hotResizableAreaRight().topRight.y
-                    )
+                        checkInBound(
+                            x,
+                            y,
+                            this.hotResizableAreaRight().bottomLeft.x,
+                            this.hotResizableAreaRight().bottomLeft.y,
+                            this.hotResizableAreaRight().bottomRight.x,
+                            this.hotResizableAreaRight().bottomRight.y,
+                            this.hotResizableAreaRight().topLeft.x,
+                            this.hotResizableAreaRight().topLeft.y,
+                            this.hotResizableAreaRight().topRight.x,
+                            this.hotResizableAreaRight().topRight.y
+                        ))
                 ) {
                     rightResize = true
                     cursor = 'ew-resize'
                 } else if (
-                    checkInBound(
+                    this.resizeTop() &&
+                    (checkInBound(
                         x,
                         y,
                         this.hotResizableAreaTop().topLeft.x,
@@ -3801,24 +3851,25 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotResizableAreaTop().bottomRight.x,
                         this.hotResizableAreaTop().bottomRight.y
                     ) ||
-                    checkInBound(
-                        x,
-                        y,
+                        checkInBound(
+                            x,
+                            y,
 
-                        this.hotResizableAreaTop().topRight.x,
-                        this.hotResizableAreaTop().topRight.y,
-                        this.hotResizableAreaTop().topLeft.x,
-                        this.hotResizableAreaTop().topLeft.y,
-                        this.hotResizableAreaTop().bottomRight.x,
-                        this.hotResizableAreaTop().bottomRight.y,
-                        this.hotResizableAreaTop().bottomLeft.x,
-                        this.hotResizableAreaTop().bottomLeft.y
-                    )
+                            this.hotResizableAreaTop().topRight.x,
+                            this.hotResizableAreaTop().topRight.y,
+                            this.hotResizableAreaTop().topLeft.x,
+                            this.hotResizableAreaTop().topLeft.y,
+                            this.hotResizableAreaTop().bottomRight.x,
+                            this.hotResizableAreaTop().bottomRight.y,
+                            this.hotResizableAreaTop().bottomLeft.x,
+                            this.hotResizableAreaTop().bottomLeft.y
+                        ))
                 ) {
                     topResize = true
                     cursor = 'ns-resize'
                 } else if (
-                    checkInBound(
+                    this.resizeBottom() &&
+                    (checkInBound(
                         x,
                         y,
                         this.hotResizableAreaBottom().topLeft.x,
@@ -3830,24 +3881,25 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotResizableAreaBottom().bottomRight.x,
                         this.hotResizableAreaBottom().bottomRight.y
                     ) ||
-                    checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaBottom().topRight.x,
-                        this.hotResizableAreaBottom().topRight.y,
-                        this.hotResizableAreaBottom().topLeft.x,
-                        this.hotResizableAreaBottom().topLeft.y,
-                        this.hotResizableAreaBottom().bottomRight.x,
-                        this.hotResizableAreaBottom().bottomRight.y,
-                        this.hotResizableAreaBottom().bottomLeft.x,
-                        this.hotResizableAreaBottom().bottomLeft.y
-                    )
+                        checkInBound(
+                            x,
+                            y,
+                            this.hotResizableAreaBottom().topRight.x,
+                            this.hotResizableAreaBottom().topRight.y,
+                            this.hotResizableAreaBottom().topLeft.x,
+                            this.hotResizableAreaBottom().topLeft.y,
+                            this.hotResizableAreaBottom().bottomRight.x,
+                            this.hotResizableAreaBottom().bottomRight.y,
+                            this.hotResizableAreaBottom().bottomLeft.x,
+                            this.hotResizableAreaBottom().bottomLeft.y
+                        ))
                 ) {
                     cursor = 'ns-resize'
                     bottomResize = true
                 }
 
                 if (
+                    this.resizeTopLeft() &&
                     checkInBound(
                         x,
                         y,
@@ -3866,6 +3918,7 @@ export class Block<T = IBlockOptions> extends Node {
                     cursor = 'nwse-resize'
                 }
                 if (
+                    this.resizeTopRight() &&
                     checkInBound(
                         x,
                         y,
@@ -3884,6 +3937,7 @@ export class Block<T = IBlockOptions> extends Node {
                     cursor = 'nesw-resize'
                 }
                 if (
+                    this.resizeBottomLeft() &&
                     checkInBound(
                         x,
                         y,
@@ -3902,6 +3956,7 @@ export class Block<T = IBlockOptions> extends Node {
                     cursor = 'nesw-resize'
                 }
                 if (
+                    this.resizeBottomRight() &&
                     checkInBound(
                         x,
                         y,
@@ -3986,8 +4041,10 @@ export class Block<T = IBlockOptions> extends Node {
                     } else if (rightResize) {
                         const widthR = this.width() + diffDx * reverseX
                         if (
-                            (widthR > 0 && !this.horizontalFlipResize()) ||
-                            this.horizontalFlipResize()
+                            widthR < this.maxWidth() &&
+                            ((widthR > this.minWidth() &&
+                                !this.horizontalFlipResize()) ||
+                                this.horizontalFlipResize())
                         ) {
                             this.width(widthR)
                         }
@@ -3995,8 +4052,10 @@ export class Block<T = IBlockOptions> extends Node {
                     if (topResize) {
                         const heightR = this.height() - diffDy * reverseY
                         if (
-                            (heightR > 0 && !this.verticalFlipResize()) ||
-                            this.verticalFlipResize()
+                            heightR < this.maxHeight() &&
+                            ((heightR > this.minHeight() &&
+                                !this.verticalFlipResize()) ||
+                                this.verticalFlipResize())
                         ) {
                             this.y(this.y() + diffDy * reverseY)
                             this.height(heightR)
@@ -4184,13 +4243,13 @@ export class Block<T = IBlockOptions> extends Node {
                     let diffY = y - initCords.y
                     if (diffX !== 0 && this.dragX()) {
                         const diff = diffX - beforeCords.x
-                        this.x(this.x() + diff)
+                        this.__translate({ x: diff, y: 0 })
 
                         beforeCords.x = diffX
                     }
                     if (diffY !== 0 && this.dragY()) {
                         const diff = diffY - beforeCords.y
-                        this.y(this.y() + diff)
+                        this.__translate({ x: 0, y: diff })
 
                         beforeCords.y = diffY
                     }

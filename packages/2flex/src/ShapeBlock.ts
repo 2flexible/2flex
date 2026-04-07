@@ -192,6 +192,17 @@ interface Ellipse {
     endAngle: number
     counterclockwise?: number
 }
+interface DrawImage {
+    source: CanvasImageSource
+    x: number
+    y: number
+    width: number
+    height: number
+    clipX: number
+    clipY: number
+    clipWidth: number
+    clipHeight: number
+}
 
 export interface IShapeOptions {
     fill?: Fill
@@ -247,6 +258,13 @@ export interface IShapeOptions {
     direction?: TextDirection
     clip?: Clip
     pathData?: string
+
+    drawImage?: DrawImage
+    imageSmoothingEnabled?: boolean
+    imageSmoothingQuality?: ImageSmoothingQuality
+
+    globalCompositeOperation?: GlobalCompositeOperation
+    globalAlpha?: number
 }
 export class ShapeBlock<T> extends Block<T | IShapeOptions> {
     #gradient?: CanvasGradient
@@ -295,6 +313,8 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         if (this.ownOptions.fillStyle) this.fillStyle()
         if (this.ownOptions.fillRect) this.fillRect()
         if (this.ownOptions.rect) this.rect()
+        if (this.ownOptions.imageSmoothingEnabled) this.imageSmoothingEnabled()
+        if (this.ownOptions.imageSmoothingQuality) this.imageSmoothingQuality()
         if (this.ownOptions.strokeStyle) this.strokeStyle()
         if (this.ownOptions.clip) this.clip()
 
@@ -894,5 +914,70 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         const data = this.__valueHandler(opt, 'pathData', undefined)
         if (data !== undefined) this.#dataPath = new Path2D(data)
         return data
+    }
+
+    drawImage(opt?: DrawImage) {
+        const {
+            source,
+            clipX,
+            clipY,
+            clipWidth,
+            clipHeight,
+            x,
+            y,
+            width,
+            height,
+        } = this.__valueHandler(opt, 'rect', {
+            source: undefined,
+            clipX: 0,
+            clipY: 0,
+            clipWidth: this.width(),
+            clipHeight: this.height(),
+            x: this.x(),
+            y: this.y(),
+            width: this.width(),
+            height: this.height(),
+        })
+        if (source)
+            this.context?.drawImage(
+                source,
+                clipX,
+                clipY,
+                clipWidth,
+                clipHeight,
+                x,
+                y,
+                width,
+                height
+            )
+    }
+
+    imageSmoothingEnabled(opt?: boolean) {
+        const enabled = this.__valueHandler(opt, 'smoothing', undefined)
+        if (this.context && enabled !== undefined)
+            this.context.imageSmoothingEnabled = enabled
+        return enabled
+    }
+    imageSmoothingQuality(opt?: ImageSmoothingQuality) {
+        const quality = this.__valueHandler(opt, 'smoothingQuality', undefined)
+        if (this.context && quality !== undefined)
+            this.context.imageSmoothingQuality = quality
+        return quality
+    }
+
+    globalCompositeOperation(opt?: GlobalCompositeOperation) {
+        const composite = this.__valueHandler(
+            opt,
+            'globalCompsiteOperation',
+            'source-out'
+        )
+        if (this.context && composite)
+            this.context.globalCompositeOperation = composite
+        return composite
+    }
+    globalAlpha(opt?: number) {
+        const alpha = this.__valueHandler(opt, 'globalCompsiteOperation', 1.0)
+        if (this.context && alpha) this.context.globalAlpha = alpha
+        return alpha
     }
 }

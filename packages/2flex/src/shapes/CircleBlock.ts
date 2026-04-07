@@ -1,11 +1,10 @@
-import { ShapeBlock } from '../ShapeBlock'
+import { RelativeType } from '../Block'
+import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
 import type { IBlock } from '../types'
 export type BorderStyle = 'solid' | 'dotted'
+export type CircleBorder = [string | number, BorderStyle, string] | string
 
-interface ICircleOptions {
-    radius?: number
-    radiusX?: number
-    radiusY?: number
+interface ICircleOptions extends IShapeOptions {
     startAngle?: number
     endAngle?: number
     backgroundColor?: number
@@ -13,18 +12,19 @@ interface ICircleOptions {
     borderStyle?: BorderStyle
     borderWidth?: number
     borderColor?: string
+    innerRadius?: number
 }
 
 export class CircleBlock extends ShapeBlock<ICircleOptions> {
     constructor(options: IBlock<ICircleOptions>) {
         super(options)
+        this.lineJoin('round')
+        this.lineCap('round')
     }
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         if (!this.context) return
-        this.context.lineJoin = 'round'
-        this.context.lineCap = 'round'
         if (!this.#isAngleEmpty) {
-            this.context.arc(
+            this.context?.arc(
                 this.getCenterX,
                 this.getCenterY,
                 this.innerRadius(),
@@ -33,11 +33,11 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
                 true
             )
         }
-        this.context.ellipse(
+        this.context?.ellipse(
             this.getCenterX,
             this.getCenterY,
-            this.radiusX() / 2,
-            this.radiusY() / 2,
+            this.width() / 2 - this.hotLineStrokeWidth(),
+            this.height() / 2 - this.hotLineStrokeWidth(),
             0,
             this.startAngle(),
             this.endAngle()
@@ -46,14 +46,15 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         this.fill()
         this.stroke()
         if (this.#isAngleEmpty) this.beginPath()
-        this.context.arc(
-            this.getCenterX,
-            this.getCenterY,
-            this.innerRadius(),
-            this.endAngle(),
-            this.startAngle(),
-            true
-        )
+        if (!this.#isAngleEmpty)
+            this.context?.arc(
+                this.getCenterX,
+                this.getCenterY,
+                this.innerRadius(),
+                this.endAngle(),
+                this.startAngle(),
+                true
+            )
         this.fillStyle('transparent')
         this.fill(true)
     }
@@ -64,30 +65,6 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         return false
     }
 
-    radius(opt?: number) {
-        const radius = this.__valueHandler(opt, 'radius', 0)
-        this.radiusX(radius)
-        this.radiusY(radius)
-        return radius
-    }
-    radiusX(opt?: number) {
-        const cacheR = this.rotate()
-        this.rotate(0)
-        const r = this.__valueHandler(opt, 'radiusX', 0, true)
-        const diffR = this.width() - r
-        this.rotate(cacheR)
-        if (diffR !== 0) return r + diffR
-        return r
-    }
-    radiusY(opt?: number) {
-        const cacheR = this.rotate()
-        this.rotate(0)
-        const r = this.__valueHandler(opt, 'radiusY', 0)
-        const diffR = this.height() - r
-        this.rotate(cacheR)
-        if (diffR !== 0) return r + diffR
-        return r
-    }
     innerRadius(opt?: number) {
         return this.__valueHandler(opt, 'innerRadius', 0)
     }
@@ -107,7 +84,7 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         this.fill(true)
         return backgroundColor
     }
-    borderWidth(opt?: number) {
+    borderWidth(opt?: RelativeType) {
         const borderWidth = this.__valueHandler(opt, 'borderWidth', 0)
         super.lineWidth(borderWidth)
         return borderWidth
@@ -121,33 +98,46 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         return this.__valueHandler(opt, 'borderStyle', 'solid')
     }
 
-    border(opt?: string) {
-        const border = this.__valueHandler<string, string | undefined>(
-            opt,
-            'border',
-            undefined
-        )
+    border(opt?: CircleBorder) {
+        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
+        const border = this.__valueHandler<
+            CircleBorder | undefined,
+            CircleBorder | undefined
+        >(opt, 'border', undefined)
         if (border) {
-            const borderParsed = border.split(' ') || []
-
-            const borderWidth = this.__unitConverter<string, number>({
-                val: borderParsed[0],
-                widthRelated: true,
-            })
-
-            this.borderWidth(borderWidth)
-            this.borderStyle(borderParsed[1] as BorderStyle)
-            this.borderColor(borderParsed[2])
+            this.borderWidth(border[0])
+            this.borderStyle(border[1] as BorderStyle)
+            this.borderColor(border[2])
             this.stroke(true)
         }
         return border
+    }
+
+    #borderConvert(opt: string): CircleBorder {
+        const splitted = opt.split(' ')
+        const borderWidth = this.__unitConverter<string | number, number>({
+            val: splitted[0],
+            widthRelated: true,
+        })
+        const borderStyle = this.__unitConverter<
+            string | undefined,
+            BorderStyle
+        >({
+            val: splitted[1],
+            widthRelated: false,
+        })
+        const borderColor = this.__unitConverter<string, string>({
+            val: splitted[2],
+            widthRelated: false,
+        })
+        return [borderWidth, borderStyle, borderColor]
     }
     __clipShape() {
         this.__clipPath?.ellipse(
             this.getCenterX,
             this.getCenterY,
-            this.radiusX() / 2,
-            this.radiusY() / 2,
+            this.width() / 2,
+            this.height() / 2,
             0,
             this.startAngle(),
             this.endAngle()
