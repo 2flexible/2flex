@@ -204,6 +204,8 @@ interface DrawImage {
     clipHeight: number
 }
 
+export type DrawFunc = (context: CanvasRenderingContext2D) => void
+
 export interface IShapeOptions {
     fill?: Fill
     fillStyle?: FillStyle
@@ -328,8 +330,13 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         this.onRender()?.()
     }
 
-    draw(_func?: (context: CanvasRenderingContext2D) => void) {
-        if (_func) _func(this.context!)
+    draw(_func?: DrawFunc) {
+        const func = this.__valueHandler<DrawFunc, DrawFunc | undefined>(
+            _func,
+            'drawFunc',
+            undefined
+        )
+        if (func && this.context) func(this.context)
     }
 
     beginPath() {

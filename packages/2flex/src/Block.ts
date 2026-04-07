@@ -127,12 +127,16 @@ export interface IBlockOptions {
     overflowX?: Overflow
     overflowY?: Overflow
     selectable?: boolean
-    padding?: [RelativeType, RelativeType, RelativeType, RelativeType]
+    padding?:
+        | [RelativeType, RelativeType, RelativeType, RelativeType]
+        | RelativeType
     paddingTop?: RelativeType
     paddingRight?: RelativeType
     paddingBottom?: RelativeType
     paddingLeft?: RelativeType
-    margin?: [RelativeType, RelativeType, RelativeType, RelativeType]
+    margin?:
+        | [RelativeType, RelativeType, RelativeType, RelativeType]
+        | RelativeType
     marginTop?: RelativeType
     marginRight?: RelativeType
     marginBottom?: RelativeType
@@ -714,14 +718,16 @@ export class Block<T = IBlockOptions> extends Node {
                     cornerLeftX +
                     this.__overflowCords.x +
                     pMarginLeft +
-                    pPaddingLeft
+                    pPaddingLeft +
+                    b.marginLeft()
                 const y =
                     initY +
                     cornerTopY +
                     this.__overflowCords.y +
                     pMarginTop +
-                    pPaddingTop
-
+                    pPaddingTop +
+                    b.marginTop()
+                console.log(this.marginTop())
                 let width: number | undefined, height: number | undefined
 
                 z += 1
@@ -1250,12 +1256,12 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     get parentWidth(): number {
-        if (this.#hasParentBlock) return this.parentNode?.width() || 1
+        if (this.#hasParentBlock) return this.parentNode?.width?.() || 1
         return this.canvas?.width || 1
     }
 
     get parentHeight(): number {
-        if (this.#hasParentBlock) return this.parentNode?.height() || 1
+        if (this.#hasParentBlock) return this.parentNode?.height?.() || 1
         return this.canvas?.height || 1
     }
 
@@ -1588,7 +1594,7 @@ export class Block<T = IBlockOptions> extends Node {
     right(opt?: RelativeType) {
         return this.__valueHandler(opt, 'right', undefined, true)
     }
-    padding(opt?: number[] | number): number[] {
+    padding(opt?: number[] | RelativeType): number[] {
         const padding = this.__valueHandler(opt, 'padding', [])
         if (typeof padding === 'number') {
             this.paddingTop(padding)
@@ -1597,28 +1603,34 @@ export class Block<T = IBlockOptions> extends Node {
             this.paddingRight(padding)
             return padding
         }
-        this.paddingTop(padding[0] || 0)
+        if (padding[0] !== undefined) this.paddingTop(padding[0] || 0)
 
         switch (padding.length) {
             case 1:
+                if (padding[0] !== undefined) {
                 this.paddingBottom(padding[0])
                 this.paddingLeft(padding[0])
                 this.paddingRight(padding[0])
+                }
                 break
             case 2:
-                this.paddingBottom(padding[0])
+                if (padding[0] !== undefined) this.paddingBottom(padding[0])
+                if (padding[1] !== undefined) {
                 this.paddingLeft(padding[1])
                 this.paddingRight(padding[1])
+                }
                 break
             case 3:
+                if (padding[1] !== undefined) {
                 this.paddingLeft(padding[1])
                 this.paddingRight(padding[1])
-                this.paddingBottom(padding[2])
+                }
+                if (padding[2] !== undefined) this.paddingBottom(padding[2])
                 break
             case 4:
-                this.paddingRight(padding[1])
-                this.paddingBottom(padding[2])
-                this.paddingLeft(padding[3])
+                if (padding[1] !== undefined) this.paddingRight(padding[1])
+                if (padding[2] !== undefined) this.paddingBottom(padding[2])
+                if (padding[3] !== undefined) this.paddingLeft(padding[3])
                 break
         }
         return padding
@@ -1635,29 +1647,42 @@ export class Block<T = IBlockOptions> extends Node {
     paddingRight(opt?: RelativeType) {
         return this.__valueHandler(opt, 'paddingRight', 0, true)
     }
-    margin(opt?: number[]): number[] {
+    margin(opt?: number[] | RelativeType): number[] {
         const margin = this.__valueHandler(opt, 'margin', [])
-        this.marginTop(margin[0] || 0)
+        if (typeof margin === 'number') {
+            this.marginTop(margin)
+            this.marginBottom(margin)
+            this.marginLeft(margin)
+            this.marginRight(margin)
+            return margin
+        }
+        if (margin[0] !== undefined) this.marginTop(margin[0])
         switch (margin.length) {
             case 1:
+                if (margin[0] !== undefined) {
                 this.marginBottom(margin[0])
                 this.marginLeft(margin[0])
                 this.marginRight(margin[0])
+                }
                 break
             case 2:
-                this.marginBottom(margin[0])
+                if (margin[0] !== undefined) this.marginBottom(margin[0])
+                if (margin[1] !== undefined) {
                 this.marginLeft(margin[1])
                 this.marginRight(margin[1])
+                }
                 break
             case 3:
+                if (margin[1] !== undefined) {
                 this.marginLeft(margin[1])
                 this.marginRight(margin[1])
-                this.marginBottom(margin[2])
+                }
+                if (margin[2] !== undefined) this.marginBottom(margin[2])
                 break
             case 4:
-                this.marginRight(margin[1])
-                this.marginBottom(margin[2])
-                this.marginLeft(margin[3])
+                if (margin[1] !== undefined) this.marginRight(margin[1])
+                if (margin[2] !== undefined) this.marginBottom(margin[2])
+                if (margin[3] !== undefined) this.marginLeft(margin[3])
                 break
         }
         return margin
@@ -2566,7 +2591,11 @@ export class Block<T = IBlockOptions> extends Node {
         this.height(this.height() * scale)
     }
     __translate(t: { x: number; y: number }) {
-        if (this.ownOptions.position === 'fixed' || this.ownOptions.position === "sticky") return
+        if (
+            this.ownOptions.position === 'fixed' ||
+            this.ownOptions.position === 'sticky'
+        )
+            return
         this.x(this.x() + t.x)
         this.y(this.y() + t.y)
         if (
