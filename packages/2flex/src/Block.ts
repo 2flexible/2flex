@@ -2931,7 +2931,7 @@ export class Block<T = IBlockOptions> extends Node {
                     (anime.direction == 'alternate' ||
                         anime.direction == 'alternate-reverse')
                 ) {
-                    anime.startTime = timestamp + anime.delay
+                    anime.startTime = timestamp
                 }
                 if (callback) callback(timestamp, easing)
 
@@ -3082,7 +3082,7 @@ export class Block<T = IBlockOptions> extends Node {
                                 valueT.iterDirection *= -1
                             }
                         }
-                        anime.startTime = timestamp + anime.delay
+                        anime.startTime = timestamp
                         valueT.currentIdx = currentIdx
                     }
 
