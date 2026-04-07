@@ -2926,6 +2926,13 @@ export class Block<T = IBlockOptions> extends Node {
                     clamp((timestamp - anime.startTime) / anime.duration, 0, 1),
                     1 / anime.duration
                 )
+                if (
+                    easing === 1 &&
+                    (anime.direction == 'alternate' ||
+                        anime.direction == 'alternate-reverse')
+                ) {
+                    anime.startTime = timestamp + anime.delay
+                }
                 if (callback) callback(timestamp, easing)
 
                 for (let [idx, [key, value]] of Object.entries(
