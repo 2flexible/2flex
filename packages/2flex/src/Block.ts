@@ -714,14 +714,16 @@ export class Block<T = IBlockOptions> extends Node {
                     cornerLeftX +
                     this.__overflowCords.x +
                     pMarginLeft +
-                    pPaddingLeft
+                    pPaddingLeft +
+                    b.marginLeft()
                 const y =
                     initY +
                     cornerTopY +
                     this.__overflowCords.y +
                     pMarginTop +
-                    pPaddingTop
-
+                    pPaddingTop +
+                    b.marginTop()
+                console.log(this.marginTop())
                 let width: number | undefined, height: number | undefined
 
                 z += 1
@@ -1637,27 +1639,33 @@ export class Block<T = IBlockOptions> extends Node {
     }
     margin(opt?: number[]): number[] {
         const margin = this.__valueHandler(opt, 'margin', [])
-        this.marginTop(margin[0] || 0)
+        if (margin[0] !== undefined) this.marginTop(margin[0])
         switch (margin.length) {
             case 1:
+                if (margin[0] !== undefined) {
                 this.marginBottom(margin[0])
                 this.marginLeft(margin[0])
                 this.marginRight(margin[0])
+                }
                 break
             case 2:
-                this.marginBottom(margin[0])
+                if (margin[0] !== undefined) this.marginBottom(margin[0])
+                if (margin[1] !== undefined) {
                 this.marginLeft(margin[1])
                 this.marginRight(margin[1])
+                }
                 break
             case 3:
+                if (margin[1] !== undefined) {
                 this.marginLeft(margin[1])
                 this.marginRight(margin[1])
-                this.marginBottom(margin[2])
+                }
+                if (margin[2] !== undefined) this.marginBottom(margin[2])
                 break
             case 4:
-                this.marginRight(margin[1])
-                this.marginBottom(margin[2])
-                this.marginLeft(margin[3])
+                if (margin[1] !== undefined) this.marginRight(margin[1])
+                if (margin[2] !== undefined) this.marginBottom(margin[2])
+                if (margin[3] !== undefined) this.marginLeft(margin[3])
                 break
         }
         return margin
