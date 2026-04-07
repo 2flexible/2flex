@@ -1256,12 +1256,12 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     get parentWidth(): number {
-        if (this.#hasParentBlock) return this.parentNode?.width() || 1
+        if (this.#hasParentBlock) return this.parentNode?.width?.() || 1
         return this.canvas?.width || 1
     }
 
     get parentHeight(): number {
-        if (this.#hasParentBlock) return this.parentNode?.height() || 1
+        if (this.#hasParentBlock) return this.parentNode?.height?.() || 1
         return this.canvas?.height || 1
     }
 
@@ -2591,7 +2591,11 @@ export class Block<T = IBlockOptions> extends Node {
         this.height(this.height() * scale)
     }
     __translate(t: { x: number; y: number }) {
-        if (this.ownOptions.position === 'fixed' || this.ownOptions.position === "sticky") return
+        if (
+            this.ownOptions.position === 'fixed' ||
+            this.ownOptions.position === 'sticky'
+        )
+            return
         this.x(this.x() + t.x)
         this.y(this.y() + t.y)
         if (
