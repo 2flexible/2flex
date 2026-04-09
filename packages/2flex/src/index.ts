@@ -37,7 +37,6 @@ import {
     hexToRgba,
     hslToRgba,
     colorToRgba,
-    rgbaToArray,
     inRange,
 } from './Utils'
 export {
@@ -77,6 +76,5 @@ export {
     hexToRgba,
     hslToRgba,
     colorToRgba,
-    rgbaToArray,
     inRange,
 }
