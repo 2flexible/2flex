@@ -168,6 +168,7 @@ interface Pattern {
 export type DrawFunc = (context: CanvasRenderingContext2D) => void
 
 export type DropShadow = [RelativeType, RelativeType, RelativeType, FillStyle][]
+
 export interface IShapeOptions {
     fill?: Fill
     fillStyle?: FillStyle
@@ -211,6 +212,7 @@ export interface IShapeOptions {
     hueRotate?: RelativeType
     saturate?: RelativeType
     sepia?: RelativeType
+
     shadowBlur?: RelativeType
     shadowColor?: string
     shadowOffsetX?: RelativeType
@@ -226,7 +228,7 @@ export interface IShapeOptions {
     wordSpacing?: string
     letterSpacing?: string
     direction?: CanvasDirection
-    textAlign: CanvasTextAlign
+    textAlign?: CanvasTextAlign
 
     clip?: Clip
 
@@ -334,7 +336,7 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
             'fill',
             undefined
         )
-        if (fill) {
+        if (fill && fill.fill) {
             const fillRule = (fill.fillRule || 'nonzero') as CanvasFillRule
             if (fill.path) this.context?.fill(fill.path, fillRule)
             else this.context?.fill(fillRule)
@@ -411,7 +413,7 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
             'stroke',
             undefined
         )
-        if (stroke) {
+        if (stroke && stroke.stroke) {
             if (stroke.path) this.context?.stroke(stroke.path)
             else this.context?.stroke()
         }

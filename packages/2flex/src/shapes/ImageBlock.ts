@@ -1,18 +1,17 @@
 import type { IBlock } from '../types'
 import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import { RelativeType } from '../Block'
 
 type ObjectFit = 'contain' | 'cover' | 'fill'
 type Repeat = number | 'fill'
 type ImageSource = string | HTMLImageElement
 
 interface ImageOptions extends IShapeOptions {
-    clipX?: number
-    clipY?: number
-    clipWidth?: number
-    clipHeight?: number
+    clipX?: RelativeType
+    clipY?: RelativeType
+    clipWidth?: RelativeType
+    clipHeight?: RelativeType
     objectFit?: ObjectFit
-    smoothing?: boolean
-    smoothingQuality?: ImageSmoothingQuality
     repeatX?: Repeat
     repeatY?: Repeat
 }
@@ -128,32 +127,22 @@ export class ImageBlock extends ShapeBlock<ImageOptions> {
         return this.repeatX() !== undefined || this.repeatY() !== undefined
     }
 
-    smoothing(opt?: boolean) {
-        const enabled = this.__valueHandler(opt, 'smoothing', false)
-        this.imageSmoothingEnabled(enabled)
-        return enabled
-    }
-    smoothingQuality(opt?: ImageSmoothingQuality) {
-        const quality = this.__valueHandler(opt, 'smoothingQuality', 'low')
-        this.imageSmoothingQuality(quality)
-        return quality
-    }
     repeatX(opt?: Repeat) {
         return this.__valueHandler(opt, 'repeatX', undefined)
     }
     repeatY(opt?: Repeat) {
         return this.__valueHandler(opt, 'repeatY', undefined)
     }
-    clipX(opt?: number) {
+    clipX(opt?: RelativeType) {
         return this.__valueHandler(opt, 'clipX', 0)
     }
-    clipY(opt?: number) {
+    clipY(opt?: RelativeType) {
         return this.__valueHandler(opt, 'clipY', 0)
     }
-    clipWidth(opt?: number) {
+    clipWidth(opt?: RelativeType) {
         return this.__valueHandler(opt, 'clipWidth', this.width())
     }
-    clipHeight(opt?: number) {
+    clipHeight(opt?: RelativeType) {
         return this.__valueHandler(opt, 'clipHeight', this.height())
     }
     objectFit(opt?: ObjectFit) {

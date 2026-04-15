@@ -1,18 +1,22 @@
 import { RelativeType } from '../Block'
 import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import type { FillStyle } from '../ShapeBlock'
 import type { IBlock } from '../types'
+
 export type BorderStyle = 'solid' | 'dotted'
-export type CircleBorder = [string | number, BorderStyle, string] | string
+export type BorderWidth = RelativeType
+export type BorderColor = string
+export type CircleBorder = [BorderWidth, BorderStyle, BorderColor]
 
 interface ICircleOptions extends IShapeOptions {
-    startAngle?: number
-    endAngle?: number
-    backgroundColor?: number
-    border?: string
+    startAngle?: RelativeType
+    endAngle?: RelativeType
+    innerRadius?: RelativeType
+    backgroundColor?: FillStyle
+    border?: CircleBorder | string
     borderStyle?: BorderStyle
-    borderWidth?: number
-    borderColor?: string
-    innerRadius?: number
+    borderWidth?: BorderWidth
+    borderColor?: BorderColor
 }
 
 export class CircleBlock extends ShapeBlock<ICircleOptions> {
@@ -56,7 +60,7 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
                 true
             )
         this.fillStyle('transparent')
-        this.fill(true)
+        this.fill({fill: true})
     }
 
     get #isAngleEmpty() {
@@ -65,23 +69,25 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         return false
     }
 
-    innerRadius(opt?: number) {
+    innerRadius(opt?: RelativeType) {
         return this.__valueHandler(opt, 'innerRadius', 0)
     }
-    startAngle(opt?: number) {
+    startAngle(opt?: RelativeType) {
         return this.__valueHandler(opt, 'startAngle', 0)
     }
-    endAngle(opt?: number) {
+    endAngle(opt?: RelativeType) {
         return this.__valueHandler(opt, 'endAngle', Math.PI * 2)
     }
     backgroundColor(opt?: string) {
         const backgroundColor = this.__valueHandler(
             opt,
             'backgroundColor',
-            'black'
+            undefined
         )
-        super.fillStyle(backgroundColor)
-        this.fill(true)
+        if (backgroundColor) {
+            super.fillStyle(backgroundColor)
+            this.fill({fill: true})
+        }
         return backgroundColor
     }
     borderWidth(opt?: RelativeType) {
@@ -98,17 +104,14 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         return this.__valueHandler(opt, 'borderStyle', 'solid')
     }
 
-    border(opt?: CircleBorder) {
+    border(opt?: CircleBorder | string) {
         if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const border = this.__valueHandler<
-            CircleBorder | undefined,
-            CircleBorder | undefined
-        >(opt, 'border', undefined)
+        const border = this.__valueHandler(opt, 'border', undefined)
         if (border) {
             this.borderWidth(border[0])
             this.borderStyle(border[1] as BorderStyle)
             this.borderColor(border[2])
-            this.stroke(true)
+            this.stroke({stroke: true})
         }
         return border
     }

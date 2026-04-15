@@ -1,22 +1,25 @@
+import { RelativeType } from '../Block'
 import { ShapeBlock } from '../ShapeBlock'
 import type { FillStyle, IShapeOptions } from '../ShapeBlock'
 import type { IBlock } from '../types'
 
-export type BorderStyle = 'solid' | 'dotted' | undefined
-export type RectangleBorder = [number, BorderStyle, string]
+export type BorderStyle = 'solid' | 'dotted'
+export type BorderWidth = RelativeType
+export type BorderColor = FillStyle
+export type RectangleBorder = [BorderWidth, BorderStyle, BorderColor]
 
 export interface IRectangleOptions extends IShapeOptions {
-    backgroundColor?: string
+    backgroundColor?: FillStyle
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius?: number[]
     borderStyle?: BorderStyle
-    borderWidth?: number
-    borderColor?: string
-    border?: string
-    borderTop?: string
-    borderBottom?: string
-    borderLeft?: string
-    borderRight?: string
+    borderWidth?: BorderWidth
+    borderColor?: BorderColor
+    border?: RectangleBorder | string
+    borderTop?: RectangleBorder | string
+    borderBottom?: RectangleBorder | string
+    borderLeft?: RectangleBorder | string
+    borderRight?: RectangleBorder | string
 }
 
 export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
@@ -44,33 +47,40 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         this.rotate(cacheR)
     }
     borderRadius(opt?: number[] | number): number[] {
-        const radius = this.__valueHandler(opt, 'borderRadius', [0, 0, 0, 0])
+        const radius = this.__valueHandler<
+            number[] | number,
+            number[] | number
+        >(opt, 'borderRadius', 0)
         if (typeof radius === 'number') {
             return [radius, radius, radius, radius]
+        } else if (radius instanceof Array) {
+            let defRadius: number[] = radius
+            switch (radius.length) {
+                case 1:
+                    defRadius = [radius[0], radius[0], radius[0], radius[0]]
+                    break
+                case 2:
+                    defRadius = [radius[0], radius[0], radius[1], radius[1]]
+                    break
+                case 3:
+                    defRadius = [radius[0], radius[0], radius[1], radius[2]]
+                    break
+            }
+            return defRadius
         }
-        let defRadius: number[] = radius
-        switch (radius.length) {
-            case 1:
-                defRadius = [radius[0], radius[0], radius[0], radius[0]]
-                break
-            case 2:
-                defRadius = [radius[0], radius[0], radius[1], radius[1]]
-                break
-            case 3:
-                defRadius = [radius[0], radius[0], radius[1], radius[2]]
-                break
-        }
-        return defRadius
+        return radius
     }
 
     backgroundColor(opt?: FillStyle) {
-        const bg = this.__valueHandler(opt, 'backgroundColor', 'black')
-        super.fillStyle(bg)
-        this.fill(true)
+        const bg = this.__valueHandler(opt, 'backgroundColor', undefined)
+        if (bg) {
+            super.fillStyle(bg)
+            this.fill({ fill: true })
+        }
         return bg
     }
 
-    border(opt?: RectangleBorder) {
+    border(opt?: RectangleBorder | string) {
         if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const border = this.__valueHandler(opt, 'border', undefined)
         if (border) {
@@ -78,24 +88,24 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
             if (this.borderStyle() === 'dotted') {
                 this.lineDash(borderStyleArrWidth)
             }
-            this.stroke(true)
+            this.stroke({ stroke: true })
         }
         return border
     }
-    borderWidth(opt?: number) {
-        const borderWidth = this.__valueHandler(opt, 'borderWidth', undefined)
+    borderWidth(opt?: RelativeType) {
+        const borderWidth = this.__valueHandler(opt, 'borderWidth', 0)
         super.lineWidth(borderWidth)
         return borderWidth
     }
-    borderColor(opt?: string) {
-        const borderColor = this.__valueHandler(opt, 'borderColor', undefined)
+    borderColor(opt?: FillStyle) {
+        const borderColor = this.__valueHandler(opt, 'borderColor', 'black')
         super.strokeStyle(borderColor)
         return borderColor
     }
     borderStyle(opt?: BorderStyle): BorderStyle {
-        return this.__valueHandler(opt, 'borderStyle', undefined)
+        return this.__valueHandler(opt, 'borderStyle', 'solid')
     }
-    borderTop(opt?: RectangleBorder) {
+    borderTop(opt?: RectangleBorder | string) {
         if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const borderTop = this.__valueHandler(opt, 'borderTop', undefined)
         if (borderTop) {
@@ -114,12 +124,12 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
                     0,
                 ])
             }
-            this.stroke(true)
+            this.stroke({ stroke: true })
         }
         return borderTop
     }
 
-    borderRight(opt?: RectangleBorder) {
+    borderRight(opt?: RectangleBorder | string) {
         if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const borderRight = this.__valueHandler(opt, 'borderRight', undefined)
         if (borderRight) {
@@ -141,11 +151,11 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
                     this.getRealWidth + this.getRealHeight,
                 ])
             }
-            this.stroke(true)
+            this.stroke({ stroke: true })
         }
         return borderRight
     }
-    borderBottom(opt?: RectangleBorder) {
+    borderBottom(opt?: RectangleBorder | string) {
         if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const borderBottom = this.__valueHandler(opt, 'borderBottom', undefined)
         if (borderBottom) {
@@ -164,11 +174,11 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
                     0,
                 ])
             }
-            this.stroke(true)
+            this.stroke({ stroke: true })
         }
         return borderBottom
     }
-    borderLeft(opt?: RectangleBorder) {
+    borderLeft(opt?: RectangleBorder | string) {
         if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
         const borderLeft = this.__valueHandler(opt, 'borderLeft', undefined)
         if (borderLeft) {
@@ -188,7 +198,7 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
                     this.getRealWidth,
                 ])
             }
-            this.stroke(true)
+            this.stroke({ stroke: true })
         }
         return borderLeft
     }

@@ -3,6 +3,7 @@ import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
 
 interface VideoOptions extends IShapeOptions {
     autoPlay?: boolean
+    onPlay?: (timestamp: number) => void
 }
 
 export class VideoBlock extends ShapeBlock<VideoOptions> {
@@ -44,7 +45,7 @@ export class VideoBlock extends ShapeBlock<VideoOptions> {
             if (!this.#cacheVideo) return
             if (this.isPlaying) this.onPlay()(timestamp)
         }
-        this.__animationHandler(videoPlayAnimator)
+        this.animationHandler(videoPlayAnimator)
     }
     source(opt?: HTMLVideoElement) {
         return this.__valueHandler(opt, 'source', undefined)
@@ -68,7 +69,7 @@ export class VideoBlock extends ShapeBlock<VideoOptions> {
     get isPaused() {
         return this.#events.isPaused
     }
-    onPlay(func?: (timestamp: number) => undefined) {
+    onPlay(func?: (timestamp: number) => void) {
         const onPlay = this.__valueHandler<
             (timestamp: number) => void,
             ((timestamp: number) => void) | undefined

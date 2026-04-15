@@ -20,7 +20,7 @@ export class Node {
         this.#sortedBy = undefined
     }
 
-    listAllChilds<T>(_func: (element: T) => void) {
+    listAllChilds<T>(_func: (node: T) => void) {
         const Q: Node[] = [this]
         while (Q.length > 0) {
             let current: Node | undefined = Q.shift()
@@ -30,7 +30,7 @@ export class Node {
     }
 
     listOnlyChilds<B>(
-        _func: (element: B, currIdx: number, arrLen: number) => void,
+        _func: (node: B, currIdx: number, arrLen: number) => void,
         sort?: string,
         nodes?: Node[]
     ) {

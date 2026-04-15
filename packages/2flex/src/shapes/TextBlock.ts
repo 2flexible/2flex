@@ -1,11 +1,11 @@
-import { BlockPayload } from '../Block'
+import { BlockPayload, RelativeType } from '../Block'
 import { ShapeBlock } from '../ShapeBlock'
 import type {
     FontStyle,
     FontVariant,
     FontWeight,
     IShapeOptions,
-    strokeStyle,
+    StrokeStyle,
 } from '../ShapeBlock'
 import type { IBlock } from '../types'
 import { inRange } from '../Utils'
@@ -18,7 +18,10 @@ export interface ITextOptions extends IShapeOptions {
     strokeWidth?: number
     strokeColor?: string
     fontFamily?: string
-    fontSize?: number | string
+    fontSize?: RelativeType
+    fontWeight?: FontWeight
+    fontStyle?: FontStyle
+    fontVariant?: FontVariant
     editable?: boolean
     resizeLineHeight?: boolean
     wrap?: Wrap
@@ -71,7 +74,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
     draw(_func?: (context: CanvasRenderingContext2D) => void): void {
         const cacheR = this.rotate()
         this.rotate(0)
-        super.font(this.#format_font)
+        super.font(this.#formatFont)
         this.#updateText?.()
         this.#updateText = undefined
 
@@ -149,7 +152,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         }
     }
 
-    get #format_font() {
+    get #formatFont() {
         return `${this.fontStyle()} ${this.fontVariant()} ${this.fontWeight()} ${this.fontSize()}px ${this.fontFamily()}`
     }
     #wrapText(): Text[] {
@@ -485,15 +488,15 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         const color = this.__valueHandler(opt, 'color', undefined)
         if (color) {
             super.fillStyle(color)
-            super.fill(true)
+            super.fill({ fill: true })
         }
         return color
     }
-    strokeColor(opt?: strokeStyle) {
+    strokeColor(opt?: StrokeStyle) {
         const strokeColor = this.__valueHandler(opt, 'strokeColor', undefined)
         if (strokeColor) {
             super.strokeStyle(strokeColor)
-            this.stroke(true)
+            this.stroke({ stroke: true })
         }
         return strokeColor
     }

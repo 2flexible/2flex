@@ -37,6 +37,7 @@ import type {
     StepsEasing,
     CustomEvent,
     inOut,
+    XY,
 } from './types'
 
 export type Easing =
@@ -80,11 +81,10 @@ export type JustifySelf =
     | 'right'
 export type FlexGrow = number
 export type FlexShrink = number
-export type FlexBasis = RelativeType
+export type FlexBasis = RelativeType | 'auto'
 export type Flex = [FlexGrow, FlexShrink, FlexBasis]
 export type PlaceSelf = AlignSelf & JustifySelf
 export type Position = 'relative' | 'absolute' | 'sticky' | 'fixed'
-export type XY = { x: number; y: number }
 
 export interface HotCornerArea {
     topLeft: XY
@@ -149,21 +149,21 @@ export interface IBlockOptions {
     rotate?: number
     onRotate?: (event: MouseEvent) => void
     order?: number
-    alignSelf?: AlignSelf
-    justifySelf?: JustifySelf
-    flexShrink?: FlexShrink
+    // alignSelf?: AlignSelf
+    // justifySelf?: JustifySelf
+    // flexShrink?: FlexShrink
     flexBasis?: FlexBasis
-    flexGrow?: FlexGrow
+    // flexGrow?: FlexGrow
     // grid-row: grid-row-start / grid-row-end;
-    gridRow?: number[]
-    gridRowStart?: number
-    gridRowEnd?: number
+    // gridRow?: number[]
+    // gridRowStart?: number
+    // gridRowEnd?: number
     // grid-column: grid-column-start / grid-column-end
-    gridColumn?: number[]
-    gridColumnStart?: number
-    gridColumnEnd?: number
+    // gridColumn?: number[]
+    // gridColumnStart?: number
+    // gridColumnEnd?: number
     // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end | itemname
-    gridArea?: number[]
+    // gridArea?: number[]
     hotAreaGap?: number
     hotCornerSize?: number
     hotCornerRadius?: number
@@ -373,7 +373,7 @@ export class Block<T = IBlockOptions> extends Node {
         this.setChangeCache('setInBound', false)
     }
 
-    get context(): CanvasRenderingContext2D | undefined {
+    get context(): CanvasRenderingContext2D | undefined | null {
         return this.canvas?.context
     }
 
@@ -1608,22 +1608,22 @@ export class Block<T = IBlockOptions> extends Node {
         switch (padding.length) {
             case 1:
                 if (padding[0] !== undefined) {
-                this.paddingBottom(padding[0])
-                this.paddingLeft(padding[0])
-                this.paddingRight(padding[0])
+                    this.paddingBottom(padding[0])
+                    this.paddingLeft(padding[0])
+                    this.paddingRight(padding[0])
                 }
                 break
             case 2:
                 if (padding[0] !== undefined) this.paddingBottom(padding[0])
                 if (padding[1] !== undefined) {
-                this.paddingLeft(padding[1])
-                this.paddingRight(padding[1])
+                    this.paddingLeft(padding[1])
+                    this.paddingRight(padding[1])
                 }
                 break
             case 3:
                 if (padding[1] !== undefined) {
-                this.paddingLeft(padding[1])
-                this.paddingRight(padding[1])
+                    this.paddingLeft(padding[1])
+                    this.paddingRight(padding[1])
                 }
                 if (padding[2] !== undefined) this.paddingBottom(padding[2])
                 break
@@ -1660,22 +1660,22 @@ export class Block<T = IBlockOptions> extends Node {
         switch (margin.length) {
             case 1:
                 if (margin[0] !== undefined) {
-                this.marginBottom(margin[0])
-                this.marginLeft(margin[0])
-                this.marginRight(margin[0])
+                    this.marginBottom(margin[0])
+                    this.marginLeft(margin[0])
+                    this.marginRight(margin[0])
                 }
                 break
             case 2:
                 if (margin[0] !== undefined) this.marginBottom(margin[0])
                 if (margin[1] !== undefined) {
-                this.marginLeft(margin[1])
-                this.marginRight(margin[1])
+                    this.marginLeft(margin[1])
+                    this.marginRight(margin[1])
                 }
                 break
             case 3:
                 if (margin[1] !== undefined) {
-                this.marginLeft(margin[1])
-                this.marginRight(margin[1])
+                    this.marginLeft(margin[1])
+                    this.marginRight(margin[1])
                 }
                 if (margin[2] !== undefined) this.marginBottom(margin[2])
                 break
@@ -2951,7 +2951,7 @@ export class Block<T = IBlockOptions> extends Node {
                     if (anime.onFinish) anime.onFinish()
                 }
 
-                const easing = this.easingHanndler(anime.easing)(
+                const easing = this.#easingHanndler(anime.easing)(
                     clamp((timestamp - anime.startTime) / anime.duration, 0, 1),
                     1 / anime.duration
                 )
@@ -3133,13 +3133,14 @@ export class Block<T = IBlockOptions> extends Node {
                     anime.currentOptIdx = 0
             }
         }
-        this.__animationHandler(animator)
+        this.animationHandler(animator)
         return animationId
     }
 
-    __animationHandler(animator: Animator) {
-        if (!this.canvas) this.__animations.push(animator)
-        else this.canvas.registerAnimation(String(this.nodeId), animator)
+    animationHandler(animator: Animator) {
+        if (this.nodeId)
+            if (!this.canvas) this.__animations.push(animator)
+            else this.canvas.registerAnimation(this.nodeId, animator)
     }
 
     animationStart(animationId: AnimationId) {
@@ -3195,7 +3196,7 @@ export class Block<T = IBlockOptions> extends Node {
         this.#keyframeIterations[animationId]['autoStart'] = value
     }
 
-    easingHanndler(easing: Easing): (t: number, duration: number) => number {
+    #easingHanndler(easing: Easing): (t: number, duration: number) => number {
         if (easing === 'linear') return linear(0, 1)
         else if (easing == 'step-start') return steps(1, 'jump-start')
         else if (easing == 'step-end') return steps(1, 'jump-end')
@@ -3206,8 +3207,8 @@ export class Block<T = IBlockOptions> extends Node {
         else return easing
     }
 
-    checkInBound(_event: any): boolean {
-        const { x, y } = this.canvas?.getCursorPosition(_event) || {
+    checkInBound(event: MouseEvent): boolean {
+        const { x, y } = this.canvas?.getCursorPosition(event) || {
             x: 0,
             y: 0,
         }
@@ -3285,7 +3286,8 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     get ImFirst() {
-        return this.canvas?.whoIsTheFirst(this.zIndex())
+        const zIndex = this.zIndex()
+        if (zIndex !== undefined) return this.canvas?.whoIsTheFirst(zIndex)
     }
 
     invokeChange() {
@@ -3492,7 +3494,7 @@ export class Block<T = IBlockOptions> extends Node {
 
     eventHandler<E extends Event>(
         type: string,
-        _func: CustomEvent<E>,
+        func: CustomEvent<E>,
         identify?: string
     ) {
         if (!this.__events[type])
@@ -3502,8 +3504,8 @@ export class Block<T = IBlockOptions> extends Node {
             else this.__events[type]['identified'].push(identify)
         }
         if (this.canvas)
-            this.canvas?.registerEvent(type, _func as CustomEvent<Event>)
-        else this.__events[type]['funcs'].push(_func)
+            this.canvas?.registerEvent(type, func as CustomEvent<Event>)
+        else this.__events[type]['funcs'].push(func)
     }
     selectable(opt?: boolean): boolean {
         const selectable = this.__valueHandler(opt, 'selectable', false)

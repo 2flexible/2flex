@@ -3,8 +3,10 @@ import type { IBlockOptions } from './Block'
 export type IBlock<T> = IBlockOptions & T
 
 export type ICssProperties = {
-    [key in keyof CSSStyleDeclaration]: CSSStyleDeclaration[key]
+    [key in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[key]
 }
+
+export type XY = { x: number; y: number }
 
 export type RGBA = [number, number, number, number]
 

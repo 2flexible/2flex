@@ -1,10 +1,10 @@
-import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import { FillStyle, IShapeOptions, ShapeBlock } from '../ShapeBlock'
 import type { Block, RelativeType } from '../Block'
 import type { IBlock } from '../types'
 import { checkInBound, cubicBezier, getPrototype } from '../Utils'
 
 interface StickyLine {
-    block?: Block
+    block: Block
     x: number
     y: number
 }
@@ -12,25 +12,24 @@ interface StickyLine {
 type LineType = 'line' | 'cubicBezier'
 
 interface ILineOptions extends IShapeOptions {
-    lineType: LineType
-    startX?: number
-    startY?: number
-    endX?: number
-    endY?: number
-    startControlX?: number
-    startControlY?: number
-    endControlX?: number
-    endControlY?: number
+    lineType?: LineType
+    startX?: RelativeType
+    startY?: RelativeType
+    endX?: RelativeType
+    endY?: RelativeType
+    startControlX?: RelativeType
+    startControlY?: RelativeType
+    endControlX?: RelativeType
+    endControlY?: RelativeType
     startDraggable?: boolean
     endDraggable?: boolean
     startControllable?: boolean
     endControllable?: boolean
-    lineWidth?: number
-    lineColor?: string
-    backgroundColor?: string
+    lineColor?: FillStyle
+    backgroundColor?: FillStyle
     closeLine?: boolean
     joinTo?: LineBlock
-    controlPointsSize?: number
+    controlPointsSize?: RelativeType
     editable?: boolean
     stickStart?: StickyLine
     stickEnd?: StickyLine
@@ -199,7 +198,6 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         this.context.fillStyle = 'white'
         this.context.stroke(this.pathC4)
         this.context.fill(this.pathC4)
-
         if (this.startControllable() && this.lineType() === 'cubicBezier') {
             this.beginPath()
             this.context.moveTo(this.startX(), this.startY())
@@ -242,12 +240,13 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         this.context?.restore()
     }
 
-    checkInBound(_event: MouseEvent): boolean {
-        const { x, y } = this.canvas?.getCursorPosition(_event) || {
+    checkInBound(event: MouseEvent): boolean {
+        const { x, y } = this.canvas?.getCursorPosition(event) || {
             x: 0,
             y: 0,
         }
-        let inBound = false
+
+        let inBound
         this.lineWidth()
         if (!this.__runningEvents.selected) {
             inBound = this.#pathInBound(x, y, this.path!)
@@ -267,7 +266,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         }
         if (inBound) this.canvas?.registerZIndex({ in: this.zIndex() })
         else this.canvas?.registerZIndex({ out: this.zIndex() })
-        return inBound
+        return inBound || false
     }
 
     lineType(opt?: LineType) {
@@ -366,12 +365,12 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         return h
     }
 
-    startX(opt?: number) {
+    startX(opt?: RelativeType) {
         const cacheX = this.__unitConverter<RelativeType, number>({
             val: this.ownOptions.startX || 0,
             widthRelated: false,
         })
-        let x = this.__valueHandler<number, number | undefined>(
+        let x = this.__valueHandler<RelativeType, number | undefined>(
             opt,
             'startX',
             undefined
@@ -382,12 +381,12 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             this.startControlX(this.startControlX() + diffX)
         return x
     }
-    startY(opt?: number) {
+    startY(opt?: RelativeType) {
         const cacheY = this.__unitConverter<RelativeType, number>({
             val: this.ownOptions.startY || 0,
             widthRelated: false,
         })
-        let y = this.__valueHandler<number, number | undefined>(
+        let y = this.__valueHandler<RelativeType, number | undefined>(
             opt,
             'startY',
             undefined
@@ -398,12 +397,12 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             this.startControlY(this.startControlY() + diffY)
         return y
     }
-    endX(opt?: number) {
+    endX(opt?: RelativeType) {
         const cacheX = this.__unitConverter<RelativeType, number>({
             val: this.ownOptions.endX || 0,
             widthRelated: false,
         })
-        let x = this.__valueHandler<number, number | undefined>(
+        let x = this.__valueHandler<RelativeType, number | undefined>(
             opt,
             'endX',
             undefined
@@ -414,12 +413,12 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             this.endControlX(this.endControlX() + diffX)
         return x
     }
-    endY(opt?: number) {
+    endY(opt?: RelativeType) {
         const cacheY = this.__unitConverter<RelativeType, number>({
             val: this.ownOptions.endY || 0,
             widthRelated: false,
         })
-        let y = this.__valueHandler<number, number | undefined>(
+        let y = this.__valueHandler<RelativeType, number | undefined>(
             opt,
             'endY',
             undefined
@@ -430,39 +429,31 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             this.endControlY(this.endControlY() + diffY)
         return y
     }
-    startControlX(opt?: number) {
-        const x = this.__valueHandler(opt, 'startControlX', undefined)
+    startControlX(opt?: RelativeType) {
+        const x = this.__valueHandler(opt, 'startControlX', undefined, true)
         if (x === undefined) return this.startX()
         return x
     }
-    startControlY(opt?: number) {
-        const y = this.__valueHandler(opt, 'startControlY', undefined)
+    startControlY(opt?: RelativeType) {
+        const y = this.__valueHandler(opt, 'startControlY', undefined, false)
         if (y === undefined) return this.startY()
         return y
     }
-    endControlX(opt?: number) {
-        const x = this.__valueHandler(opt, 'endControlX', undefined)
+    endControlX(opt?: RelativeType) {
+        const x = this.__valueHandler(opt, 'endControlX', undefined, true)
         if (x === undefined) return this.endX()
         return x
     }
-    endControlY(opt?: number) {
-        const y = this.__valueHandler(opt, 'endControlY', undefined)
+    endControlY(opt?: RelativeType) {
+        const y = this.__valueHandler(opt, 'endControlY', undefined, false)
         if (y === undefined) return this.endY()
         return y
     }
-    stickStart(opt?: StickyLine): StickyLine {
-        return this.__valueHandler(opt, 'stickStart', {
-            block: undefined,
-            x: 0,
-            y: 0,
-        })
+    stickStart(opt?: StickyLine): StickyLine | undefined {
+        return this.__valueHandler(opt, 'stickStart', undefined)
     }
-    stickEnd(opt?: StickyLine): StickyLine {
-        return this.__valueHandler(opt, 'stickEnd', {
-            block: undefined,
-            x: 0,
-            y: 0,
-        })
+    stickEnd(opt?: StickyLine): StickyLine | undefined {
+        return this.__valueHandler(opt, 'stickEnd', undefined)
     }
     startDraggable(opt?: boolean) {
         const draggable = this.__valueHandler(opt, 'startDraggable', false)
@@ -505,8 +496,8 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         return draggable
     }
 
-    controlPointsSize(opt?: number) {
-        return this.__valueHandler(opt, 'controlPointsSize', 4)
+    controlPointsSize(opt?: RelativeType) {
+        return this.__valueHandler(opt, 'controlPointsSize', 5)
     }
 
     editable(opt?: boolean) {
@@ -549,6 +540,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             ) {
                 join.__editable = !editable
             }
+            this.invokeChange()
         }
         this.eventHandler<MouseEvent>('click', click, 'editableClick')
         this.eventHandler<MouseEvent>('dblclick', dblclick, 'editableDlclick')
@@ -576,6 +568,7 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         const callY = getPrototype(this, yPoint)
 
         const mousedown = (event: MouseEvent) => {
+            if (!this.__editable) return
             isRunning = false
             const pointPaths: { [key: string]: Path2D } = {
                 pathC1: this.pathC1!,
@@ -606,8 +599,11 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
                 if (this.joinTo() !== undefined)
                     this.joinTo()!.__runningEvents.drag = false
                 this.canvas?.registerZIndex({ in: this.zIndex() })
-                if (this.canvas?.whoIsTheFirst(this.zIndex())) {
-                    const { x, y } = this.canvas?.getCursorPosition(event)
+                if (this.ImFirst) {
+                    const { x, y } = this.canvas?.getCursorPosition(event) || {
+                        x: 0,
+                        y: 0,
+                    }
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
                     if (diffX !== 0) {
@@ -643,62 +639,58 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
     }
 
     #handleSticky() {
-        if (
-            this.stickStart() !== undefined &&
-            this.stickStart().block !== undefined
-        ) {
-            const b = this.stickStart().block
-
+        const stickyStart = this.stickStart()
+        if (stickyStart !== undefined) {
             if (this.__stickyStartBlock.x !== undefined) {
-                this.stickStart().x += b!.x() - this.__stickyStartBlock.x
+                stickyStart.x +=
+                    stickyStart.block.x() - this.__stickyStartBlock.x
             }
             if (this.__stickyStartBlock.y !== undefined) {
-                this.stickStart().y += b!.y() - this.__stickyStartBlock.y
+                stickyStart.y +=
+                    stickyStart.block.y() - this.__stickyStartBlock.y
             }
 
             if (this.__stickyStartBlock.width !== undefined) {
-                this.stickStart().x +=
-                    b!.width() - this.__stickyStartBlock.width
+                stickyStart.x +=
+                    stickyStart.block.width() - this.__stickyStartBlock.width
             }
             if (this.__stickyStartBlock.height !== undefined) {
-                this.stickStart().y +=
-                    b!.height() - this.__stickyStartBlock.height
+                stickyStart.y +=
+                    stickyStart.block.height() - this.__stickyStartBlock.height
             }
-            this.__stickyStartBlock.x = b!.x()
-            this.__stickyStartBlock.y = b!.y()
-            this.__stickyStartBlock.width = b!.width()
-            this.__stickyStartBlock.height = b!.height()
+            this.__stickyStartBlock.x = stickyStart.block.x()
+            this.__stickyStartBlock.y = stickyStart.block.y()
+            this.__stickyStartBlock.width = stickyStart.block.width()
+            this.__stickyStartBlock.height = stickyStart.block.height()
 
-            this.startX(this.stickStart().x)
-            this.startY(this.stickStart().y)
+            this.startX(stickyStart.x)
+            this.startY(stickyStart.y)
         }
 
-        if (
-            this.stickEnd() !== undefined &&
-            this.stickEnd().block !== undefined
-        ) {
-            const b = this.stickEnd().block
+        const stickyEnd = this.stickEnd()
 
+        if (stickyEnd !== undefined) {
             if (this.__stickyEndBlock.x !== undefined) {
-                this.stickEnd().x += b!.x() - this.__stickyEndBlock.x
+                stickyEnd.x += stickyEnd.block.x() - this.__stickyEndBlock.x
             }
             if (this.__stickyEndBlock.y !== undefined) {
-                this.stickEnd().y += b!.y() - this.__stickyEndBlock.y
+                stickyEnd.y += stickyEnd.block.y() - this.__stickyEndBlock.y
             }
-
             if (this.__stickyEndBlock.width !== undefined) {
-                this.stickEnd().x += b!.width() - this.__stickyEndBlock.width
+                stickyEnd.x +=
+                    stickyEnd.block.width() - this.__stickyEndBlock.width
             }
             if (this.__stickyEndBlock.height !== undefined) {
-                this.stickEnd().y += b!.height() - this.__stickyEndBlock.height
+                stickyEnd.y +=
+                    stickyEnd.block.height() - this.__stickyEndBlock.height
             }
-            this.__stickyEndBlock.x = b!.x()
-            this.__stickyEndBlock.y = b!.y()
-            this.__stickyEndBlock.width = b!.width()
-            this.__stickyEndBlock.height = b!.height()
+            this.__stickyEndBlock.x = stickyEnd.block.x()
+            this.__stickyEndBlock.y = stickyEnd.block.y()
+            this.__stickyEndBlock.width = stickyEnd.block.width()
+            this.__stickyEndBlock.height = stickyEnd.block.height()
 
-            this.endX(this.stickEnd().x)
-            this.endY(this.stickEnd().y)
+            this.endX(stickyEnd.x)
+            this.endY(stickyEnd.y)
         }
     }
 
@@ -777,16 +769,16 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
     closeLine(opt?: boolean): boolean {
         return this.__valueHandler(opt, 'closeLine', false)
     }
-    lineColor(opt?: string) {
+    lineColor(opt?: FillStyle) {
         const lineColor = this.__valueHandler(opt, 'lineColor', undefined)
         if (lineColor) {
             super.strokeStyle(lineColor)
-            this.stroke(true)
+            this.stroke({ stroke: true })
         }
 
         return lineColor
     }
-    backgroundColor(opt?: string) {
+    backgroundColor(opt?: FillStyle) {
         const backgroundColor = this.__valueHandler(
             opt,
             'backgroundColor',
@@ -794,13 +786,13 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         )
         if (backgroundColor) {
             super.fillStyle(backgroundColor)
-            this.fill(true)
+            this.fill({ fill: true })
         }
         return backgroundColor
     }
 
     scale(opt?: number): void {
         super.scale(opt)
-        this.lineWidth(this.lineWidth() * (opt || 1))
+        this.lineWidth((this.lineWidth() || 1) * (opt || 1))
     }
 }
