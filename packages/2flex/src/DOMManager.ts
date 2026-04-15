@@ -41,8 +41,8 @@ export class CanvasDOMManager {
         return canvas
     }
 
-    get context(): CanvasRenderingContext2D {
-        return this.canvas.getContext('2d', this.contextParams)!
+    get context(): CanvasRenderingContext2D | null {
+        return this.canvas.getContext('2d', this.contextParams)
     }
 
     get pixelRatio() {
@@ -52,6 +52,7 @@ export class CanvasDOMManager {
     createCanvas() {
         const canvas = document.createElement('canvas') as HTMLCanvasElement
         canvas.id = this.canvasId
+        // need to test this
         canvas.tabIndex = 0
         canvas.width = this.width * this.pixelRatio
         canvas.height = this.height * this.pixelRatio
