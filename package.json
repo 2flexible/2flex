@@ -15,6 +15,8 @@
         "@changesets/cli": "^2.30.0",
         "@types/node": "^24.0.13",
         "@vitest/coverage-v8": "^4.1.2",
+        "canvas": "^3.2.3",
+        "jsdom": "^29.0.2",
         "nx": "22.6.3",
         "premove": "^4.0.0",
         "prettier": "3.8.1",
