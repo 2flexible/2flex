@@ -8,5 +8,6 @@ export default defineConfig({
             include: ['src/**/*'],
             exclude: ['src/test/**'],
         },
+        environment: 'jsdom',
     },
 })
