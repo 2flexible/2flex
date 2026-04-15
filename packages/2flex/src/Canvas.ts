@@ -12,18 +12,19 @@ import type {
 } from './types'
 import { defaultBlocks } from './defaultBlocks'
 
+// Canvas options shouldn't be style properties
 interface CanvasOptions {
     zoomSpeed?: number
     zoomInvSpeed?: number
     moveSpeed?: number
-    zoom?: 'center' | 'point'
+    zoomType?: 'center' | 'point'
     keyboardMovement?: boolean
     mouseMovement?: boolean
     history?: boolean
     historySize?: SnapshotSize
-    x?: number
-    y?: number
-    z?: number
+    positionX?: number
+    positionY?: number
+    positionZ?: number
     fps?: number
 }
 
@@ -65,7 +66,7 @@ export class Canvas {
     height: number
     options?: CanvasOptions & ICssProperties
 
-    #context?: CanvasRenderingContext2D
+    #context: CanvasRenderingContext2D | null
     #htmlCanvas?: HTMLCanvasElement
     #boundingClient?: DOMRect
 
@@ -82,7 +83,7 @@ export class Canvas {
     #reservedAnimation?: number
     #registeredBlocks: any[]
 
-    __positionCords: { x: number; y: number; z: number }
+    currentPosition: { x: number; y: number; z: number }
 
     constructor(
         canvasId?: string,
@@ -94,6 +95,7 @@ export class Canvas {
         this.options = options
         this.width = width || 300
         this.height = height || 300
+        this.#context = null
 
         this.currentCursor = 'auto'
         this.#higherBlockZIndex = 0
@@ -102,20 +104,20 @@ export class Canvas {
         this.#defaultOptions = {
             history: true,
             historySize: 100,
-            zoom: 'center',
+            zoomType: 'center',
             zoomSpeed: 1.2,
             zoomInvSpeed: 0.8,
             moveSpeed: 10,
             keyboardMovement: true,
             mouseMovement: true,
-            x: 0,
-            y: 0,
-            z: 1,
+            positionX: 0,
+            positionY: 0,
+            positionZ: 1,
             fps: 60,
         }
         this.#animations = {}
 
-        this.__positionCords = { x: 0, y: 0, z: 1 }
+        this.currentPosition = { x: 0, y: 0, z: 1 }
 
         if (this.options) this.setOptions()
         this.#tree = new CanvasTree(this.#defaultOptions.historySize)
@@ -130,7 +132,7 @@ export class Canvas {
         this.#initCanvas()
     }
 
-    get context(): CanvasRenderingContext2D {
+    get context(): CanvasRenderingContext2D | null {
         if (!this.#context) this.#context = this.#domCanvas.context
         return this.#context
     }
@@ -143,7 +145,8 @@ export class Canvas {
     setOptions() {
         if (this.options?.history)
             this.#defaultOptions.history = this.options.history
-        if (this.options?.zoom) this.#defaultOptions.zoom = this.options.zoom
+        if (this.options?.zoomType)
+            this.#defaultOptions.zoomType = this.options.zoomType
         if (this.options?.zoomSpeed)
             this.#defaultOptions.zoomSpeed = this.options.zoomSpeed
 
@@ -156,23 +159,27 @@ export class Canvas {
                 this.options.keyboardMovement
         if (this.options?.mouseMovement)
             this.#defaultOptions.mouseMovement = this.options.mouseMovement
-        if (this.options?.x) this.#defaultOptions.x = this.options.x
-        if (this.options?.y) this.#defaultOptions.y = this.options.y
-        if (this.options?.z) this.#defaultOptions.z = this.options.z
+        if (this.options?.positionX)
+            this.#defaultOptions.positionX = this.options.positionX
+        if (this.options?.positionY)
+            this.#defaultOptions.positionY = this.options.positionY
+        if (this.options?.positionZ)
+            this.#defaultOptions.positionZ = this.options.positionZ
         if (this.options?.fps) this.#defaultOptions.fps = this.options.fps
         if (this.options?.historySize)
             this.#defaultOptions.historySize = this.options.historySize
 
-        this.__positionCords = {
-            x: this.#defaultOptions.x,
-            y: this.#defaultOptions.y,
-            z: this.#defaultOptions.z,
+        this.currentPosition = {
+            x: this.#defaultOptions.positionX,
+            y: this.#defaultOptions.positionY,
+            z: this.#defaultOptions.positionZ,
         }
     }
 
     #initCanvas() {
         this.canvas
-        this.context.save()
+        this.context
+        this.context?.save()
 
         window.onload = () => {
             if (this.options) {
@@ -186,8 +193,9 @@ export class Canvas {
             if (this.#defaultOptions.history) this.#snapshotHandler()
             if (this.#defaultOptions.mouseMovement) this.#handMove()
             if (this.#defaultOptions.keyboardMovement) this.#keyboardMove()
-            if (this.#defaultOptions.zoom == 'point') this.#pointZoom()
-            else if (this.#defaultOptions.zoom == 'center') this.#centerZoom()
+            if (this.#defaultOptions.zoomType == 'point') this.#pointZoom()
+            else if (this.#defaultOptions.zoomType == 'center')
+                this.#centerZoom()
             this.canvas.addEventListener('focusin', () => {
                 this.#isFocused = true
             })
@@ -198,7 +206,7 @@ export class Canvas {
             this.#setCanvasZoom()
         }
     }
-    add(...block: Block[]) {
+    add(...block: Block<any>[]) {
         this.#tree.addNodes(block)
         this.#initTime = new Date().getTime()
         this.#tree.preOrderTraversal<Block>((b: Block) => {
@@ -208,14 +216,14 @@ export class Canvas {
                 this.__collectAnimations(b)
                 this.__takeInitSnaphshot(b)
                 b.__initCordinates()
-                b.__hidden = !this.inBoundElement(b)
+                b.__hidden = !this.inBoundBlock(b)
                 b.render()
             }
         })
         this.#registerDomEvent()
     }
 
-    remove(block: Block) {
+    remove(block: Block<any>) {
         this.#tree.head.removeChild(block)
         this.__clearEvents(block)
         this.__clearAnimations(block)
@@ -325,7 +333,7 @@ export class Canvas {
         }
     }
 
-    whoIsTheFirst(zIndex?: number) {
+    whoIsTheFirst(zIndex: number) {
         return this.#higherBlockZIndex === zIndex
     }
 
@@ -381,15 +389,15 @@ export class Canvas {
 
     __collectAnimations(block: Block) {
         for (const func of block.__animations) {
-            this.registerAnimation(String(block.nodeId), func)
+            if (block.nodeId) this.registerAnimation(block.nodeId, func)
         }
     }
 
     __clearAnimations(block: Block) {
-        this.removeAnimation(String(block.nodeId))
+        if (block.nodeId) this.removeAnimation(block.nodeId)
     }
 
-    registerAnimation(nodeId: string, func: Animator) {
+    registerAnimation(nodeId: number, func: Animator) {
         if (!this.#animations[nodeId])
             this.#animations[nodeId] = { animations: [] }
         this.#animations[nodeId].animations.push(func)
@@ -397,13 +405,13 @@ export class Canvas {
         this.#handleAnimation()
     }
 
-    #buildAnimatonFunc(nodeId: string, animations: Animator[]) {
+    #buildAnimatonFunc(nodeId: number, animations: Animator[]) {
         this.#animations[nodeId].func = (timestamp: number) => {
             for (const func of animations) func(timestamp)
         }
     }
 
-    removeAnimation(nodeId: string) {
+    removeAnimation(nodeId: number) {
         delete this.#animations[nodeId]
         this.#handleAnimation()
     }
@@ -469,8 +477,8 @@ export class Canvas {
         }
     }
     invokeChange(_func?: (block: Block) => void) {
-        this.context.restore()
-        this.context.save()
+        this.context?.restore()
+        this.context?.save()
         this.clearRect()
         this.#registerDomEvent()
         this.#tree.head.listOnlyChilds(
@@ -478,7 +486,7 @@ export class Canvas {
                 if (this.#handledNodes[b.nodeId!]) {
                     this.#handleBindOptions(b)
                     if (_func) _func(b)
-                    b.__hidden = !this.inBoundElement(b)
+                    b.__hidden = !this.inBoundBlock(b)
                     b.render()
                 }
             },
@@ -501,7 +509,7 @@ export class Canvas {
             this.#tree.takeSanpshot(new Date().getTime(), before, after)
     }
 
-    inBoundElement(element: Block) {
+    inBoundBlock(element: Block) {
         const x = xIntersect(
             { left: 0, right: this.canvasBounding.width },
             {
@@ -576,7 +584,10 @@ export class Canvas {
         window.addEventListener(
             'wheel',
             (event: WheelEvent) => {
-                if (this.#defaultOptions.zoom !== 'point' || !this.#isFocused)
+                if (
+                    this.#defaultOptions.zoomType !== 'point' ||
+                    !this.#isFocused
+                )
                     return
                 if (event.ctrlKey) {
                     event.preventDefault()
@@ -585,39 +596,39 @@ export class Canvas {
                     let scale = this.#defaultOptions.zoomSpeed
                     let invScale = this.#defaultOptions.zoomInvSpeed
 
-                    let beforeX = this.__positionCords.x
-                    let beforeY = this.__positionCords.y
+                    let beforeX = this.currentPosition.x
+                    let beforeY = this.currentPosition.y
 
                     if (event.deltaY < 0) {
                         const scaleFactor =
-                            (this.__positionCords.z * scale) /
-                            this.__positionCords.z
-                        this.__positionCords.x += (x - beforeX) * scaleFactor
-                        this.__positionCords.y -= (y - beforeY) * scaleFactor
+                            (this.currentPosition.z * scale) /
+                            this.currentPosition.z
+                        this.currentPosition.x += (x - beforeX) * scaleFactor
+                        this.currentPosition.y -= (y - beforeY) * scaleFactor
 
                         this.invokeChange((block) => {
                             block.__translate({
-                                x: this.__positionCords.x - beforeX,
+                                x: this.currentPosition.x - beforeX,
                                 y: 0,
                             })
                             block.scale(scale)
                         })
-                        this.__positionCords.z *= scale
+                        this.currentPosition.z *= scale
                     } else {
                         const scaleFactor =
-                            (this.__positionCords.z * invScale) /
-                            (this.__positionCords.z - 1)
-                        this.__positionCords.x -= (x - beforeX) * scaleFactor
-                        this.__positionCords.y -= (y - beforeY) * scaleFactor
+                            (this.currentPosition.z * invScale) /
+                            (this.currentPosition.z - 1)
+                        this.currentPosition.x -= (x - beforeX) * scaleFactor
+                        this.currentPosition.y -= (y - beforeY) * scaleFactor
                         this.invokeChange((block) => {
                             block.__translate({
-                                x: this.__positionCords.x - beforeX,
-                                y: this.__positionCords.y - beforeY,
+                                x: this.currentPosition.x - beforeX,
+                                y: this.currentPosition.y - beforeY,
                             })
                             block.scale(invScale)
                         })
 
-                        this.__positionCords.z *= invScale
+                        this.currentPosition.z *= invScale
                     }
                 }
             },
@@ -629,50 +640,53 @@ export class Canvas {
         window.addEventListener(
             'wheel',
             (event: WheelEvent) => {
-                if (this.#defaultOptions.zoom !== 'center' || !this.#isFocused)
+                if (
+                    this.#defaultOptions.zoomType !== 'center' ||
+                    !this.#isFocused
+                )
                     return
                 event.preventDefault()
                 if (event.ctrlKey) {
                     let scale = this.#defaultOptions.zoomSpeed
                     let invScale = this.#defaultOptions.zoomInvSpeed
 
-                    let beforeX = this.__positionCords.x
-                    let beforeY = this.__positionCords.y
+                    let beforeX = this.currentPosition.x
+                    let beforeY = this.currentPosition.y
                     const x = this.canvasBounding.right / 2
                     const y = this.canvasBounding.bottom / 2
                     this.invokeChange((block: Block) => {
                         if (event.deltaY < 0) {
-                            this.__positionCords.x +=
+                            this.currentPosition.x +=
                                 (x - beforeX) *
-                                ((this.__positionCords.z * scale) /
-                                    this.__positionCords.z -
+                                ((this.currentPosition.z * scale) /
+                                    this.currentPosition.z -
                                     1)
 
-                            console.log(this.__positionCords.x)
-                            // this.__positionCords.y +=
-                            //     y / (this.__positionCords.z * scale) -
-                            //     y / this.__positionCords.z;
+                            console.log(this.currentPosition.x)
+                            // this.currentPosition.y +=
+                            //     y / (this.currentPosition.z * scale) -
+                            //     y / this.currentPosition.z;
                             block.__translate({
-                                x: beforeX - this.__positionCords.x,
+                                x: beforeX - this.currentPosition.x,
                                 y: 0,
                             })
                             block.scale(scale)
-                            this.__positionCords.z *= scale
+                            this.currentPosition.z *= scale
                         } else {
-                            this.__positionCords.x +=
-                                x / (this.__positionCords.z * invScale) -
-                                x / this.__positionCords.z
+                            this.currentPosition.x +=
+                                x / (this.currentPosition.z * invScale) -
+                                x / this.currentPosition.z
 
-                            this.__positionCords.y +=
-                                y / (this.__positionCords.z * invScale) -
-                                y / this.__positionCords.z
+                            this.currentPosition.y +=
+                                y / (this.currentPosition.z * invScale) -
+                                y / this.currentPosition.z
 
                             block.__translate({
-                                x: this.__positionCords.x - beforeX,
-                                y: this.__positionCords.y - beforeY,
+                                x: this.currentPosition.x - beforeX,
+                                y: this.currentPosition.y - beforeY,
                             })
                             block.scale(invScale)
-                            this.__positionCords.z *= invScale
+                            this.currentPosition.z *= invScale
                         }
                     })
                 }
@@ -681,7 +695,7 @@ export class Canvas {
         )
     }
     clearRect() {
-        this.context.clearRect(
+        this.context?.clearRect(
             0,
             0,
             this.canvasBounding.width,
@@ -748,14 +762,14 @@ export class Canvas {
                             this.invokeChange((block: Block) => {
                                 block.__translate({ x: diffX - beforeX, y: 0 })
                             })
-                            this.__positionCords.x += diffX
+                            this.currentPosition.x += diffX
                             beforeX = diffX
                         }
                         if (diffY !== 0) {
                             this.invokeChange((block: Block) => {
                                 block.__translate({ x: 0, y: diffY - beforeY })
                             })
-                            this.__positionCords.y += diffY
+                            this.currentPosition.y += diffY
                             beforeY = diffY
                         }
                     }
@@ -774,15 +788,15 @@ export class Canvas {
     #setCanvasPosition() {
         this.invokeChange((block: Block) => {
             block.__translate({
-                x: this.__positionCords.x,
-                y: this.__positionCords.y,
+                x: this.currentPosition.x,
+                y: this.currentPosition.y,
             })
         })
     }
 
     #setCanvasZoom() {
         this.invokeChange((block) => {
-            block.scale(this.#defaultOptions.z)
+            block.scale(this.currentPosition.z)
         })
     }
 
@@ -810,7 +824,7 @@ export class Canvas {
                                 inBound = true
                             } else block.__translate({ x: -moveSpeed, y: 0 })
                         })
-                        if (!inBound) this.__positionCords.x -= moveSpeed
+                        if (!inBound) this.currentPosition.x -= moveSpeed
                     } else {
                         this.invokeChange((block: Block) => {
                             if (
@@ -824,7 +838,7 @@ export class Canvas {
                                 inBound = true
                             } else block.__translate({ x: moveSpeed, y: 0 })
                         })
-                        if (!inBound) this.__positionCords.x += moveSpeed
+                        if (!inBound) this.currentPosition.x += moveSpeed
                     }
                 } else {
                     if (event.deltaY < 0) {
@@ -840,7 +854,7 @@ export class Canvas {
                                 inBound = true
                             } else block.__translate({ x: 0, y: moveSpeed })
                         })
-                        if (!inBound) this.__positionCords.y += moveSpeed
+                        if (!inBound) this.currentPosition.y += moveSpeed
                     } else {
                         this.invokeChange((block: Block) => {
                             if (
@@ -854,7 +868,7 @@ export class Canvas {
                                 inBound = true
                             } else block.__translate({ x: 0, y: -moveSpeed })
                         })
-                        if (!inBound) this.__positionCords.y -= moveSpeed
+                        if (!inBound) this.currentPosition.y -= moveSpeed
                     }
                 }
             },
@@ -862,9 +876,6 @@ export class Canvas {
         )
     }
 
-    get currentPosition() {
-        return this.__positionCords
-    }
 
     undo() {
         const obj = this.#tree.snapshotInBack()
