@@ -7,52 +7,58 @@ import {
 } from './types'
 import { Node } from './Node'
 
-export function fromPercentage(from: number, parentS: number) {
-    return (from * parentS) / 100
+export function fromPercentage(from: number, parentSize: number) {
+    return (from * parentSize) / 100
 }
-export function fromVW(from: number, canvasW: number) {
-    return (from * canvasW) / 100
+export function fromVW(from: number, parentWidth: number) {
+    return (from * parentWidth) / 100
 }
-export function fromVH(from: number, canvasH: number) {
-    return (from * canvasH) / 100
+export function fromVH(from: number, parentHeight: number) {
+    return (from * parentHeight) / 100
 }
 //  root size shoold be cavnas fonts size via styleing or options passing value
-export function fromRem(from: number, parentS: number) {
-    return from * parentS
+export function fromRem(from: number, parentSize: number) {
+    return from * parentSize
 }
-export function fromEm(from: number, parentS: number) {
-    return from * parentS
+export function fromEm(from: number, parentSize: number) {
+    return from * parentSize
 }
 export function fromCm(from: number) {
-    return from * 2.54
+    return from * 37.8
 }
 export function fromMm(from: number) {
-    return fromCm(from) * 10
+    return (fromCm(1) / 10) * from
 }
 export function fromQ(from: number) {
-    return fromCm(from) * 40
+    return (fromCm(1) / 40) * from
 }
 export function fromIn(from: number) {
-    return fromCm(from) * 2.54
+    return fromCm(2.54) * from
 }
 export function fromPc(from: number) {
-    return fromIn(from) * 6
+    return (fromIn(1) / 6) * from
 }
 export function fromPt(from: number) {
-    return fromIn(from) * 72
+    return (fromIn(1) / 72) * from
 }
 
 export function xIntersect(
-    a: { left: number; right: number },
-    b: { left: number; right: number }
+    box1: { left: number; right: number },
+    box2: { left: number; right: number }
 ) {
-    return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+    return Math.max(
+        0,
+        Math.min(box1.right, box2.right) - Math.max(box1.left, box2.left)
+    )
 }
 export function yIntersect(
-    a: { top: number; bottom: number },
-    b: { top: number; bottom: number }
+    box1: { top: number; bottom: number },
+    box2: { top: number; bottom: number }
 ) {
-    return Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+    return Math.max(
+        0,
+        Math.min(box1.bottom, box2.bottom) - Math.max(box1.top, box2.top)
+    )
 }
 
 export function checkInBound(
@@ -263,7 +269,7 @@ export function hexToRgba(hex: string) {
     RR = parseInt(RR, 16)
     GG = parseInt(GG, 16)
     BB = parseInt(BB, 16)
-    return `rgba(${RR}, ${GG}, ${BB}, ${AA})`
+    return rgbaRepresenter([RR, GG, BB])
 }
 
 export function hslToRgba(hsl: string): string {
@@ -299,7 +305,7 @@ export function colorToRgba(color: string) {
 export function rgbaRepresenter(rgba: number[]): string {
     return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] || 1})`
 }
-export function rgbaToArray(rgba: string):  RGBA {
+export function rgbaToArray(rgba: string): RGBA {
     const colors = rgba.match(/\d+\.?\d*/g) || []
     let R = 0
     let G = 0
