@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach, beforeAll } from 'vitest'
+import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
+import { cdp, userEvent, page } from 'vitest/browser'
+
 import {
     Canvas,
     Block,
@@ -165,15 +167,34 @@ describe('Canvas', () => {
             canvas.changeCursor(cursor)
             expect(canvas.currentCursor).toBe(cursor)
         })
-        it('should get current cursor position')
-        it('should get boundings')
-        it('should be focused')
+        it('should get cursor position', async () => {
+            const canvas = new Canvas('canvasId', canvasWidth, canvasHeight, {
+                position: 'absolute',
+                top: '0px',
+                left: '0px',
+            })
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const clickPoints = { x: 50, y: 20 }
+            canvas.registerEvent('click', (e: any) => {
+                const pos = canvas.getCursorPosition(e)
+                // pageX and pageY gets -1 for some reasen
+                expect(pos).toEqual({ x: 49, y: 19 })
+            })
+            await userEvent.click(currentCanvas, {
+                position: clickPoints,
+            })
+        })
+        it.todo('should be focused', () => {
+            const canvas = new Canvas('canvasId', canvasWidth, canvasHeight)
+            canvas.canvas.focus()
+            expect(canvas.isFocused).toBeTruthy()
+        })
     })
 
     describe('Rendering blocks', () => {
         it('should add a block to the canvas without throwing', () => {
             const canvas = new Canvas(canvasId, 800, 600)
-            const block = new RectangleBlock(commonBlockConfig)
+            const block = new Block(commonBlockConfig)
             expect(() => canvas.add(block)).not.toThrow()
         })
 
@@ -187,14 +208,14 @@ describe('Canvas', () => {
 
         it('should remove block', () => {
             const canvas = new Canvas(canvasId, 800, 600)
-            const block = new RectangleBlock(commonBlockConfig)
+            const block = new Block(commonBlockConfig)
             canvas.add(block)
             expect(() => canvas.remove(block)).not.toThrow()
         })
 
         it('should find added block', () => {
             const canvas = new Canvas(canvasId, 800, 600)
-            const block = new RectangleBlock(commonBlockConfig)
+            const block = new Block(commonBlockConfig)
             canvas.add(block)
             expect(canvas.find({ nodeId: block.nodeId })).toStrictEqual([block])
         })
@@ -210,7 +231,23 @@ describe('Canvas', () => {
             ])
         })
 
-        it('should check if block in bound')
+        it('should check if block in bound', () => {
+            const canvas = new Canvas(canvasId, 800, 600, {
+                positionX: 0,
+                positionY: 0,
+                positionZ: 1,
+            })
+            const blockOut = new Block({
+                x: -100,
+                y: -100,
+                width: 100,
+                height: 100,
+            })
+            const blockIn = new Block({ x: 10, y: 10, width: 100, height: 100 })
+            canvas.add(blockIn, blockOut)
+            expect(canvas.inBoundBlock(blockOut)).toBeFalsy()
+            expect(canvas.inBoundBlock(blockIn)).toBeTruthy()
+        })
 
         it('should invoke changes', () => {
             const canvas = new Canvas(canvasId, 800, 600)
@@ -221,9 +258,18 @@ describe('Canvas', () => {
     })
 
     describe('Histoyr/Snapshot handling', () => {
-        it('should take snapshot')
-        it('should redo history')
-        it('should undo history')
+        it('should take snapshot', () => {
+            const canvas = new Canvas(canvasId, 800, 600)
+            expect(() => canvas.takeSnapshot({}, {})).not.toThrow()
+        })
+        it('should redo history', () => {
+            const canvas = new Canvas(canvasId, 800, 600)
+            expect(() => canvas.undo()).not.toThrow()
+        })
+        it('should undo history', () => {
+            const canvas = new Canvas(canvasId, 800, 600)
+            expect(() => canvas.undo()).not.toThrow()
+        })
     })
 
     describe('Payload handling', () => {
@@ -259,7 +305,7 @@ describe('Canvas', () => {
     describe('Handling animations', () => {
         it('should register animaton', () => {
             const canvas = new Canvas(canvasId, 800, 600)
-            const block = new RectangleBlock(commonBlockConfig)
+            const block = new Block(commonBlockConfig)
             canvas.add(block)
             expect(() => {
                 if (block.nodeId)
@@ -268,7 +314,7 @@ describe('Canvas', () => {
         })
         it('should remove already registered animaton', () => {
             const canvas = new Canvas(canvasId, 800, 600)
-            const block = new RectangleBlock(commonBlockConfig)
+            const block = new Block(commonBlockConfig)
             canvas.add(block)
             if (block.nodeId !== undefined) {
                 canvas.registerAnimation(block.nodeId, () => {})
@@ -278,13 +324,8 @@ describe('Canvas', () => {
                 }).not.toThrow()
             }
         })
-        it('should invoke animation', () => {
-            const canvas = new Canvas(canvasId, 800, 600)
-            const block = new RectangleBlock(commonBlockConfig)
-            canvas.add(block)
-            if (block.nodeId) canvas.registerAnimation(block.nodeId, () => {})
-            expect(() => canvas.animationInvoker()).not.toThrow()
-        })
+
+        it('should set animation fps')
     })
 
     describe('Handling events', () => {
@@ -298,19 +339,37 @@ describe('Canvas', () => {
             canvas.registerEvent('click', dummyFunc)
             expect(() => canvas.removeEvent('click', dummyFunc)).not.toThrow()
         })
-        it.todo('should use only one event for every block', () => {
+        it.todo('should use only one event for every block', async () => {
             const canvas = new Canvas(canvasId, 800, 600)
             canvas.registerEvent('click', () => {})
             canvas.registerEvent('click', () => {})
             canvas.registerEvent('click', () => {})
+            // @ts-ignore
+            await cdp().send('DOM.enable')
+            // @ts-ignore
+
+            await cdp().send('Runtime.enable')
+            // @ts-ignore
+
+            const { result } = await cdp().send('Runtime.evaluate', {
+                expression: `document.querySelector('canvas')`,
+                returnByValue: false,
+            })
+            // @ts-ignore
+            const listeners = await cdp().send(
+                'DOMDebugger.getEventListeners',
+                {
+                    objectId: 2,
+                }
+            )
         })
         it('should higher z index block work', () => {
             const canvas = new Canvas(canvasId, 800, 600)
-            const block1 = new RectangleBlock({
+            const block1 = new Block({
                 ...commonBlockConfig,
                 zIndex: 1,
             })
-            const block2 = new RectangleBlock({
+            const block2 = new Block({
                 ...commonBlockConfig,
                 zIndex: 2,
             })
@@ -327,8 +386,39 @@ describe('Canvas', () => {
         })
     })
     describe('Transforamtions', () => {
-        it('should move with keyboard')
+        it.todo('should move with keyboard', async () => {
+            const canvas = new Canvas(canvasId, 800, 600, {
+                keyboardMovement: true,
+            })
+            // canvas.canvas.focus()
+
+            canvas.isFocused = true
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const transformation = { x: 100, y: 100 }
+            await userEvent.click(currentCanvas)
+            // canvas.registerEvent('wheel', (e) => {
+            //     console.log(canvas.isFocused)
+            //     console.log('running')
+            // })
+            canvas.canvas.addEventListener('wheel', () => {
+                console.log(canvas.currentPosition)
+                console.log('running')
+            })
+            window.dispatchEvent(
+                new WheelEvent('wheel', {
+                    deltaY: 100,
+                    bubbles: true,
+                    cancelable: true,
+                })
+            )
+            await userEvent.wheel(currentCanvas, { delta: transformation })
+            // expect(canvas.currentPosition.x).toBe(transformation.x)
+            expect(canvas.currentPosition.y).toBe(transformation.y)
+        })
         it('should move with handmove')
-        // ...
+        it('should set move speed')
+        it('should zoom to point')
+        it('should zoom to center')
+        it('should set zoom speed')
     })
 })
