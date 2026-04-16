@@ -1,11 +1,46 @@
 // src/__tests__/rectangleBlock.test.ts
 import { describe, it, expect } from 'vitest'
-import { RectangleBlock } from '@2flexible/2flex'
+import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
 
 function makeRect(opts = {}) {
     return new RectangleBlock({ x: 0, y: 0, width: 100, height: 100, ...opts })
 }
 
+let block: Block<any>
+let canvas: Canvas
+const rectangleOptions = {
+    // ── Core Rectangle Appearance ───
+    backgroundColor: { value: '#22c55e', default: undefined },
+    borderRadius: { value: [16, 8, 24, 12], default: 0 },
+    borderWidth: { value: 4, default: 0 },
+    borderColor: { value: '#166534', default: 'black' },
+    borderStyle: { value: 'dotted', default: 'solid' },
+
+    // ── Border Shorthands ───
+    border: { value: [6, 'solid', '#1e3a8a'], default: undefined },
+    borderTop: { value: [3, 'solid', '#ef4444'], default: undefined },
+    borderBottom: { value: [5, 'dotted', '#eab308'], default: undefined },
+    borderLeft: { value: [8, 'solid', '#3b82f6'], default: undefined },
+    borderRight: { value: [2, 'solid', '#8b5cf6'], default: undefined },
+
+    // ── Inherited from ShapeBlock (selected practical examples) ───
+    fillStyle: { value: '#eab308', default: undefined },
+    strokeStyle: { value: '#1e40af', default: undefined },
+    lineWidth: { value: 5, default: undefined },
+    lineCap: { value: 'round', default: undefined },
+    lineJoin: { value: 'round', default: undefined },
+    shadowBlur: { value: 15, default: undefined },
+    shadowColor: { value: 'rgba(0, 0, 0, 0.35)', default: undefined },
+    shadowOffsetX: { value: 6, default: undefined },
+    shadowOffsetY: { value: 10, default: undefined },
+    globalAlpha: { value: 0.98, default: undefined },
+
+    // ── Geometry (commonly used with RectangleBlock) ───
+    x: { value: 80, default: 0 },
+    y: { value: 120, default: 0 },
+    width: { value: 280, default: 0 },
+    height: { value: 160, default: 0 },
+}
 describe('RectangleBlock', () => {
     // ─── Constructor ─────────────────────────────────────────────────────────────
     describe('constructor', () => {

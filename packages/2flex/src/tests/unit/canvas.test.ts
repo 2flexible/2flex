@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, beforeAll, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { cdp, userEvent, page } from 'vitest/browser'
 
 import {
@@ -86,7 +86,7 @@ beforeEach(() => {
 //     canvas = new Canvas(canvasId, canvasWidth, canvasHeight)
 // })
 describe('Canvas', () => {
-    describe('CanvasInitialize', () => {
+    describe('Canvas initialize', () => {
         it('creates a Canvas instance with width and height', () => {
             const canvas = new Canvas(canvasId, canvasWidth, canvasHeight)
             expect(canvas).toBeDefined()
