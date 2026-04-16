@@ -78,7 +78,7 @@ export class Canvas {
     #higherBlockZIndex: number
     #handledNodes: { [key: number]: boolean }
     #initTime?: number
-    #isFocused = false
+    isFocused = false
     #animations: CanvasAnimations
     #reservedAnimation?: number
     #registeredBlocks: any[]
@@ -119,7 +119,7 @@ export class Canvas {
 
         this.currentPosition = { x: 0, y: 0, z: 1 }
 
-        if (this.options) this.setOptions()
+        if (this.options) this.#setOptions()
         this.#tree = new CanvasTree(this.#defaultOptions.historySize)
 
         this.#domCanvas = new CanvasDOMManager(
@@ -142,7 +142,7 @@ export class Canvas {
         return this.#htmlCanvas
     }
 
-    setOptions() {
+    #setOptions() {
         if (this.options?.history)
             this.#defaultOptions.history = this.options.history
         if (this.options?.zoomType)
@@ -197,10 +197,10 @@ export class Canvas {
             else if (this.#defaultOptions.zoomType == 'center')
                 this.#centerZoom()
             this.canvas.addEventListener('focusin', () => {
-                this.#isFocused = true
+                this.isFocused = true
             })
             this.canvas.addEventListener('focusout', () => {
-                this.#isFocused = false
+                this.isFocused = false
             })
             this.#setCanvasPosition()
             this.#setCanvasZoom()
@@ -210,7 +210,7 @@ export class Canvas {
         this.#tree.addNodes(block)
         this.#initTime = new Date().getTime()
         this.#tree.preOrderTraversal<Block>((b: Block) => {
-            if (!this.#handledNodes[b.nodeId!]) {
+            if (b.nodeId && !this.#handledNodes[b.nodeId]) {
                 this.__handleOptions(b)
                 this.__collectEvents(b)
                 this.__collectAnimations(b)
@@ -220,7 +220,7 @@ export class Canvas {
                 b.render()
             }
         })
-        this.#registerDomEvent()
+        // this.#registerDomEvent()
     }
 
     remove(block: Block<any>) {
@@ -254,7 +254,7 @@ export class Canvas {
         this.options = canvasOpt.options
         this.width = canvasOpt.width
         this.height = canvasOpt.height
-        if (this.options) this.setOptions()
+        if (this.options) this.#setOptions()
         this.#initCanvas()
 
         const blocks = parsedPayload.blocks
@@ -322,10 +322,6 @@ export class Canvas {
         return this.#boundingClient
     }
 
-    get isFocused() {
-        return this.#isFocused
-    }
-
     getCursorPosition(event: MouseEvent) {
         return {
             x: event.pageX - this.canvasBounding.left,
@@ -348,7 +344,12 @@ export class Canvas {
     }
 
     __handleOptions(block: Block): void {
-        if (!block.ownOptions || this.#handledNodes[block.nodeId!]) return
+        if (
+            !block.nodeId ||
+            !block.ownOptions ||
+            (block.nodeId && this.#handledNodes[block.nodeId])
+        )
+            return
         block.canvas = this
         this.#handleBindOptions(block)
         for (const [key, value] of Object.entries(block.ownOptions)) {
@@ -357,7 +358,7 @@ export class Canvas {
         if (block.zIndex() === undefined) {
             block.ownOptions.zIndex = block.nodeId
         }
-        this.#handledNodes[block.nodeId!] = true
+        this.#handledNodes[block.nodeId] = true
     }
 
     #handleBindOptions(block: Block) {
@@ -430,6 +431,7 @@ export class Canvas {
         }
     }
 
+    // need to fix type: CustomEvent<Event> in register event usage
     registerEvent(event: string, callFunc: CustomEvent<Event>) {
         if (!this.#canvasEvents[event])
             this.#canvasEvents[event] = { func: undefined, events: [] }
@@ -441,6 +443,7 @@ export class Canvas {
         this.#canvasEvents[event].events.push(callFunc)
         const events = this.#canvasEvents[event].events
         this.#buildEventFunc(event, events)
+        this.#registerDomEvent()
     }
     removeEvent(event: string, callFunc: CustomEvent<Event>) {
         if (
@@ -476,13 +479,13 @@ export class Canvas {
             }
         }
     }
-    invokeChange(_func?: (block: Block) => void) {
+    invokeChange(_func?: (block: Block<any>) => void) {
         this.context?.restore()
         this.context?.save()
         this.clearRect()
-        this.#registerDomEvent()
+        // this.#registerDomEvent()
         this.#tree.head.listOnlyChilds(
-            (b: Block) => {
+            (b: Block<any>) => {
                 if (this.#handledNodes[b.nodeId!]) {
                     this.#handleBindOptions(b)
                     if (_func) _func(b)
@@ -509,21 +512,21 @@ export class Canvas {
             this.#tree.takeSanpshot(new Date().getTime(), before, after)
     }
 
-    inBoundBlock(element: Block) {
+    inBoundBlock(block: Block<any>) {
         const x = xIntersect(
             { left: 0, right: this.canvasBounding.width },
             {
                 left: Math.min(
-                    element.ownOptions.cornerTopLeft?.x || 0,
-                    element.ownOptions.cornerTopRight?.x || 0,
-                    element.ownOptions.cornerBottomLeft?.x || 0,
-                    element.ownOptions.cornerBottomRight?.x || 0
+                    block.ownOptions.cornerTopLeft?.x || 0,
+                    block.ownOptions.cornerTopRight?.x || 0,
+                    block.ownOptions.cornerBottomLeft?.x || 0,
+                    block.ownOptions.cornerBottomRight?.x || 0
                 ),
                 right: Math.max(
-                    element.ownOptions.cornerTopLeft?.x || 0,
-                    element.ownOptions.cornerTopRight?.x || 0,
-                    element.ownOptions.cornerBottomLeft?.x || 0,
-                    element.ownOptions.cornerBottomRight?.x || 0
+                    block.ownOptions.cornerTopLeft?.x || 0,
+                    block.ownOptions.cornerTopRight?.x || 0,
+                    block.ownOptions.cornerBottomLeft?.x || 0,
+                    block.ownOptions.cornerBottomRight?.x || 0
                 ),
             }
         )
@@ -531,16 +534,16 @@ export class Canvas {
             { top: 0, bottom: this.canvasBounding.height },
             {
                 top: Math.min(
-                    element.ownOptions.cornerTopLeft?.y || 0,
-                    element.ownOptions.cornerTopRight?.y || 0,
-                    element.ownOptions.cornerBottomLeft?.y || 0,
-                    element.ownOptions.cornerBottomRight?.y || 0
+                    block.ownOptions.cornerTopLeft?.y || 0,
+                    block.ownOptions.cornerTopRight?.y || 0,
+                    block.ownOptions.cornerBottomLeft?.y || 0,
+                    block.ownOptions.cornerBottomRight?.y || 0
                 ),
                 bottom: Math.max(
-                    element.ownOptions.cornerTopLeft?.y || 0,
-                    element.ownOptions.cornerTopRight?.y || 0,
-                    element.ownOptions.cornerBottomLeft?.y || 0,
-                    element.ownOptions.cornerBottomRight?.y || 0
+                    block.ownOptions.cornerTopLeft?.y || 0,
+                    block.ownOptions.cornerTopRight?.y || 0,
+                    block.ownOptions.cornerBottomLeft?.y || 0,
+                    block.ownOptions.cornerBottomRight?.y || 0
                 ),
             }
         )
@@ -553,7 +556,7 @@ export class Canvas {
             Object.entries(this.#animations).length !== 0 &&
             this.#reservedAnimation === undefined
         )
-            this.animationInvoker()
+            this.#animationInvoker()
         else if (
             Object.entries(this.#animations).length === 0 &&
             this.#reservedAnimation !== undefined
@@ -562,7 +565,7 @@ export class Canvas {
         }
     }
 
-    animationInvoker() {
+    #animationInvoker() {
         let lastFrame = 0
         const framer = (timestamp: number) => {
             const obj = Object.entries(this.#animations)
@@ -586,7 +589,7 @@ export class Canvas {
             (event: WheelEvent) => {
                 if (
                     this.#defaultOptions.zoomType !== 'point' ||
-                    !this.#isFocused
+                    !this.isFocused
                 )
                     return
                 if (event.ctrlKey) {
@@ -642,7 +645,7 @@ export class Canvas {
             (event: WheelEvent) => {
                 if (
                     this.#defaultOptions.zoomType !== 'center' ||
-                    !this.#isFocused
+                    !this.isFocused
                 )
                     return
                 event.preventDefault()
@@ -732,7 +735,7 @@ export class Canvas {
         window.addEventListener(
             'mousemove',
             (event: MouseEvent) => {
-                if (!this.#defaultOptions.mouseMovement || !this.#isFocused)
+                if (!this.#defaultOptions.mouseMovement || !this.isFocused)
                     return
                 event.preventDefault()
 
@@ -805,7 +808,7 @@ export class Canvas {
         window.addEventListener(
             'wheel',
             (event: WheelEvent) => {
-                if (!this.#defaultOptions.keyboardMovement || !this.#isFocused)
+                if (!this.#defaultOptions.keyboardMovement || !this.isFocused)
                     return
                 if (event.ctrlKey) return
                 event.preventDefault()
@@ -876,10 +879,8 @@ export class Canvas {
         )
     }
 
-
     undo() {
         const obj = this.#tree.snapshotInBack()
-        console.log(obj)
         this.#invokeHistory(obj)
     }
 
@@ -932,7 +933,7 @@ export class Canvas {
 
     #snapshotHandler() {
         window.addEventListener('keydown', (e: KeyboardEvent) => {
-            if (!this.#defaultOptions.history || !this.#isFocused) return
+            if (!this.#defaultOptions.history || !this.isFocused) return
             if (e.key === 'Z' && e.ctrlKey) this.redo()
             else if (e.key === 'z' && e.ctrlKey) this.undo()
         })
