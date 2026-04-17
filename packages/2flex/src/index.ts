@@ -38,7 +38,6 @@ import {
     hslToRgba,
     colorToRgba,
     inRange,
-    getPrototype,
 } from './Utils'
 export {
     Canvas,
@@ -78,5 +77,4 @@ export {
     hslToRgba,
     colorToRgba,
     inRange,
-    getPrototype,
 }
