@@ -50,7 +50,7 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         const radius = this.__valueHandler<
             number[] | number,
             number[] | number
-        >(opt, 'borderRadius', 0)
+        >(opt, 'borderRadius', [0, 0, 0, 0])
         if (typeof radius === 'number') {
             return [radius, radius, radius, radius]
         } else if (radius instanceof Array) {
