@@ -1,9 +1,9 @@
 import type { IBlock } from '../types'
 import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
-
+type OnPlayCallback = (timestamp: number) => void
 interface VideoOptions extends IShapeOptions {
     autoPlay?: boolean
-    onPlay?: (timestamp: number) => void
+    onPlay?: OnPlayCallback
 }
 
 export class VideoBlock extends ShapeBlock<VideoOptions> {
@@ -43,7 +43,7 @@ export class VideoBlock extends ShapeBlock<VideoOptions> {
     #drawVideo() {
         const videoPlayAnimator = (timestamp: number) => {
             if (!this.#cacheVideo) return
-            if (this.isPlaying) this.onPlay()(timestamp)
+            if (this.isPlaying) this.onPlay()?.(timestamp)
         }
         this.animationHandler(videoPlayAnimator)
     }
@@ -69,13 +69,11 @@ export class VideoBlock extends ShapeBlock<VideoOptions> {
     get isPaused() {
         return this.#events.isPaused
     }
-    onPlay(func?: (timestamp: number) => void) {
+    onPlay(func?: OnPlayCallback) {
         const onPlay = this.__valueHandler<
-            (timestamp: number) => void,
-            ((timestamp: number) => void) | undefined
+            OnPlayCallback,
+            OnPlayCallback | undefined
         >(func, 'onPlay', undefined)
-        return (timestamp: number) => {
-            if (onPlay) onPlay?.(timestamp)
-        }
+        return onPlay
     }
 }
