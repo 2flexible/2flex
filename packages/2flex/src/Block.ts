@@ -397,14 +397,12 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     onRender(opt?: () => void) {
-        const onRender = this.__valueHandler<
+        const renderFunc = this.__valueHandler<
             () => void,
             (() => void) | undefined
         >(opt, 'onRender', undefined)
 
-        return () => {
-            onRender?.()
-        }
+        return renderFunc
     }
     __isSelected() {
         // this.__hotLines();
@@ -3554,9 +3552,7 @@ export class Block<T = IBlockOptions> extends Node {
             (event: MouseEvent) => void,
             ((event: MouseEvent) => void) | undefined
         >(opt, 'onRotate', undefined)
-        return (event: MouseEvent) => {
-            rotateE?.(event)
-        }
+        return rotateE
     }
 
     rotatable(opt?: boolean) {
@@ -3733,7 +3729,7 @@ export class Block<T = IBlockOptions> extends Node {
                                 )
                         )
                     }
-                    this.onRotate()(event)
+                    this.onRotate()?.(event)
                     this.invokeChange()
                 }
             }
@@ -3760,10 +3756,7 @@ export class Block<T = IBlockOptions> extends Node {
             (event: MouseEvent) => void,
             ((event: MouseEvent) => void) | undefined
         >(opt, 'onResize', undefined)
-
-        return (event: MouseEvent) => {
-            resizeE?.(event)
-        }
+        return resizeE
     }
 
     resizable(opt?: boolean): boolean {
@@ -4101,7 +4094,7 @@ export class Block<T = IBlockOptions> extends Node {
                         }
                     }
                     this.#adjustCordsToFLip()
-                    this.onResize()(event)
+                    this.onResize()?.(event)
                     this.invokeChange()
                 }
             }
@@ -4235,9 +4228,7 @@ export class Block<T = IBlockOptions> extends Node {
             (event: MouseEvent) => void,
             ((event: MouseEvent) => void) | undefined
         >(opt, 'onDrag', undefined)
-        return (event: MouseEvent) => {
-            dragE?.(event)
-        }
+        return dragE
     }
 
     draggable(opt?: boolean): boolean {
@@ -4284,7 +4275,7 @@ export class Block<T = IBlockOptions> extends Node {
 
                         beforeCords.y = diffY
                     }
-                    this.onDrag()(event)
+                    this.onDrag()?.(event)
                     this.invokeChange()
                 }
             }
