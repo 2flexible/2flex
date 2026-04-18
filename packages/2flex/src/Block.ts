@@ -3287,7 +3287,9 @@ export class Block<T = IBlockOptions> extends Node {
         const zIndex = this.zIndex()
         if (zIndex !== undefined) return this.canvas?.whoIsTheFirst(zIndex)
     }
-
+    get inBound() {
+        return this.canvas?.inBoundBlock(this)
+    }
     invokeChange() {
         this.canvas?.invokeChange()
     }
