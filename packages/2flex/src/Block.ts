@@ -190,7 +190,7 @@ export interface IBlockOptions {
     resizable?: boolean
     onResize?: (event: MouseEvent) => void
     hidden?: boolean
-    important?: IBlockOptions
+    important?: IBlock<any>
     rotationCenterX?: RelativeType
     rotationCenterY?: RelativeType
     rotationCenter?: SelfType
@@ -2492,10 +2492,10 @@ export class Block<T = IBlockOptions> extends Node {
         return this.__valueHandler(opt, 'hidden', false)
     }
     important(opt?: IBlock<T>) {
-        return this.__valueHandler<IBlock<T>, IBlock<T> | undefined>(
-            opt,
+        return this.__valueHandler<IBlock<T>, IBlock<T> | {}>(
+            { ...this.ownOptions.important, ...opt },
             'important',
-            undefined
+            {}
         )
     }
     flex(opt?: Flex) {
