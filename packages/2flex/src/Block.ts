@@ -1211,20 +1211,12 @@ export class Block<T = IBlockOptions> extends Node {
                 else if (val.endsWith('em')) {
                     return (fromEm(Number(val.split('em')[0]), size || 1) -
                         space) as O
-                } else if (
-                    val.endsWith('vh') &&
-                    widthRelated !== undefined &&
-                    widthRelated === false
-                )
+                } else if (val.endsWith('vh') && widthRelated === false)
                     return (fromVH(
                         Number(val.split('vh')[0]),
                         this.canvas?.height || 1
-                    ) - this.__heightSpaces) as O
-                else if (
-                    val.endsWith('vw') &&
-                    widthRelated !== undefined &&
-                    widthRelated === true
-                )
+                    ) - space) as O
+                else if (val.endsWith('vw') && widthRelated === true)
                     return (fromVW(
                         Number(val.split('vw')[0]),
                         this.canvas?.width || 1
