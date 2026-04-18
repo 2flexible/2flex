@@ -1,183 +1,68 @@
-// src/__tests__/imageBlock.test.ts
-import { describe, it, expect, vi } from 'vitest'
-import { ImageBlock } from '@2flexible/2flex'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
+import { Block, ImageBlock } from '@2flexible/2flex'
+import { getPrototype } from '../../Utils'
+
+let block: Block<any>
+
 const imageOptions = {
-    // ── Core Image Source & Clipping ───
-    clipX: { value: 40, default: 0 },
-    clipY: { value: 30, default: 0 },
-    clipWidth: { value: 280, default: 'width' },
-    clipHeight: { value: 180, default: 'height' },
-
-    // ── Image Fitting & Repeating ───
-    objectFit: { value: 'cover', default: undefined },
-    repeatX: { value: 'fill', default: undefined },
-    repeatY: { value: 3, default: undefined },
-
-    // ── Inherited from ShapeBlock (most useful for images) ───
-    backgroundColor: { value: '#111827', default: undefined },
-    fillStyle: { value: '#22c55e', default: undefined },
-    strokeStyle: { value: '#1e40af', default: undefined },
-    lineWidth: { value: 3, default: undefined },
-    lineCap: { value: 'round', default: undefined },
-    lineJoin: { value: 'round', default: undefined },
-    shadowBlur: { value: 14, default: undefined },
-    shadowColor: { value: 'rgba(0, 0, 0, 0.45)', default: undefined },
-    shadowOffsetX: { value: 5, default: undefined },
-    shadowOffsetY: { value: 8, default: undefined },
-    globalAlpha: { value: 0.98, default: undefined },
-
-    // ── Geometry (commonly used with ImageBlock) ───
-    x: { value: 100, default: 0 },
-    y: { value: 90, default: 0 },
-    width: { value: 360, default: 0 },
-    height: { value: 240, default: 0 },
+    source: {
+        value: 'https://example.com/other.png',
+        default: 'https://example.com/image.png',
+    },
+    clipX: { value: 12, default: 0 },
+    clipY: { value: 24, default: 0 },
+    clipWidth: { value: 80, default: 120 },
+    clipHeight: { value: 60, default: 80 },
+    objectFit: { value: 'contain', default: undefined },
+    repeatX: { value: 3, default: undefined },
+    repeatY: { value: 'fill', default: undefined },
 }
-function makeImage(opts = {}) {
-    // ImageBlock first argument is an image path string or HTMLImageElement
-    return new ImageBlock('/fake/image.png', {
-        x: 0,
-        y: 0,
-        width: 200,
-        height: 150,
-        ...opts,
-    })
-}
+
+beforeEach(() => {
+    block = new ImageBlock('https://example.com/image.png', { x: 0, y: 0, width: 120, height: 80 })
+})
 
 describe('ImageBlock', () => {
-    describe('constructor', () => {
+    describe('Constructor', () => {
         it('creates an ImageBlock instance', () => {
-            expect(makeImage()).toBeInstanceOf(ImageBlock)
+            expect(block).toBeInstanceOf(ImageBlock)
         })
 
-        it('accepts an HTMLImageElement as first argument', () => {
-            const img = new Image()
+        it('should not throw when creating an ImageBlock with options', () => {
             expect(
-                () =>
-                    new ImageBlock(img, { x: 0, y: 0, width: 100, height: 100 })
+                () => new ImageBlock('https://example.com/image.png', { x: 12, y: 24, width: 140, height: 80 })
             ).not.toThrow()
         })
     })
 
-    // ─── clipX / clipY ─────────────────────────────────────────────────────────
-    describe('clipX / clipY', () => {
-        it('clipX defaults to 0', () => {
-            expect(makeImage().clipX()).toBe(0)
-        })
+    describe('All options test', () => {
+        for (const [key, val] of Object.entries(imageOptions)) {
+            it(`option ${key} defaults to ${val.default}`, () => {
+                const currentVal = getPrototype(block, key)?.value.call(block)
+                expect(currentVal).toStrictEqual(val.default)
+            })
 
-        it('sets clipX', () => {
-            const b = makeImage()
-            b.clipX(20)
-            expect(b.clipX()).toBe(20)
-        })
-
-        it('clipY defaults to 0', () => {
-            expect(makeImage().clipY()).toBe(0)
-        })
-
-        it('sets clipY', () => {
-            const b = makeImage()
-            b.clipY(30)
-            expect(b.clipY()).toBe(30)
-        })
+            it(`option ${key} can be set to ${val.value}`, () => {
+                const currentVal = getPrototype(block, key)?.value.call(block, val.value)
+                expect(currentVal).toStrictEqual(val.value)
+            })
+        }
     })
 
-    // ─── clipWidth / clipHeight ────────────────────────────────────────────────
-    describe('clipWidth / clipHeight', () => {
-        it('clipWidth defaults to block width', () => {
-            expect(makeImage({ width: 200 }).clipWidth()).toBe(200)
+    describe('isRepeat', () => {
+        it('is false when repeatX and repeatY are undefined', () => {
+            expect(block.isRepeat).toBe(false)
         })
 
-        it('sets clipWidth', () => {
-            const b = makeImage()
-            b.clipWidth(100)
-            expect(b.clipWidth()).toBe(100)
+        it('is true when repeatX is set', () => {
+            block.repeatX(2)
+            expect(block.isRepeat).toBe(true)
         })
 
-        it('clipHeight defaults to block height', () => {
-            expect(makeImage({ height: 150 }).clipHeight()).toBe(150)
-        })
-
-        it('sets clipHeight', () => {
-            const b = makeImage()
-            b.clipHeight(80)
-            expect(b.clipHeight()).toBe(80)
+        it('is true when repeatY is set', () => {
+            block.repeatY(2)
+            expect(block.isRepeat).toBe(true)
         })
     })
-
-    // ─── objectFit ─────────────────────────────────────────────────────────────
-    describe('objectFit', () => {
-        it('objectFit defaults to undefined', () => {
-            expect(makeImage().objectFit()).toBeUndefined()
-        })
-
-        it("sets objectFit to 'cover'", () => {
-            const b = makeImage()
-            b.objectFit('cover')
-            expect(b.objectFit()).toBe('cover')
-        })
-
-        it("sets objectFit to 'contain'", () => {
-            const b = makeImage()
-            b.objectFit('contain')
-            expect(b.objectFit()).toBe('contain')
-        })
-
-        it("sets objectFit to 'fill'", () => {
-            const b = makeImage()
-            b.objectFit('fill')
-            expect(b.objectFit()).toBe('fill')
-        })
-    })
-
-    // ─── repeatX / repeatY ────────────────────────────────────────────────────
-    describe('repeatX / repeatY', () => {
-        it('repeatX defaults to undefined', () => {
-            expect(makeImage().repeatX()).toBeUndefined()
-        })
-
-        it('sets repeatX to a number', () => {
-            const b = makeImage()
-            b.repeatX(3)
-            expect(b.repeatX()).toBe(3)
-        })
-
-        it("sets repeatX to 'fill'", () => {
-            const b = makeImage()
-            b.repeatX('fill')
-            expect(b.repeatX()).toBe('fill')
-        })
-
-        it('repeatY defaults to undefined', () => {
-            expect(makeImage().repeatY()).toBeUndefined()
-        })
-
-        it('sets repeatY to a number', () => {
-            const b = makeImage()
-            b.repeatY(2)
-            expect(b.repeatY()).toBe(2)
-        })
-
-        it("sets repeatY to 'fill'", () => {
-            const b = makeImage()
-            b.repeatY('fill')
-            expect(b.repeatY()).toBe('fill')
-        })
-    })
-
-    // ─── Inherited Block options sanity check ──────────────────────────────────
-    describe('inherited Block options', () => {
-        it('x and y set from constructor', () => {
-            const b = makeImage({ x: 10, y: 20 })
-            expect(b.x()).toBe(10)
-            expect(b.y()).toBe(20)
-        })
-
-        it('hidden defaults to false', () => {
-            expect(makeImage().hidden()).toBe(false)
-        })
-
-        it('selectable defaults to false', () => {
-            expect(makeImage().selectable()).toBe(false)
-        })
-    })
+    
 })

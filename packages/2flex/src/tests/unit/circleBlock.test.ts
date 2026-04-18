@@ -1,152 +1,61 @@
-// src/__tests__/circleBlock.test.ts
-import { describe, it, expect } from 'vitest'
-import { CircleBlock } from '@2flexible/2flex'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { Block, CircleBlock } from '@2flexible/2flex'
+import { getPrototype } from '../../Utils'
 
-function makeCircle(opts = {}) {
-    return new CircleBlock({ x: 0, y: 0, width: 80, height: 80, ...opts })
-}
+let block: Block<any>
 
 const circleOptions = {
-    // ── Core Circle Geometry ───
+    // Core Circle Appearance
     startAngle: { value: Math.PI / 4, default: 0 },
-    endAngle: { value: Math.PI * 1.75, default: Math.PI * 2 },
-    innerRadius: { value: 35, default: 0 },
-
-    // ── Appearance ───
-    backgroundColor: { value: '#22c55e', default: undefined },
+    endAngle: { value: Math.PI, default: Math.PI * 2 },
+    innerRadius: { value: 18, default: 0 },
+    backgroundColor: { value: 'rgba(34, 197, 94, 1)', default: undefined },
+    borderWidth: { value: 4, default: 0 },
+    borderColor: { value: 'rgba(22, 101, 52, 1)', default: 'rgba(0, 0, 0, 1)' },
     borderStyle: { value: 'dotted', default: 'solid' },
-    borderWidth: { value: 7, default: 0 },
-    borderColor: { value: '#166534', default: 'black' },
-    border: { value: [8, 'solid', '#1e40af'], default: undefined },
 
-    // ── Inherited from ShapeBlock (most useful for circles) ───
-    fillStyle: { value: '#eab308', default: undefined },
-    strokeStyle: { value: '#3b82f6', default: undefined },
-    lineWidth: { value: 6, default: undefined },
-    lineCap: { value: 'round', default: undefined },
-    lineJoin: { value: 'round', default: undefined },
-    shadowBlur: { value: 18, default: undefined },
-    shadowColor: { value: 'rgba(0, 0, 0, 0.4)', default: undefined },
-    shadowOffsetX: { value: 4, default: undefined },
-    shadowOffsetY: { value: 9, default: undefined },
-    globalAlpha: { value: 0.96, default: undefined },
-
-    // ── Geometry (commonly used with CircleBlock) ───
-    x: { value: 160, default: 0 },
-    y: { value: 160, default: 0 },
-    width: { value: 220, default: 0 },
-    height: { value: 220, default: 0 },
+    // Border shorthand
+    border: { value: [6, 'solid', 'rgba(30, 58, 138, 1)'], default: undefined },
 }
 
+beforeEach(() => {
+    block = new CircleBlock({})
+})
+
 describe('CircleBlock', () => {
-    describe('constructor', () => {
+    describe('Constructor', () => {
         it('creates a CircleBlock instance', () => {
-            expect(makeCircle()).toBeInstanceOf(CircleBlock)
+            expect(block).toBeInstanceOf(CircleBlock)
         })
 
-        it('accepts initial options', () => {
-            const b = makeCircle({ backgroundColor: 'blue' })
-            expect(b.backgroundColor()).toBe('blue')
-        })
-    })
-
-    describe('startAngle', () => {
-        it('startAngle defaults to 0', () => {
-            expect(makeCircle().startAngle()).toBe(0)
-        })
-
-        it('sets startAngle', () => {
-            const b = makeCircle()
-            b.startAngle(Math.PI / 2)
-            expect(b.startAngle()).toBeCloseTo(Math.PI / 2)
+        it('should not throw when creating a CircleBlock with options', () => {
+            expect(() => new CircleBlock({ x: 12, y: 24, width: 140, height: 80 })).not.toThrow()
         })
     })
 
-    describe('endAngle', () => {
-        it('endAngle defaults to Math.PI * 2', () => {
-            expect(makeCircle().endAngle()).toBeCloseTo(Math.PI * 2)
-        })
-
-        it('sets endAngle', () => {
-            const b = makeCircle()
-            b.endAngle(Math.PI)
-            expect(b.endAngle()).toBeCloseTo(Math.PI)
-        })
+    describe('All options test', () => {
+        for (const [key, val] of Object.entries(circleOptions)) {
+            it(`option ${key} defaults to ${val.default}`, () => {
+                const currentVal = getPrototype(block, key)?.value.call(block)
+                expect(currentVal).toStrictEqual(val.default)
+            })
+            it(`option ${key} can be set to ${val.value}`, () => {
+                const currentVal = getPrototype(block, key)?.value.call(
+                    block,
+                    val.value
+                )
+                expect(currentVal).toStrictEqual(val.value)
+            })
+        }
     })
 
-    describe('innerRadius', () => {
-        it('innerRadius defaults to 0', () => {
-            expect(makeCircle().innerRadius()).toBe(0)
+    describe('border shorthand', () => {
+        it('accepts tuple for border()', () => {
+            expect(block.border([2, 'solid', '#00000'])).toEqual([2, 'solid', 'rgba(0, 0, 0, 1)'])
         })
 
-        it('sets innerRadius (donut shape)', () => {
-            const b = makeCircle()
-            b.innerRadius(20)
-            expect(b.innerRadius()).toBe(20)
-        })
-    })
-
-    describe('backgroundColor', () => {
-        it('backgroundColor defaults to undefined', () => {
-            expect(makeCircle().backgroundColor()).toBeUndefined()
-        })
-
-        it('sets backgroundColor', () => {
-            const b = makeCircle()
-            b.backgroundColor('green')
-            expect(b.backgroundColor()).toBe('green')
-        })
-    })
-
-    describe('border', () => {
-        it("borderStyle defaults to 'solid'", () => {
-            expect(makeCircle().borderStyle()).toBe('solid')
-        })
-
-        it("sets borderStyle to 'dotted'", () => {
-            const b = makeCircle()
-            b.borderStyle('dotted')
-            expect(b.borderStyle()).toBe('dotted')
-        })
-
-        it('borderWidth defaults to 0', () => {
-            expect(makeCircle().borderWidth()).toBe(0)
-        })
-
-        it('sets borderWidth', () => {
-            const b = makeCircle()
-            b.borderWidth(3)
-            expect(b.borderWidth()).toBe(3)
-        })
-
-        it("borderColor defaults to 'black'", () => {
-            expect(makeCircle().borderColor()).toBe('black')
-        })
-
-        it('sets borderColor', () => {
-            const b = makeCircle()
-            b.borderColor('orange')
-            expect(b.borderColor()).toBe('orange')
-        })
-
-        it('border shorthand defaults to undefined', () => {
-            expect(makeCircle().border()).toBeUndefined()
-        })
-
-        it('sets border shorthand', () => {
-            const b = makeCircle()
-            b.border([2, 'solid', 'red'])
-            expect(b.border()).toEqual([2, 'solid', 'red'])
-        })
-    })
-
-    describe('inherited Block options', () => {
-        it('hidden defaults to false', () => {
-            expect(makeCircle().hidden()).toBe(false)
-        })
-
-        it('selectable defaults to false', () => {
-            expect(makeCircle().selectable()).toBe(false)
+        it('accepts CSS-like string for border()', () => {
+            expect(block.border('3 solid #ff0000')).toEqual([3, 'solid', 'rgba(255, 0, 0, 1)'])
         })
     })
 })

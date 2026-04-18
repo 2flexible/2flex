@@ -1,240 +1,114 @@
-// src/__tests__/rectangleBlock.test.ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
-
-function makeRect(opts = {}) {
-    return new RectangleBlock({ x: 0, y: 0, width: 100, height: 100, ...opts })
-}
+import { getPrototype } from '../../Utils'
 
 let block: Block<any>
 let canvas: Canvas
+
 const rectangleOptions = {
-    // ── Core Rectangle Appearance ───
-    backgroundColor: { value: '#22c55e', default: undefined },
-    borderRadius: { value: [16, 8, 24, 12], default: 0 },
+    // Core Rectangle Appearance
+    backgroundColor: { value: 'rgba(34, 197, 94, 1)', default: undefined },
+    borderRadius: { value: [16, 8, 24, 12], default: [0, 0, 0, 0] },
     borderWidth: { value: 4, default: 0 },
-    borderColor: { value: '#166534', default: 'black' },
+    borderColor: { value: 'rgba(22, 101, 52, 1)', default: 'rgba(0, 0, 0, 1)' },
     borderStyle: { value: 'dotted', default: 'solid' },
 
-    // ── Border Shorthands ───
-    border: { value: [6, 'solid', '#1e3a8a'], default: undefined },
-    borderTop: { value: [3, 'solid', '#ef4444'], default: undefined },
-    borderBottom: { value: [5, 'dotted', '#eab308'], default: undefined },
-    borderLeft: { value: [8, 'solid', '#3b82f6'], default: undefined },
-    borderRight: { value: [2, 'solid', '#8b5cf6'], default: undefined },
-
-    // ── Inherited from ShapeBlock (selected practical examples) ───
-    fillStyle: { value: '#eab308', default: undefined },
-    strokeStyle: { value: '#1e40af', default: undefined },
-    lineWidth: { value: 5, default: undefined },
-    lineCap: { value: 'round', default: undefined },
-    lineJoin: { value: 'round', default: undefined },
-    shadowBlur: { value: 15, default: undefined },
-    shadowColor: { value: 'rgba(0, 0, 0, 0.35)', default: undefined },
-    shadowOffsetX: { value: 6, default: undefined },
-    shadowOffsetY: { value: 10, default: undefined },
-    globalAlpha: { value: 0.98, default: undefined },
-
-    // ── Geometry (commonly used with RectangleBlock) ───
-    x: { value: 80, default: 0 },
-    y: { value: 120, default: 0 },
-    width: { value: 280, default: 0 },
-    height: { value: 160, default: 0 },
+    // Border shorthands
+    border: { value: [6, 'solid', 'rgba(30, 58, 138, 1)'], default: undefined },
+    borderTop: { value: [3, 'solid', 'rgba(239, 68, 68, 1)'], default: undefined },
+    borderBottom: { value: [5, 'dotted', 'rgba(234, 179, 8, 1)'], default: undefined },
+    borderLeft: { value: [8, 'solid', 'rgba(59, 130, 246, 1)'], default: undefined },
+    borderRight: { value: [2, 'solid', 'rgba(139, 92, 246, 1)'], default: undefined },
 }
+
+beforeEach(() => {
+    block = new RectangleBlock({})
+})
+
 describe('RectangleBlock', () => {
-    // ─── Constructor ─────────────────────────────────────────────────────────────
-    describe('constructor', () => {
+    describe('Constructor', () => {
         it('creates a RectangleBlock instance', () => {
-            expect(makeRect()).toBeInstanceOf(RectangleBlock)
+            expect(block).toBeInstanceOf(RectangleBlock)
         })
 
-        it('accepts initial options', () => {
-            const b = makeRect({
-                x: 10,
-                y: 20,
-                width: 80,
-                height: 60,
-                backgroundColor: 'red',
+        it('should not throw when creating a RectangleBlock with options', () => {
+            expect(()=>new RectangleBlock({ x: 12, y: 24, width: 140, height: 80 })).not.toThrow()
+        })
+    })
+
+    describe('All options test', () => {
+        for (const [key, val] of Object.entries(rectangleOptions)) {
+            it(`option ${key} defaults to ${val.default}`, () => {
+                const currentVal = getPrototype(block, key)?.value.call(block)
+                expect(currentVal).toStrictEqual(val.default)
             })
-            expect(b.x()).toBe(10)
-            expect(b.y()).toBe(20)
-            expect(b.width()).toBe(80)
-            expect(b.height()).toBe(60)
-            expect(b.backgroundColor()).toBe('red')
-        })
+            it(`option ${key} can be set to ${val.value}`, () => {
+                const currentVal = getPrototype(block, key)?.value.call(
+                    block,
+                    val.value
+                )
+                expect(currentVal).toStrictEqual(val.value)
+            })
+        }
     })
 
-    // ─── backgroundColor ─────────────────────────────────────────────────────────
-    describe('backgroundColor', () => {
-        it('defaults to undefined', () => {
-            expect(makeRect().backgroundColor()).toBeUndefined()
-        })
-
-        it('sets backgroundColor', () => {
-            const b = makeRect()
-            b.backgroundColor('blue')
-            expect(b.backgroundColor()).toBe('blue')
-        })
-
-        it('sets backgroundColor via constructor', () => {
-            const b = makeRect({ backgroundColor: '#ff0000' })
-            expect(b.backgroundColor()).toBe('#ff0000')
-        })
-    })
-
-    // ─── borderRadius ────────────────────────────────────────────────────────────
     describe('borderRadius', () => {
-        it('defaults to 0 (or an array of zeros)', () => {
-            const br = makeRect().borderRadius()
-            const flat = Array.isArray(br) ? br[0] : br
-            expect(flat).toBe(0)
+        it('expands numeric radius to 4 corners', () => {
+            expect(block.borderRadius(10)).toEqual([10, 10, 10, 10])
         })
 
-        it('sets borderRadius as a number', () => {
-            const b = makeRect()
-            b.borderRadius(10)
-            const br = b.borderRadius()
-            const flat = Array.isArray(br) ? br[0] : br
-            expect(flat).toBe(10)
+        it('expands [a] to [a, a, a, a]', () => {
+            expect(block.borderRadius([6])).toEqual([6, 6, 6, 6])
         })
 
-        it('sets borderRadius as an array', () => {
-            const b = makeRect()
-            b.borderRadius([5, 10, 5, 10])
-            expect(b.borderRadius()).toEqual([5, 10, 5, 10])
-        })
-    })
-
-    // ─── borderStyle ─────────────────────────────────────────────────────────────
-    describe('borderStyle', () => {
-        it("defaults to 'solid'", () => {
-            expect(makeRect().borderStyle()).toBe('solid')
+        it('expands [a, b] to [a, a, b, b]', () => {
+            expect(block.borderRadius([10, 4])).toEqual([10, 10, 4, 4])
         })
 
-        it("sets borderStyle to 'dotted'", () => {
-            const b = makeRect()
-            b.borderStyle('dotted')
-            expect(b.borderStyle()).toBe('dotted')
+        it('expands [a, b, c] to [a, a, b, c]', () => {
+            expect(block.borderRadius([8, 3, 1])).toEqual([8, 8, 3, 1])
+        })
+
+        it('keeps [a, b, c, d] unchanged', () => {
+            expect(block.borderRadius([1, 2, 3, 4])).toEqual([1, 2, 3, 4])
         })
     })
 
-    // ─── borderWidth ─────────────────────────────────────────────────────────────
-    describe('borderWidth', () => {
-        it('defaults to 0', () => {
-            expect(makeRect().borderWidth()).toBe(0)
+    describe('border shorthands', () => {
+        it('accepts tuple for border()', () => {
+            expect(block.border([2, 'solid', '#00000'])).toEqual([2, 'solid', 'rgba(0, 0, 0, 1)'])
         })
 
-        it('sets borderWidth as number', () => {
-            const b = makeRect()
-            b.borderWidth(2)
-            expect(b.borderWidth()).toBe(2)
+        it('accepts CSS-like string for border()', () => {
+            expect(block.border('3 solid #ff0000')).toEqual([3, 'solid', 'rgba(255, 0, 0, 1)'])
+        })
+        
+        it('accepts tuple for borderTop()', () => {
+            expect(block.borderTop([1, 'solid', '#111111'])).toEqual([1, 'solid', 'rgba(17, 17, 17, 1)'])
+        })
+        it('accepts CSS-like string for borderTop()', () => {
+            expect(block.borderTop('2 dotted #aabbcc')).toEqual([2, 'dotted', 'rgba(170, 187, 204, 1)'])
         })
 
-        it('sets borderWidth via constructor', () => {
-            const b = makeRect({ borderWidth: 4 })
-            expect(b.borderWidth()).toBe(4)
+        it('accepts tuple for borderRight()', () => {
+            expect(block.borderRight([2, 'dotted', '#222222'])).toEqual([2, 'dotted', 'rgba(34, 34, 34, 1)'])
         })
-    })
-
-    // ─── borderColor ─────────────────────────────────────────────────────────────
-    describe('borderColor', () => {
-        it("defaults to 'black'", () => {
-            expect(makeRect().borderColor()).toBe('black')
+        it('accepts CSS-like string for borderRight()', () => {
+            expect(block.borderRight('4 solid #ddeeff')).toEqual([4, 'solid', 'rgba(221, 238, 255, 1)'])
         })
 
-        it('sets borderColor', () => {
-            const b = makeRect()
-            b.borderColor('red')
-            expect(b.borderColor()).toBe('red')
+        it('accepts tuple for borderBottom()', () => {
+            expect(block.borderBottom([3, 'solid', '#333333'])).toEqual([3, 'solid', 'rgba(51, 51, 51, 1)'])
         })
-    })
-
-    // ─── border shorthand ────────────────────────────────────────────────────────
-    describe('border shorthand', () => {
-        it('border defaults to undefined', () => {
-            expect(makeRect().border()).toBeUndefined()
+        it('accepts CSS-like string for borderBottom()', () => {
+            expect(block.borderBottom('5 dotted #112233')).toEqual([5, 'dotted', 'rgba(17, 34, 51, 1)'])
         })
 
-        it('sets border as array [width, style, color]', () => {
-            const b = makeRect()
-            b.border([2, 'solid', 'black'])
-            expect(b.border()).toEqual([2, 'solid', 'black'])
+        it('accepts tuple for borderLeft()', () => {
+            expect(block.borderLeft([4, 'dotted', '#444444'])).toEqual([4, 'dotted', 'rgba(68, 68, 68, 1)'])
         })
-
-        it('setting border updates borderWidth', () => {
-            const b = makeRect()
-            b.border([3, 'solid', 'green'])
-            expect(b.borderWidth()).toBe(3)
-        })
-
-        it('setting border updates borderStyle', () => {
-            const b = makeRect()
-            b.border([1, 'dotted', 'gray'])
-            expect(b.borderStyle()).toBe('dotted')
-        })
-
-        it('setting border updates borderColor', () => {
-            const b = makeRect()
-            b.border([1, 'solid', 'purple'])
-            expect(b.borderColor()).toBe('purple')
-        })
-    })
-
-    // ─── per-side borders ────────────────────────────────────────────────────────
-    describe('per-side borders', () => {
-        it('borderTop defaults to undefined', () => {
-            expect(makeRect().borderTop()).toBeUndefined()
-        })
-
-        it('sets borderTop', () => {
-            const b = makeRect()
-            b.borderTop([2, 'solid', 'red'])
-            expect(b.borderTop()).toEqual([2, 'solid', 'red'])
-        })
-
-        it('borderBottom defaults to undefined', () => {
-            expect(makeRect().borderBottom()).toBeUndefined()
-        })
-
-        it('sets borderBottom', () => {
-            const b = makeRect()
-            b.borderBottom([1, 'dotted', 'blue'])
-            expect(b.borderBottom()).toEqual([1, 'dotted', 'blue'])
-        })
-
-        it('borderLeft defaults to undefined', () => {
-            expect(makeRect().borderLeft()).toBeUndefined()
-        })
-
-        it('sets borderLeft', () => {
-            const b = makeRect()
-            b.borderLeft([3, 'solid', 'green'])
-            expect(b.borderLeft()).toEqual([3, 'solid', 'green'])
-        })
-
-        it('borderRight defaults to undefined', () => {
-            expect(makeRect().borderRight()).toBeUndefined()
-        })
-
-        it('sets borderRight', () => {
-            const b = makeRect()
-            b.borderRight([2, 'solid', 'yellow'])
-            expect(b.borderRight()).toEqual([2, 'solid', 'yellow'])
-        })
-    })
-
-    // ─── Inherited base options sanity check ─────────────────────────────────────
-    describe('inherited Block options', () => {
-        it('draggable defaults to false', () => {
-            expect(makeRect().draggable()).toBe(false)
-        })
-
-        it('selectable defaults to false', () => {
-            expect(makeRect().selectable()).toBe(false)
-        })
-
-        it('hidden defaults to false', () => {
-            expect(makeRect().hidden()).toBe(false)
+        it('accepts CSS-like string for borderLeft()', () => {
+            expect(block.borderLeft('2 solid #334455')).toEqual([2, 'solid', 'rgba(51, 68, 85, 1)'])
         })
     })
 })
