@@ -331,9 +331,7 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
             (event: KeyboardEvent) => void,
             ((event: KeyboardEvent) => void) | undefined
         >(opt, 'onEdit', undefined)
-        return (event: KeyboardEvent) => {
-            editE?.(event)
-        }
+        return editE
     }
 
     text(opt?: string): string {
