@@ -4049,8 +4049,10 @@ export class Block<T = IBlockOptions> extends Node {
                     if (leftResize) {
                         const widthR = this.width() - diffDx * reverseX
                         if (
-                            (widthR > 0 && !this.horizontalFlipResize()) ||
-                            this.horizontalFlipResize()
+                            widthR < this.maxWidth() &&
+                            ((widthR > this.minWidth() &&
+                                !this.horizontalFlipResize()) ||
+                                this.horizontalFlipResize())
                         ) {
                             this.x(this.x() + diffDx * reverseX)
                             this.width(this.width() - diffDx * reverseX)
@@ -4080,8 +4082,10 @@ export class Block<T = IBlockOptions> extends Node {
                     } else if (bottomResize) {
                         const heightR = this.height() + diffDy * reverseY
                         if (
-                            (heightR > 0 && !this.verticalFlipResize()) ||
-                            this.verticalFlipResize()
+                            heightR < this.maxHeight() &&
+                            ((heightR > this.minHeight() &&
+                                !this.verticalFlipResize()) ||
+                                this.verticalFlipResize())
                         ) {
                             this.height(heightR)
                         }
