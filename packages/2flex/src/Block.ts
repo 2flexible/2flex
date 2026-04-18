@@ -3126,11 +3126,10 @@ export class Block<T = IBlockOptions> extends Node {
         this.animationHandler(animator)
         return animationId
     }
-
     animationHandler(animator: Animator) {
-        if (this.nodeId)
             if (!this.canvas) this.__animations.push(animator)
-            else this.canvas.registerAnimation(this.nodeId, animator)
+        else if (this.nodeId !== undefined)
+            this.canvas.registerAnimation(this.nodeId, animator)
     }
 
     animationStart(animationId: AnimationId) {
