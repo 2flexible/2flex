@@ -220,6 +220,7 @@ export interface IShapeOptions {
 
     fillText?: DrawText
     strokeText?: DrawText
+    font?: Font;
     fontStretch?: CanvasFontStretch
     fontKerning?: CanvasFontKerning
     fontVariantCaps?: CanvasFontVariantCaps
@@ -326,9 +327,10 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         )
         if (cords) {
             const fillRule = cords.fillRule || 'nonzero'
-            if (cords.path) return this.context?.clip(cords.path, fillRule)
-            else return this.context?.clip(fillRule)
+            if (cords.path) this.context?.clip(cords.path, fillRule)
+            else this.context?.clip(fillRule)
         }
+        return cords
     }
     fill(opt?: Fill) {
         const fill = this.__valueHandler<Fill, Fill | undefined>(
@@ -362,7 +364,7 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
                 cords.x,
                 cords.y
             )
-        return this.#gradient
+        return cords
     }
     radialGradient(opt?: RadialGradient) {
         const cords = this.__valueHandler<
@@ -378,7 +380,7 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
                 cords.y1,
                 cords.r1
             )
-        return this.#gradient
+        return cords
     }
     linearGradient(opt?: LinearGradient) {
         const cords = this.__valueHandler<
@@ -392,7 +394,7 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
                 cords.x1,
                 cords.y1
             )
-        return this.#gradient
+        return cords
     }
     colorStops(opt?: GradientStops[]) {
         const stops = this.__valueHandler<
@@ -670,8 +672,8 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
     }
 
     font(opt?: Font) {
-        const font = this.__valueHandler(opt, 'font', '')
-        if (this.context) this.context.font = font
+        const font = this.__valueHandler(opt, 'font', undefined)
+        if (this.context && font) this.context.font = font
         return font
     }
 
@@ -782,7 +784,7 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         return textRendering
     }
 
-    measureText(text: string) {
+    measureText(text: string): TextMetrics | undefined {
         return this.context?.measureText(text)
     }
 
