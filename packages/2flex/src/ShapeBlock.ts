@@ -183,6 +183,8 @@ export interface IShapeOptions {
     lineDashOffset?: CanvasPathDrawingStyles['lineDashOffset']
     lineJoin?: CanvasLineJoin
 
+    miterLimit?: CanvasPathDrawingStyles['miterLimit']
+
     arc?: Arc
     arcTo?: ArcTo
     ellipse?: Ellipse
@@ -764,6 +766,13 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         const textAlign = this.__valueHandler(opt, 'textAlign', 'start')
         if (this.context) this.context.textAlign = textAlign
         return textAlign
+    }
+
+    miterLimit(opt?: CanvasPathDrawingStyles['miterLimit']) {
+        const miterLimit = this.__valueHandler(opt, 'miterLimit', undefined)
+        if (this.context && miterLimit !== undefined)
+            this.context.miterLimit = miterLimit
+        return miterLimit
     }
 
     textBaseline(opt?: CanvasTextBaseline) {
