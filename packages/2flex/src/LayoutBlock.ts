@@ -1,4 +1,4 @@
-import { Block } from './Block'
+import { Block, RelativeType } from './Block'
 import type { IBlock } from './types'
 
 type JustifyContent =
@@ -59,20 +59,29 @@ interface FlexLayout {
     flexFlow?: FlexFlow
 }
 
-type Gap = number | number[]
+type Gap = RelativeType | [RelativeType, RelativeType]
+
+type Grid = number[]
+type GridTemplateAreas = string[]
+type GridTemplateColumns = number[] | number
+type GridTemplateRows = number[] | number
+type GridAutoRows = number[]
+type GridAutoColumns = number[]
+
+type GridTemplate = number[][]
 
 interface GridLayout {
     // grid-template-rows / grid-template-columns|grid-template-areas|grid-template-rows / [grid-auto-flow] grid-auto-columns|[grid-auto-flow] grid-auto-rows / grid-template-columns
-    grid?: number[]
+    grid?: Grid
     // @Todo?: add Name assignamed to each grid
-    gridTemplateAreas?: string[]
+    gridTemplateAreas?: GridTemplateAreas
     // gridTemplate?: grid-template-rows / grid-template-columns
-    gridTemplate?: number[]
-    gridTemplateColumns?: number[] | number
-    gridTemplateRows?: number[] | number
+    gridTemplate?: GridTemplate
+    gridTemplateColumns?: GridTemplateColumns
+    gridTemplateRows?: GridTemplateRows
 
-    gridAutoRows?: number[]
-    gridAutoColumns?: number[]
+    gridAutoRows?: GridAutoRows
+    gridAutoColumns?: GridAutoColumns
 
     // @Todo: need to impliment
     gridAutoFlow?: GridAutoFlow
@@ -89,8 +98,8 @@ interface LayoutOptions extends GridLayout, FlexLayout {
     placeContent?: PlaceContent
     placeItems?: PlaceItems
     gap?: Gap
-    columnGap?: number
-    rowGap?: number
+    gapColumn?: RelativeType
+    gapRow?: RelativeType
 }
 
 export class LayoutBlock extends Block<LayoutOptions> {
@@ -400,14 +409,16 @@ export class LayoutBlock extends Block<LayoutOptions> {
         return this.__valueHandler(opt, 'flexWrap', 'nowrap')
     }
     placeContent(opt?: PlaceContent) {
-        this.alignContent(opt)
-        this.justifyContent(opt)
-        return this.__valueHandler(opt, 'placeContent', 'start')
+        const content = this.__valueHandler(opt, 'placeContent', 'start')
+        this.alignContent(content)
+        this.justifyContent(content)
+        return content
     }
     placeItems(opt?: PlaceItems) {
-        this.alignItems(opt)
-        this.justifyItems(opt)
-        return this.__valueHandler(opt, 'placeItems', 'start')
+        const items = this.__valueHandler(opt, 'placeItems', 'start')
+        this.alignItems(items)
+        this.justifyItems(items)
+        return items
     }
     gap(opt?: Gap) {
         const gap = this.__valueHandler<Gap, Gap>(opt, 'gap', 0)
@@ -421,10 +432,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
         this.gapRow(gapColumn as number)
         return gap
     }
-    gridTemplate(opt?: number[][]) {
+    gridTemplate(opt?: GridTemplate) {
         const gridTemplate = this.__valueHandler(opt, 'gridTemplate', [])
-        this.gridTemplateRows(gridTemplate[0])
-        this.gridTemplateColumns(gridTemplate[1])
+        if (gridTemplate[0]) this.gridTemplateRows(gridTemplate[0])
+        if (gridTemplate[1]) this.gridTemplateColumns(gridTemplate[1])
         return gridTemplate
     }
     gridAutoFlow(opt?: GridAutoFlow) {
@@ -436,10 +447,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
     gridTemplateRows(opt?: number[] | string[]): number[] | string[] {
         return this.__valueHandler(opt, 'gridTemplateRows', [])
     }
-    gapColumn(opt?: number) {
+    gapColumn(opt?: RelativeType) {
         return this.__valueHandler(opt, 'gapColumn', 0)
     }
-    gapRow(opt?: number) {
+    gapRow(opt?: RelativeType) {
         return this.__valueHandler(opt, 'gapRow', 0)
     }
     columnStart(opt?: number) {
@@ -573,17 +584,14 @@ export class LayoutBlock extends Block<LayoutOptions> {
     }
     get #isFlexCol() {
         if (
-            this.options.flexDirection === 'column' ||
-            this.options.flexDirection === 'column-reverse'
+            this.flexDirection() === 'column' ||
+            this.flexDirection() === 'column-reverse'
         )
             return true
         return false
     }
     get #isGrid() {
-        if (
-            this.options.layout === 'grid' ||
-            this.options.layout === 'inline-grid'
-        )
+        if (this.layout() === 'grid' || this.layout() === 'inline-grid')
             return true
         return false
     }
