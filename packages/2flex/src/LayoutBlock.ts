@@ -1225,10 +1225,9 @@ export class LayoutBlock extends Block<LayoutOptions> {
             if (block.flexBasis() !== 'auto')
                 blockW = block.flexBasis() as number
 
-            const bMarginLeft = block.marginLeft()
-            const bMarginRigth = block.marginRight()
+            blockW += block.marginLeft() + block.marginRight()
             if (this.#isWrap) {
-                wrapWidth += blockW + bMarginLeft + bMarginRigth
+                wrapWidth += blockW
                 if (wrapWidth > layoutWidth) {
                     rowIdx += 1
                     startY += containerH + gapRow
@@ -1265,7 +1264,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
             }
             wrapWidth += gapCol
             startX += gapCol + blockW
-            containerW += blockW + bMarginRigth
+            containerW += blockW + block.marginRight()
             colIdx += 1
         }, 'order')
         this.#blocksWidth.push(containerW)
@@ -1303,15 +1302,14 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 : this.gapRow()
 
         const layoutHeight = this.height()
-
         this.listOnlyChilds((block: Block, idx: number) => {
             if (block.rotationCenter() === 'parent') block.rotate(0)
 
-            let blockH =
-                block.height() + block.marginBottom() + block.marginTop()
+            let blockH = block.height()
             if (block.flexBasis() !== 'auto')
                 blockH = block.flexBasis() as number
 
+            blockH += block.marginBottom() + block.marginTop()
             if (this.#isWrap) {
                 wrapHeight += blockH
                 if (wrapHeight > layoutHeight) {
