@@ -41,6 +41,7 @@ type PlaceContent = AlignContent & JustifyContent
 type PlaceItems = AlignItems & JustifyItems
 
 type FlexDirecton = 'column' | 'column-reverse' | 'row' | 'row-reverse'
+// @TODO: need to impliment 'wrap-reverse'
 type FlexWrap = 'nowrap' | 'wrap' | 'wrap-reverse'
 type FlexFlow = [FlexDirecton, FlexWrap]
 
@@ -252,14 +253,14 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             bHeightResize = adjustedH
                     } else {
                         if (
-                            (containerW > realW || blockW < b.maxWidth()) &&
-                            blockW > b.minWidth()
+                            (containerW >= realW || blockW < b.maxWidth()) &&
+                            blockW >= b.minWidth()
                         ) {
                             bWidthResize = adjustedW
                         }
                         if (
-                            (blockH > realH || blockH < b.maxHeight()) &&
-                            blockH > b.minHeight()
+                            (blockH >= realH || blockH < b.maxHeight()) &&
+                            blockH >= b.minHeight()
                         )
                             bHeightResize = -(
                                 blockH -
