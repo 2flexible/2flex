@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Block, TextBlock } from '@2flexible/2flex'
+import { TextBlock } from '@2flexible/2flex'
 import { getPrototype } from '../../Utils'
 
-let block: Block<any>
+let block: TextBlock
 
 const textOptions = {
     text: { value: 'hello world', default: '' },
@@ -20,7 +20,7 @@ const textOptions = {
 }
 
 beforeEach(() => {
-    block = new TextBlock()
+    block = new TextBlock('', {})
 })
 
 describe('TextBlock', () => {
@@ -31,7 +31,13 @@ describe('TextBlock', () => {
 
         it('should not throw when creating a TextBlock with options', () => {
             expect(
-                () => new TextBlock('hello', { x: 12, y: 24, width: 140, height: 80 })
+                () =>
+                    new TextBlock('hello', {
+                        x: 12,
+                        y: 24,
+                        width: 140,
+                        height: 80,
+                    })
             ).not.toThrow()
         })
     })
@@ -43,7 +49,10 @@ describe('TextBlock', () => {
                 expect(currentVal).toStrictEqual(val.default)
             })
             it(`option ${key} can be set to ${val.value}`, () => {
-                const currentVal = getPrototype(block, key)?.value.call(block, val.value)
+                const currentVal = getPrototype(block, key)?.value.call(
+                    block,
+                    val.value
+                )
                 expect(currentVal).toStrictEqual(val.value)
             })
         }

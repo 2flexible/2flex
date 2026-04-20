@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { Block, ImageBlock } from '@2flexible/2flex'
 import { getPrototype } from '../../Utils'
 
-let block: Block<any>
+let block: ImageBlock
 
 const imageOptions = {
     source: {

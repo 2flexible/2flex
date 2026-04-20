@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Block, CircleBlock } from '@2flexible/2flex'
+import { CircleBlock } from '@2flexible/2flex'
 import { getPrototype } from '../../Utils'
 
-let block: Block<any>
+let block: CircleBlock
 
 const circleOptions = {
     // Core Circle Appearance
@@ -29,7 +29,9 @@ describe('CircleBlock', () => {
         })
 
         it('should not throw when creating a CircleBlock with options', () => {
-            expect(() => new CircleBlock({ x: 12, y: 24, width: 140, height: 80 })).not.toThrow()
+            expect(
+                () => new CircleBlock({ x: 12, y: 24, width: 140, height: 80 })
+            ).not.toThrow()
         })
     })
 
@@ -51,11 +53,19 @@ describe('CircleBlock', () => {
 
     describe('border shorthand', () => {
         it('accepts tuple for border()', () => {
-            expect(block.border([2, 'solid', '#00000'])).toEqual([2, 'solid', 'rgba(0, 0, 0, 1)'])
+            expect(block.border([2, 'solid', '#00000'])).toEqual([
+                2,
+                'solid',
+                'rgba(0, 0, 0, 1)',
+            ])
         })
 
         it('accepts CSS-like string for border()', () => {
-            expect(block.border('3 solid #ff0000')).toEqual([3, 'solid', 'rgba(255, 0, 0, 1)'])
+            expect(block.border('3 solid #ff0000')).toEqual([
+                3,
+                'solid',
+                'rgba(255, 0, 0, 1)',
+            ])
         })
     })
 })

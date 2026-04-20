@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Block, ShapeBlock } from '@2flexible/2flex'
+import { ShapeBlock, Canvas } from '@2flexible/2flex'
 import { getPrototype } from '../../Utils'
-import { Canvas } from '../../Canvas'
 
-let block: Block<any>
+let block: ShapeBlock
 
 const shapeOptions = {
     fill: { value: { fill: true }, default: undefined },
@@ -20,7 +19,10 @@ const shapeOptions = {
         value: { x: 10, y: 10, radius: 5, startAngle: 0, endAngle: Math.PI },
         default: undefined,
     },
-    arcTo: { value: { x1: 1, y1: 2, x2: 3, y2: 4, radius: 5 }, default: undefined },
+    arcTo: {
+        value: { x1: 1, y1: 2, x2: 3, y2: 4, radius: 5 },
+        default: undefined,
+    },
     ellipse: {
         value: {
             x: 10,
@@ -38,19 +40,34 @@ const shapeOptions = {
         value: { cpx1: 1, cpy1: 2, cpx2: 3, cpy2: 4, endX: 5, endY: 6 },
         default: undefined,
     },
-    quadraticCurveTo: { value: { cpx1: 1, cpy1: 2, endX: 5, endY: 6 }, default: undefined },
-    rect: { value: { x: 2, y: 3, width: 40, height: 50 }, default: undefined },
-    roundRect: {
-        value: { x: 2, y: 3, width: 40, height: 50, borderRadius: [4, 4, 4, 4] },
+    quadraticCurveTo: {
+        value: { cpx1: 1, cpy1: 2, endX: 5, endY: 6 },
         default: undefined,
     },
-    strokeRect: { value: { x: 2, y: 3, width: 40, height: 50 }, default: undefined },
+    rect: { value: { x: 2, y: 3, width: 40, height: 50 }, default: undefined },
+    roundRect: {
+        value: {
+            x: 2,
+            y: 3,
+            width: 40,
+            height: 50,
+            borderRadius: [4, 4, 4, 4],
+        },
+        default: undefined,
+    },
+    strokeRect: {
+        value: { x: 2, y: 3, width: 40, height: 50 },
+        default: undefined,
+    },
     moveTo: { value: { x: 3, y: 7 }, default: undefined },
     radialGradient: {
         value: { x0: 0, y0: 0, r0: 1, x1: 20, y1: 20, r1: 10 },
         default: undefined,
     },
-    linearGradient: { value: { x0: 0, y0: 0, x1: 20, y1: 20 }, default: undefined },
+    linearGradient: {
+        value: { x0: 0, y0: 0, x1: 20, y1: 20 },
+        default: undefined,
+    },
     conicGradient: { value: { angle: 0, x: 10, y: 10 }, default: undefined },
     colorStops: {
         value: [
@@ -71,9 +88,15 @@ const shapeOptions = {
     shadowColor: { value: 'rgba(0, 0, 0, 0.5)', default: undefined },
     shadowOffsetX: { value: 6, default: 0 },
     shadowOffsetY: { value: 7, default: 0 },
-    font: { value: "normal normal 400 16px sans-serif", default: undefined },
-    fillText: { value: { text: 'shape', x: 10, y: 20, maxWidth: 80 }, default: undefined },
-    strokeText: { value: { text: 'shape', x: 10, y: 20, maxWidth: 80 }, default: undefined },
+    font: { value: 'normal normal 400 16px sans-serif', default: undefined },
+    fillText: {
+        value: { text: 'shape', x: 10, y: 20, maxWidth: 80 },
+        default: undefined,
+    },
+    strokeText: {
+        value: { text: 'shape', x: 10, y: 20, maxWidth: 80 },
+        default: undefined,
+    },
     fontStretch: { value: 'expanded', default: undefined },
     fontKerning: { value: 'normal', default: undefined },
     fontVariantCaps: { value: 'small-caps', default: undefined },
@@ -128,7 +151,10 @@ describe('ShapeBlock', () => {
                 expect(currentVal).toStrictEqual(val.default)
             })
             it(`option ${key} can be set to ${val.value}`, () => {
-                const currentVal = getPrototype(block, key)?.value.call(block, val.value)
+                const currentVal = getPrototype(block, key)?.value.call(
+                    block,
+                    val.value
+                )
                 expect(currentVal).toStrictEqual(val.value)
             })
         }
@@ -146,11 +172,11 @@ describe('ShapeBlock', () => {
 
     describe('path and text helpers', () => {
         it('beginPath calls canvas context beginPath', () => {
-            expect(()=>block.beginPath()).not.toThrow()
+            expect(() => block.beginPath()).not.toThrow()
         })
 
         it('closePath calls canvas context closePath', () => {
-            expect(()=>block.closePath()).not.toThrow()
+            expect(() => block.closePath()).not.toThrow()
         })
 
         it('measureText returns value from canvas context', () => {
@@ -160,9 +186,9 @@ describe('ShapeBlock', () => {
                 fontKerning: 'normal',
                 font: 'normal normal 400 16px sans-serif',
             })
-            const canvas = new Canvas("myCanvas", 300, 400)
+            const canvas = new Canvas('myCanvas', 300, 400)
             canvas.add(textShape)
-            
+
             const expected = {
                 width: 73.828125,
                 actualBoundingBoxAscent: 12,
@@ -172,7 +198,7 @@ describe('ShapeBlock', () => {
                 fontBoundingBoxAscent: 14,
                 fontBoundingBoxDescent: 3,
             }
-           
+
             const content = textShape.fillText()?.text || ''
             const result = textShape.measureText(content)
 
@@ -197,6 +223,5 @@ describe('ShapeBlock', () => {
                 expected.fontBoundingBoxDescent
             )
         })
-
     })
 })

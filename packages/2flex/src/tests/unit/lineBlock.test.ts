@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { Block, LineBlock } from '@2flexible/2flex'
+import { LineBlock } from '@2flexible/2flex'
 import { getPrototype } from '../../Utils'
 
-let block: Block<any>
+let block: LineBlock
 
 const lineOptions = {
     lineType: { value: 'cubicBezier', default: 'line' },
@@ -41,7 +41,10 @@ describe('LineBlock', () => {
                 expect(currentVal).toStrictEqual(val.default)
             })
             it(`option ${key} can be set to ${val.value}`, () => {
-                const currentVal = getPrototype(block, key)?.value.call(block, val.value)
+                const currentVal = getPrototype(block, key)?.value.call(
+                    block,
+                    val.value
+                )
                 expect(currentVal).toStrictEqual(val.value)
             })
         }
