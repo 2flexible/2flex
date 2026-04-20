@@ -1,426 +1,1140 @@
-const blockOptions = {
-    // ── Layout Type ───
-    layout: { value: 'grid', default: undefined },
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { Block, LayoutBlock, Canvas } from '@2flexible/2flex'
+import { getPrototype } from '../../Utils'
 
-    // ── Alignment (Content) ───
-    justifyContent: { value: 'space-between', default: 'normal' },
-    alignContent: { value: 'stretch', default: 'normal' },
-    placeContent: {
-        value: ['center', 'space-around'],
-        default: ['normal', 'normal'],
-    },
+let block: LayoutBlock
+const canvas = new Canvas('myCanvas', 400, 400)
 
-    // ── Alignment (Items) ───
-    alignItems: { value: 'baseline', default: 'normal' },
-    placeItems: { value: ['end', 'start'], default: ['normal', 'normal'] },
-    justifyItems: { value: 'stretch', default: 'normal' },
-
-    // ── Flex Properties ───
-    flexDirection: { value: 'column-reverse', default: 'row' },
-    flexWrap: { value: 'wrap-reverse', default: 'nowrap' },
-    flexFlow: { value: 'column wrap', default: 'row nowrap' },
-
-    // ── Spacing ───
-    gap: { value: 24, default: 0 },
-    columnGap: { value: '2rem', default: 0 },
-    rowGap: { value: 16, default: 0 },
-
-    // ── Grid Properties ───
-    gridAutoRows: { value: 'minmax(100px, auto)', default: 'auto' },
-    gridAutoColumns: { value: '1fr', default: 'auto' },
-    gridAutoFlow: { value: 'dense', default: 'row' },
-    gridTemplateAreas: {
-        value: '"header header" "sidebar content" "footer footer"',
-        default: undefined,
-    },
-    gridTemplate: { value: '100px 1fr / 200px 1fr', default: undefined },
-    gridTemplateColumns: { value: 'repeat(3, 1fr)', default: undefined },
-    gridTemplateRows: { value: 'auto 200px', default: undefined },
-    grid: { value: '200px / auto-flow dense', default: undefined },
+const layoutOptions = {
+    layout: { value: 'grid', default: 'flex' },
+    flexDirection: { value: 'column', default: 'row' },
+    flexWrap: { value: 'wrap', default: 'nowrap' },
+    flexFlow: { value: ['row-reverse', 'wrap'], default: ['row', 'nowrap'] },
+    justifyContent: { value: 'center', default: 'normal' },
+    justifyItems: { value: 'center', default: 'normal' },
+    alignContent: { value: 'start', default: 'normal' },
+    alignItems: { value: 'end', default: 'normal' },
+    placeContent: { value: 'end', default: 'start' },
+    placeItems: { value: 'center', default: 'start' },
+    gap: { value: [8, 16], default: 0 },
+    gapColumn: { value: 10, default: 0 },
+    gapRow: { value: 12, default: 0 },
+    gridTemplate: { value: [100, 100], default: [] },
+    gridTemplateColumns: { value: [100, 'auto'], default: [0] },
+    gridTemplateRows: { value: [40, 'auto'], default: [] },
+    gridAutoFlow: { value: 'column', default: 'row' },
 }
 
-// src/__tests__/layoutBlock.test.ts
-import { describe, it, expect } from 'vitest'
-import { LayoutBlock, RectangleBlock } from '@2flexible/2flex'
-
-function makeLayout(opts = {}) {
-    return new LayoutBlock({ x: 0, y: 0, width: 400, height: 300, ...opts })
-}
+beforeEach(() => {
+    block = new LayoutBlock({})
+})
 
 describe('LayoutBlock', () => {
-    describe('constructor', () => {
+    describe('Constructor', () => {
         it('creates a LayoutBlock instance', () => {
-            expect(makeLayout()).toBeInstanceOf(LayoutBlock)
+            expect(block).toBeInstanceOf(LayoutBlock)
         })
 
-        it('accepts initial options', () => {
-            const b = makeLayout({ layout: 'grid' })
-            expect(b.layout()).toBe('grid')
-        })
-    })
-
-    // ─── layout ────────────────────────────────────────────────────────────────
-    describe('layout', () => {
-        it("layout defaults to 'flex'", () => {
-            expect(makeLayout().layout()).toBe('flex')
-        })
-
-        it("sets layout to 'inline-flex'", () => {
-            const b = makeLayout()
-            b.layout('inline-flex')
-            expect(b.layout()).toBe('inline-flex')
-        })
-
-        it("sets layout to 'grid'", () => {
-            const b = makeLayout()
-            b.layout('grid')
-            expect(b.layout()).toBe('grid')
-        })
-
-        it("sets layout to 'inline-grid'", () => {
-            const b = makeLayout()
-            b.layout('inline-grid')
-            expect(b.layout()).toBe('inline-grid')
+        it('should not throw when creating a LayoutBlock with options', () => {
+            expect(
+                () => new LayoutBlock({ x: 12, y: 24, width: 140, height: 80 })
+            ).not.toThrow()
         })
     })
 
-    // ─── flexDirection ─────────────────────────────────────────────────────────
-    describe('flexDirection', () => {
-        it("flexDirection defaults to 'column'", () => {
-            expect(makeLayout().flexDirection()).toBe('column')
-        })
-
-        it("sets flexDirection to 'row'", () => {
-            const b = makeLayout()
-            b.flexDirection('row')
-            expect(b.flexDirection()).toBe('row')
-        })
-
-        it("sets flexDirection to 'column-reverse'", () => {
-            const b = makeLayout()
-            b.flexDirection('column-reverse')
-            expect(b.flexDirection()).toBe('column-reverse')
-        })
-
-        it("sets flexDirection to 'row-reverse'", () => {
-            const b = makeLayout()
-            b.flexDirection('row-reverse')
-            expect(b.flexDirection()).toBe('row-reverse')
-        })
+    describe('All options test', () => {
+        for (const [key, val] of Object.entries(layoutOptions)) {
+            it(`option ${key} defaults to ${val.default}`, () => {
+                const currentVal = getPrototype(block, key)?.value.call(block)
+                expect(currentVal).toStrictEqual(val.default)
+            })
+            it(`option ${key} can be set to ${val.value}`, () => {
+                const currentVal = getPrototype(block, key)?.value.call(
+                    block,
+                    val.value
+                )
+                expect(currentVal).toStrictEqual(val.value)
+            })
+        }
     })
 
-    // ─── flexWrap ──────────────────────────────────────────────────────────────
-    describe('flexWrap', () => {
-        it("flexWrap defaults to 'nowrap'", () => {
-            expect(makeLayout().flexWrap()).toBe('nowrap')
-        })
-
-        it("sets flexWrap to 'wrap'", () => {
-            const b = makeLayout()
-            b.flexWrap('wrap')
-            expect(b.flexWrap()).toBe('wrap')
-        })
-
-        it("sets flexWrap to 'wrap-reverse'", () => {
-            const b = makeLayout()
-            b.flexWrap('wrap-reverse')
-            expect(b.flexWrap()).toBe('wrap-reverse')
-        })
-    })
-
-    // ─── flexFlow shorthand ────────────────────────────────────────────────────
-    describe('flexFlow', () => {
-        it("flexFlow defaults to ['row', 'nowrap']", () => {
-            expect(makeLayout().flexFlow()).toEqual(['row', 'nowrap'])
-        })
-
-        it('sets flexFlow', () => {
-            const b = makeLayout()
-            b.flexFlow(['column', 'wrap'])
-            expect(b.flexFlow()).toEqual(['column', 'wrap'])
-        })
-    })
-
-    // ─── justifyContent ────────────────────────────────────────────────────────
-    describe('justifyContent', () => {
-        it("justifyContent defaults to 'normal'", () => {
-            expect(makeLayout().justifyContent()).toBe('normal')
-        })
-
-        it("sets justifyContent to 'center'", () => {
-            const b = makeLayout()
-            b.justifyContent('center')
-            expect(b.justifyContent()).toBe('center')
-        })
-
-        it("sets justifyContent to 'space-between'", () => {
-            const b = makeLayout()
-            b.justifyContent('space-between')
-            expect(b.justifyContent()).toBe('space-between')
-        })
-
-        it("sets justifyContent to 'space-around'", () => {
-            const b = makeLayout()
-            b.justifyContent('space-around')
-            expect(b.justifyContent()).toBe('space-around')
-        })
-
-        it("sets justifyContent to 'space-evenly'", () => {
-            const b = makeLayout()
-            b.justifyContent('space-evenly')
-            expect(b.justifyContent()).toBe('space-evenly')
-        })
-
-        it("sets justifyContent to 'start'", () => {
-            const b = makeLayout()
-            b.justifyContent('start')
-            expect(b.justifyContent()).toBe('start')
-        })
-
-        it("sets justifyContent to 'end'", () => {
-            const b = makeLayout()
-            b.justifyContent('end')
-            expect(b.justifyContent()).toBe('end')
-        })
-
-        it("sets justifyContent to 'stretch'", () => {
-            const b = makeLayout()
-            b.justifyContent('stretch')
-            expect(b.justifyContent()).toBe('stretch')
-        })
-    })
-
-    // ─── alignItems ────────────────────────────────────────────────────────────
-    describe('alignItems', () => {
-        it("alignItems defaults to 'normal'", () => {
-            expect(makeLayout().alignItems()).toBe('normal')
-        })
-
-        it("sets alignItems to 'center'", () => {
-            const b = makeLayout()
-            b.alignItems('center')
-            expect(b.alignItems()).toBe('center')
-        })
-
-        it("sets alignItems to 'start'", () => {
-            const b = makeLayout()
-            b.alignItems('start')
-            expect(b.alignItems()).toBe('start')
-        })
-
-        it("sets alignItems to 'end'", () => {
-            const b = makeLayout()
-            b.alignItems('end')
-            expect(b.alignItems()).toBe('end')
-        })
-
-        it("sets alignItems to 'stretch'", () => {
-            const b = makeLayout()
-            b.alignItems('stretch')
-            expect(b.alignItems()).toBe('stretch')
-        })
-    })
-
-    // ─── alignContent ──────────────────────────────────────────────────────────
-    describe('alignContent', () => {
-        it("alignContent defaults to 'normal'", () => {
-            expect(makeLayout().alignContent()).toBe('normal')
-        })
-
-        it("sets alignContent to 'center'", () => {
-            const b = makeLayout()
-            b.alignContent('center')
-            expect(b.alignContent()).toBe('center')
-        })
-    })
-
-    // ─── placeContent / placeItems ─────────────────────────────────────────────
-    describe('placeContent', () => {
-        it("placeContent defaults to ['normal', 'normal']", () => {
-            expect(makeLayout().placeContent()).toEqual(['normal', 'normal'])
-        })
-
-        it('sets placeContent', () => {
-            const b = makeLayout()
-            b.placeContent(['center', 'center'])
-            expect(b.placeContent()).toEqual(['center', 'center'])
-        })
-    })
-
-    describe('placeItems', () => {
-        it("placeItems defaults to ['normal', 'normal']", () => {
-            expect(makeLayout().placeItems()).toEqual(['normal', 'normal'])
-        })
-
-        it('sets placeItems', () => {
-            const b = makeLayout()
-            b.placeItems(['center', 'center'])
-            expect(b.placeItems()).toEqual(['center', 'center'])
-        })
-    })
-
-    // ─── justifyItems ──────────────────────────────────────────────────────────
-    describe('justifyItems', () => {
-        it("justifyItems defaults to 'normal'", () => {
-            expect(makeLayout().justifyItems()).toBe('normal')
-        })
-
-        it("sets justifyItems to 'center'", () => {
-            const b = makeLayout()
-            b.justifyItems('center')
-            expect(b.justifyItems()).toBe('center')
-        })
-    })
-
-    // ─── gap ───────────────────────────────────────────────────────────────────
-    describe('gap', () => {
-        it('gap defaults to 0', () => {
-            const g = makeLayout().gap()
-            expect(g === 0 || (Array.isArray(g) && g[0] === 0)).toBe(true)
-        })
-
-        it('sets gap as number', () => {
-            const b = makeLayout()
-            b.gap(10)
-            expect(b.gap()).toBe(10)
-        })
-
-        it('sets gap as array', () => {
-            const b = makeLayout()
-            b.gap([10, 20])
-            expect(b.gap()).toEqual([10, 20])
-        })
-
-        it('columnGap defaults to 0', () => {
-            expect(makeLayout().columnGap()).toBe(0)
-        })
-
-        it('sets columnGap', () => {
-            const b = makeLayout()
-            b.columnGap(15)
-            expect(b.columnGap()).toBe(15)
-        })
-
-        it('rowGap defaults to 0', () => {
-            expect(makeLayout().rowGap()).toBe(0)
-        })
-
-        it('sets rowGap', () => {
-            const b = makeLayout()
-            b.rowGap(8)
-            expect(b.rowGap()).toBe(8)
-        })
-    })
-
-    // ─── Grid options ──────────────────────────────────────────────────────────
-    describe('grid options', () => {
-        it('gridAutoRows defaults to []', () => {
-            expect(makeLayout().gridAutoRows()).toEqual([])
-        })
-
-        it('sets gridAutoRows', () => {
-            const b = makeLayout()
-            b.gridAutoRows([100, 200])
-            expect(b.gridAutoRows()).toEqual([100, 200])
-        })
-
-        it('gridAutoColumns defaults to []', () => {
-            expect(makeLayout().gridAutoColumns()).toEqual([])
-        })
-
-        it('sets gridAutoColumns', () => {
-            const b = makeLayout()
-            b.gridAutoColumns([50, 50, 100])
-            expect(b.gridAutoColumns()).toEqual([50, 50, 100])
-        })
-
-        it("gridAutoFlow defaults to 'row'", () => {
-            expect(makeLayout().gridAutoFlow()).toBe('row')
-        })
-
-        it("sets gridAutoFlow to 'column'", () => {
-            const b = makeLayout()
-            b.gridAutoFlow('column')
-            expect(b.gridAutoFlow()).toBe('column')
-        })
-
-        it("sets gridAutoFlow to 'dense'", () => {
-            const b = makeLayout()
-            b.gridAutoFlow('dense')
-            expect(b.gridAutoFlow()).toBe('dense')
-        })
-
-        it('gridTemplateColumns defaults to []', () => {
-            expect(makeLayout().gridTemplateColumns()).toEqual([])
-        })
-
-        it('sets gridTemplateColumns', () => {
-            const b = makeLayout()
-            b.gridTemplateColumns([100, 200, 100])
-            expect(b.gridTemplateColumns()).toEqual([100, 200, 100])
-        })
-
-        it('gridTemplateRows defaults to 0 or []', () => {
-            const r = makeLayout().gridTemplateRows()
-            expect(r === 0 || (Array.isArray(r) && r.length === 0)).toBe(true)
-        })
-
-        it('sets gridTemplateRows', () => {
-            const b = makeLayout()
-            b.gridTemplateRows([50, 100])
-            expect(b.gridTemplateRows()).toEqual([50, 100])
-        })
-
-        it('gridTemplateAreas defaults to []', () => {
-            expect(makeLayout().gridTemplateAreas()).toEqual([])
-        })
-
-        it('sets gridTemplateAreas', () => {
-            const b = makeLayout()
-            b.gridTemplateAreas(['header header', 'sidebar content'])
-            expect(b.gridTemplateAreas()).toEqual([
-                'header header',
-                'sidebar content',
+    describe('Shorthands', () => {
+        it('sets rows and columns from gridTemplate', () => {
+            block.gridTemplate([
+                [30, 60],
+                [120, 240],
             ])
+            expect(block.gridTemplateRows()).toStrictEqual([30, 60])
+            expect(block.gridTemplateColumns()).toStrictEqual([120, 240])
         })
+        it('placeContent', () => {
+            block.placeContent('center')
+            expect(block.justifyContent()).toBe('center')
+            expect(block.alignContent()).toBe('center')
+        })
+        it('placeItems', () => {
+            block.placeItems('center')
+            expect(block.justifyItems()).toBe('center')
+            expect(block.alignItems()).toBe('center')
+        })
+        it('flexFlow', () => {
+            block.flexFlow(['column', 'wrap'])
+            expect(block.flexDirection()).toBe('column')
+            expect(block.flexWrap()).toBe('wrap')
+        })
+        it('gridTemplateAreas')
+        it('gridAutoColumns')
+        it('gridAutoRows')
     })
 
-    // ─── Child block management ────────────────────────────────────────────────
-    describe('adding child blocks', () => {
-        it('can add a child block without throwing', () => {
-            const layout = makeLayout()
-            const child = new RectangleBlock({
+    describe('Flex layout aligning', () => {
+        let flexLayout: LayoutBlock
+
+        let firstChild: Block<any>
+        let secondChild: Block<any>
+        let thirdChild: Block<any>
+        let fourthChild: Block<any>
+
+        beforeEach(() => {
+            flexLayout = new LayoutBlock({
                 x: 0,
                 y: 0,
-                width: 50,
-                height: 50,
+                width: 200,
+                height: 100,
+                layout: 'flex',
             })
-            expect(() => layout.add(child)).not.toThrow()
+
+            firstChild = new Block({ width: 40, height: 30 })
+            secondChild = new Block({ width: 20, height: 40 })
+            thirdChild = new Block({ width: 80, height: 50 })
+            fourthChild = new Block({ width: 30, height: 50 })
+
+            flexLayout.addChild(
+                firstChild,
+                secondChild,
+                thirdChild,
+                fourthChild
+            )
+            canvas.add(flexLayout)
         })
 
-        it('can add multiple child blocks', () => {
-            const layout = makeLayout()
-            const c1 = new RectangleBlock({ x: 0, y: 0, width: 50, height: 50 })
-            const c2 = new RectangleBlock({ x: 0, y: 0, width: 50, height: 50 })
-            const c3 = new RectangleBlock({ x: 0, y: 0, width: 50, height: 50 })
-            expect(() => {
-                layout.add(c1)
-                layout.add(c2)
-                layout.add(c3)
-            }).not.toThrow()
+        afterEach(() => {
+            canvas.remove(flexLayout)
         })
+
+        describe('Directon: row', () => {
+            beforeEach(() => {
+                flexLayout.set({ flexDirection: 'row' })
+            })
+
+            describe('FlexWrap: nowrap', () => {
+                beforeEach(() => {
+                    flexLayout.set({ flexWrap: 'nowrap' })
+                })
+
+                it('places children sequentially along the x-axis and aligns children to start of y-axis', () => {
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(60)
+                    expect(fourthChild.x()).toBe(140)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(0)
+                })
+
+                it('gapColumn', () => {
+                    flexLayout.set({ gapColumn: 20 })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(60)
+                    expect(thirdChild.x()).toBe(100)
+                    expect(fourthChild.x()).toBe(200)
+                })
+
+                it('justifyContent: start', () => {
+                    flexLayout.set({ justifyContent: 'start' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(60)
+                    expect(fourthChild.x()).toBe(140)
+                })
+
+                it('justifyContent: center', () => {
+                    flexLayout.set({ justifyContent: 'center' })
+
+                    expect(firstChild.x()).toBe(15)
+                    expect(secondChild.x()).toBe(55)
+                    expect(thirdChild.x()).toBe(75)
+                    expect(fourthChild.x()).toBe(155)
+                })
+
+                it('justifyContent: end', () => {
+                    flexLayout.set({ justifyContent: 'end' })
+
+                    expect(firstChild.x()).toBe(30)
+                    expect(secondChild.x()).toBe(70)
+                    expect(thirdChild.x()).toBe(90)
+                    expect(fourthChild.x()).toBe(170)
+                })
+
+                it('justifyContent: space-between', () => {
+                    flexLayout.set({ justifyContent: 'space-between' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(50)
+                    expect(thirdChild.x()).toBe(80)
+                    expect(fourthChild.x()).toBe(170)
+                })
+
+                it('justifyContent: space-around', () => {
+                    flexLayout.set({ justifyContent: 'space-around' })
+
+                    expect(firstChild.x()).toBe(3.75)
+                    expect(secondChild.x()).toBe(51.25)
+                    expect(thirdChild.x()).toBe(78.75)
+                    expect(fourthChild.x()).toBe(166.25)
+                })
+
+                it('justifyContent: space-evenly', () => {
+                    flexLayout.set({ justifyContent: 'space-evenly' })
+
+                    expect(firstChild.x()).toBe(6)
+                    expect(secondChild.x()).toBe(52)
+                    expect(thirdChild.x()).toBe(78)
+                    expect(fourthChild.x()).toBe(164)
+                })
+
+                it('alignItems: start', () => {
+                    flexLayout.set({ alignItems: 'start' })
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(0)
+                })
+
+                it('alignItems: center', () => {
+                    flexLayout.set({ alignItems: 'center' })
+
+                    expect(firstChild.y()).toBe(35)
+                    expect(secondChild.y()).toBe(30)
+                    expect(thirdChild.y()).toBe(25)
+                    expect(fourthChild.y()).toBe(25)
+                })
+
+                it('alignItems: end', () => {
+                    flexLayout.set({ alignItems: 'end' })
+
+                    expect(firstChild.y()).toBe(70)
+                    expect(secondChild.y()).toBe(60)
+                    expect(thirdChild.y()).toBe(50)
+                    expect(fourthChild.y()).toBe(50)
+                })
+            })
+
+            describe('FlexWrap: wrap', () => {
+                beforeEach(() => {
+                    flexLayout.set({
+                        flexWrap: 'wrap',
+                        width: 120,
+                        height: 200,
+                    })
+                })
+
+                it('places children sequentially along the x-axis and aligns children to start of y-axis', () => {
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+                })
+
+                it('gapColumn', () => {
+                    flexLayout.set({ gapColumn: 20 })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(60)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(0)
+                })
+
+                it('gapRow', () => {
+                    flexLayout.set({ gapRow: 20 })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(60)
+                    expect(fourthChild.y()).toBe(60)
+                })
+
+                it('justifyContent: start', () => {
+                    flexLayout.set({ justifyContent: 'start' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+                })
+
+                it('justifyContent: center', () => {
+                    flexLayout.set({ justifyContent: 'center' })
+
+                    expect(firstChild.x()).toBe(30)
+                    expect(secondChild.x()).toBe(70)
+                    expect(thirdChild.x()).toBe(5)
+                    expect(fourthChild.x()).toBe(85)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+                })
+
+                it('justifyContent: end', () => {
+                    flexLayout.set({ justifyContent: 'end' })
+
+                    expect(firstChild.x()).toBe(60)
+                    expect(secondChild.x()).toBe(100)
+                    expect(thirdChild.x()).toBe(10)
+                    expect(fourthChild.x()).toBe(90)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+                })
+
+                it('justifyContent: space-between', () => {
+                    flexLayout.set({ justifyContent: 'space-between' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(100)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(90)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+                })
+
+                it('justifyContent: space-around', () => {
+                    flexLayout.set({ justifyContent: 'space-around' })
+
+                    expect(firstChild.x()).toBe(15)
+                    expect(secondChild.x()).toBe(85)
+                    expect(thirdChild.x()).toBe(2.5)
+                    expect(fourthChild.x()).toBe(87.5)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+                })
+
+                it('justifyContent: space-evenly', () => {
+                    flexLayout.set({ justifyContent: 'space-evenly' })
+
+                    expect(firstChild.x()).toBe(20)
+                    expect(secondChild.x()).toBe(80)
+                    expect(thirdChild.x()).toBe(3.3333333333333335)
+                    expect(fourthChild.x()).toBe(86.66666666666666)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+                })
+
+                it('alignItems: start', () => {
+                    flexLayout.set({ alignItems: 'start' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+                })
+
+                it('alignItems: center', () => {
+                    flexLayout.set({ alignItems: 'center' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(41.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(76.66666666666666)
+                    expect(fourthChild.y()).toBe(76.66666666666666)
+                })
+
+                it('alignItems: end', () => {
+                    flexLayout.set({ alignItems: 'end' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(120)
+                    expect(secondChild.y()).toBe(110)
+                    expect(thirdChild.y()).toBe(150)
+                    expect(fourthChild.y()).toBe(150)
+                })
+
+                it('alignContent: start', () => {
+                    flexLayout.set({ alignContent: 'start' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+                })
+
+                it('alignContent: center', () => {
+                    flexLayout.set({ alignContent: 'center' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(36.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(76.66666666666666)
+                    expect(fourthChild.y()).toBe(76.66666666666666)
+                })
+
+                it('alignContent: end', () => {
+                    flexLayout.set({ alignContent: 'end' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(110)
+                    expect(secondChild.y()).toBe(110)
+                    expect(thirdChild.y()).toBe(150)
+                    expect(fourthChild.y()).toBe(150)
+                })
+
+                it('alignContent: space-between', () => {
+                    flexLayout.set({ alignContent: 'space-between' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(150)
+                    expect(fourthChild.y()).toBe(150)
+                })
+
+                it('alignContent: space-around', () => {
+                    flexLayout.set({ alignContent: 'space-around' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(27.5)
+                    expect(secondChild.y()).toBe(27.5)
+                    expect(thirdChild.y()).toBe(122.5)
+                    expect(fourthChild.y()).toBe(122.5)
+                })
+
+                it('alignContent: space-evenly', () => {
+                    flexLayout.set({ alignContent: 'space-evenly' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(36.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(113.33333333333331)
+                    expect(fourthChild.y()).toBe(113.33333333333331)
+                })
+
+                it('alignItems: start -- alignConten: *', () => {
+                    flexLayout.set({ alignItems: 'start' })
+                    flexLayout.set({ alignContent: 'start' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+
+                    flexLayout.set({ alignContent: 'center' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(36.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(76.66666666666666)
+                    expect(fourthChild.y()).toBe(76.66666666666666)
+
+                    flexLayout.set({ alignContent: 'end' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(110)
+                    expect(secondChild.y()).toBe(110)
+                    expect(thirdChild.y()).toBe(150)
+                    expect(fourthChild.y()).toBe(150)
+
+                    flexLayout.set({ alignContent: 'space-between' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(150)
+                    expect(fourthChild.y()).toBe(150)
+
+                    flexLayout.set({ alignContent: 'space-around' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(27.5)
+                    expect(secondChild.y()).toBe(27.5)
+                    expect(thirdChild.y()).toBe(122.5)
+                    expect(fourthChild.y()).toBe(122.5)
+
+                    flexLayout.set({ alignContent: 'space-evenly' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(36.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(113.33333333333331)
+                    expect(fourthChild.y()).toBe(113.33333333333331)
+                })
+
+                it('alignItems: center -- alignConten: *', () => {
+                    flexLayout.set({ alignItems: 'center' })
+                    flexLayout.set({ alignContent: 'start' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(41.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(76.66666666666666)
+                    expect(fourthChild.y()).toBe(76.66666666666666)
+
+                    flexLayout.set({ alignContent: 'center' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(41.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(76.66666666666666)
+                    expect(fourthChild.y()).toBe(76.66666666666666)
+
+                    flexLayout.set({ alignContent: 'end' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(41.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(76.66666666666666)
+                    expect(fourthChild.y()).toBe(76.66666666666666)
+
+                    flexLayout.set({ alignContent: 'space-between' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(41.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(186.66666666666666)
+                    expect(fourthChild.y()).toBe(186.66666666666666)
+
+                    flexLayout.set({ alignContent: 'space-around' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(41.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(131.66666666666666)
+                    expect(fourthChild.y()).toBe(131.66666666666666)
+
+                    flexLayout.set({ alignContent: 'space-evenly' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(41.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(113.33333333333331)
+                    expect(fourthChild.y()).toBe(113.33333333333331)
+                })
+
+                it('alignItems: end -- alignConten: *', () => {
+                    flexLayout.set({ alignItems: 'end' })
+                    flexLayout.set({ alignContent: 'start' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(10)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(40)
+                    expect(fourthChild.y()).toBe(40)
+
+                    flexLayout.set({ alignContent: 'center' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(46.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(76.66666666666666)
+                    expect(fourthChild.y()).toBe(76.66666666666666)
+
+                    flexLayout.set({ alignContent: 'end' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(120)
+                    expect(secondChild.y()).toBe(110)
+                    expect(thirdChild.y()).toBe(150)
+                    expect(fourthChild.y()).toBe(150)
+
+                    flexLayout.set({ alignContent: 'space-between' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(10)
+                    expect(secondChild.y()).toBe(0)
+                    expect(thirdChild.y()).toBe(150)
+                    expect(fourthChild.y()).toBe(150)
+
+                    flexLayout.set({ alignContent: 'space-around' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(37.5)
+                    expect(secondChild.y()).toBe(27.5)
+                    expect(thirdChild.y()).toBe(122.5)
+                    expect(fourthChild.y()).toBe(122.5)
+
+                    flexLayout.set({ alignContent: 'space-evenly' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(80)
+
+                    expect(firstChild.y()).toBe(46.666666666666664)
+                    expect(secondChild.y()).toBe(36.666666666666664)
+                    expect(thirdChild.y()).toBe(113.33333333333331)
+                    expect(fourthChild.y()).toBe(113.33333333333331)
+                })
+            })
+        })
+        describe('Directon: column', () => {
+            beforeEach(() => {
+                flexLayout.set({
+                    flexDirection: 'column',
+                    width: 200,
+                    height: 200,
+                })
+            })
+
+            describe('FlexWrap: nowrap', () => {
+                beforeEach(() => {
+                    flexLayout.set({
+                        flexWrap: 'nowrap',
+                    })
+                })
+
+                it('places children sequentially along the y-axis and aligns children to start of x-axis', () => {
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(30)
+                    expect(thirdChild.y()).toBe(70)
+                    expect(fourthChild.y()).toBe(120)
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(0)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(0)
+                })
+
+                it('gapRow', () => {
+                    flexLayout.set({ gapRow: 20 })
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(50)
+                    expect(thirdChild.y()).toBe(110)
+                    expect(fourthChild.y()).toBe(180)
+                })
+
+                it('justifyContent: start', () => {
+                    flexLayout.set({ justifyContent: 'start' })
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(30)
+                    expect(thirdChild.y()).toBe(70)
+                    expect(fourthChild.y()).toBe(120)
+                })
+
+                it('justifyContent: center', () => {
+                    flexLayout.set({ justifyContent: 'center' })
+                    expect(firstChild.y()).toBe(15)
+                    expect(secondChild.y()).toBe(45)
+                    expect(thirdChild.y()).toBe(85)
+                    expect(fourthChild.y()).toBe(135)
+                })
+
+                it('justifyContent: end', () => {
+                    flexLayout.set({ justifyContent: 'end' })
+
+                    expect(firstChild.y()).toBe(30)
+                    expect(secondChild.y()).toBe(60)
+                    expect(thirdChild.y()).toBe(100)
+                    expect(fourthChild.y()).toBe(150)
+                })
+
+                it('justifyContent: space-between', () => {
+                    flexLayout.set({ justifyContent: 'space-between' })
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(40)
+                    expect(thirdChild.y()).toBe(90)
+                    expect(fourthChild.y()).toBe(150)
+                })
+
+                it('justifyContent: space-around', () => {
+                    flexLayout.set({ justifyContent: 'space-around' })
+
+                    expect(firstChild.y()).toBe(3.75)
+                    expect(secondChild.y()).toBe(41.25)
+                    expect(thirdChild.y()).toBe(88.75)
+                    expect(fourthChild.y()).toBe(146.25)
+                })
+
+                it('justifyContent: space-evenly', () => {
+                    flexLayout.set({ justifyContent: 'space-evenly' })
+
+                    expect(firstChild.y()).toBe(6)
+                    expect(secondChild.y()).toBe(42)
+                    expect(thirdChild.y()).toBe(88)
+                    expect(fourthChild.y()).toBe(144)
+                })
+
+                it('alignItems: start', () => {
+                    flexLayout.set({ alignItems: 'start' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(0)
+                    expect(thirdChild.x()).toBe(0)
+                    expect(fourthChild.x()).toBe(0)
+                })
+
+                it('alignItems: center', () => {
+                    flexLayout.set({ alignItems: 'center' })
+
+                    expect(firstChild.x()).toBe(80)
+                    expect(secondChild.x()).toBe(90)
+                    expect(thirdChild.x()).toBe(60)
+                    expect(fourthChild.x()).toBe(85)
+                })
+
+                it('alignItems: end', () => {
+                    flexLayout.set({ alignItems: 'end' })
+
+                    expect(firstChild.x()).toBe(160)
+                    expect(secondChild.x()).toBe(180)
+                    expect(thirdChild.x()).toBe(120)
+                    expect(fourthChild.x()).toBe(170)
+                })
+            })
+
+            describe('FlexWrap: wrap', () => {
+                beforeEach(() => {
+                    flexLayout.set({
+                        flexWrap: 'wrap',
+                        height: 100,
+                    })
+                })
+
+                it('places children sequentially along the y-axis and aligns children to start of x-axis', () => {
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(30)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(50)
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(0)
+                    expect(thirdChild.x()).toBe(40)
+                    expect(fourthChild.x()).toBe(40)
+                })
+
+                it('gapRow', () => {
+                    flexLayout.set({ gapRow: 20 })
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(50)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(0)
+                })
+
+                it('gapColumn', () => {
+                    flexLayout.set({ gapColumn: 20 })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(0)
+                    expect(thirdChild.x()).toBe(60)
+                    expect(fourthChild.x()).toBe(60)
+                })
+
+                it('justifyContent: start', () => {
+                    flexLayout.set({ justifyContent: 'start' })
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(30)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(50)
+                })
+
+                it('justifyContent: center', () => {
+                    flexLayout.set({ justifyContent: 'center' })
+
+                    expect(firstChild.y()).toBe(15)
+                    expect(secondChild.y()).toBe(45)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(50)
+                })
+
+                it('justifyContent: end', () => {
+                    flexLayout.set({ justifyContent: 'end' })
+
+                    expect(firstChild.y()).toBe(30)
+                    expect(secondChild.y()).toBe(60)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(50)
+                })
+
+                it('justifyContent: space-between', () => {
+                    flexLayout.set({ justifyContent: 'space-between' })
+
+                    expect(firstChild.y()).toBe(0)
+                    expect(secondChild.y()).toBe(60)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(50)
+                })
+
+                it('justifyContent: space-around', () => {
+                    flexLayout.set({ justifyContent: 'space-around' })
+
+                    expect(firstChild.y()).toBe(7.5)
+                    expect(secondChild.y()).toBe(52.5)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(50)
+                })
+
+                it('justifyContent: space-evenly', () => {
+                    flexLayout.set({ justifyContent: 'space-evenly' })
+
+                    expect(firstChild.y()).toBe(10)
+                    expect(secondChild.y()).toBe(50)
+                    expect(thirdChild.y()).toBe(0)
+                    expect(fourthChild.y()).toBe(50)
+                })
+
+                it('alignItems: start', () => {
+                    flexLayout.set({ alignItems: 'start' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(0)
+                    expect(thirdChild.x()).toBe(40)
+                    expect(fourthChild.x()).toBe(40)
+                })
+
+                it('alignItems: center', () => {
+                    flexLayout.set({ alignItems: 'center' })
+
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(36.66666666666667)
+                    expect(thirdChild.x()).toBe(66.66666666666667)
+                    expect(fourthChild.x()).toBe(91.66666666666667)
+                })
+
+                it('alignItems: end', () => {
+                    flexLayout.set({ alignItems: 'end' })
+
+                    expect(firstChild.x()).toBe(80)
+                    expect(secondChild.x()).toBe(100)
+                    expect(thirdChild.x()).toBe(120)
+                    expect(fourthChild.x()).toBe(170)
+                })
+
+                it('alignContent: start', () => {
+                    flexLayout.set({ alignContent: 'start' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(0)
+                    expect(thirdChild.x()).toBe(40)
+                    expect(fourthChild.x()).toBe(40)
+                })
+
+                it('alignContent: center', () => {
+                    flexLayout.set({ alignContent: 'center' })
+
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(26.666666666666668)
+                    expect(thirdChild.x()).toBe(66.66666666666667)
+                    expect(fourthChild.x()).toBe(66.66666666666667)
+                })
+
+                it('alignContent: end', () => {
+                    flexLayout.set({ alignContent: 'end' })
+
+                    expect(firstChild.x()).toBe(80)
+                    expect(secondChild.x()).toBe(80)
+                    expect(thirdChild.x()).toBe(120)
+                    expect(fourthChild.x()).toBe(120)
+                })
+
+                it('alignContent: space-between', () => {
+                    flexLayout.set({ alignContent: 'space-between' })
+
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(0)
+                    expect(thirdChild.x()).toBe(120)
+                    expect(fourthChild.x()).toBe(120)
+                })
+
+                it('alignContent: space-around', () => {
+                    flexLayout.set({ alignContent: 'space-around' })
+
+                    expect(firstChild.x()).toBe(20)
+                    expect(secondChild.x()).toBe(20)
+                    expect(thirdChild.x()).toBe(100)
+                    expect(fourthChild.x()).toBe(100)
+                })
+
+                it('alignContent: space-evenly', () => {
+                    flexLayout.set({ alignContent: 'space-evenly' })
+
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(26.666666666666668)
+                    expect(thirdChild.x()).toBe(93.33333333333334)
+                    expect(fourthChild.x()).toBe(93.33333333333334)
+                })
+
+                it('alignItems: start -- alignContent: *', () => {
+                    flexLayout.set({ alignItems: 'start' })
+                    flexLayout.set({ alignContent: 'start' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(0)
+                    expect(thirdChild.x()).toBe(40)
+                    expect(fourthChild.x()).toBe(40)
+
+                    flexLayout.set({ alignContent: 'center' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(26.666666666666668)
+                    expect(thirdChild.x()).toBe(66.66666666666667)
+                    expect(fourthChild.x()).toBe(66.66666666666667)
+
+                    flexLayout.set({ alignContent: 'end' })
+                    expect(firstChild.x()).toBe(80)
+                    expect(secondChild.x()).toBe(80)
+                    expect(thirdChild.x()).toBe(120)
+                    expect(fourthChild.x()).toBe(120)
+
+                    flexLayout.set({ alignContent: 'space-between' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(0)
+                    expect(thirdChild.x()).toBe(120)
+                    expect(fourthChild.x()).toBe(120)
+
+                    flexLayout.set({ alignContent: 'space-around' })
+                    expect(firstChild.x()).toBe(20)
+                    expect(secondChild.x()).toBe(20)
+                    expect(thirdChild.x()).toBe(100)
+                    expect(fourthChild.x()).toBe(100)
+
+                    flexLayout.set({ alignContent: 'space-evenly' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(26.666666666666668)
+                    expect(thirdChild.x()).toBe(93.33333333333334)
+                    expect(fourthChild.x()).toBe(93.33333333333334)
+                })
+
+                it('alignItems: center -- alignContent: *', () => {
+                    flexLayout.set({ alignItems: 'center' })
+                    flexLayout.set({ alignContent: 'start' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(36.66666666666667)
+                    expect(thirdChild.x()).toBe(66.66666666666667)
+                    expect(fourthChild.x()).toBe(91.66666666666667)
+
+                    flexLayout.set({ alignContent: 'center' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(36.66666666666667)
+                    expect(thirdChild.x()).toBe(66.66666666666667)
+                    expect(fourthChild.x()).toBe(91.66666666666667)
+
+                    flexLayout.set({ alignContent: 'end' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(36.66666666666667)
+                    expect(thirdChild.x()).toBe(66.66666666666667)
+                    expect(fourthChild.x()).toBe(91.66666666666667)
+
+                    flexLayout.set({ alignContent: 'space-between' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(36.66666666666667)
+                    expect(thirdChild.x()).toBe(146.66666666666666)
+                    expect(fourthChild.x()).toBe(171.66666666666666)
+
+                    flexLayout.set({ alignContent: 'space-around' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(36.66666666666667)
+                    expect(thirdChild.x()).toBe(106.66666666666667)
+                    expect(fourthChild.x()).toBe(131.66666666666669)
+
+                    flexLayout.set({ alignContent: 'space-evenly' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(36.66666666666667)
+                    expect(thirdChild.x()).toBe(93.33333333333334)
+                    expect(fourthChild.x()).toBe(118.33333333333334)
+                })
+
+                it('alignItems: end -- alignContent: *', () => {
+                    flexLayout.set({ alignItems: 'end' })
+                    flexLayout.set({ alignContent: 'start' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(20)
+                    expect(thirdChild.x()).toBe(40)
+                    expect(fourthChild.x()).toBe(90)
+
+                    flexLayout.set({ alignContent: 'center' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(46.66666666666667)
+                    expect(thirdChild.x()).toBe(66.66666666666667)
+                    expect(fourthChild.x()).toBe(116.66666666666667)
+
+                    flexLayout.set({ alignContent: 'end' })
+                    expect(firstChild.x()).toBe(80)
+                    expect(secondChild.x()).toBe(100)
+                    expect(thirdChild.x()).toBe(120)
+                    expect(fourthChild.x()).toBe(170)
+
+                    flexLayout.set({ alignContent: 'space-between' })
+                    expect(firstChild.x()).toBe(0)
+                    expect(secondChild.x()).toBe(20)
+                    expect(thirdChild.x()).toBe(120)
+                    expect(fourthChild.x()).toBe(170)
+
+                    flexLayout.set({ alignContent: 'space-around' })
+                    expect(firstChild.x()).toBe(20)
+                    expect(secondChild.x()).toBe(40)
+                    expect(thirdChild.x()).toBe(100)
+                    expect(fourthChild.x()).toBe(150)
+
+                    flexLayout.set({ alignContent: 'space-evenly' })
+                    expect(firstChild.x()).toBe(26.666666666666668)
+                    expect(secondChild.x()).toBe(46.66666666666667)
+                    expect(thirdChild.x()).toBe(93.33333333333334)
+                    expect(fourthChild.x()).toBe(143.33333333333334)
+                })
+            })
+        })
+
+        describe.todo('Directon: row-reverse', () => {})
+        describe.todo('Directon: column-reverse', () => {})
     })
 
-    // ─── Inherited Block options sanity check ──────────────────────────────────
-    describe('inherited Block options', () => {
-        it('hidden defaults to false', () => {
-            expect(makeLayout().hidden()).toBe(false)
-        })
+    describe.todo('Grid layout aligning', () => {
+        let gridLayout: LayoutBlock
+        let firstChild: Block<any>
+        let secondChild: Block<any>
+        let thirdChild: Block<any>
+        let fourthChild: Block<any>
 
-        it('x/y set from constructor', () => {
-            const b = makeLayout({ x: 10, y: 20 })
-            expect(b.x()).toBe(10)
-            expect(b.y()).toBe(20)
+        beforeEach(() => {
+            gridLayout = new LayoutBlock({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 200,
+                layout: 'grid',
+            })
+
+            firstChild = new Block({ width: 10, height: 5 })
+            secondChild = new Block({ width: 10, height: 5 })
+            thirdChild = new Block({ width: 10, height: 5 })
+            fourthChild = new Block({ width: 10, height: 5 })
+
+            gridLayout.addChild(
+                firstChild,
+                secondChild,
+                thirdChild,
+                fourthChild
+            )
+            gridLayout.render()
         })
     })
 })
