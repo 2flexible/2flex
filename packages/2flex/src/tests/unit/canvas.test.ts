@@ -206,18 +206,20 @@ describe('Canvas', () => {
             }).not.toThrow()
         })
 
-        it('should remove block', () => {
-            const canvas = new Canvas(canvasId, 800, 600)
-            const block = new Block(commonBlockConfig)
-            canvas.add(block)
-            expect(() => canvas.remove(block)).not.toThrow()
-        })
-
         it('should find added block', () => {
             const canvas = new Canvas(canvasId, 800, 600)
             const block = new Block(commonBlockConfig)
             canvas.add(block)
             expect(canvas.find({ nodeId: block.nodeId })).toStrictEqual([block])
+        })
+
+        it('should remove block', () => {
+            const canvas = new Canvas(canvasId, 800, 600)
+            const block = new Block(commonBlockConfig)
+            canvas.add(block)
+            expect(() => canvas.remove(block)).not.toThrow()
+            const found = canvas.find({ nodeId: block.nodeId })
+            expect(found).toEqual([])
         })
 
         it('should register custom block', () => {
