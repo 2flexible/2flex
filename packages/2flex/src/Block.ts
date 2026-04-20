@@ -427,7 +427,7 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
 
-    addChild(...blocks: Block[]): void {
+    addChild(...blocks: Block<any>[]): void {
         this.setChangeCache('childNodes', this.childNodes.length)
         const exists = blocks.filter((r) => !this.childNodes.includes(r))
         let before: any = {}
@@ -456,7 +456,7 @@ export class Block<T = IBlockOptions> extends Node {
         this.invokeChange()
     }
 
-    removeChild(child: Block): void {
+    removeChild(child: Block<any>): void {
         if (!this.childNodes.includes(child)) return
         let before: any = {}
         before[this.nodeId!] = {

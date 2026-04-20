@@ -86,9 +86,9 @@ export class Canvas {
     currentPosition: { x: number; y: number; z: number }
 
     constructor(
-        canvasId?: string,
-        width?: number,
-        height?: number,
+        canvasId: string,
+        width: number,
+        height: number,
         options?: CanvasOptions & ICssProperties
     ) {
         this.canvasId = canvasId || 'canvas'
@@ -258,7 +258,7 @@ export class Canvas {
         this.#initCanvas()
 
         const blocks = parsedPayload.blocks
-        const constructedBlocks: Block[] = []
+        const constructedBlocks: Block<any>[] = []
 
         const checkBlock = (block: BlockPayload) => {
             const exists = this.find({ nodeId: block.nodeId })

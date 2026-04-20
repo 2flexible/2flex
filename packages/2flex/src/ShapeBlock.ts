@@ -222,7 +222,7 @@ export interface IShapeOptions {
 
     fillText?: DrawText
     strokeText?: DrawText
-    font?: Font;
+    font?: Font
     fontStretch?: CanvasFontStretch
     fontKerning?: CanvasFontKerning
     fontVariantCaps?: CanvasFontVariantCaps
@@ -242,13 +242,13 @@ export interface IShapeOptions {
     globalCompositeOperation?: GlobalCompositeOperation
     globalAlpha?: number
 }
-export class ShapeBlock<T> extends Block<T | IShapeOptions> {
+export class ShapeBlock<T = IShapeOptions> extends Block<T> {
     #gradient?: CanvasGradient
     #pattern?: CanvasPattern | null
     #filters: ShapeFilters = {}
     #filterStr?: string
 
-    constructor(options: IBlock<IShapeOptions>) {
+    constructor(options: IBlock<T>) {
         super(options)
     }
     render(): void {
@@ -763,8 +763,9 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
     }
 
     textAlign(opt?: CanvasTextAlign) {
-        const textAlign = this.__valueHandler(opt, 'textAlign', 'start')
-        if (this.context) this.context.textAlign = textAlign
+        const textAlign = this.__valueHandler(opt, 'textAlign', undefined)
+        if (this.context && textAlign !== undefined)
+            this.context.textAlign = textAlign
         return textAlign
     }
 
