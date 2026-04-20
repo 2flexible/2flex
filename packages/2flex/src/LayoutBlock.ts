@@ -780,14 +780,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 }
             } else {
                 if (this.#isFlexCol) {
-                    let containerW = 0
-                    if (this.#containerX === undefined) {
-                        containerW = this.width() - this.#containerW
-                        containerW =
-                            containerW > 0
-                                ? containerW / this.#blocksWidth.length
-                                : 0
-                    }
+                    let containerW = this.width() - this.#containerW
+                    if (this.alignContent() !== 'normal')
+                        containerW = (this.#containerX || 0) - containerW
+                    containerW = containerW > 0 ? containerW : 0
                     for (
                         let i = 0, rows = 0, len = this.#blocksWidth.length;
                         i < len;
@@ -795,7 +791,8 @@ export class LayoutBlock extends Block<LayoutOptions> {
                     ) {
                         let colW = containerW
                         for (let j = 0; j < this.#layoutRows[i]; j++) {
-                            if (colW !== 0) colW = (i + 1) * containerW
+                            if (colW !== 0 && this.alignContent() !== 'normal')
+                                colW = (i + 1) * containerW
                             this.#startXPos.push(
                                 colW +
                                     (this.#blocksWidth[i] -
@@ -804,15 +801,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     }
                 } else {
-                    let containerH = 0
-                    if (this.#containerY === undefined) {
-                        containerH = this.height() - this.#containerH
-                        containerH =
-                            containerH > 0
-                                ? containerH / this.#blocksHeight.length
-                                : 0
-                    }
-
+                    let containerH = this.height() - this.#containerH
+                    if (this.alignContent() !== 'normal')
+                        containerH = (this.#containerY || 0) - containerH
+                    containerH = containerH > 0 ? containerH : 0
                     for (
                         let i = 0, cols = 0, len = this.#blocksHeight.length;
                         i < len;
@@ -820,7 +812,8 @@ export class LayoutBlock extends Block<LayoutOptions> {
                     ) {
                         let colH = containerH
                         for (let l = 0; l < this.#layoutCols[i]; l++) {
-                            if (colH !== 0) colH = (i + 1) * containerH
+                            if (colH !== 0 && this.alignContent() !== 'normal')
+                                colH = (i + 1) * containerH
                             this.#startYPos.push(
                                 colH +
                                     (this.#blocksHeight[i] -
