@@ -130,9 +130,13 @@ export class LayoutBlock extends Block<LayoutOptions> {
 
         this.layout()
     }
+    render(): void {
+        this.#updateLayout()
+        super.render()
+    }
 
     __adjustChildBlocks(): void {
-        if (this.childNodes.length === 0 || this.useCacheAdjust) return
+        if (this.childNodes.length === 0) return
         const cacheR = this.rotate()
         this.rotate(0)
 
@@ -355,7 +359,10 @@ export class LayoutBlock extends Block<LayoutOptions> {
                     )
                 )
         }
-        if (layout === 'flex' || layout == 'inline-flex') {
+        return layout
+    }
+    #updateLayout() {
+        if (this.layout() === 'flex' || this.layout() == 'inline-flex') {
             switch (this.flexDirection()) {
                 case 'column':
                     this.#invokerLayout = this.#flexColumn
@@ -373,10 +380,9 @@ export class LayoutBlock extends Block<LayoutOptions> {
                     this.#invokerLayout = this.#flexRow
                     break
             }
-        } else if (layout == 'grid' || layout == 'inline-grid') {
+        } else if (this.layout() == 'grid' || this.layout() == 'inline-grid') {
             this.#invokerLayout = this.#gridLayout
         }
-        return layout
     }
     flexFlow(opt?: FlexFlow) {
         const flexFlow = this.__valueHandler(opt, 'flexFlow', [
