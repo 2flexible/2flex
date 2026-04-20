@@ -173,6 +173,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                     (this.__heightSpaces + this.gapRow()) /
                         (this.#layoutRows[0] || 1) || 1
         } else {
+            // @TODO: need to fix adjustW and adjustH for gaps
             adjustedW =
                 (realW - containerW) / this.childNodes.length -
                 (this.__widthSpaces +
@@ -207,29 +208,26 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 if (this.#isFlexCol) {
                     if (this.#isWrap) {
                         if (
-                            (blockH > realH || blockH < b.maxHeight()) &&
-                            blockH > b.minHeight()
+                            (blockH >= realH || blockH < b.maxHeight()) &&
+                            blockH >= b.minHeight()
                         )
-                            bHeightResize = -(
-                                blockH -
-                                (realH - (heightSpaces + this.gapRow()))
-                            )
+                            bHeightResize = -(blockH - (realH - heightSpaces))
 
                         if (
-                            (containerW > realW || blockW < b.maxWidth()) &&
-                            blockW > b.minWidth()
+                            (containerW >= realW || blockW < b.maxWidth()) &&
+                            blockW >= b.minWidth()
                         )
                             bWidthResize = adjustedW
                     } else {
                         if (
-                            (containerH > realH || blockH < b.maxHeight()) &&
-                            blockH > b.minHeight()
+                            (containerH >= realH || blockH < b.maxHeight()) &&
+                            blockH >= b.minHeight()
                         ) {
                             bHeightResize = adjustedH
                         }
                         if (
-                            (blockW > realW || blockW < b.maxWidth()) &&
-                            blockW > b.minWidth()
+                            (blockW >= realW || blockW < b.maxWidth()) &&
+                            blockW >= b.minWidth()
                         )
                             bWidthResize = -(
                                 blockW -
@@ -239,16 +237,13 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 } else {
                     if (this.#isWrap) {
                         if (
-                            (blockW > realW || blockW < b.maxWidth()) &&
-                            blockW > b.minWidth()
+                            (blockW >= realW || blockW < b.maxWidth()) &&
+                            blockW >= b.minWidth()
                         )
-                            bWidthResize = -(
-                                blockW -
-                                (realW - (widthSpaces + this.gapColumn()))
-                            )
+                            bWidthResize = -(blockW - (realW - widthSpaces))
                         if (
-                            (containerH > realH || blockH < b.maxHeight()) &&
-                            blockH > b.minHeight()
+                            (containerH >= realH || blockH < b.maxHeight()) &&
+                            blockH >= b.minHeight()
                         )
                             bHeightResize = adjustedH
                     } else {
@@ -262,10 +257,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             (blockH >= realH || blockH < b.maxHeight()) &&
                             blockH >= b.minHeight()
                         )
-                            bHeightResize = -(
-                                blockH -
-                                (realH - (heightSpaces + this.gapRow()))
-                            )
+                            bHeightResize = -(blockH - (realH - heightSpaces))
                     }
                 }
             }
