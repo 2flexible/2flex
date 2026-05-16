@@ -2876,9 +2876,11 @@ export class Block<T = IBlockOptions> extends Node {
             )
             // fix type issue
             let category: any = typeof validKeyframe
-
-            if (keyframes.includes('rgba')) {
-                validKeyframe = keyframe.map((i: any) => rgbaToArray(i))
+            if (
+                typeof keyframes[0] === 'string' &&
+                (keyframes as any)[0].includes('rgba')
+            ) {
+                validKeyframe = keyframes.map((i: any) => rgbaToArray(i))
                 category = 'color'
             }
             if (
@@ -2893,18 +2895,39 @@ export class Block<T = IBlockOptions> extends Node {
                 keyframeIterations.iterationStart * (validKeyframe.length - 1)
             )
 
-            let currentVal =
-                validKeyframe[idx] +
-                (validKeyframe[idx + 1] ||
-                    validKeyframe[idx - 1] ||
-                    validKeyframe[idx]) *
-                    keyframeIterations.iterationStart
+            let currentVal: RGBA | number = 0
+
+            let nextValue = validKeyframe[idx]
+            if (validKeyframe[idx + 1] !== undefined)
+                nextValue = validKeyframe[idx + 1]
+            else if (validKeyframe[idx - 1] !== undefined)
+                nextValue = validKeyframe[idx - 1]
+
+            if (category === 'color') {
+                const R =
+                    validKeyframe[idx][0] +
+                    nextValue[0] * keyframeIterations.iterationStart
+                const G =
+                    validKeyframe[idx][1] +
+                    nextValue[1] * keyframeIterations.iterationStart
+
+                const B =
+                    validKeyframe[idx][2] +
+                    nextValue[2] * keyframeIterations.iterationStart
+                const A =
+                    validKeyframe[idx][3] +
+                    nextValue[3] * keyframeIterations.iterationStart
+                currentVal = [R, G, B, A]
+            } else {
+                currentVal =
+                    validKeyframe[idx] +
+                    nextValue * keyframeIterations.iterationStart
+            }
 
             if (idx === validKeyframe.length - 1) iterDirection *= -1
 
             if (validKeyframe.length > maxBreakPointLen)
                 maxBreakPointLen = (validKeyframe as any).length as number
-
                 // fix type issue
             ;(this.#keyframeIterations[animationId]['keyframes'] as any)[key] =
                 {
@@ -2918,6 +2941,7 @@ export class Block<T = IBlockOptions> extends Node {
         }
         this.#keyframeIterations[animationId]['maxKeyframeLen'] =
             maxBreakPointLen
+        // console.log(keyframeIterations)
         const animator: Animator = (timestamp: number) => {
             const anime = this.#keyframeIterations[animationId]
             if (anime.autoStart === false || !anime.keyframes) return
@@ -2988,9 +3012,11 @@ export class Block<T = IBlockOptions> extends Node {
 
                     let statement = null
 
-                    valueT.invoker?.value.call(this, currentVal)
-
                     if (valueT.category === 'color') {
+                        valueT.invoker?.value.call(
+                            this,
+                            rgbaRepresenter(currentVal)
+                        )
                         const cancelOutR =
                             startVal[0] < endVal[0] ? startVal[0] : endVal[0]
                         const cancelOutG =
@@ -3021,31 +3047,48 @@ export class Block<T = IBlockOptions> extends Node {
                                 playBackRate +
                             cancelOutA
 
-                        currentVal = rgbaRepresenter([
+                        currentVal = [
                             currentVal[0] + R,
                             currentVal[1] + G,
                             currentVal[2] + B,
                             currentVal[3] + A,
-                        ])
-
+                        ]
                         statement =
-                            ((startVal[0] <= endVal[0] &&
-                                currentVal[0] >= endVal[0]) ||
-                                (startVal[0] >= endVal[0] &&
-                                    currentVal[0] <= endVal[0])) &&
-                            ((startVal[1] <= endVal[1] &&
-                                currentVal[1] >= endVal[1]) ||
-                                (startVal[1] >= endVal[1] &&
-                                    currentVal[1] <= endVal[1])) &&
-                            ((startVal[2] <= endVal[2] &&
-                                currentVal[2] >= endVal[2]) ||
-                                (startVal[2] >= endVal[2] &&
-                                    currentVal[2] <= endVal[2])) &&
-                            ((startVal[3] <= endVal[3] &&
-                                currentVal[3] >= endVal[3]) ||
-                                (startVal[3] >= endVal[3] &&
-                                    currentVal[3] <= endVal[3]))
+                            (currentVal[0] > endVal[0] &&
+                                currentVal[1] > endVal[1] &&
+                                currentVal[2] > endVal[2] &&
+                                currentVal[3] > endVal[3]) ||
+                            (currentVal[0] < endVal[0] &&
+                                currentVal[1] < endVal[1] &&
+                                currentVal[2] < endVal[2] &&
+                                currentVal[3] < endVal[3])
+                        // statement =
+                        //     ((startVal[0] <= endVal[0] &&
+                        //         currentVal[0] >= endVal[0]) ||
+                        //         (startVal[0] >= endVal[0] &&
+                        //             currentVal[0] <= endVal[0])) &&
+                        //     ((startVal[1] <= endVal[1] &&
+                        //         currentVal[1] >= endVal[1]) ||
+                        //         (startVal[1] >= endVal[1] &&
+                        //             currentVal[1] <= endVal[1])) &&
+                        //     ((startVal[2] <= endVal[2] &&
+                        //         currentVal[2] >= endVal[2]) ||
+                        //         (startVal[2] >= endVal[2] &&
+                        //             currentVal[2] <= endVal[2])) &&
+                        //     ((startVal[3] <= endVal[3] &&
+                        //         currentVal[3] >= endVal[3]) ||
+                        //         (startVal[3] >= endVal[3] &&
+                        //             currentVal[3] <= endVal[3]))
+
+                        // statement =
+                        //     (startVal[0] >= endVal[0] &&
+                        //         currentVal[0] <= endVal[0]) ||
+                        //     (startVal[0] <= endVal[0] &&
+                        //         currentVal[0] >= endVal[0])
+
+                        //    Block.ts:3056 (4) [255, 0, 0, 1] (4) [0, 0, 255, 1] (4) [23079.564632861664, 0, 74075.43536713833, 381]
                     } else {
+                        valueT.invoker?.value.call(this, currentVal)
                         const cancelOut = startVal < endVal ? startVal : endVal
                         currentVal =
                             (lerp(startVal, endVal, easing) - cancelOut) *
@@ -3106,7 +3149,6 @@ export class Block<T = IBlockOptions> extends Node {
                     }
 
                     valueT.currentVal = currentVal
-                    // valueT.invoker?.value.call(this, currentVal);
                 }
 
                 if (
@@ -3127,7 +3169,7 @@ export class Block<T = IBlockOptions> extends Node {
         return animationId
     }
     animationHandler(animator: Animator) {
-            if (!this.canvas) this.__animations.push(animator)
+        if (!this.canvas) this.__animations.push(animator)
         else if (this.nodeId !== undefined)
             this.canvas.registerAnimation(this.nodeId, animator)
     }
