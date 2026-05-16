@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import { Block, Canvas, getPrototype } from '@2flexible/2flex'
-import { checkInBound } from '../../Utils'
+import { Block, Canvas } from '@2flexible/2flex'
+import { checkInBound, getPrototype } from '../../Utils'
 
 let block: Block<any>
 let canvas: Canvas
@@ -319,11 +319,11 @@ beforeEach(() => {
     block = new Block({})
 })
 describe('Block', () => {
-    describe('Block initialize', () => {
-        it('should construct block', () => {
+    describe('Constructor', () => {
+        it('creates a Block instance', () => {
             expect(block).toBeDefined()
         })
-        it('should construct block wiht options', () => {
+        it('should not throw when creating a Block with options', () => {
             expect(
                 () => new Block({ x: 100, y: 100, width: 300, height: 500 })
             ).not.toThrow()
@@ -428,7 +428,7 @@ describe('Block', () => {
                 const currentVal = getPrototype(block, key)?.value.call(block)
                 expect(currentVal).toStrictEqual(val.default)
             })
-            it(`option ${key} setting to ${val.value}`, () => {
+            it(`option ${key} can be set to ${val.value}`, () => {
                 const currentVal = getPrototype(block, key)?.value.call(
                     block,
                     val.value
@@ -467,10 +467,11 @@ describe('Block', () => {
             })
             await userEvent.click(currentCanvas, { position: { x: 10, y: 10 } })
         })
-        it('non selectable block should not work', () => {
+        it('click should not work on non selectable block', () => {
             block.set({ selectable: false })
+            expect(block.selectable()).toBe(false)
         })
-        it('registering event before ading block to canvas', () => {
+        it('registering event before adding block to canvas', () => {
             const customBlock = new Block({
                 x: 20,
                 y: 10,
@@ -479,7 +480,7 @@ describe('Block', () => {
                 selectable: true,
             })
             //
-            canvas.add(block)
+            canvas.add(customBlock)
         })
     })
 })

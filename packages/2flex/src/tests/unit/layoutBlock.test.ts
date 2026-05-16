@@ -1107,34 +1107,548 @@ describe('LayoutBlock', () => {
         describe.todo('Directon: column-reverse', () => {})
     })
 
-    describe.todo('Grid layout aligning', () => {
-        let gridLayout: LayoutBlock
-        let firstChild: Block<any>
-        let secondChild: Block<any>
-        let thirdChild: Block<any>
-        let fourthChild: Block<any>
+describe('Grid layout aligning', () => {
+  let gridLayout: LayoutBlock
+  let firstChild: Block<any>
+  let secondChild: Block<any>
+  let thirdChild: Block<any>
+  let fourthChild: Block<any>
 
-        beforeEach(() => {
-            gridLayout = new LayoutBlock({
-                x: 0,
-                y: 0,
-                width: 200,
-                height: 200,
-                layout: 'grid',
-            })
-
-            firstChild = new Block({ width: 10, height: 5 })
-            secondChild = new Block({ width: 10, height: 5 })
-            thirdChild = new Block({ width: 10, height: 5 })
-            fourthChild = new Block({ width: 10, height: 5 })
-
-            gridLayout.addChild(
-                firstChild,
-                secondChild,
-                thirdChild,
-                fourthChild
-            )
-            gridLayout.render()
-        })
+  beforeEach(() => {
+    gridLayout = new LayoutBlock({
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 200,
+      layout: 'grid',
     })
+
+    firstChild = new Block({ width: 40, height: 30 })
+    secondChild = new Block({ width: 20, height: 40 })
+    thirdChild = new Block({ width: 80, height: 50 })
+    fourthChild = new Block({ width: 30, height: 50 })
+
+    gridLayout.addChild(
+      firstChild,
+      secondChild,
+      thirdChild,
+      fourthChild
+    )
+    canvas.add(gridLayout)
+  })
+
+  afterEach(() => {
+    canvas.remove(gridLayout)
+  })
+
+  describe('Basic grid placement', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [100, 100],
+        gridTemplateRows: [100, 100],
+      })
+    })
+
+    it('places children in grid cells', () => {
+      expect(firstChild.x()).toBe(0)
+      expect(firstChild.y()).toBe(0)
+
+      expect(secondChild.x()).toBe(100)
+      expect(secondChild.y()).toBe(0)
+
+      expect(thirdChild.x()).toBe(0)
+      expect(thirdChild.y()).toBe(100)
+
+      expect(fourthChild.x()).toBe(100)
+      expect(fourthChild.y()).toBe(100)
+    })
+
+    it('applies gapColumn between columns', () => {
+      gridLayout.set({ gapColumn: 20 })
+
+      expect(firstChild.x()).toBe(0)
+      expect(secondChild.x()).toBe(120)
+
+      expect(thirdChild.x()).toBe(0)
+      expect(fourthChild.x()).toBe(120)
+    })
+
+    it('applies gapRow between rows', () => {
+      gridLayout.set({ gapRow: 20 })
+
+      expect(firstChild.y()).toBe(0)
+      expect(thirdChild.y()).toBe(120)
+
+      expect(secondChild.y()).toBe(0)
+      expect(fourthChild.y()).toBe(120)
+    })
+
+    it('applies both gapColumn and gapRow', () => {
+      gridLayout.set({ gapColumn: 10, gapRow: 15 })
+
+      expect(firstChild.x()).toBe(0)
+      expect(secondChild.x()).toBe(110)
+      expect(thirdChild.x()).toBe(0)
+      expect(fourthChild.x()).toBe(110)
+
+      expect(firstChild.y()).toBe(0)
+      expect(thirdChild.y()).toBe(115)
+      expect(secondChild.y()).toBe(0)
+      expect(fourthChild.y()).toBe(115)
+    })
+  })
+
+  describe('justifyContent', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [80, 80],
+        gridTemplateRows: [100, 100],
+      })
+    })
+
+    it('justifyContent: start', () => {
+      gridLayout.set({ justifyContent: 'start' })
+
+      expect(firstChild.x()).toBe(0)
+      expect(secondChild.x()).toBe(80)
+      expect(thirdChild.x()).toBe(0)
+      expect(fourthChild.x()).toBe(80)
+    })
+
+    it('justifyContent: center', () => {
+      gridLayout.set({ justifyContent: 'center' })
+
+      expect(firstChild.x()).toBe(20)
+      expect(secondChild.x()).toBe(100)
+      expect(thirdChild.x()).toBe(20)
+      expect(fourthChild.x()).toBe(100)
+    })
+
+    it('justifyContent: end', () => {
+      gridLayout.set({ justifyContent: 'end' })
+
+      expect(firstChild.x()).toBe(40)
+      expect(secondChild.x()).toBe(120)
+      expect(thirdChild.x()).toBe(40)
+      expect(fourthChild.x()).toBe(120)
+    })
+
+    it('justifyContent: space-between', () => {
+      gridLayout.set({ justifyContent: 'space-between' })
+
+      expect(firstChild.x()).toBe(0)
+      expect(secondChild.x()).toBe(120)
+      expect(thirdChild.x()).toBe(0)
+      expect(fourthChild.x()).toBe(120)
+    })
+
+    it('justifyContent: space-around', () => {
+      gridLayout.set({ justifyContent: 'space-around' })
+
+      expect(firstChild.x()).toBe(10)
+      expect(secondChild.x()).toBe(110)
+      expect(thirdChild.x()).toBe(10)
+      expect(fourthChild.x()).toBe(110)
+    })
+
+    it('justifyContent: space-evenly', () => {
+      gridLayout.set({ justifyContent: 'space-evenly' })
+
+      expect(firstChild.x()).toBe(13.333333333333334)
+      expect(secondChild.x()).toBe(106.66666666666667)
+      expect(thirdChild.x()).toBe(13.333333333333334)
+      expect(fourthChild.x()).toBe(106.66666666666667)
+    })
+  })
+
+  describe('alignContent', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [100, 100],
+        gridTemplateRows: [80, 80],
+      })
+    })
+
+    it('alignContent: start', () => {
+      gridLayout.set({ alignContent: 'start' })
+
+      expect(firstChild.y()).toBe(0)
+      expect(secondChild.y()).toBe(0)
+      expect(thirdChild.y()).toBe(80)
+      expect(fourthChild.y()).toBe(80)
+    })
+
+    it('alignContent: center', () => {
+      gridLayout.set({ alignContent: 'center' })
+
+      expect(firstChild.y()).toBe(20)
+      expect(secondChild.y()).toBe(20)
+      expect(thirdChild.y()).toBe(100)
+      expect(fourthChild.y()).toBe(100)
+    })
+
+    it('alignContent: end', () => {
+      gridLayout.set({ alignContent: 'end' })
+
+      expect(firstChild.y()).toBe(40)
+      expect(secondChild.y()).toBe(40)
+      expect(thirdChild.y()).toBe(120)
+      expect(fourthChild.y()).toBe(120)
+    })
+
+    it('alignContent: space-between', () => {
+      gridLayout.set({ alignContent: 'space-between' })
+
+      expect(firstChild.y()).toBe(0)
+      expect(secondChild.y()).toBe(0)
+      expect(thirdChild.y()).toBe(120)
+      expect(fourthChild.y()).toBe(120)
+    })
+
+    it('alignContent: space-around', () => {
+      gridLayout.set({ alignContent: 'space-around' })
+
+      expect(firstChild.y()).toBe(10)
+      expect(secondChild.y()).toBe(10)
+      expect(thirdChild.y()).toBe(110)
+      expect(fourthChild.y()).toBe(110)
+    })
+
+    it('alignContent: space-evenly', () => {
+      gridLayout.set({ alignContent: 'space-evenly' })
+
+      expect(firstChild.y()).toBe(13.333333333333334)
+      expect(secondChild.y()).toBe(13.333333333333334)
+      expect(thirdChild.y()).toBe(106.66666666666667)
+      expect(fourthChild.y()).toBe(106.66666666666667)
+    })
+  })
+
+  describe('justifyItems', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [100, 100],
+        gridTemplateRows: [100, 100],
+      })
+    })
+
+    it('justifyItems: start', () => {
+      gridLayout.set({ justifyItems: 'start' })
+
+      expect(firstChild.x()).toBe(0)
+      expect(secondChild.x()).toBe(100)
+      expect(thirdChild.x()).toBe(0)
+      expect(fourthChild.x()).toBe(100)
+    })
+
+    it('justifyItems: center', () => {
+      gridLayout.set({ justifyItems: 'center' })
+
+      expect(firstChild.x()).toBe(30)
+      expect(secondChild.x()).toBe(110)
+      expect(thirdChild.x()).toBe(0)
+      expect(fourthChild.x()).toBe(115)
+    })
+
+    it('justifyItems: end', () => {
+      gridLayout.set({ justifyItems: 'end' })
+
+      expect(firstChild.x()).toBe(60)
+      expect(secondChild.x()).toBe(120)
+      expect(thirdChild.x()).toBe(0)
+      expect(fourthChild.x()).toBe(130)
+    })
+  })
+
+  describe('alignItems', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [100, 100],
+        gridTemplateRows: [100, 100],
+      })
+    })
+
+    it('alignItems: start', () => {
+      gridLayout.set({ alignItems: 'start' })
+
+      expect(firstChild.y()).toBe(0)
+      expect(secondChild.y()).toBe(0)
+      expect(thirdChild.y()).toBe(100)
+      expect(fourthChild.y()).toBe(100)
+    })
+
+    it('alignItems: center', () => {
+      gridLayout.set({ alignItems: 'center' })
+
+      expect(firstChild.y()).toBe(35)
+      expect(secondChild.y()).toBe(30)
+      expect(thirdChild.y()).toBe(125)
+      expect(fourthChild.y()).toBe(125)
+    })
+
+    it('alignItems: end', () => {
+      gridLayout.set({ alignItems: 'end' })
+
+      expect(firstChild.y()).toBe(70)
+      expect(secondChild.y()).toBe(60)
+      expect(thirdChild.y()).toBe(150)
+      expect(fourthChild.y()).toBe(150)
+    })
+  })
+
+  describe('placeContent shorthand', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [80, 80],
+        gridTemplateRows: [80, 80],
+      })
+    })
+
+    it('placeContent: center sets both justifyContent and alignContent', () => {
+      gridLayout.set({ placeContent: 'center' })
+
+      expect(gridLayout.justifyContent()).toBe('center')
+      expect(gridLayout.alignContent()).toBe('center')
+
+      expect(firstChild.x()).toBe(20)
+      expect(firstChild.y()).toBe(20)
+      expect(secondChild.x()).toBe(100)
+      expect(secondChild.y()).toBe(20)
+    })
+
+    it('placeContent: end sets both justifyContent and alignContent', () => {
+      gridLayout.set({ placeContent: 'end' })
+
+      expect(gridLayout.justifyContent()).toBe('end')
+      expect(gridLayout.alignContent()).toBe('end')
+
+      expect(firstChild.x()).toBe(40)
+      expect(firstChild.y()).toBe(40)
+      expect(secondChild.x()).toBe(120)
+      expect(secondChild.y()).toBe(40)
+    })
+  })
+
+  describe('placeItems shorthand', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [100, 100],
+        gridTemplateRows: [100, 100],
+      })
+    })
+
+    it('placeItems: center sets both justifyItems and alignItems', () => {
+      gridLayout.set({ placeItems: 'center' })
+
+      expect(gridLayout.justifyItems()).toBe('center')
+      expect(gridLayout.alignItems()).toBe('center')
+
+      expect(firstChild.x()).toBe(30)
+      expect(firstChild.y()).toBe(35)
+    })
+
+    it('placeItems: end sets both justifyItems and alignItems', () => {
+      gridLayout.set({ placeItems: 'end' })
+
+      expect(gridLayout.justifyItems()).toBe('end')
+      expect(gridLayout.alignItems()).toBe('end')
+
+      expect(firstChild.x()).toBe(60)
+      expect(firstChild.y()).toBe(70)
+    })
+  })
+
+  describe('Combined alignment', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [100, 100],
+        gridTemplateRows: [100, 100],
+      })
+    })
+
+    it('justifyContent: center + alignContent: center', () => {
+      gridLayout.set({
+        justifyContent: 'center',
+        alignContent: 'center',
+      })
+
+      expect(firstChild.x()).toBe(10)
+      expect(firstChild.y()).toBe(0)
+      expect(secondChild.x()).toBe(110)
+      expect(secondChild.y()).toBe(0)
+    })
+
+    it('justifyItems: center + alignItems: center', () => {
+      gridLayout.set({
+        justifyItems: 'center',
+        alignItems: 'center',
+      })
+
+      expect(firstChild.x()).toBe(30)
+      expect(firstChild.y()).toBe(35)
+      expect(secondChild.x()).toBe(110)
+      expect(secondChild.y()).toBe(30)
+    })
+
+    it('justifyContent: space-between + alignContent: space-between', () => {
+      gridLayout.set({
+        justifyContent: 'space-between',
+        alignContent: 'space-between',
+      })
+
+      expect(firstChild.x()).toBe(0)
+      expect(firstChild.y()).toBe(0)
+      expect(secondChild.x()).toBe(120)
+      expect(secondChild.y()).toBe(0)
+      expect(thirdChild.x()).toBe(0)
+      expect(thirdChild.y()).toBe(100)
+      expect(fourthChild.x()).toBe(120)
+      expect(fourthChild.y()).toBe(100)
+    })
+
+    it('justifyContent: center + justifyItems: center', () => {
+      gridLayout.set({
+        justifyContent: 'center',
+        justifyItems: 'center',
+      })
+
+      expect(firstChild.x()).toBe(40)
+      expect(secondChild.x()).toBe(120)
+    })
+
+    it('alignContent: center + alignItems: center', () => {
+      gridLayout.set({
+        alignContent: 'center',
+        alignItems: 'center',
+      })
+
+      expect(firstChild.y()).toBe(35)
+      expect(secondChild.y()).toBe(30)
+    })
+  })
+
+  describe('Grid with auto-sized tracks', () => {
+    it('distributes remaining space for auto columns', () => {
+      gridLayout.set({
+        gridTemplateColumns: [50, 'auto'],
+        gridTemplateRows: [100, 100],
+      })
+
+      expect(firstChild.x()).toBe(0)
+      expect(secondChild.x()).toBe(50)
+      expect(thirdChild.x()).toBe(0)
+      expect(fourthChild.x()).toBe(50)
+    })
+
+    it('distributes remaining space for auto rows', () => {
+      gridLayout.set({
+        gridTemplateColumns: [100, 100],
+        gridTemplateRows: [50, 'auto'],
+      })
+
+      expect(firstChild.y()).toBe(0)
+      expect(thirdChild.y()).toBe(50)
+    })
+
+    it('handles multiple auto columns', () => {
+      gridLayout.set({
+        gridTemplateColumns: ['auto', 'auto'],
+        gridTemplateRows: [100, 100],
+      })
+
+      expect(firstChild.x()).toBe(0)
+      expect(secondChild.x()).toBe(100)
+    })
+  })
+
+  describe('Grid with single column', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [200],
+        gridTemplateRows: [50, 50, 50, 50],
+      })
+    })
+
+    it('places children vertically in single column', () => {
+      expect(firstChild.x()).toBe(0)
+      expect(secondChild.x()).toBe(0)
+      expect(thirdChild.x()).toBe(0)
+      expect(fourthChild.x()).toBe(0)
+
+      expect(firstChild.y()).toBe(0)
+      expect(secondChild.y()).toBe(50)
+      expect(thirdChild.y()).toBe(100)
+      expect(fourthChild.y()).toBe(150)
+    })
+
+    it('justifyContent: center in single column', () => {
+      gridLayout.set({ justifyContent: 'center' })
+
+      expect(firstChild.x()).toBe(0)
+    })
+
+    it('alignContent: center with single column', () => {
+      gridLayout.set({ alignContent: 'center' })
+
+      expect(firstChild.y()).toBe(0)
+    })
+  })
+
+  describe('Grid with single row', () => {
+    beforeEach(() => {
+      gridLayout.set({
+        gridTemplateColumns: [50, 50, 50, 50],
+        gridTemplateRows: [200],
+      })
+    })
+
+    it('places children horizontally in single row', () => {
+      expect(firstChild.x()).toBe(0)
+      expect(secondChild.x()).toBe(50)
+      expect(thirdChild.x()).toBe(100)
+      expect(fourthChild.x()).toBe(150)
+
+      expect(firstChild.y()).toBe(0)
+      expect(secondChild.y()).toBe(0)
+      expect(thirdChild.y()).toBe(0)
+      expect(fourthChild.y()).toBe(0)
+    })
+
+    it('justifyContent: center in single row', () => {
+      gridLayout.set({ justifyContent: 'center' })
+
+      expect(firstChild.x()).toBe(0)
+    })
+  })
+
+  describe('gridTemplate shorthand', () => {
+    it('sets both rows and columns from gridTemplate', () => {
+      gridLayout.set({
+        gridTemplate: [
+          [80, 80],
+          [100, 100],
+        ],
+      })
+
+      expect(gridLayout.gridTemplateRows()).toStrictEqual([80, 80])
+      expect(gridLayout.gridTemplateColumns()).toStrictEqual([100, 100])
+    })
+  })
+
+  describe('gridAutoFlow', () => {
+    it('defaults to row', () => {
+      expect(gridLayout.gridAutoFlow()).toBe('row')
+    })
+
+    it('can be set to column', () => {
+      gridLayout.set({ gridAutoFlow: 'column' })
+      expect(gridLayout.gridAutoFlow()).toBe('column')
+    })
+
+    it('can be set to dense', () => {
+      gridLayout.set({ gridAutoFlow: 'dense' })
+      expect(gridLayout.gridAutoFlow()).toBe('dense')
+    })
+  })
+})
 })
