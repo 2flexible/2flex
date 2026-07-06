@@ -80,7 +80,8 @@ export class CanvasDOMManager {
     changeStyle(options: ICssProperties) {
         for (const [key, value] of Object.entries(options)) {
             if (key in this.canvas.style)
-                this.canvas.style.setProperty(key, value as string)
+                // @FIX: type error in canvas style for key
+                (this.canvas.style as any)[key] = value
         }
     }
 
