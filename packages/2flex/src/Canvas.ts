@@ -91,10 +91,10 @@ export class Canvas {
         height: number,
         options?: CanvasOptions & ICssProperties
     ) {
-        this.canvasId = canvasId || 'canvas'
+        this.canvasId = canvasId
         this.options = options
-        this.width = width || 300
-        this.height = height || 300
+        this.width = width
+        this.height = height
         this.#context = null
 
         this.currentCursor = 'auto'
