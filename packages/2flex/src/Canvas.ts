@@ -244,7 +244,7 @@ export class Canvas {
             blocks: [],
         }
         this.#tree.head.listOnlyChilds((block: Block) => {
-            payload.blocks.push(block.generatePayload())
+            payload.blocks.push(block.__generatePayload())
         })
         return JSON.stringify(payload)
     }
@@ -829,7 +829,7 @@ export class Canvas {
                         this.invokeChange((block: Block) => {
                             if (
                                 block.checkInBound(event) &&
-                                block.isOverflowXScroll
+                                block.__isOverflowXScroll
                             ) {
                                 block.__overflowTranslate({
                                     x: -moveSpeed,
@@ -843,7 +843,7 @@ export class Canvas {
                         this.invokeChange((block: Block) => {
                             if (
                                 block.checkInBound(event) &&
-                                block.isOverflowXScroll
+                                block.__isOverflowXScroll
                             ) {
                                 block.__overflowTranslate({
                                     x: moveSpeed,
@@ -859,7 +859,7 @@ export class Canvas {
                         this.invokeChange((block: Block) => {
                             if (
                                 block.checkInBound(event) &&
-                                block.isOverflowYScroll
+                                block.__isOverflowYScroll
                             ) {
                                 block.__overflowTranslate({
                                     x: 0,
@@ -873,7 +873,7 @@ export class Canvas {
                         this.invokeChange((block: Block) => {
                             if (
                                 block.checkInBound(event) &&
-                                block.isOverflowYScroll
+                                block.__isOverflowYScroll
                             ) {
                                 block.__overflowTranslate({
                                     x: 0,

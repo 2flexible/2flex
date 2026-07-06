@@ -516,8 +516,8 @@ export class TextBlock extends ShapeBlock<ITextOptions> {
         this.fontSize(this.fontSize() * (opt || 1))
     }
 
-    generatePayload(): BlockPayload {
-        const payload = super.generatePayload()
+    __generatePayload(): BlockPayload {
+        const payload = super.__generatePayload()
         payload.additionalParams = [this.text()]
         return payload
     }

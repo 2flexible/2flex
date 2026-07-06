@@ -29,8 +29,8 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         if (!this.context) return
         if (!this.#isAngleEmpty) {
             this.context?.arc(
-                this.getCenterX,
-                this.getCenterY,
+                this.__getRealCenterX,
+                this.__getRealCenterY,
                 this.innerRadius(),
                 this.endAngle(),
                 this.startAngle(),
@@ -38,8 +38,8 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
             )
         }
         this.context?.ellipse(
-            this.getCenterX,
-            this.getCenterY,
+            this.__getRealCenterX,
+            this.__getRealCenterY,
             this.width() / 2 - this.hotLineStrokeWidth(),
             this.height() / 2 - this.hotLineStrokeWidth(),
             0,
@@ -52,15 +52,15 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         if (this.#isAngleEmpty) this.beginPath()
         if (!this.#isAngleEmpty)
             this.context?.arc(
-                this.getCenterX,
-                this.getCenterY,
+                this.__getRealCenterX,
+                this.__getRealCenterY,
                 this.innerRadius(),
                 this.endAngle(),
                 this.startAngle(),
                 true
             )
         this.fillStyle('transparent')
-        this.fill({fill: true})
+        this.fill({ fill: true })
     }
 
     get #isAngleEmpty() {
@@ -86,7 +86,7 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
         )
         if (backgroundColor) {
             super.fillStyle(backgroundColor)
-            this.fill({fill: true})
+            this.fill({ fill: true })
         }
         return backgroundColor
     }
@@ -111,7 +111,7 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
             this.borderWidth(border[0])
             this.borderStyle(border[1] as BorderStyle)
             this.borderColor(border[2])
-            this.stroke({stroke: true})
+            this.stroke({ stroke: true })
         }
         return border
     }
@@ -137,8 +137,8 @@ export class CircleBlock extends ShapeBlock<ICircleOptions> {
     }
     __clipShape() {
         this.__clipPath?.ellipse(
-            this.getCenterX,
-            this.getCenterY,
+            this.__getRealCenterX,
+            this.__getRealCenterY,
             this.width() / 2,
             this.height() / 2,
             0,

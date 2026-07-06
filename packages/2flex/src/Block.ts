@@ -423,10 +423,10 @@ export class Block<T = IBlockOptions> extends Node {
         this.__runningEvents.resize = false
     }
 
-    generatePayload(): BlockPayload {
+    __generatePayload(): BlockPayload {
         const childs: BlockPayload[] = []
         this.listOnlyChilds((b: Block) => {
-            childs.push(b.generatePayload())
+            childs.push(b.__generatePayload())
         })
         return {
             nodeId: this.nodeId,
@@ -499,12 +499,12 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __clippingPath() {
-        const left = this.getLeft.x + this.__leftSpace
-        const right = this.getRealWidth - this.__widthSpaces
-        const top = this.getTop.y + this.__topSpace
-        const bottom = this.getRealHeight - this.__heightSpaces
+        const left = this.__getLeft.x + this.__leftSpace
+        const right = this.__getRealWidth - this.__widthSpaces
+        const top = this.__getTop.y + this.__topSpace
+        const bottom = this.__getRealHeight - this.__heightSpaces
         if (
-            !this.isOverflowVisible &&
+            !this.__isOverflowVisible &&
             (this.optionHasChanged('clipX', left) ||
                 this.optionHasChanged('clipY', top) ||
                 this.optionHasChanged('clipWdith', right) ||
@@ -517,10 +517,10 @@ export class Block<T = IBlockOptions> extends Node {
 
     __clipShape() {
         this.__clipPath?.rect(
-            this.getLeft.x + this.__leftSpace,
-            this.getTop.y + this.__topSpace,
-            this.getRealWidth - this.__widthSpaces,
-            this.getRealHeight - this.__heightSpaces
+            this.__getLeft.x + this.__leftSpace,
+            this.__getTop.y + this.__topSpace,
+            this.__getRealWidth - this.__widthSpaces,
+            this.__getRealHeight - this.__heightSpaces
         )
     }
 
@@ -696,8 +696,8 @@ export class Block<T = IBlockOptions> extends Node {
             const centerX = this.rotationCenterX()
             const centerY = this.rotationCenterY()
 
-            const cornerLeftX = this.getLeft.x
-            const cornerTopY = this.getTop.y
+            const cornerLeftX = this.__getLeft.x
+            const cornerTopY = this.__getTop.y
 
             let minX: number | undefined
             let minY: number | undefined
@@ -857,8 +857,8 @@ export class Block<T = IBlockOptions> extends Node {
             y: this.y() + this.height(),
         })
 
-        const centerX = this.getCenterX
-        const centerY = this.getCenterY
+        const centerX = this.__getRealCenterX
+        const centerY = this.__getRealCenterY
 
         this.rotationCenterX(centerX)
         this.rotationCenterY(centerY)
@@ -1204,7 +1204,9 @@ export class Block<T = IBlockOptions> extends Node {
             } else if (val.startsWith('hsl')) {
                 return hslToRgba(val) as O
             } else if (/^\d/.test(val)) {
-                const size = widthRelated ? this.parentWidth : this.parentHeight
+                const size = widthRelated
+                    ? this.__parentWidth
+                    : this.__parentHeight
                 const space = widthRelated
                     ? this.__widthSpaces
                     : this.__heightSpaces
@@ -1256,12 +1258,12 @@ export class Block<T = IBlockOptions> extends Node {
         return val as O
     }
 
-    get parentWidth(): number {
+    get __parentWidth(): number {
         if (this.#hasParentBlock) return this.parentNode?.width?.() || 1
         return this.canvas?.width || 1
     }
 
-    get parentHeight(): number {
+    get __parentHeight(): number {
         if (this.#hasParentBlock) return this.parentNode?.height?.() || 1
         return this.canvas?.height || 1
     }
@@ -1502,22 +1504,23 @@ export class Block<T = IBlockOptions> extends Node {
                         this.right()!
                 )
         } else if (pos === 'sticky') {
-            if (this.top() !== undefined && this.getTop.y <= this.top()!) {
+            if (this.top() !== undefined && this.__getTop.y <= this.top()!) {
                 this.y(this.top())
             } else if (
                 this.bottom() !== undefined &&
-                this.getBottom.y >= (this.canvas?.height || 1) - this.bottom()!
+                this.__getBottom.y >=
+                    (this.canvas?.height || 1) - this.bottom()!
             ) {
                 this.y(
                     Math.abs((this.canvas?.height || 1) - this.height()) -
                         this.bottom()!
                 )
             }
-            if (this.left() !== undefined && this.getLeft.x <= this.left()!) {
+            if (this.left() !== undefined && this.__getLeft.x <= this.left()!) {
                 this.x(this.left())
             } else if (
                 this.right() !== undefined &&
-                this.getRight.x >= (this.canvas?.width || 1) - this.right()!
+                this.__getRight.x >= (this.canvas?.width || 1) - this.right()!
             ) {
                 this.x(
                     Math.abs((this.canvas?.width || 1) - this.width()) -
@@ -1547,13 +1550,13 @@ export class Block<T = IBlockOptions> extends Node {
                 let rightX = 0
                 if (!parent)
                     rightX =
-                        Math.abs(this.parentWidth - this.width()) -
+                        Math.abs(this.__parentWidth - this.width()) -
                         this.right()!
                 else
                     rightX =
                         this.x() +
                         (Math.abs(
-                            this.parentWidth -
+                            this.__parentWidth -
                                 (this.width() + this.parentNode!.__widthSpaces)
                         ) -
                             this.right()!)
@@ -1566,13 +1569,13 @@ export class Block<T = IBlockOptions> extends Node {
                 let bottomY = 0
                 if (!parent)
                     bottomY =
-                        Math.abs(this.parentHeight - this.height()) -
+                        Math.abs(this.__parentHeight - this.height()) -
                         this.bottom()!
                 else
                     bottomY =
                         this.y() +
                         (Math.abs(
-                            this.parentHeight -
+                            this.__parentHeight -
                                 (this.height() +
                                     this.parentNode!.__heightSpaces)
                         ) -
@@ -2631,14 +2634,14 @@ export class Block<T = IBlockOptions> extends Node {
             this.__overflowCords.y += t.y
     }
 
-    get isOverflowXScroll() {
+    get __isOverflowXScroll() {
         return this.overflow() === 'scroll' || this.overflowX() === 'scroll'
     }
-    get isOverflowYScroll() {
+    get __isOverflowYScroll() {
         return this.overflow() === 'scroll' || this.overflowY() === 'scroll'
     }
 
-    get isOverflowVisible() {
+    get __isOverflowVisible() {
         return (
             this.overflow() === 'visible' &&
             this.overflowX() === 'visible' &&
@@ -2689,7 +2692,7 @@ export class Block<T = IBlockOptions> extends Node {
         this.#updateCornerAreabyRot('hotRotatableAreaBottomRight', radian)
     }
 
-    get getTop() {
+    get __getTop() {
         return {
             x: Math.min(
                 this.cornerTopLeft().x,
@@ -2706,7 +2709,7 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
 
-    get getBottom() {
+    get __getBottom() {
         return {
             x: Math.max(
                 this.cornerTopLeft().x,
@@ -2723,7 +2726,7 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
 
-    get getLeft() {
+    get __getLeft() {
         return {
             x: Math.min(
                 this.cornerTopLeft().x,
@@ -2740,7 +2743,7 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
 
-    get getRight() {
+    get __getRight() {
         return {
             x: Math.max(
                 this.cornerTopLeft().x,
@@ -2757,17 +2760,17 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
 
-    get getRealWidth() {
-        return this.getRight.x - this.getLeft.x
+    get __getRealWidth() {
+        return this.__getRight.x - this.__getLeft.x
     }
-    get getRealHeight() {
-        return this.getBottom.y - this.getTop.y
+    get __getRealHeight() {
+        return this.__getBottom.y - this.__getTop.y
     }
-    get getCenterX() {
-        return this.getTop.x + this.getRealWidth / 2
+    get __getRealCenterX() {
+        return this.__getTop.x + this.__getRealWidth / 2
     }
-    get getCenterY() {
-        return this.getTop.y + this.getRealHeight / 2
+    get __getRealCenterY() {
+        return this.__getTop.y + this.__getRealHeight / 2
     }
 
     #updateCornerbyRot(corner: string, diffR: number) {
@@ -3739,9 +3742,9 @@ export class Block<T = IBlockOptions> extends Node {
                             radian -
                                 Math.atan2(
                                     this.#rotationCorners.topLeft.y -
-                                        this.getCenterY,
+                                        this.__getRealCenterY,
                                     this.#rotationCorners.topLeft.x -
-                                        this.getCenterX
+                                        this.__getRealCenterX
                                 )
                         )
                     } else if (topMove && !leftMove) {
@@ -3749,9 +3752,9 @@ export class Block<T = IBlockOptions> extends Node {
                             radian -
                                 Math.atan2(
                                     this.#rotationCorners.topRight.y -
-                                        this.getCenterY,
+                                        this.__getRealCenterY,
                                     this.#rotationCorners.topRight.x -
-                                        this.getCenterX
+                                        this.__getRealCenterX
                                 )
                         )
                     } else if (!topMove && !leftMove) {
@@ -3759,9 +3762,9 @@ export class Block<T = IBlockOptions> extends Node {
                             radian -
                                 Math.atan2(
                                     this.#rotationCorners.bottomRight.y -
-                                        this.getCenterY,
+                                        this.__getRealCenterY,
                                     this.#rotationCorners.bottomRight.x -
-                                        this.getCenterX
+                                        this.__getRealCenterX
                                 )
                         )
                     } else if (!topMove && leftMove) {
@@ -3769,9 +3772,9 @@ export class Block<T = IBlockOptions> extends Node {
                             radian -
                                 Math.atan2(
                                     this.#rotationCorners.bottomLeft.y -
-                                        this.getCenterY,
+                                        this.__getRealCenterY,
                                     this.#rotationCorners.bottomLeft.x -
-                                        this.getCenterX
+                                        this.__getRealCenterX
                                 )
                         )
                     }

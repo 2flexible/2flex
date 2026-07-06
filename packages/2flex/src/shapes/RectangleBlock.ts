@@ -114,12 +114,12 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
             if (this.borderStyle() === 'dotted') {
                 this.lineDash([
                     ...borderStyleArrWidth,
-                    this.getRealHeight * 2 + this.getRealWidth,
+                    this.__getRealHeight * 2 + this.__getRealWidth,
                 ])
             } else {
                 this.lineDash([
-                    this.getRealWidth,
-                    this.getRealWidth + 2 * this.getRealHeight,
+                    this.__getRealWidth,
+                    this.__getRealWidth + 2 * this.__getRealHeight,
                     0,
                     0,
                 ])
@@ -139,16 +139,16 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
             if (this.borderStyle() === 'dotted') {
                 this.lineDash([
                     0,
-                    this.getRealWidth,
+                    this.__getRealWidth,
                     ...borderStyleArrHeight,
-                    this.getRealWidth + this.getRealHeight,
+                    this.__getRealWidth + this.__getRealHeight,
                 ])
             } else if (this.borderStyle() === 'solid') {
                 this.lineDash([
                     0,
-                    this.getRealWidth,
-                    this.getRealHeight,
-                    this.getRealWidth + this.getRealHeight,
+                    this.__getRealWidth,
+                    this.__getRealHeight,
+                    this.__getRealWidth + this.__getRealHeight,
                 ])
             }
             this.stroke({ stroke: true })
@@ -163,14 +163,14 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
             if (this.borderStyle() === 'dotted') {
                 this.lineDash([
                     0,
-                    this.getRealWidth + this.getRealHeight,
+                    this.__getRealWidth + this.__getRealHeight,
                     ...borderStyleArrWidth,
                 ])
             } else if (this.borderStyle() === 'solid') {
                 this.lineDash([
                     0,
-                    this.getRealWidth + this.getRealHeight,
-                    this.getRealWidth,
+                    this.__getRealWidth + this.__getRealHeight,
+                    this.__getRealWidth,
                     0,
                 ])
             }
@@ -187,15 +187,15 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
             if (this.borderStyle() === 'dotted') {
                 this.lineDash([
                     0,
-                    this.getRealWidth * 2 + this.getRealHeight,
+                    this.__getRealWidth * 2 + this.__getRealHeight,
                     ...borderStyleArrHeight,
                 ])
             } else if (this.borderStyle() === 'solid') {
                 this.lineDash([
                     0,
-                    this.getRealWidth * 2 + this.getRealHeight,
-                    this.getRealHeight,
-                    this.getRealWidth,
+                    this.__getRealWidth * 2 + this.__getRealHeight,
+                    this.__getRealHeight,
+                    this.__getRealWidth,
                 ])
             }
             this.stroke({ stroke: true })
@@ -233,15 +233,15 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         const borderStyleArrHeight = []
         if (borderStyle === 'dotted') {
             let total = 0
-            const step = this.getRealWidth / (this.getRealWidth / 4)
-            while (total < this.getRealWidth) {
+            const step = this.__getRealWidth / (this.__getRealWidth / 4)
+            while (total < this.__getRealWidth) {
                 borderStyleArrWidth.push(step, step)
                 total += step * 2
             }
 
             total = 0
-            const stepHeight = this.getRealHeight / (this.getRealHeight / 4)
-            while (total < this.getRealHeight) {
+            const stepHeight = this.__getRealHeight / (this.__getRealHeight / 4)
+            while (total < this.__getRealHeight) {
                 borderStyleArrHeight.push(
                     stepHeight,
                     stepHeight,
@@ -259,10 +259,10 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
 
     __clipShape() {
         this.__clipPath?.roundRect(
-            this.getLeft.x + this.__leftSpace,
-            this.getTop.y + this.__topSpace,
-            this.getRealWidth - this.__widthSpaces,
-            this.getRealHeight - this.__heightSpaces,
+            this.__getLeft.x + this.__leftSpace,
+            this.__getTop.y + this.__topSpace,
+            this.__getRealWidth - this.__widthSpaces,
+            this.__getRealHeight - this.__heightSpaces,
             this.borderRadius()
         )
     }

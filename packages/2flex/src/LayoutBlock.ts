@@ -280,14 +280,14 @@ export class LayoutBlock extends Block<LayoutOptions> {
             const x =
                 b.x() +
                 this.__overflowCords.x +
-                this.getLeft.x +
+                this.__getLeft.x +
                 this.marginLeft() +
                 this.paddingLeft() +
                 b.marginLeft()
             const y =
                 b.y() +
                 this.__overflowCords.y +
-                this.getTop.y +
+                this.__getTop.y +
                 this.marginTop() +
                 this.paddingTop() +
                 b.marginTop()
