@@ -148,8 +148,8 @@ export interface IBlockOptions {
     zIndex?: number
     draggable?: boolean
     onDrag?: (event: MouseEvent) => void
-    dragX?: boolean
-    dragY?: boolean
+    draggableX?: boolean
+    draggableY?: boolean
     rotate?: number
     onRotate?: (event: MouseEvent) => void
     order?: number
@@ -177,18 +177,18 @@ export interface IBlockOptions {
     hotLineStrokeWidth?: number
     hotLineStrokeColor?: string
     hotLines?: boolean
-    rotationTopLeft?: boolean
-    rotationTopRight?: boolean
-    rotationBottomLeft?: boolean
-    rotationBottomRight?: boolean
-    resizeTopLeft?: boolean
-    resizeTopRight?: boolean
-    resizeBottomLeft?: boolean
-    resizeBottomRight?: boolean
-    resizeTop?: boolean
-    resizeLeft?: boolean
-    resizeRight?: boolean
-    resizeBottom?: boolean
+    rotatableTopLeft?: boolean
+    rotatableTopRight?: boolean
+    rotatableBottomLeft?: boolean
+    rotatableBottomRight?: boolean
+    resizableTopLeft?: boolean
+    resizableTopRight?: boolean
+    resizableBottomLeft?: boolean
+    resizableBottomRight?: boolean
+    resizableTop?: boolean
+    resizableLeft?: boolean
+    resizableRight?: boolean
+    resizableBottom?: boolean
     horizontalFlipResize?: boolean
     verticalFlipResize?: boolean
     resizable?: boolean
@@ -2411,42 +2411,42 @@ export class Block<T = IBlockOptions> extends Node {
     rotationCenterY(opt?: RelativeType) {
         return this.__valueHandler(opt, 'rotationCenterY', 0, false)
     }
-    rotationTopLeft(opt?: boolean) {
-        return this.__valueHandler(opt, 'rotationTopLeft', true)
+    rotatableTopLeft(opt?: boolean) {
+        return this.__valueHandler(opt, 'rotatableTopLeft', true)
     }
-    rotationTopRight(opt?: boolean) {
-        return this.__valueHandler(opt, 'rotationTopRight', true)
+    rotatableTopRight(opt?: boolean) {
+        return this.__valueHandler(opt, 'rotatableTopRight', true)
     }
-    rotationBottomLeft(opt?: boolean) {
-        return this.__valueHandler(opt, 'rotationBottomLeft', true)
+    rotatableBottomLeft(opt?: boolean) {
+        return this.__valueHandler(opt, 'rotatableBottomLeft', true)
     }
-    rotationBottomRight(opt?: boolean) {
-        return this.__valueHandler(opt, 'rotationBottomRight', true)
+    rotatableBottomRight(opt?: boolean) {
+        return this.__valueHandler(opt, 'rotatableBottomRight', true)
     }
 
-    resizeTopLeft(opt?: boolean) {
-        return this.__valueHandler(opt, 'resizeTopLeft', true)
+    resizableTopLeft(opt?: boolean) {
+        return this.__valueHandler(opt, 'resizableTopLeft', true)
     }
-    resizeTopRight(opt?: boolean) {
-        return this.__valueHandler(opt, 'resizeTopRight', true)
+    resizableTopRight(opt?: boolean) {
+        return this.__valueHandler(opt, 'resizableTopRight', true)
     }
-    resizeBottomLeft(opt?: boolean) {
-        return this.__valueHandler(opt, 'resizeBottomLeft', true)
+    resizableBottomLeft(opt?: boolean) {
+        return this.__valueHandler(opt, 'resizableBottomLeft', true)
     }
-    resizeBottomRight(opt?: boolean) {
-        return this.__valueHandler(opt, 'resizeBottomRight', true)
+    resizableBottomRight(opt?: boolean) {
+        return this.__valueHandler(opt, 'resizableBottomRight', true)
     }
-    resizeTop(opt?: boolean) {
-        return this.__valueHandler(opt, 'resizeTop', true)
+    resizableTop(opt?: boolean) {
+        return this.__valueHandler(opt, 'resizableTop', true)
     }
-    resizeLeft(opt?: boolean) {
-        return this.__valueHandler(opt, 'resizeLeft', true)
+    resizableLeft(opt?: boolean) {
+        return this.__valueHandler(opt, 'resizableLeft', true)
     }
-    resizeRight(opt?: boolean) {
-        return this.__valueHandler(opt, 'resizeRight', true)
+    resizableRight(opt?: boolean) {
+        return this.__valueHandler(opt, 'resizableRight', true)
     }
-    resizeBottom(opt?: boolean) {
-        return this.__valueHandler(opt, 'resizeBottom', true)
+    resizableBottom(opt?: boolean) {
+        return this.__valueHandler(opt, 'resizableBottom', true)
     }
     horizontalFlipResize(opt?: boolean) {
         return this.__valueHandler(opt, 'horizontalFlipResize', false)
@@ -2454,11 +2454,11 @@ export class Block<T = IBlockOptions> extends Node {
     verticalFlipResize(opt?: boolean) {
         return this.__valueHandler(opt, 'verticalFlipResize', false)
     }
-    dragX(opt?: boolean) {
-        return this.__valueHandler(opt, 'dragX', true)
+    draggableX(opt?: boolean) {
+        return this.__valueHandler(opt, 'draggableX', true)
     }
-    dragY(opt?: boolean): boolean {
-        return this.__valueHandler(opt, 'dragY', true)
+    draggableY(opt?: boolean): boolean {
+        return this.__valueHandler(opt, 'draggableY', true)
     }
     hotCornerSize(opt?: number) {
         return this.__valueHandler(opt, 'hotCornerSize', 5)
@@ -3641,7 +3641,7 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotRotatableAreaTopLeft().bottomRight.x,
                         this.hotRotatableAreaTopLeft().bottomRight.y
                     ) &&
-                    this.rotationTopLeft()
+                    this.rotatableTopLeft()
                 ) {
                     cursor = 'cell'
                     topMove = true
@@ -3659,7 +3659,7 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotRotatableAreaTopRight().bottomRight.x,
                         this.hotRotatableAreaTopRight().bottomRight.y
                     ) &&
-                    this.rotationTopRight()
+                    this.rotatableTopRight()
                 ) {
                     cursor = 'cell'
                     topMove = true
@@ -3677,7 +3677,7 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotRotatableAreaBottomLeft().bottomRight.x,
                         this.hotRotatableAreaBottomLeft().bottomRight.y
                     ) &&
-                    this.rotationBottomLeft()
+                    this.rotatableBottomLeft()
                 ) {
                     cursor = 'cell'
                     topMove = false
@@ -3695,7 +3695,7 @@ export class Block<T = IBlockOptions> extends Node {
                         this.hotRotatableAreaBottomRight().bottomRight.x,
                         this.hotRotatableAreaBottomRight().bottomRight.y
                     ) &&
-                    this.rotationBottomRight()
+                    this.rotatableBottomRight()
                 ) {
                     cursor = 'cell'
                     topMove = false
@@ -3843,7 +3843,7 @@ export class Block<T = IBlockOptions> extends Node {
                 let cursor: string | undefined = undefined
                 bottomResize = rightResize = topResize = leftResize = false
                 if (
-                    this.resizeLeft() &&
+                    this.resizableLeft() &&
                     (checkInBound(
                         x,
                         y,
@@ -3872,7 +3872,7 @@ export class Block<T = IBlockOptions> extends Node {
                     leftResize = true
                     cursor = 'ew-resize'
                 } else if (
-                    this.resizeRight() &&
+                    this.resizableRight() &&
                     (checkInBound(
                         x,
                         y,
@@ -3901,7 +3901,7 @@ export class Block<T = IBlockOptions> extends Node {
                     rightResize = true
                     cursor = 'ew-resize'
                 } else if (
-                    this.resizeTop() &&
+                    this.resizableTop() &&
                     (checkInBound(
                         x,
                         y,
@@ -3931,7 +3931,7 @@ export class Block<T = IBlockOptions> extends Node {
                     topResize = true
                     cursor = 'ns-resize'
                 } else if (
-                    this.resizeBottom() &&
+                    this.resizableBottom() &&
                     (checkInBound(
                         x,
                         y,
@@ -3962,7 +3962,7 @@ export class Block<T = IBlockOptions> extends Node {
                 }
 
                 if (
-                    this.resizeTopLeft() &&
+                    this.resizableTopLeft() &&
                     checkInBound(
                         x,
                         y,
@@ -3981,7 +3981,7 @@ export class Block<T = IBlockOptions> extends Node {
                     cursor = 'nwse-resize'
                 }
                 if (
-                    this.resizeTopRight() &&
+                    this.resizableTopRight() &&
                     checkInBound(
                         x,
                         y,
@@ -4000,7 +4000,7 @@ export class Block<T = IBlockOptions> extends Node {
                     cursor = 'nesw-resize'
                 }
                 if (
-                    this.resizeBottomLeft() &&
+                    this.resizableBottomLeft() &&
                     checkInBound(
                         x,
                         y,
@@ -4019,7 +4019,7 @@ export class Block<T = IBlockOptions> extends Node {
                     cursor = 'nesw-resize'
                 }
                 if (
-                    this.resizeBottomRight() &&
+                    this.resizableBottomRight() &&
                     checkInBound(
                         x,
                         y,
@@ -4306,13 +4306,13 @@ export class Block<T = IBlockOptions> extends Node {
                     }
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
-                    if (diffX !== 0 && this.dragX()) {
+                    if (diffX !== 0 && this.draggableX()) {
                         const diff = diffX - beforeCords.x
                         this.__translate({ x: diff, y: 0 })
 
                         beforeCords.x = diffX
                     }
-                    if (diffY !== 0 && this.dragY()) {
+                    if (diffY !== 0 && this.draggableY()) {
                         const diff = diffY - beforeCords.y
                         this.__translate({ x: 0, y: diff })
 
