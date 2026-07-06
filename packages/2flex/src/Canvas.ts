@@ -130,6 +130,7 @@ export class Canvas {
         this.#initTime = new Date().getTime()
         this.#registeredBlocks = defaultBlocks
         this.#initCanvas()
+        this.#checkMousePositionInCanvas()
     }
 
     get context(): CanvasRenderingContext2D | null {
@@ -480,6 +481,15 @@ export class Canvas {
             }
         }
     }
+
+    #checkMousePositionInCanvas() {
+        this.canvas.addEventListener('mouseleave', (event) => {
+            this.invokeChange((b) => {
+                b.resetRunningEvents()
+            })
+        })
+    }
+
     invokeChange(_func?: (block: Block<any>) => void) {
         this.context?.restore()
         this.context?.save()

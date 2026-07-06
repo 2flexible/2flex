@@ -416,6 +416,13 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
 
+    resetRunningEvents() {
+        // Only need to reset transformation events
+        this.__runningEvents.drag = false
+        this.__runningEvents.rotate = false
+        this.__runningEvents.resize = false
+    }
+
     generatePayload(): BlockPayload {
         const childs: BlockPayload[] = []
         this.listOnlyChilds((b: Block) => {
