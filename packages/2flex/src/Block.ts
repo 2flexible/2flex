@@ -447,7 +447,7 @@ export class Block<T = IBlockOptions> extends Node {
         }
         super.addChild(...exists)
         if (exists.length === 0) return
-        let z = this.zIndex() || 0
+        let z = this.zIndex() || 1
 
         this.canvas?.invokeNodeListing()
         this.listOnlyChilds((b: Block) => {
@@ -456,7 +456,7 @@ export class Block<T = IBlockOptions> extends Node {
                 this.#lastOrder += 1
             }
             z += 1
-            b.zIndex(z)
+            if (b.zIndex() == undefined) b.zIndex(z)
             this.canvas?.__handleOptions(b)
             this.canvas?.__collectEvents(b)
             this.canvas?.__collectAnimations(b)
@@ -736,7 +736,6 @@ export class Block<T = IBlockOptions> extends Node {
                     pMarginTop +
                     pPaddingTop +
                     b.marginTop()
-                console.log(this.marginTop())
                 let width: number | undefined, height: number | undefined
 
                 z += 1
@@ -777,7 +776,7 @@ export class Block<T = IBlockOptions> extends Node {
                     b.y(y)
                     if (width !== undefined) b.width(width)
                     if (height !== undefined) b.height(height)
-                    b.zIndex(z)
+                    if (b.zIndex() == undefined) b.zIndex(z)
                 }
                 if (this.__clipPath) {
                     b.__childClipping = (b: Block) => {
