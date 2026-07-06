@@ -16,6 +16,7 @@ export class CanvasDOMManager {
     canvasId: string
     width: number
     height: number
+    #domCanvas?: HTMLCanvasElement
     #domEvents: DomEvent = {}
     contextParams: ContextParamas = {
         alpha: true,
@@ -32,18 +33,27 @@ export class CanvasDOMManager {
     }
 
     get canvas(): HTMLCanvasElement {
-        const canvas = document.getElementById(
-            this.canvasId
-        ) as HTMLCanvasElement
-        canvas.tabIndex = 0
-        canvas.width = this.width * this.pixelRatio
-        canvas.height = this.height * this.pixelRatio
-        canvas.style.width = this.width + 'px'
-        canvas.style.height = this.height + 'px'
-        if (!canvas) {
-            this.createCanvas()
+        if (!this.#domCanvas) {
+            let canvas = document.getElementById(
+                this.canvasId
+            ) as HTMLCanvasElement
+
+            if (!canvas) {
+                canvas = this.createCanvas()
+            } else {
+                canvas.tabIndex = 0
+                canvas.width = this.width * this.pixelRatio
+                canvas.height = this.height * this.pixelRatio
+                canvas.style.width = this.width + 'px'
+                canvas.style.height = this.height + 'px'
+            }
+            this.#domCanvas = canvas
         }
-        return canvas
+        return this.#domCanvas as HTMLCanvasElement
+    }
+
+    resetCanvas() {
+        this.#domCanvas = undefined
     }
 
     get context(): CanvasRenderingContext2D | null {
@@ -64,6 +74,7 @@ export class CanvasDOMManager {
         canvas.style.width = this.width + 'px'
         canvas.style.height = this.height + 'px'
         document.querySelector('body')?.appendChild(canvas)
+        return canvas
     }
 
     changeStyle(options: ICssProperties) {

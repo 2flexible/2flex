@@ -177,6 +177,7 @@ export class Canvas {
     }
 
     #initCanvas() {
+        this.#domCanvas.resetCanvas()
         this.canvas
         this.context
         this.context?.save()
