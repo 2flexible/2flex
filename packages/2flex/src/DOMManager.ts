@@ -35,6 +35,11 @@ export class CanvasDOMManager {
         const canvas = document.getElementById(
             this.canvasId
         ) as HTMLCanvasElement
+        canvas.tabIndex = 0
+        canvas.width = this.width * this.pixelRatio
+        canvas.height = this.height * this.pixelRatio
+        canvas.style.width = this.width + 'px'
+        canvas.style.height = this.height + 'px'
         if (!canvas) {
             this.createCanvas()
         }
