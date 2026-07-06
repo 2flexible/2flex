@@ -106,6 +106,14 @@ interface RunningEvents {
 
 export type SelfType = 'self' | 'parent'
 
+export type MarginType =
+    | [RelativeType, RelativeType, RelativeType, RelativeType]
+    | RelativeType
+
+export type PaddingType =
+    | [RelativeType, RelativeType, RelativeType, RelativeType]
+    | RelativeType
+
 export interface IBlockOptions {
     // @Todo: fix any type issue
     [key: string]: any
@@ -127,16 +135,12 @@ export interface IBlockOptions {
     overflowX?: Overflow
     overflowY?: Overflow
     selectable?: boolean
-    padding?:
-        | [RelativeType, RelativeType, RelativeType, RelativeType]
-        | RelativeType
+    padding?: PaddingType
     paddingTop?: RelativeType
     paddingRight?: RelativeType
     paddingBottom?: RelativeType
     paddingLeft?: RelativeType
-    margin?:
-        | [RelativeType, RelativeType, RelativeType, RelativeType]
-        | RelativeType
+    margin?: MarginType
     marginTop?: RelativeType
     marginRight?: RelativeType
     marginBottom?: RelativeType
@@ -1584,7 +1588,7 @@ export class Block<T = IBlockOptions> extends Node {
     right(opt?: RelativeType) {
         return this.__valueHandler(opt, 'right', undefined, true)
     }
-    padding(opt?: number[] | RelativeType): number[] {
+    padding(opt?: PaddingType): number[] {
         const padding = this.__valueHandler(opt, 'padding', [])
         if (typeof padding === 'number') {
             this.paddingTop(padding)
@@ -1637,7 +1641,7 @@ export class Block<T = IBlockOptions> extends Node {
     paddingRight(opt?: RelativeType) {
         return this.__valueHandler(opt, 'paddingRight', 0, true)
     }
-    margin(opt?: number[] | RelativeType): number[] {
+    margin(opt?: MarginType): number[] {
         const margin = this.__valueHandler(opt, 'margin', [])
         if (typeof margin === 'number') {
             this.marginTop(margin)
