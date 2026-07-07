@@ -688,6 +688,8 @@ export class Block<T = IBlockOptions> extends Node {
             const pPaddingTop = this.paddingTop()
             const pPaddingBottom = this.paddingBottom()
 
+            const pWidthSpaces = pWidth - pPaddingLeft - pPaddingRight
+
             const pMarginLeft = this.marginLeft()
             const pMarginRight = this.marginRight()
             const pMarginTop = this.marginTop()
@@ -704,47 +706,66 @@ export class Block<T = IBlockOptions> extends Node {
             let maxX: number = 0
             let maxY: number = 0
 
+            let startX = 0
+            let startY = 0
+            let containerH = 0
+            let wrapWidth = 0
+
+            let totalContainerH = 0
+
             this.listOnlyChilds((b: Block) => {
                 if (b.position() === 'absolute') return
                 b.rotate(0)
 
-                const blockW = b.width()
-                const blockH = b.height()
+                const blockMarginTop = b.marginTop()
+                const blockMarginBottom = b.marginBottom()
+                const blockMarginLeft = b.marginLeft()
+                const blockMarginRight = b.marginRight()
 
-                const initX =
-                    this.__unitConverter<RelativeType, number>({
-                        val: b.options.x,
-                        widthRelated: true,
-                    }) || 0
-                const initY =
-                    this.__unitConverter<RelativeType, number>({
-                        val: b.options.y,
-                        widthRelated: true,
-                    }) || 0
+                let blockW = b.width()
+                let blockH = b.height()
+
+                const blockWidthSpaces =
+                    blockW + blockMarginLeft + blockMarginRight
+                const blockHeightSpaces =
+                    blockH + blockMarginTop + blockMarginBottom
+
+                wrapWidth += blockWidthSpaces
+                if (wrapWidth > pWidthSpaces) {
+                    startX = 0
+                    wrapWidth = blockWidthSpaces
+                    startY += containerH
+                    totalContainerH += containerH
+                    containerH = 0
+                }
 
                 const x =
-                    initX +
+                    startX +
                     cornerLeftX +
                     this.__overflowCords.x +
                     pMarginLeft +
                     pPaddingLeft +
                     b.marginLeft()
                 const y =
-                    initY +
+                    startY +
                     cornerTopY +
                     this.__overflowCords.y +
                     pMarginTop +
                     pPaddingTop +
                     b.marginTop()
-                let width: number | undefined, height: number | undefined
+
+                startX += blockWidthSpaces
+                if (containerH < blockHeightSpaces)
+                    containerH = blockHeightSpaces
 
                 z += 1
+
                 if (
                     (pWidth - (pPaddingRight + pPaddingLeft) < blockW &&
                         pWidth > b.minWidth()) ||
                     blockW < b.maxWidth()
                 )
-                    width =
+                    blockW =
                         blockW +
                         -(
                             blockW -
@@ -757,7 +778,7 @@ export class Block<T = IBlockOptions> extends Node {
                         pHeight > b.minHeight()) ||
                     blockH < b.maxHeight()
                 ) {
-                    height =
+                    blockH =
                         blockH +
                         -(
                             blockH -
@@ -765,6 +786,7 @@ export class Block<T = IBlockOptions> extends Node {
                                 (pPaddingTop + pPaddingBottom + pMarginBottom))
                         )
                 }
+
                 b.__childAdjustment = (b: Block) => {
                     b.hidden(this.hidden())
                     if (b.rotationCenter() === 'parent') {
@@ -774,23 +796,24 @@ export class Block<T = IBlockOptions> extends Node {
                     b.rotate(cacheR)
                     b.x(x)
                     b.y(y)
-                    if (width !== undefined) b.width(width)
-                    if (height !== undefined) b.height(height)
+                    b.width(blockW)
+                    b.height(blockH)
                     if (b.zIndex() == undefined) b.zIndex(z)
                 }
+
                 if (this.__clipPath) {
                     b.__childClipping = (b: Block) => {
                         b.context?.clip(this.__clipPath!, 'nonzero')
                     }
                 }
-                if (width !== undefined && width + x > maxX) {
-                    maxX = width + x
+                if (blockW + x > maxX) {
+                    maxX = blockW + x
                 } else if (blockW + x > maxX) {
                     maxX = blockW + x
                 }
 
-                if (height !== undefined && height + y > maxY) {
-                    maxY = height + y
+                if (blockH + y > maxY) {
+                    maxY = blockH + y
                 } else if (blockW + y > maxY) {
                     maxY = blockW + y
                 }
