@@ -687,10 +687,8 @@ export class Block<T = IBlockOptions> extends Node {
             const pPaddingTop = this.paddingTop()
             const pPaddingBottom = this.paddingBottom()
 
-            const pWidthSpaces = pWidth - pPaddingLeft - pPaddingRight
-
-            const pMarginRight = this.marginRight()
-            const pMarginBottom = this.marginBottom()
+            const pWidthSpaces = pWidth - (pPaddingLeft + pPaddingRight)
+            const pHeightSpaces = pHeight - (pPaddingTop + pPaddingBottom)
 
             const centerX = this.rotationCenterX()
             const centerY = this.rotationCenterY()
@@ -707,8 +705,6 @@ export class Block<T = IBlockOptions> extends Node {
             let startY = 0
             let containerH = 0
             let wrapWidth = 0
-
-            let totalContainerH = 0
 
             this.listOnlyChilds((b: Block) => {
                 if (b.position() === 'absolute') return
@@ -732,7 +728,6 @@ export class Block<T = IBlockOptions> extends Node {
                     startX = 0
                     wrapWidth = blockWidthSpaces
                     startY += containerH
-                    totalContainerH += containerH
                     containerH = 0
                 }
 
@@ -753,31 +748,24 @@ export class Block<T = IBlockOptions> extends Node {
                 if (containerH < blockHeightSpaces)
                     containerH = blockHeightSpaces
 
-                if (
-                    (pWidth - (pPaddingRight + pPaddingLeft) < blockW &&
-                        pWidth > b.minWidth()) ||
-                    blockW < b.maxWidth()
-                )
-                    blockW =
-                        blockW +
-                        -(
-                            blockW -
-                            (pWidth -
-                                (pPaddingRight + pPaddingLeft + pMarginRight))
-                        )
+                const blockMaxWidth =
+                    b.maxWidth() !== Infinity ? b.maxWidth() : undefined
+                const blockMaxHeight =
+                    b.maxHeight() !== Infinity ? b.maxHeight() : undefined
 
                 if (
-                    (pHeight - (pPaddingTop + pPaddingBottom) < blockH &&
-                        pHeight > b.minHeight()) ||
-                    blockH < b.maxHeight()
+                    blockMaxWidth !== undefined &&
+                    ((pWidthSpaces < blockW && pWidth > b.minWidth()) ||
+                        blockW < blockMaxWidth)
+                )
+                    blockW += pWidthSpaces - blockW
+
+                if (
+                    blockMaxHeight !== undefined &&
+                    ((pHeightSpaces < blockH && pHeight > b.minHeight()) ||
+                        blockH < blockMaxHeight)
                 ) {
-                    blockH =
-                        blockH +
-                        -(
-                            blockH -
-                            (pHeight -
-                                (pPaddingTop + pPaddingBottom + pMarginBottom))
-                        )
+                    blockH += pHeightSpaces - blockH
                 }
 
                 b.__childAdjustment = (b: Block) => {
@@ -1438,9 +1426,10 @@ export class Block<T = IBlockOptions> extends Node {
             widthRelated: true,
         })
 
-        const w = this.__valueHandler(opt, 'width', 0, true)
+        let w = this.__valueHandler(opt, 'width', 0, true)
         if (w < this.minWidth() && !this.horizontalFlipResize())
             return this.minWidth()
+        if (w > this.maxWidth()) w = this.ownOptions.width = this.maxWidth()
 
         const diffW = w - cacheW
         if (diffW !== 0) {
@@ -1465,9 +1454,11 @@ export class Block<T = IBlockOptions> extends Node {
             val: this.ownOptions.height || 0,
             widthRelated: false,
         })
-        const h = this.__valueHandler(opt, 'height', 0, false)
+        let h = this.__valueHandler(opt, 'height', 0, false)
         if (h < this.minHeight() && !this.verticalFlipResize())
             return this.minHeight()
+        if (h > this.maxHeight()) h = this.ownOptions.height = this.maxHeight()
+
         const diffH = h - cacheH
         if (diffH !== 0) {
             const cacheR = this.rotate()
@@ -1492,10 +1483,10 @@ export class Block<T = IBlockOptions> extends Node {
         return this.__valueHandler(opt, 'minHeight', 0, false)
     }
     maxWidth(opt?: RelativeType): number {
-        return this.__valueHandler(opt, 'maxWidth', this.width(), true)
+        return this.__valueHandler(opt, 'maxWidth', Infinity, true)
     }
     maxHeight(opt?: RelativeType): number {
-        return this.__valueHandler(opt, 'maxHeight', this.height(), false)
+        return this.__valueHandler(opt, 'maxHeight', Infinity, false)
     }
     position(opt?: Position) {
         // @TODO: z index has no effect on the static
