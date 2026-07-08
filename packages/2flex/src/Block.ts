@@ -678,7 +678,6 @@ export class Block<T = IBlockOptions> extends Node {
         if (this.childNodes.length !== 0 || !this.useCacheAdjust) {
             const cacheR = this.rotate()
             this.rotate(0)
-            let z = this.zIndex() || 0
 
             const pWidth = this.width()
             const pHeight = this.height()
@@ -754,8 +753,6 @@ export class Block<T = IBlockOptions> extends Node {
                 if (containerH < blockHeightSpaces)
                     containerH = blockHeightSpaces
 
-                z += 1
-
                 if (
                     (pWidth - (pPaddingRight + pPaddingLeft) < blockW &&
                         pWidth > b.minWidth()) ||
@@ -794,7 +791,6 @@ export class Block<T = IBlockOptions> extends Node {
                     b.y(y)
                     b.width(blockW)
                     b.height(blockH)
-                    if (b.zIndex() == undefined) b.zIndex(z)
                 }
 
                 if (this.__clipPath) {
