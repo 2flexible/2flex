@@ -690,9 +690,7 @@ export class Block<T = IBlockOptions> extends Node {
 
             const pWidthSpaces = pWidth - pPaddingLeft - pPaddingRight
 
-            const pMarginLeft = this.marginLeft()
             const pMarginRight = this.marginRight()
-            const pMarginTop = this.marginTop()
             const pMarginBottom = this.marginBottom()
 
             const centerX = this.rotationCenterX()
@@ -743,14 +741,12 @@ export class Block<T = IBlockOptions> extends Node {
                     startX +
                     cornerLeftX +
                     this.__overflowCords.x +
-                    pMarginLeft +
                     pPaddingLeft +
                     b.marginLeft()
                 const y =
                     startY +
                     cornerTopY +
                     this.__overflowCords.y +
-                    pMarginTop +
                     pPaddingTop +
                     b.marginTop()
 
@@ -1714,50 +1710,17 @@ export class Block<T = IBlockOptions> extends Node {
         return margin
     }
     marginTop(opt?: RelativeType) {
-        const cacheM =
-            this.__unitConverter<RelativeType, number>({
-                val: this.ownOptions.marginTop,
-                widthRelated: false,
-            }) || 0
-        const m = this.__valueHandler(opt, 'marginTop', 0, false)
-        const diffM = m - cacheM
-        if (diffM !== 0) this.y(this.y() + diffM)
-        return m
+        return this.__valueHandler(opt, 'marginTop', 0, false)
     }
     marginBottom(opt?: RelativeType) {
-        const cacheM =
-            this.__unitConverter<RelativeType, number>({
-                val: this.ownOptions.marginBottom,
-                widthRelated: false,
-            }) || 0
-        const m = this.__valueHandler(opt, 'marginBottom', 0, false)
-        const diffM = m - cacheM
-        if (diffM !== 0) this.y(this.y() - diffM)
-        return m
+        return this.__valueHandler(opt, 'marginBottom', 0, false)
     }
     marginLeft(opt?: RelativeType) {
-        const cacheM =
-            this.__unitConverter<RelativeType, number>({
-                val: this.ownOptions.marginLeft,
-                widthRelated: true,
-            }) || 0
-        const m = this.__valueHandler(opt, 'marginLeft', 0, true)
-        const diffM = m - cacheM
-        if (diffM !== 0) this.x(this.x() + diffM)
-        return m
+        return this.__valueHandler(opt, 'marginLeft', 0, true)
     }
     marginRight(opt?: RelativeType) {
-        const cacheM =
-            this.__unitConverter<RelativeType, number>({
-                val: this.ownOptions.marginRight,
-                widthRelated: true,
-            }) || 0
-        const m = this.__valueHandler(opt, 'marginRight', 0, true)
-        const diffM = m - cacheM
-        if (diffM !== 0) this.x(this.x() - diffM)
-        return m
+        return this.__valueHandler(opt, 'marginRight', 0, true)
     }
-
     overflow(opt?: Overflow) {
         return this.__valueHandler(opt, 'overflow', 'visible', false)
     }
