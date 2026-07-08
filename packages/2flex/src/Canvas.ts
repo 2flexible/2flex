@@ -832,20 +832,6 @@ export class Canvas {
                                 block.__isOverflowXScroll
                             ) {
                                 block.__overflowTranslate({
-                                    x: -moveSpeed,
-                                    y: 0,
-                                })
-                                inBound = true
-                            } else block.__translate({ x: -moveSpeed, y: 0 })
-                        })
-                        if (!inBound) this.currentPosition.x -= moveSpeed
-                    } else {
-                        this.invokeChange((block: Block) => {
-                            if (
-                                block.checkInBound(event) &&
-                                block.__isOverflowXScroll
-                            ) {
-                                block.__overflowTranslate({
                                     x: moveSpeed,
                                     y: 0,
                                 })
@@ -853,6 +839,20 @@ export class Canvas {
                             } else block.__translate({ x: moveSpeed, y: 0 })
                         })
                         if (!inBound) this.currentPosition.x += moveSpeed
+                    } else {
+                        this.invokeChange((block: Block) => {
+                            if (
+                                block.checkInBound(event) &&
+                                block.__isOverflowXScroll
+                            ) {
+                                block.__overflowTranslate({
+                                    x: -moveSpeed,
+                                    y: 0,
+                                })
+                                inBound = true
+                            } else block.__translate({ x: -moveSpeed, y: 0 })
+                        })
+                        if (!inBound) this.currentPosition.x -= moveSpeed
                     }
                 } else {
                     if (event.deltaY < 0) {
