@@ -375,6 +375,13 @@ export class Block<T = IBlockOptions> extends Node {
 
         // permenant
         this.setChangeCache('setInBound', false)
+
+        // In first paddings assignment need to change width and heights realtive to paddings
+        if (this.paddingLeft()) this.width(this.width() + this.paddingLeft())
+        if (this.paddingRight()) this.width(this.width() + this.paddingRight())
+        if (this.paddingTop()) this.height(this.height() + this.paddingTop())
+        if (this.paddingBottom())
+            this.height(this.height() + this.paddingBottom())
     }
 
     get context(): CanvasRenderingContext2D | undefined | null {
@@ -1645,16 +1652,48 @@ export class Block<T = IBlockOptions> extends Node {
         return padding
     }
     paddingTop(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'paddingTop', 0, false)
+        const cacheP =
+            this.__unitConverter<RelativeType, number>({
+                val: this.ownOptions.paddingTop,
+                widthRelated: false,
+            }) || 0
+        const p = this.__valueHandler(opt, 'paddingTop', 0, false)
+        const diffP = p - cacheP
+        if (diffP !== 0) this.height(this.height() + diffP)
+        return p
     }
     paddingBottom(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'paddingBottom', 0, false)
+        const cacheP =
+            this.__unitConverter<RelativeType, number>({
+                val: this.ownOptions.paddingBottom,
+                widthRelated: false,
+            }) || 0
+        const p = this.__valueHandler(opt, 'paddingBottom', 0, false)
+        const diffP = p - cacheP
+        if (diffP !== 0) this.height(this.height() + diffP)
+        return p
     }
     paddingLeft(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'paddingLeft', 0, true)
+        const cacheP =
+            this.__unitConverter<RelativeType, number>({
+                val: this.ownOptions.paddingLeft,
+                widthRelated: false,
+            }) || 0
+        const p = this.__valueHandler(opt, 'paddingLeft', 0, false)
+        const diffP = p - cacheP
+        if (diffP !== 0) this.width(this.width() + diffP)
+        return p
     }
     paddingRight(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'paddingRight', 0, true)
+        const cacheP =
+            this.__unitConverter<RelativeType, number>({
+                val: this.ownOptions.paddingRight,
+                widthRelated: false,
+            }) || 0
+        const p = this.__valueHandler(opt, 'paddingRight', 0, false)
+        const diffP = p - cacheP
+        if (diffP !== 0) this.width(this.width() + diffP)
+        return p
     }
     margin(opt?: MarginType): number[] {
         const margin = this.__valueHandler(opt, 'margin', [])
