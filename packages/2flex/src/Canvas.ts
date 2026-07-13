@@ -829,7 +829,7 @@ export class Canvas {
                         this.invokeChange((block: Block) => {
                             if (
                                 block.checkInBound(event) &&
-                                block.__isOverflowXScroll
+                                block.__isOverflowXScrollable
                             ) {
                                 block.__overflowTranslate({
                                     x: moveSpeed,
@@ -843,7 +843,7 @@ export class Canvas {
                         this.invokeChange((block: Block) => {
                             if (
                                 block.checkInBound(event) &&
-                                block.__isOverflowXScroll
+                                block.__isOverflowXScrollable
                             ) {
                                 block.__overflowTranslate({
                                     x: -moveSpeed,
@@ -859,7 +859,7 @@ export class Canvas {
                         this.invokeChange((block: Block) => {
                             if (
                                 block.checkInBound(event) &&
-                                block.__isOverflowYScroll
+                                block.__isOverflowYScrollable
                             ) {
                                 block.__overflowTranslate({
                                     x: 0,
@@ -873,7 +873,7 @@ export class Canvas {
                         this.invokeChange((block: Block) => {
                             if (
                                 block.checkInBound(event) &&
-                                block.__isOverflowYScroll
+                                block.__isOverflowYScrollable
                             ) {
                                 block.__overflowTranslate({
                                     x: 0,

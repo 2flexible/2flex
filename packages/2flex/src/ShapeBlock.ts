@@ -303,6 +303,7 @@ export class ShapeBlock<T = IShapeOptions> extends Block<T> {
         this.context?.restore()
 
         this.__isSelected()
+        this.__isOverflowAreaVisible()
         this.onRender()?.()
     }
 

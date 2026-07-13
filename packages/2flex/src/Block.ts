@@ -93,7 +93,7 @@ export interface HotCornerArea {
     bottomRight: XY
 }
 
-export type Overflow = 'visible' | 'hidden' | 'clip' | 'scroll' | 'auto'
+export type Overflow = 'visible' | 'hidden' | 'scroll' | 'auto'
 
 export type RelativeType = number | string
 
@@ -294,11 +294,16 @@ export type Animator = (timestamp: number) => void
 export type CallbackAnimator = (timestamp: number, easing: number) => void
 
 interface OverflowCords extends XY {
-    minX: number
-    maxX: number
-    minY: number
-    maxY: number
+    width: number
+    height: number
 }
+
+const OVERFLOW_SCROLL_BAR_BLOCK_NAME = '__overflow_scroll_bar_hidden'
+const OVERFLOW_SCROLL_BAR_MIN_SIZE = 15
+const OVERFLOW_AREA_GAP = 15
+const OVERFLOW_INNER_AREA_GAP = 3
+const OVERFLOW_INNER_AREA_SIZE = 10
+
 export class Block<T = IBlockOptions> extends Node {
     declare parentNode?: Block
     declare childNodes: Block[]
@@ -330,6 +335,9 @@ export class Block<T = IBlockOptions> extends Node {
         [key: string]: { oldValue: any }
     }
 
+    #overflowXscrollBarBlock?: Block<any>
+    #overflowYscrollBarBlock?: Block<any>
+
     constructor(options: IBlock<T>) {
         super()
         this.options = { ...options }
@@ -354,10 +362,8 @@ export class Block<T = IBlockOptions> extends Node {
         this.__overflowCords = {
             x: 0,
             y: 0,
-            minX: 0,
-            maxX: this.width(),
-            minY: 0,
-            maxY: this.height(),
+            width: 0,
+            height: 0,
         }
 
         this.__animations = []
@@ -400,6 +406,7 @@ export class Block<T = IBlockOptions> extends Node {
         if (this.__isHidden) return
 
         this.__isSelected()
+        this.__isOverflowAreaVisible()
         this.onRender()?.()
     }
 
@@ -416,11 +423,521 @@ export class Block<T = IBlockOptions> extends Node {
         return renderFunc
     }
     __isSelected() {
-        // this.__hotLines();
         if (this.__runningEvents.selected && this.hotLines()) {
             if (this.ImFirst) this.__hotLines()
             else this.__runningEvents.selected = false
         }
+    }
+
+    __isOverflowAreaVisible() {
+        if (this.__isOverflowXScroll || this.__isOverflowXAuto)
+            this.__overflowXScrollBar()
+        else this.#overflowXscrollBarBlock = undefined
+
+        if (this.__isOverflowYScroll || this.__isOverflowYAuto)
+            this.__overflowYScrollBar()
+        else this.#overflowYscrollBarBlock = undefined
+    }
+
+    __overflowXScrollBar() {
+        if (!this.#overflowXscrollBarBlock) {
+            this.#overflowXscrollBarBlock = new Block({
+                name: OVERFLOW_SCROLL_BAR_BLOCK_NAME,
+                width: this.width(),
+                height: OVERFLOW_AREA_GAP,
+                position: 'fixed',
+                left: this.x(),
+                top: this.height() - OVERFLOW_AREA_GAP,
+                selectable: true,
+                // Showing overflow scroll bar block on top of the child blocks
+                zIndex: (this.zIndex() || 1) + this.childNodes.length,
+                hotLines: false,
+            })
+
+            const getInnerScrollCordinates: any = () => {
+                const currentWidth = this.width() + this.__overflowCords.width
+                const areaWidth = clamp(
+                    this.width() + this.__overflowCords.width,
+                    OVERFLOW_SCROLL_BAR_MIN_SIZE,
+                    this.width()
+                )
+
+                let xPer = 1
+                if (currentWidth < 0) {
+                    xPer =
+                        this.__overflowCords.width / -(this.width() - areaWidth)
+                }
+
+                const topLeftX = this.x() - this.__overflowCords.x / xPer
+                const topLeftY =
+                    this.y() +
+                    this.height() -
+                    OVERFLOW_AREA_GAP +
+                    OVERFLOW_INNER_AREA_GAP
+
+                const topRightX = topLeftX + areaWidth
+                const topRightY = topLeftY
+
+                const bottomLeftX = topLeftX
+                const bottomLeftY = topLeftY + OVERFLOW_INNER_AREA_SIZE
+
+                const bottomRightX = topRightX
+                const bottomRightY = bottomLeftY
+                return {
+                    topLeftX: topLeftX,
+                    topLeftY: topLeftY,
+                    topRightX: topRightX,
+                    topRightY: topRightY,
+                    bottomLeftX: bottomLeftX,
+                    bottomLeftY: bottomLeftY,
+                    bottomRightX: bottomRightX,
+                    bottomRightY: bottomRightY,
+                }
+            }
+            const getCoverAreaCordinates = () => {
+                return {
+                    x: this.x(),
+                    y: this.y() + this.height() - OVERFLOW_AREA_GAP,
+                    width: this.width(),
+                    height: OVERFLOW_AREA_GAP,
+                }
+            }
+            // moving overflow scrollbar
+            let initCords = { x: 0, y: 0 }
+            let beforeCords = { x: 0, y: 0 }
+            let isMouseDown = false
+            const mousedown = (event: MouseEvent) => {
+                const {
+                    topLeftX,
+                    topLeftY,
+                    topRightX,
+                    topRightY,
+                    bottomLeftX,
+                    bottomLeftY,
+                    bottomRightX,
+                    bottomRightY,
+                } = getInnerScrollCordinates()
+                initCords =
+                    this.#overflowXscrollBarBlock?.canvas?.getCursorPosition(
+                        event
+                    ) || {
+                        x: 0,
+                        y: 0,
+                    }
+                if (
+                    checkInBound(
+                        initCords.x,
+                        initCords.y,
+                        topLeftX,
+                        topLeftY,
+                        topRightX,
+                        topRightY,
+                        bottomLeftX,
+                        bottomLeftY,
+                        bottomRightX,
+                        bottomRightY
+                    )
+                ) {
+                    beforeCords = { x: 0, y: 0 }
+                    isMouseDown = true
+                } else
+                    this.#overflowXscrollBarBlock?.registerZIndex({
+                        out: this.#overflowXscrollBarBlock?.zIndex(),
+                    })
+            }
+
+            const mousemove = (event: MouseEvent) => {
+                const { x, y } =
+                    this.#overflowXscrollBarBlock?.canvas?.getCursorPosition(
+                        event
+                    ) || {
+                        x: 0,
+                        y: 0,
+                    }
+                const {
+                    topLeftX,
+                    topLeftY,
+                    topRightX,
+                    topRightY,
+                    bottomLeftX,
+                    bottomLeftY,
+                    bottomRightX,
+                    bottomRightY,
+                } = getInnerScrollCordinates()
+
+                // checking cursor cause resize area overlaps with the overflow area
+                if (
+                    !isMouseDown &&
+                    checkInBound(
+                        x,
+                        y,
+                        topLeftX,
+                        topLeftY,
+                        topRightX,
+                        topRightY,
+                        bottomLeftX,
+                        bottomLeftY,
+                        bottomRightX,
+                        bottomRightY
+                    ) &&
+                    !(this.__isOverflowXAuto && this.__overflowCords.width > 0)
+                ) {
+                    this.canvas?.changeCursor('auto')
+                }
+                if (isMouseDown && this.__isOverflowXScrollable) {
+                    this.#overflowXscrollBarBlock?.registerZIndex({
+                        in: this.#overflowXscrollBarBlock?.zIndex(),
+                    })
+                    if (this.#overflowXscrollBarBlock?.ImFirst) {
+                        let diffX = x - initCords.x
+                        if (diffX !== 0) {
+                            const diff = diffX - beforeCords.x
+                            this.__overflowTranslate({ x: -diff, y: 0 })
+                            beforeCords.x = diffX
+                        }
+                        this.#overflowXscrollBarBlock?.invokeChange()
+                    }
+                }
+            }
+            const mouseup = () => {
+                if (isMouseDown) isMouseDown = false
+            }
+            this.eventHandler<MouseEvent>(
+                'mousedown',
+                mousedown,
+                'overflowMouseDown'
+            )
+
+            this.#overflowXscrollBarBlock.eventHandler<MouseEvent>(
+                'mousemove',
+                mousemove,
+                'overflowMouseMove'
+            )
+            this.#overflowXscrollBarBlock.eventHandler<MouseEvent>(
+                'mouseup',
+                mouseup,
+                'overflowMouseUp'
+            )
+            this.#overflowXscrollBarBlock.onRender(() => {
+                if (this.__isOverflowXAuto && this.__overflowCords.width > 0)
+                    return
+
+                const { x, y, width, height } = getCoverAreaCordinates()
+                const { topLeftX, topLeftY } = getInnerScrollCordinates()
+                const areaWidth = clamp(
+                    this.width() + this.__overflowCords.width,
+                    OVERFLOW_SCROLL_BAR_MIN_SIZE,
+                    this.width()
+                )
+                this.#buildOverflowScrollAreaBar(
+                    this.#overflowXscrollBarBlock!,
+                    x,
+                    y,
+                    width,
+                    height,
+                    topLeftX,
+                    topLeftY,
+                    areaWidth,
+                    OVERFLOW_INNER_AREA_SIZE,
+                    30
+                )
+            })
+            if (!this.childNodes.includes(this.#overflowXscrollBarBlock)) {
+                this.childNodes.push(this.#overflowXscrollBarBlock)
+            }
+        } else {
+            this.#overflowXscrollBarBlock.left(this.x())
+            this.#overflowXscrollBarBlock.top(
+                this.y() + this.height() - OVERFLOW_AREA_GAP
+            )
+            this.#overflowXscrollBarBlock.width(this.width())
+            this.#overflowXscrollBarBlock.height(OVERFLOW_AREA_GAP)
+
+            // Showing overflow scroll bar block on top of the child blocks
+            this.#overflowXscrollBarBlock.zIndex(
+                (this.zIndex() || 1) + this.childNodes.length
+            )
+        }
+    }
+
+    __overflowYScrollBar() {
+        if (!this.#overflowYscrollBarBlock) {
+            this.#overflowYscrollBarBlock = new Block({
+                name: OVERFLOW_SCROLL_BAR_BLOCK_NAME,
+                width: OVERFLOW_AREA_GAP,
+                height: this.height() - this.#overflowScrollYHeightCut,
+                position: 'fixed',
+                left: this.x() + this.width() - OVERFLOW_AREA_GAP,
+                top: this.y(),
+                selectable: true,
+                // Showing overflow scroll bar block on top of the child blocks
+                zIndex: (this.zIndex() || 1) + this.childNodes.length,
+                hotLines: false,
+            })
+
+            const getInnerScrollCordinates: any = () => {
+                const currentHeight =
+                    this.height() +
+                    (this.__overflowCords.height -
+                        this.#overflowScrollYHeightCut)
+                const areaHeight = clamp(
+                    currentHeight,
+                    OVERFLOW_SCROLL_BAR_MIN_SIZE,
+                    this.height() - this.#overflowScrollYHeightCut
+                )
+                let yPer = 1
+                if (currentHeight < 0) {
+                    yPer =
+                        this.__overflowCords.height /
+                        -(
+                            this.height() -
+                            areaHeight -
+                            this.#overflowScrollYHeightCut
+                        )
+                }
+
+                const topLeftX =
+                    this.x() +
+                    this.width() -
+                    OVERFLOW_AREA_GAP +
+                    OVERFLOW_INNER_AREA_GAP
+
+                const topLeftY = this.y() - this.__overflowCords.y / yPer
+                const topRightX = topLeftX + OVERFLOW_INNER_AREA_GAP
+                const topRightY = topLeftY
+
+                const bottomLeftX = topLeftX
+                const bottomLeftY = topLeftY + areaHeight
+
+                const bottomRightX = topRightX
+                const bottomRightY = bottomLeftY
+                return {
+                    topLeftX: topLeftX,
+                    topLeftY: topLeftY,
+                    topRightX: topRightX,
+                    topRightY: topRightY,
+                    bottomLeftX: bottomLeftX,
+                    bottomLeftY: bottomLeftY,
+                    bottomRightX: bottomRightX,
+                    bottomRightY: bottomRightY,
+                }
+            }
+            const getCoverAreaCordinates = () => {
+                return {
+                    x: this.x() + this.width() - OVERFLOW_AREA_GAP,
+                    y: this.y(),
+                    width: OVERFLOW_AREA_GAP,
+                    height: this.height() - this.#overflowScrollYHeightCut,
+                }
+            }
+            // moving overflow scrollbar
+            let initCords = { x: 0, y: 0 }
+            let beforeCords = { x: 0, y: 0 }
+            let isMouseDown = false
+            const mousedown = (event: MouseEvent) => {
+                const {
+                    topLeftX,
+                    topLeftY,
+                    topRightX,
+                    topRightY,
+                    bottomLeftX,
+                    bottomLeftY,
+                    bottomRightX,
+                    bottomRightY,
+                } = getInnerScrollCordinates()
+                initCords =
+                    this.#overflowYscrollBarBlock?.canvas?.getCursorPosition(
+                        event
+                    ) || {
+                        x: 0,
+                        y: 0,
+                    }
+                if (
+                    checkInBound(
+                        initCords.x,
+                        initCords.y,
+                        topLeftX,
+                        topLeftY,
+                        topRightX,
+                        topRightY,
+                        bottomLeftX,
+                        bottomLeftY,
+                        bottomRightX,
+                        bottomRightY
+                    ) &&
+                    !(this.__isOverflowYAuto && this.__overflowCords.height > 0)
+                ) {
+                    beforeCords = { x: 0, y: 0 }
+                    isMouseDown = true
+                } else
+                    this.#overflowYscrollBarBlock?.registerZIndex({
+                        out: this.#overflowYscrollBarBlock?.zIndex(),
+                    })
+            }
+
+            const mousemove = (event: MouseEvent) => {
+                const { x, y } =
+                    this.#overflowYscrollBarBlock?.canvas?.getCursorPosition(
+                        event
+                    ) || {
+                        x: 0,
+                        y: 0,
+                    }
+                const {
+                    topLeftX,
+                    topLeftY,
+                    topRightX,
+                    topRightY,
+                    bottomLeftX,
+                    bottomLeftY,
+                    bottomRightX,
+                    bottomRightY,
+                } = getInnerScrollCordinates()
+
+                // checking cursor cause resize area overlaps with the overflow area
+                if (
+                    !isMouseDown &&
+                    checkInBound(
+                        x,
+                        y,
+                        topLeftX,
+                        topLeftY,
+                        topRightX,
+                        topRightY,
+                        bottomLeftX,
+                        bottomLeftY,
+                        bottomRightX,
+                        bottomRightY
+                    ) &&
+                    !(this.__isOverflowYAuto && this.__overflowCords.height > 0)
+                ) {
+                    this.canvas?.changeCursor('auto')
+                }
+
+                if (isMouseDown && this.__isOverflowYScrollable) {
+                    this.#overflowYscrollBarBlock?.registerZIndex({
+                        in: this.#overflowYscrollBarBlock?.zIndex(),
+                    })
+                    if (this.#overflowYscrollBarBlock?.ImFirst) {
+                        let diffY = y - initCords.y
+                        if (diffY !== 0) {
+                            const diff = diffY - beforeCords.y
+                            this.__overflowTranslate({ x: 0, y: -diff })
+                            beforeCords.y = diffY
+                        }
+                        this.#overflowYscrollBarBlock?.invokeChange()
+                    }
+                }
+            }
+            const mouseup = () => {
+                if (isMouseDown) isMouseDown = false
+            }
+            this.eventHandler<MouseEvent>(
+                'mousedown',
+                mousedown,
+                'overflowYMouseDown'
+            )
+
+            this.#overflowYscrollBarBlock.eventHandler<MouseEvent>(
+                'mousemove',
+                mousemove,
+                'overflowYMouseMove'
+            )
+            this.#overflowYscrollBarBlock.eventHandler<MouseEvent>(
+                'mouseup',
+                mouseup,
+                'overflowYMouseUp'
+            )
+            this.#overflowYscrollBarBlock.onRender(() => {
+                if (this.__isOverflowYAuto && this.__overflowCords.height > 0)
+                    return
+
+                const { x, y, width, height } = getCoverAreaCordinates()
+                const { topLeftX, topLeftY } = getInnerScrollCordinates()
+                const areaHeight = clamp(
+                    this.height() +
+                        (this.__overflowCords.height -
+                            this.#overflowScrollYHeightCut),
+                    OVERFLOW_SCROLL_BAR_MIN_SIZE,
+                    this.height() - this.#overflowScrollYHeightCut
+                )
+                this.#buildOverflowScrollAreaBar(
+                    this.#overflowYscrollBarBlock!,
+                    x,
+                    y,
+                    width,
+                    height,
+                    topLeftX,
+                    topLeftY,
+                    OVERFLOW_INNER_AREA_SIZE,
+                    areaHeight,
+                    30
+                )
+            })
+            if (!this.childNodes.includes(this.#overflowYscrollBarBlock)) {
+                this.childNodes.push(this.#overflowYscrollBarBlock)
+            }
+        } else {
+            this.#overflowYscrollBarBlock.left(
+                this.x() + this.width() - OVERFLOW_AREA_GAP
+            )
+            this.#overflowYscrollBarBlock.top(this.y())
+            this.#overflowYscrollBarBlock.width(OVERFLOW_AREA_GAP)
+            this.#overflowYscrollBarBlock.height(
+                this.height() - this.#overflowScrollYHeightCut
+            )
+            // Showing overflow scroll bar block on top of the child blocks
+            this.#overflowYscrollBarBlock.zIndex(
+                (this.zIndex() || 1) + this.childNodes.length
+            )
+        }
+    }
+
+    // need to resize height for not overlapping overflow x and y cordinates
+    get #overflowScrollYHeightCut() {
+        return this.__isOverflowXScrollable ? OVERFLOW_AREA_GAP : 0
+    }
+
+    #buildOverflowScrollAreaBar(
+        block: Block,
+        coverAreaX: number,
+        coverAreaY: number,
+        coverAreaWidth: number,
+        coverAreaHeight: number,
+        innerScrollX: number,
+        innerScrollY: number,
+        innerScrollWidth: number,
+        innerScrollHeight: number,
+        innerScrollRadius: number
+    ) {
+        if (!block.context) return
+
+        block.context.save()
+        block.context.setLineDash([])
+        block.context.beginPath()
+        block.context.roundRect(
+            coverAreaX,
+            coverAreaY,
+            coverAreaWidth,
+            coverAreaHeight,
+            0
+        )
+        block.context.fillStyle = 'white'
+        block.context.fill()
+        block.context.stroke()
+        block.context.beginPath()
+
+        block.context.roundRect(
+            innerScrollX,
+            innerScrollY,
+            innerScrollWidth,
+            innerScrollHeight,
+            innerScrollRadius
+        )
+
+        block.context.fillStyle = 'gray'
+        block.context.fill()
+        block.context.restore()
     }
 
     resetRunningEvents() {
@@ -428,6 +945,29 @@ export class Block<T = IBlockOptions> extends Node {
         this.__runningEvents.drag = false
         this.__runningEvents.rotate = false
         this.__runningEvents.resize = false
+    }
+
+    // Overrided default listing methods for filter out unwanted child classes
+    listOnlyChilds<B>(
+        _func: (node: B, currIdx: number, arrLen: number) => void,
+        sort?: string,
+        nodes?: Node[]
+    ): void {
+        const listingFunc = (node: B, currIdx: number, arrLen: number) => {
+            if ((node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME) {
+                _func(node, currIdx, arrLen)
+            }
+        }
+        super.listOnlyChilds(listingFunc, sort, nodes)
+    }
+
+    listAllChilds<T>(_func: (node: T) => void): void {
+        const listingFunc = (node: T) => {
+            if ((node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME) {
+                _func(node)
+            }
+        }
+        super.listAllChilds(listingFunc)
     }
 
     __generatePayload(): BlockPayload {
@@ -526,8 +1066,8 @@ export class Block<T = IBlockOptions> extends Node {
         this.__clipPath?.rect(
             this.__getLeft.x + this.__leftSpace,
             this.__getTop.y + this.__topSpace,
-            this.__getRealWidth - this.__widthSpaces,
-            this.__getRealHeight - this.__heightSpaces
+            this.__getRealWidth + this.__widthSpaces,
+            this.__getRealHeight + this.__heightSpaces
         )
     }
 
@@ -703,17 +1243,16 @@ export class Block<T = IBlockOptions> extends Node {
             const cornerLeftX = this.__getLeft.x
             const cornerTopY = this.__getTop.y
 
-            let minX: number | undefined
-            let minY: number | undefined
-            let maxX: number = 0
-            let maxY: number = 0
-
             let startX = 0
             let startY = 0
+            let containerW = 0
             let containerH = 0
             let wrapWidth = 0
 
-            this.listOnlyChilds((b: Block) => {
+            let blocksContainerWidth = 0
+            let blocksContainerHeight = 0
+
+            this.listOnlyChilds((b: Block, currIdx, arrLen) => {
                 if (b.position() === 'absolute') return
                 b.rotate(0)
 
@@ -733,8 +1272,11 @@ export class Block<T = IBlockOptions> extends Node {
                 wrapWidth += blockWidthSpaces
                 if (wrapWidth > pWidthSpaces) {
                     startX = 0
+                    blocksContainerHeight += containerH
                     wrapWidth = blockWidthSpaces
                     startY += containerH
+
+                    containerW = 0
                     containerH = 0
                 }
 
@@ -743,17 +1285,24 @@ export class Block<T = IBlockOptions> extends Node {
                     cornerLeftX +
                     this.__overflowCords.x +
                     pPaddingLeft +
-                    b.marginLeft()
+                    blockMarginLeft
                 const y =
                     startY +
                     cornerTopY +
                     this.__overflowCords.y +
                     pPaddingTop +
-                    b.marginTop()
+                    blockMarginTop
 
                 startX += blockWidthSpaces
+                containerW += blockWidthSpaces
+
                 if (containerH < blockHeightSpaces)
                     containerH = blockHeightSpaces
+
+                if (containerW > blocksContainerWidth)
+                    blocksContainerWidth = containerW
+
+                if (currIdx == arrLen - 1) blocksContainerHeight += containerH
 
                 const blockMaxWidth =
                     b.maxWidth() !== Infinity ? b.maxWidth() : undefined
@@ -793,26 +1342,29 @@ export class Block<T = IBlockOptions> extends Node {
                         b.context?.clip(this.__clipPath!, 'nonzero')
                     }
                 }
-                if (blockW + x > maxX) {
-                    maxX = blockW + x
-                } else if (blockW + x > maxX) {
-                    maxX = blockW + x
-                }
-
-                if (blockH + y > maxY) {
-                    maxY = blockH + y
-                } else if (blockW + y > maxY) {
-                    maxY = blockW + y
-                }
-
-                if (minX === undefined || x < minX) minX = x
-                if (minY === undefined || y < minY) minY = y
             })
             this.rotate(cacheR)
-            this.__overflowCords.minX = minX || 0
-            this.__overflowCords.minY = minY || 0
-            this.__overflowCords.maxX = maxX
-            this.__overflowCords.maxY = maxY
+
+            const beforeWidth = this.__overflowCords.width
+            const beforeHeight =
+                this.__overflowCords.height || this.#overflowScrollYHeightCut
+            this.__overflowCords.width = pWidthSpaces - blocksContainerWidth
+            this.__overflowCords.height =
+                pHeightSpaces -
+                this.#overflowScrollYHeightCut -
+                blocksContainerHeight
+
+            // If overflow area cursor on the right need to adjust it to left for correcting overflow cordinate
+            const diffW = this.__overflowCords.width - beforeWidth
+            if (diffW > 0)
+                if (this.__overflowCords.x < 0) this.__overflowCords.x += diffW
+                else this.__overflowCords.x = 0
+
+            // If overflow area cursor on the bottom need to adjust it to top for correcting overflow cordinate
+            const diffH = this.__overflowCords.height - beforeHeight
+            if (diffH > 0)
+                if (this.__overflowCords.y < 0) this.__overflowCords.y += diffH
+                else this.__overflowCords.y = 0
         }
     }
 
@@ -1287,7 +1839,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     get __leftSpace() {
-        return this.paddingLeft() + this.marginLeft()
+        return this.marginLeft()
     }
 
     get __rightSpace() {
@@ -1295,7 +1847,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     get __topSpace() {
-        return this.paddingTop() + this.marginTop()
+        return this.marginTop()
     }
 
     get __bottomSpace() {
@@ -1747,7 +2299,7 @@ export class Block<T = IBlockOptions> extends Node {
     marginRight(opt?: RelativeType) {
         return this.__valueHandler(opt, 'marginRight', 0, true)
     }
-    overflow(opt?: Overflow) {
+    overflow(opt?: Overflow): Overflow {
         return this.__valueHandler(opt, 'overflow', 'visible', false)
     }
 
@@ -2635,14 +3187,39 @@ export class Block<T = IBlockOptions> extends Node {
             }
         }
     }
-    // @TODO: need to fix limits on the overflow
     __overflowTranslate(t: { x: number; y: number }) {
-        const x = this.__overflowCords.x + this.x()
-        const y = this.__overflowCords.y + this.y()
-        if (x >= this.__overflowCords.minX || x <= this.__overflowCords.maxX)
-            this.__overflowCords.x += t.x
-        if (y >= this.__overflowCords.minY || y <= this.__overflowCords.maxY)
-            this.__overflowCords.y += t.y
+        const currentHeight =
+            this.height() +
+            (this.__overflowCords.height - this.#overflowScrollYHeightCut)
+        const currentWidth = this.width() + this.__overflowCords.width
+
+        let xPer = 1
+        let yPer = 1
+        if (currentHeight < 0)
+            yPer = this.__overflowCords.height / -this.height()
+        if (currentWidth < 0) xPer = this.__overflowCords.width / -this.width()
+
+        const xPos = this.__overflowCords.x + t.x * xPer
+        const yPos = this.__overflowCords.y + t.y * yPer
+
+        if (this.__overflowCords.width < 0) {
+            if (xPos < 0)
+                this.__overflowCords.x = -clamp(
+                    Math.abs(xPos),
+                    0,
+                    Math.abs(this.__overflowCords.width)
+                )
+            else this.__overflowCords.x = 0
+        }
+        if (this.__overflowCords.height < 0) {
+            if (yPos < 0) {
+                this.__overflowCords.y = -clamp(
+                    Math.abs(yPos),
+                    0,
+                    Math.abs(this.__overflowCords.height)
+                )
+            } else this.__overflowCords.y = 0
+        }
     }
 
     get __isOverflowXScroll() {
@@ -2650,6 +3227,29 @@ export class Block<T = IBlockOptions> extends Node {
     }
     get __isOverflowYScroll() {
         return this.overflow() === 'scroll' || this.overflowY() === 'scroll'
+    }
+
+    get __isOverflowXAuto() {
+        return this.overflow() === 'auto' || this.overflowX() === 'auto'
+    }
+    get __isOverflowYAuto() {
+        return this.overflow() === 'auto' || this.overflowY() === 'auto'
+    }
+
+    get __isOverflowXAutoAllowScrool() {
+        return this.__isOverflowXAuto && this.__overflowCords.width < 0
+    }
+
+    get __isOverflowYAutoAllowScrool() {
+        return this.__isOverflowYAuto && this.__overflowCords.height < 0
+    }
+
+    get __isOverflowXScrollable() {
+        return this.__isOverflowXScroll || this.__isOverflowXAutoAllowScrool
+    }
+
+    get __isOverflowYScrollable() {
+        return this.__isOverflowYScroll || this.__isOverflowYAutoAllowScrool
     }
 
     get __isOverflowVisible() {
