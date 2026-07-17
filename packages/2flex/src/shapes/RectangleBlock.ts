@@ -259,10 +259,10 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
 
     __clipShape() {
         this.__clipPath?.roundRect(
-            this.__getLeft.x + this.__leftSpace,
-            this.__getTop.y + this.__topSpace,
-            this.__getRealWidth + this.__widthSpaces,
-            this.__getRealHeight + this.__heightSpaces,
+            this.x(),
+            this.y(),
+            this.width(),
+            this.height(),
             this.borderRadius()
         )
     }

@@ -1104,10 +1104,10 @@ export class Block<T = IBlockOptions> extends Node {
 
     __clipShape() {
         this.__clipPath?.rect(
-            this.__getLeft.x + this.__leftSpace,
-            this.__getTop.y + this.__topSpace,
-            this.__getRealWidth + this.__widthSpaces,
-            this.__getRealHeight + this.__heightSpaces
+            this.x(),
+            this.y(),
+            this.width(),
+            this.height(),
         )
     }
 
@@ -1379,7 +1379,28 @@ export class Block<T = IBlockOptions> extends Node {
 
                 if (this.__clipPath) {
                     b.__childClipping = (b: Block) => {
+                        // in rotate of partent clipping also need to be rotated
+                        b.context?.translate(
+                            this.__getRealCenterX,
+                            this.__getRealCenterY
+                        )
+                        b.context?.rotate(this.rotate())
+                        b.context?.translate(
+                            -this.__getRealCenterX,
+                            -this.__getRealCenterY
+                        )
                         b.context?.clip(this.__clipPath!, 'nonzero')
+
+                        // after clip need to reset to its default rotation
+                        b.context?.translate(
+                            this.__getRealCenterX,
+                            this.__getRealCenterY
+                        )
+                        b.context?.rotate(-this.rotate())
+                        b.context?.translate(
+                            -this.__getRealCenterX,
+                            -this.__getRealCenterY
+                        )
                     }
                 }
             })
