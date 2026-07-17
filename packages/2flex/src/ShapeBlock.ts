@@ -252,7 +252,6 @@ export class ShapeBlock<T = IShapeOptions> extends Block<T> {
         super(options)
     }
     render(): void {
-        this.__childClipping?.(this)
         this.__childAdjustment?.(this)
 
         this.position()
@@ -264,6 +263,10 @@ export class ShapeBlock<T = IShapeOptions> extends Block<T> {
 
         this.beginPath()
         this.context?.save()
+        
+        // need to clip child before restore if its exist
+        this.__childClipping?.(this)
+
         this.context?.translate(this.rotationCenterX(), this.rotationCenterY())
         this.context?.rotate(this.rotate())
         // @TODO: add features for vertical or horizantal flipping

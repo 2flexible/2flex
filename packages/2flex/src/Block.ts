@@ -442,7 +442,6 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     render() {
-        this.__childClipping?.(this)
         this.__childAdjustment?.(this)
 
         this.position()
@@ -451,6 +450,11 @@ export class Block<T = IBlockOptions> extends Node {
         this.__adjustChildBlocks()
 
         if (this.__isHidden) return
+
+        this.context?.save()
+        // need to clip child before restore if its exist
+        this.__childClipping?.(this)
+        this.context?.restore()
 
         this.__isSelected()
         this.__isOverflowAreaVisible()
@@ -955,6 +959,10 @@ export class Block<T = IBlockOptions> extends Node {
             -this.rotationCenterX(),
             -this.rotationCenterY()
         )
+
+        // need to clip overflow area too
+        this.__childClipping?.(this)
+
         block.context.setLineDash([])
         block.context.beginPath()
         block.context.roundRect(
@@ -1390,7 +1398,7 @@ export class Block<T = IBlockOptions> extends Node {
                     b.height(blockH)
                 }
 
-                if (this.__clipPath) {
+                if (this.__clipPath || this.parentNode?.__clipPath) {
                     b.__childClipping = (b: Block) => {
                         // in rotate of partent clipping also need to be rotated
                         b.context?.translate(
@@ -1402,7 +1410,14 @@ export class Block<T = IBlockOptions> extends Node {
                             -this.__getRealCenterX,
                             -this.__getRealCenterY
                         )
-                        b.context?.clip(this.__clipPath!, 'nonzero')
+                        // if parent clipping exists need to add another clip for it too
+                        if (this.__clipPath!)
+                            b.context?.clip(this.__clipPath!, 'nonzero')
+                        if (this.parentNode?.__clipPath)
+                            b.context?.clip(
+                                this.parentNode?.__clipPath,
+                                'nonzero'
+                            )
 
                         // after clip need to reset to its default rotation
                         b.context?.translate(
