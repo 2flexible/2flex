@@ -353,6 +353,8 @@ export class Block<T = IBlockOptions> extends Node {
     #overflowXscrollBar: OverflowScrollBar
     #overflowYscrollBar: OverflowScrollBar
 
+    #isZIndexPredefined = false
+
     constructor(options: IBlock<T>) {
         super()
         this.options = { ...options }
@@ -1042,8 +1044,13 @@ export class Block<T = IBlockOptions> extends Node {
                 b.order(this.#lastOrder)
                 this.#lastOrder += 1
             }
-            z += 1
-            if (b.zIndex() == undefined) b.zIndex(z)
+            if (b.zIndex() == undefined && !b.#isZIndexPredefined) {
+                z += 1
+                b.zIndex(z)
+                b.#isZIndexPredefined = true
+                // need to handle z index of before added childs of the child block
+                b.#handleChildZIndex()
+            }
             this.canvas?.__handleOptions(b)
             this.canvas?.__collectEvents(b)
             this.canvas?.__collectAnimations(b)
@@ -1052,6 +1059,17 @@ export class Block<T = IBlockOptions> extends Node {
             this.canvas?.__takeBlockSnapshot(this, before)
         })
         this.invokeChange()
+    }
+
+    #handleChildZIndex() {
+        let z = this.zIndex() || 1
+        this.listOnlyChilds((b: Block) => {
+            if (b.zIndex() == undefined || b.#isZIndexPredefined) {
+                z += 1
+                b.zIndex(z)
+                b.#handleChildZIndex()
+            }
+        })
     }
 
     removeChild(child: Block<any>): void {
@@ -1103,12 +1121,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __clipShape() {
-        this.__clipPath?.rect(
-            this.x(),
-            this.y(),
-            this.width(),
-            this.height(),
-        )
+        this.__clipPath?.rect(this.x(), this.y(), this.width(), this.height())
     }
 
     __hotLines() {
