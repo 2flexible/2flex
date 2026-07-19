@@ -1003,9 +1003,13 @@ export class Block<T = IBlockOptions> extends Node {
         sort?: string,
         nodes?: Node[]
     ): void {
+        // for correct array length need to extract additonall overflow blocks
+        let arrLenExt = 0
+        if (this.#overflowXscrollBar.block) arrLenExt -= 1
+        if (this.#overflowYscrollBar.block) arrLenExt -= 1
         const listingFunc = (node: B, currIdx: number, arrLen: number) => {
             if ((node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME) {
-                _func(node, currIdx, arrLen)
+                _func(node, currIdx, arrLen + arrLenExt)
             }
         }
         super.listOnlyChilds(listingFunc, sort, nodes)
