@@ -1148,6 +1148,10 @@ export class Block<T = IBlockOptions> extends Node {
         this.context.save()
         this.context.setLineDash([])
         this.context.beginPath()
+
+        // need to clip hot line area too
+        this.__childClipping?.(this)
+
         this.context.moveTo(
             this.hotCornerTopLeft().x,
             this.hotCornerTopLeft().y
