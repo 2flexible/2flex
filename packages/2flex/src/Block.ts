@@ -630,10 +630,27 @@ export class Block<T = IBlockOptions> extends Node {
                     })
                     if (this.#overflowXscrollBar.block?.ImFirst) {
                         let diffX = x - initCords.x
-                        if (diffX !== 0) {
-                            const diff = diffX - beforeCords.x
-                            this.__overflowTranslate({ x: -diff, y: 0 })
+                        let diffY = y - initCords.y
+
+                        if (diffX !== 0 || diffY !== 0) {
+                            const dxX = diffX - beforeCords.x
+                            const dxY = diffY - beforeCords.y
+                            const angle = Math.atan2(
+                                this.#overflowXscrollBar.innerBarCordinates
+                                    .topRight.y -
+                                    this.#overflowXscrollBar.innerBarCordinates
+                                        .topLeft.y,
+                                this.#overflowXscrollBar.innerBarCordinates
+                                    .topRight.x -
+                                    this.#overflowXscrollBar.innerBarCordinates
+                                        .topLeft.x
+                            )
+
+                            const Cos = Math.cos(angle) * dxX
+                            const Sin = Math.sin(angle) * dxY
+                            this.__overflowTranslate({ x: -(Sin + Cos), y: 0 })
                             beforeCords.x = diffX
+                            beforeCords.y = diffY
                         }
                         this.#overflowXscrollBar.block?.invokeChange()
                     }
@@ -846,10 +863,30 @@ export class Block<T = IBlockOptions> extends Node {
                         in: this.#overflowYscrollBar.block?.zIndex(),
                     })
                     if (this.#overflowYscrollBar.block?.ImFirst) {
+                        let diffX = x - initCords.x
                         let diffY = y - initCords.y
-                        if (diffY !== 0) {
-                            const diff = diffY - beforeCords.y
-                            this.__overflowTranslate({ x: 0, y: -diff })
+
+                        if (diffY !== 0 || diffX !== 0) {
+                            const dxX = diffX - beforeCords.x
+                            const dxY = diffY - beforeCords.y
+                            const angle = Math.atan2(
+                                this.#overflowYscrollBar.innerBarCordinates
+                                    .bottomLeft.y -
+                                    this.#overflowYscrollBar.innerBarCordinates
+                                        .topLeft.y,
+                                this.#overflowYscrollBar.innerBarCordinates
+                                    .bottomLeft.x -
+                                    this.#overflowYscrollBar.innerBarCordinates
+                                        .topLeft.x
+                            )
+
+                            const Cos = Math.cos(angle) * dxX
+                            const Sin = Math.sin(angle) * dxY
+                            this.__overflowTranslate({
+                                x: 0,
+                                y: -(Sin + Cos),
+                            })
+                            beforeCords.x = diffX
                             beforeCords.y = diffY
                         }
                         this.#overflowYscrollBar.block?.invokeChange()
