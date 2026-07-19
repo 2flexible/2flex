@@ -491,25 +491,27 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __updateOverflowXCords() {
-        const currentWidth = this.width() + this.__overflowCords.width
+        const width = Math.abs(this.width())
+        const currentWidth = width + this.__overflowCords.width
 
         const areaWidth = clamp(
             currentWidth,
             OVERFLOW_SCROLL_BAR_MIN_SIZE,
-            this.width()
+            width
         )
 
         //  while inner scroll bar in minimum width need to calculate correct cordiantes
         let xPer = 1
         if (currentWidth < 0) {
-            xPer = this.__overflowCords.width / -(this.width() - areaWidth)
+            xPer = this.__overflowCords.width / -(width - areaWidth)
         }
         const topLeftX = this.__getLeft.x - this.__overflowCords.x / xPer
         const topLeftY =
             this.__getBottom.y - OVERFLOW_AREA_GAP + OVERFLOW_INNER_AREA_GAP
 
         const topRightX =
-            this.__getLeft.x + this.__overflowCords.x / xPer + areaWidth
+            this.__getLeft.x - this.__overflowCords.x / xPer + areaWidth
+
         const bottomRightY =
             this.__getBottom.y -
             OVERFLOW_AREA_GAP +
@@ -680,9 +682,9 @@ export class Block<T = IBlockOptions> extends Node {
                     return
 
                 const areaWidth = clamp(
-                    this.width() + this.__overflowCords.width,
+                    Math.abs(this.width()) + this.__overflowCords.width,
                     OVERFLOW_SCROLL_BAR_MIN_SIZE,
-                    this.width()
+                    Math.abs(this.width())
                 )
 
                 const topleft = rotateCordinates(
@@ -732,19 +734,20 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __updateOverflowYCords() {
+        const height = Math.abs(this.height())
         const currentHeight =
-            this.height() +
+            height +
             (this.__overflowCords.height - this.#overflowScrollYHeightCut)
         const areaHeight = clamp(
             currentHeight,
             OVERFLOW_SCROLL_BAR_MIN_SIZE,
-            this.height() - this.#overflowScrollYHeightCut
+            height - this.#overflowScrollYHeightCut
         )
         let yPer = 1
         if (currentHeight < 0) {
             yPer =
                 this.__overflowCords.height /
-                -(this.height() - areaHeight - this.#overflowScrollYHeightCut)
+                -(height - areaHeight - this.#overflowScrollYHeightCut)
         }
         const topLeftX =
             this.__getRight.x - OVERFLOW_AREA_GAP + OVERFLOW_INNER_AREA_GAP
@@ -916,11 +919,11 @@ export class Block<T = IBlockOptions> extends Node {
                     return
 
                 const areaHeight = clamp(
-                    this.height() +
+                    Math.abs(this.height()) +
                         (this.__overflowCords.height -
                             this.#overflowScrollYHeightCut),
                     OVERFLOW_SCROLL_BAR_MIN_SIZE,
-                    this.height() - this.#overflowScrollYHeightCut
+                    Math.abs(this.height()) - this.#overflowScrollYHeightCut
                 )
 
                 const topleft = rotateCordinates(
@@ -1478,29 +1481,40 @@ export class Block<T = IBlockOptions> extends Node {
                 }
             })
 
-            const beforeWidth = this.__overflowCords.width
-            const beforeHeight =
-                this.__overflowCords.height || this.#overflowScrollYHeightCut
-            this.__overflowCords.width = pWidthSpaces - blocksContainerWidth
-            this.__overflowCords.height =
-                pHeightSpaces -
-                this.#overflowScrollYHeightCut -
-                blocksContainerHeight
+            if (!this.__isOverflowVisible) {
+                const beforeWidth = this.__overflowCords.width
+                const beforeHeight =
+                    this.__overflowCords.height ||
+                    this.#overflowScrollYHeightCut
 
-            // If overflow area cursor on the right need to adjust it to left for correcting overflow cordinate
-            const diffW = this.__overflowCords.width - beforeWidth
-            if (diffW > 0)
-                if (this.__overflowCords.x < 0) this.__overflowCords.x += diffW
-                else this.__overflowCords.x = 0
+                const reverseX = this.__isHorizontalFlipped ? -1 : 1
+                this.__overflowCords.width =
+                    reverseX * pWidthSpaces - blocksContainerWidth
+                const reverseY = this.__isVerticalFlipped ? -1 : 1
+                this.__overflowCords.height =
+                    reverseY * pHeightSpaces -
+                    this.#overflowScrollYHeightCut -
+                    blocksContainerHeight
 
-            // If overflow area cursor on the bottom need to adjust it to top for correcting overflow cordinate
-            const diffH = this.__overflowCords.height - beforeHeight
-            if (diffH > 0)
-                if (this.__overflowCords.y < 0) this.__overflowCords.y += diffH
-                else this.__overflowCords.y = 0
+                // If overflow area cursor on the right need to adjust it to left for correcting overflow cordinate
+                const diffW = this.__overflowCords.width - beforeWidth
+                if (diffW > 0)
+                    if (this.__overflowCords.x < 0)
+                        this.__overflowCords.x += diffW
+                    else this.__overflowCords.x = 0
 
-            if (this.#overflowXscrollBar.block) this.__updateOverflowXCords()
-            if (this.#overflowYscrollBar.block) this.__updateOverflowYCords()
+                // If overflow area cursor on the bottom need to adjust it to top for correcting overflow cordinate
+                const diffH = this.__overflowCords.height - beforeHeight
+                if (diffH > 0)
+                    if (this.__overflowCords.y < 0)
+                        this.__overflowCords.y += diffH
+                    else this.__overflowCords.y = 0
+
+                if (this.#overflowXscrollBar.block)
+                    this.__updateOverflowXCords()
+                if (this.#overflowYscrollBar.block)
+                    this.__updateOverflowYCords()
+            }
 
             this.rotate(cacheR)
         }
@@ -3359,17 +3373,20 @@ export class Block<T = IBlockOptions> extends Node {
             yPer = this.__overflowCords.height / -this.height()
         if (currentWidth < 0) xPer = this.__overflowCords.width / -this.width()
 
-        const xPos = this.__overflowCords.x + t.x * xPer
-        const yPos = this.__overflowCords.y + t.y * yPer
+        const reverseX = this.__isHorizontalFlipped ? -1 : 1
+        const reverseY = this.__isVerticalFlipped ? -1 : 1
+
+        const xPos = this.__overflowCords.x + t.x * xPer * reverseX
+        const yPos = this.__overflowCords.y + t.y * yPer * reverseY
 
         if (this.__overflowCords.width < 0) {
-            if (xPos < 0)
+            if (xPos < 0) {
                 this.__overflowCords.x = -clamp(
                     Math.abs(xPos),
                     0,
                     Math.abs(this.__overflowCords.width)
                 )
-            else this.__overflowCords.x = 0
+            } else this.__overflowCords.x = 0
         }
         if (this.__overflowCords.height < 0) {
             if (yPos < 0) {
