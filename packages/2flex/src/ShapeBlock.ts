@@ -252,9 +252,9 @@ export class ShapeBlock<T = IShapeOptions> extends Block<T> {
         super(options)
     }
     render(): void {
-        this.__childAdjustment?.(this)
-
         this.position()
+
+        this.__childAdjustment?.(this)
 
         this.__clippingPath()
         this.__adjustChildBlocks()

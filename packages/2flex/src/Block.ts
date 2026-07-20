@@ -442,9 +442,9 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     render() {
-        this.__childAdjustment?.(this)
-
         this.position()
+
+        this.__childAdjustment?.(this)
 
         this.__clippingPath()
         this.__adjustChildBlocks()
@@ -1362,7 +1362,10 @@ export class Block<T = IBlockOptions> extends Node {
             let blocksContainerHeight = 0
 
             this.listOnlyChilds((b: Block, currIdx, arrLen) => {
-                if (b.position() === 'absolute' || b.position() === "fixed") return
+                const blockPosition = b.position()
+                if (blockPosition === 'absolute' || blockPosition === 'fixed')
+                    return
+
                 b.rotate(0)
 
                 const blockMarginTop = b.marginTop()
@@ -1389,18 +1392,60 @@ export class Block<T = IBlockOptions> extends Node {
                     containerH = 0
                 }
 
-                const x =
-                    startX +
-                    cornerLeftX +
-                    this.__overflowCords.x +
-                    pPaddingLeft +
-                    blockMarginLeft
-                const y =
-                    startY +
-                    cornerTopY +
-                    this.__overflowCords.y +
-                    pPaddingTop +
-                    blockMarginTop
+                const blockXStart = startX + pPaddingLeft + blockMarginLeft
+                const blockYStart = startY + pPaddingTop + blockMarginTop
+
+                let x = blockXStart + cornerLeftX + this.__overflowCords.x
+                let y = blockYStart + cornerTopY + this.__overflowCords.y
+
+                if (blockPosition === 'relative') {
+                    if (b.left() !== undefined) x += b.left()!
+                    else if (b.right() !== undefined) x -= b.right()!
+
+                    if (b.top() !== undefined) y += b.top()!
+                    else if (b.bottom() !== undefined) y -= b.bottom()!
+                } else if (blockPosition === 'sticky') {
+                    if (this.__isOverflowYScroll) {
+                        if (
+                            b.top() !== undefined &&
+                            Math.abs(this.__overflowCords.y) >=
+                                blockYStart - b.top()!
+                        ) {
+                            y += b.top()! - (this.__overflowCords.y + startY)
+                        } else if (
+                            b.bottom() !== undefined &&
+                            Math.abs(this.__overflowCords.y) <=
+                                blockYStart +
+                                    b.bottom()! -
+                                    Math.abs(pHeight - blockH)
+                        ) {
+                            y +=
+                                -b.bottom()! -
+                                (this.__overflowCords.y + startY) +
+                                Math.abs(pHeight - blockH)
+                        }
+                    }
+                    if (this.__isOverflowXScroll) {
+                        if (
+                            b.left() !== undefined &&
+                            Math.abs(this.__overflowCords.x) >=
+                                blockXStart - b.left()!
+                        ) {
+                            x += b.left()! - (this.__overflowCords.x + startX)
+                        } else if (
+                            b.right() !== undefined &&
+                            Math.abs(this.__overflowCords.x) <=
+                                blockXStart -
+                                    b.right()! -
+                                    Math.abs(pWidth - blockW)
+                        ) {
+                            x +=
+                                b.right()! -
+                                (this.__overflowCords.x + startX) +
+                                Math.abs(pWidth - blockW)
+                        }
+                    }
+                }
 
                 startX += blockWidthSpaces
                 containerW += blockWidthSpaces
@@ -2285,46 +2330,10 @@ export class Block<T = IBlockOptions> extends Node {
                         this.bottom()!
                 )
         } else if (pos === 'relative') {
-            const parent = this.#hasParentBlock
-            if (this.left() !== undefined) {
-                const leftX = parent ? this.x() : 0
-                this.x(leftX + this.left()!)
-            } else if (this.right() !== undefined) {
-                let rightX = 0
-                if (!parent)
-                    rightX =
-                        Math.abs(this.__parentWidth - this.width()) -
-                        this.right()!
-                else
-                    rightX =
-                        this.x() +
-                        (Math.abs(
-                            this.__parentWidth -
-                                (this.width() + this.parentNode!.__widthSpaces)
-                        ) -
-                            this.right()!)
-                this.x(rightX)
-            }
-            if (this.top() !== undefined) {
-                const topY = parent ? this.y() : 0
-                this.y(topY + this.top()!)
-            } else if (this.bottom() !== undefined) {
-                let bottomY = 0
-                if (!parent)
-                    bottomY =
-                        Math.abs(this.__parentHeight - this.height()) -
-                        this.bottom()!
-                else
-                    bottomY =
-                        this.y() +
-                        (Math.abs(
-                            this.__parentHeight -
-                                (this.height() +
-                                    this.parentNode!.__heightSpaces)
-                        ) -
-                            this.bottom()!)
-                this.y(bottomY)
-            }
+            if (this.left() !== undefined) this.x(this.left())
+            else if (this.right() !== undefined) this.x(-this.right()!)
+            if (this.top() !== undefined) this.y(this.top()!)
+            else if (this.bottom() !== undefined) this.y(-this.bottom()!)
         }
 
         return pos
@@ -3337,33 +3346,18 @@ export class Block<T = IBlockOptions> extends Node {
         this.height(this.height() * scale)
     }
     __translate(t: { x: number; y: number }) {
-        if (
-            this.ownOptions.position === 'fixed' ||
-            this.ownOptions.position === 'sticky'
-        )
-            return
+        if (this.ownOptions.position === 'fixed') return
         this.x(this.x() + t.x)
         this.y(this.y() + t.y)
         if (
-            this.ownOptions.position == 'absolute' ||
-            this.ownOptions.position === 'relative'
+            this.ownOptions.position === 'absolute' ||
+            (this.ownOptions.position === 'relative' && !this.#hasParentBlock)
         ) {
-            if (
-                this.ownOptions.position === 'relative' &&
-                this.#hasParentBlock
-            ) {
-                if (this.left() !== undefined) this.left(0)
-                else if (this.right() !== undefined) this.right(0)
-                if (this.top() !== undefined) this.top(0)
-                else if (this.bottom() !== undefined) this.bottom(0)
-            } else {
-                if (this.left() !== undefined) this.left(this.left()! + t.x)
-                else if (this.right() !== undefined)
-                    this.right(this.right()! - t.x)
-                if (this.top() !== undefined) this.top(this.top()! + t.y)
-                else if (this.bottom() !== undefined)
-                    this.bottom(this.bottom()! - t.y)
-            }
+            if (this.left() !== undefined) this.left(this.left()! + t.x)
+            else if (this.right() !== undefined) this.right(this.right()! - t.x)
+            if (this.top() !== undefined) this.top(this.top()! + t.y)
+            else if (this.bottom() !== undefined)
+                this.bottom(this.bottom()! - t.y)
         }
     }
     __overflowTranslate(t: { x: number; y: number }) {
