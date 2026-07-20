@@ -1362,7 +1362,7 @@ export class Block<T = IBlockOptions> extends Node {
             let blocksContainerHeight = 0
 
             this.listOnlyChilds((b: Block, currIdx, arrLen) => {
-                if (b.position() === 'absolute') return
+                if (b.position() === 'absolute' || b.position() === "fixed") return
                 b.rotate(0)
 
                 const blockMarginTop = b.marginTop()
