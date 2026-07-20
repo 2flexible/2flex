@@ -4408,7 +4408,11 @@ export class Block<T = IBlockOptions> extends Node {
             else this.__events[type]['identified'].push(identify)
         }
         if (this.canvas)
-            this.canvas?.registerEvent(type, func as CustomEvent<Event>)
+            this.canvas?.registerEvent(
+                type,
+                func as CustomEvent<Event>,
+                this.zIndex() || this.nodeId || 1
+            )
         else this.__events[type]['funcs'].push(func)
     }
     selectable(opt?: boolean): boolean {

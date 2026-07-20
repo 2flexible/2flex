@@ -32,9 +32,14 @@ interface DefaultCanvasOptions extends Required<{
     [K in keyof CanvasOptions]-?: CanvasOptions[K]
 }> {}
 
+interface CanvasEventsFunc {
+    func: CustomEvent<Event>
+    zIndex: number
+}
+
 interface CanvasEvent {
     func?: CustomEvent<Event>
-    events: CustomEvent<Event>[]
+    events: CanvasEventsFunc[]
 }
 
 type CanvasEvents = { [key: string]: CanvasEvent }
@@ -75,7 +80,7 @@ export class Canvas {
     #canvasEvents: CanvasEvents
     #defaultOptions: DefaultCanvasOptions
     currentCursor: string
-    #higherBlockZIndex: number
+    #higherBlockZIndex?: number
     #handledNodes: { [key: number]: boolean }
     #initTime?: number
     isFocused = false
@@ -98,7 +103,6 @@ export class Canvas {
         this.#context = null
 
         this.currentCursor = 'auto'
-        this.#higherBlockZIndex = 0
         this.#handledNodes = {}
         this.#canvasEvents = {}
         this.#defaultOptions = {
@@ -222,7 +226,6 @@ export class Canvas {
                 b.render()
             }
         })
-        // this.#registerDomEvent()
     }
 
     remove(block: Block<any>) {
@@ -338,10 +341,14 @@ export class Canvas {
     registerZIndex(inOutZ: inOut) {
         let inBlock = inOutZ['in']
         let outBlock = inOutZ['out']
-        if (inBlock && inBlock > this.#higherBlockZIndex) {
+        if (
+            inBlock &&
+            ((this.#higherBlockZIndex && inBlock > this.#higherBlockZIndex) ||
+                !this.#higherBlockZIndex)
+        ) {
             this.#higherBlockZIndex = inBlock
         } else if (outBlock && outBlock === this.#higherBlockZIndex) {
-            this.#higherBlockZIndex = 0
+            this.#higherBlockZIndex = undefined
         }
     }
 
@@ -422,7 +429,11 @@ export class Canvas {
     __collectEvents(block: Block) {
         for (const key in block.__events) {
             for (const event of block.__events[key]['funcs'])
-                this.registerEvent(key, event)
+                this.registerEvent(
+                    key,
+                    event,
+                    block.zIndex() || block.nodeId || 1
+                )
         }
     }
 
@@ -433,37 +444,54 @@ export class Canvas {
         }
     }
 
+    #sortRegisteredDomEvents() {
+        for (const key in this.#canvasEvents) {
+            const events = this.#canvasEvents[key].events.sort(
+                (a, b) => a.zIndex - b.zIndex
+            )
+            this.#buildEventFunc(key, events)
+        }
+        this.#registerDomEvent()
+    }
+
     // need to fix type: CustomEvent<Event> in register event usage
-    registerEvent(event: string, callFunc: CustomEvent<Event>) {
+    registerEvent(event: string, callFunc: CustomEvent<Event>, zIndex: number) {
         if (!this.#canvasEvents[event])
             this.#canvasEvents[event] = { func: undefined, events: [] }
-        if (
-            this.#canvasEvents[event].events.includes(callFunc) ||
-            typeof callFunc !== 'function'
+
+        const funcIncludes = this.#canvasEvents[event].events.filter(
+            (i) => i.func == callFunc
         )
-            return
-        this.#canvasEvents[event].events.push(callFunc)
-        const events = this.#canvasEvents[event].events
+        if (funcIncludes.length !== 0 || typeof callFunc !== 'function') return
+        this.#canvasEvents[event].events.push({
+            func: callFunc,
+            zIndex: zIndex,
+        })
+        const events = this.#canvasEvents[event].events.sort(
+            (a, b) => a.zIndex - b.zIndex
+        )
         this.#buildEventFunc(event, events)
         this.#registerDomEvent()
     }
     removeEvent(event: string, callFunc: CustomEvent<Event>) {
+        const funcIncludes = this.#canvasEvents[event].events.filter(
+            (i) => i.func == callFunc
+        )
         if (
-            (this.#canvasEvents[event] &&
-                !this.#canvasEvents[event].events.includes(callFunc)) ||
+            (this.#canvasEvents[event] && funcIncludes.length === 0) ||
             typeof callFunc !== 'function'
         )
             return
         this.#canvasEvents[event].events = this.#canvasEvents[
             event
-        ].events.filter((i) => i !== callFunc)
+        ].events.filter((i) => i.func !== callFunc)
         const events = this.#canvasEvents[event].events
         this.#buildEventFunc(event, events)
     }
 
-    #buildEventFunc(event: string, events: CustomEvent<Event>[]) {
+    #buildEventFunc(event: string, events: CanvasEventsFunc[]) {
         this.#canvasEvents[event].func = (e: Event) => {
-            for (const func of events) func(e)
+            for (const event of events) event.func(e)
         }
     }
     #registerDomEvent() {
@@ -494,7 +522,6 @@ export class Canvas {
         this.context?.restore()
         this.context?.save()
         this.clearRect()
-        // this.#registerDomEvent()
         this.#tree.head.listOnlyChilds(
             (b: Block<any>) => {
                 if (this.#handledNodes[b.nodeId!]) {
@@ -516,6 +543,7 @@ export class Canvas {
 
     refreshHead() {
         this.#tree.head.resetSort()
+        this.#sortRegisteredDomEvents()
     }
 
     takeSnapshot(before: SnapshotObject, after: SnapshotObject) {
