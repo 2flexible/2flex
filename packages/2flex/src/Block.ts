@@ -1444,6 +1444,11 @@ export class Block<T = IBlockOptions> extends Node {
                     b.y(y)
                     b.width(blockW)
                     b.height(blockH)
+
+                    // parent block taking care all transformations of child block
+                    b.__runningEvents.drag = false
+                    b.__runningEvents.resize = false
+                    b.__runningEvents.rotate = false
                 }
 
                 if (this.__clipPath || this.parentNode?.__clipPath) {
