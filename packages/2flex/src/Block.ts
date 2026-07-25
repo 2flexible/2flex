@@ -4938,92 +4938,83 @@ export class Block<T = IBlockOptions> extends Node {
                 if (this.ImFirst || this.__runningEvents.resize) {
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
-                    const rightC = this.#rightCornerRad
-                    const reverseX =
-                        (rightC > 70 && rightC < 180) ||
-                        (rightC < -60 && rightC > -180)
-                            ? -1
-                            : 1
-                    const reverseY =
-                        (rightC > 70 && rightC < 180) ||
-                        (rightC < -60 && rightC > -180)
-                            ? -1
-                            : 1
 
-                    let diffW = 0
-                    let diffH = 0
-                    if (diffX !== 0) {
-                        diffW = diffX - beforeCords.x
+                    if (diffX !== 0 || diffY !== 0) {
+                        let diffW = diffX - beforeCords.x
+                        let diffH = diffY - beforeCords.y
+                        let angle = 0
+
+                        if (topResize || bottomResize) {
+                            angle = Math.atan2(
+                                this.cornerBottomRight().y -
+                                    this.cornerTopRight().y,
+                                this.cornerBottomRight().x -
+                                    this.cornerTopRight().x
+                            )
+                        } else if (leftResize || rightResize) {
+                            angle = Math.atan2(
+                                this.cornerBottomRight().y -
+                                    this.cornerBottomLeft().y,
+                                this.cornerTopRight().x - this.cornerTopLeft().x
+                            )
+                        }
+
+                        const Cos = Math.cos(angle) * diffW
+                        const Sin = Math.sin(angle) * diffH
+                        const angleSign = Math.sign(angle || 1)
+                        const increase = (Sin + Cos) * angleSign
+                        if (leftResize) {
+                            const widthR = this.width() - increase * angleSign
+                            if (
+                                widthR < this.maxWidth() &&
+                                ((widthR > this.minWidth() &&
+                                    !this.horizontalFlipResize()) ||
+                                    this.horizontalFlipResize())
+                            ) {
+                                if (angle >= 0) this.x(this.x() + increase)
+                                this.width(widthR)
+                            }
+                        } else if (rightResize) {
+                            const widthR = this.width() + increase * angleSign
+                            if (
+                                widthR < this.maxWidth() &&
+                                ((widthR > this.minWidth() &&
+                                    !this.horizontalFlipResize()) ||
+                                    this.horizontalFlipResize())
+                            ) {
+                                if (angle < 0) this.x(this.x() + increase)
+                                this.width(widthR)
+                            }
+                        }
+                        if (topResize) {
+                            const heightR = this.height() - increase * angleSign
+                            if (
+                                heightR < this.maxHeight() &&
+                                ((heightR > this.minHeight() &&
+                                    !this.verticalFlipResize()) ||
+                                    this.verticalFlipResize())
+                            ) {
+                                if (angle >= 0) this.y(this.y() + increase)
+                                this.height(heightR)
+                            }
+                        } else if (bottomResize) {
+                            const heightR = this.height() + increase * angleSign
+                            if (
+                                heightR < this.maxHeight() &&
+                                ((heightR > this.minHeight() &&
+                                    !this.verticalFlipResize()) ||
+                                    this.verticalFlipResize())
+                            ) {
+                                if (angle < 0) this.y(this.y() + increase)
+                                this.height(heightR)
+                            }
+                        }
                         beforeCords.x = diffX
-                    }
-                    if (diffY !== 0) {
-                        diffH = diffY - beforeCords.y
                         beforeCords.y = diffY
+                        this.#adjustCordsToFLip()
+                        this.onResize()?.(event)
+                        this.invokeChange()
                     }
-
-                    let diffDx = 0
-                    let diffDy = 0
-
-                    if (this.canvas?.currentCursor === 'ew-resize') {
-                        diffDx = diffW
-                        diffDy = -diffW
-                    } else if (this.canvas?.currentCursor === 'ns-resize') {
-                        diffDx = diffH
-                        diffDy = diffH
-                    } else if (
-                        this.canvas?.currentCursor === 'nwse-resize' ||
-                        this.canvas?.currentCursor === 'nesw-resize'
-                    ) {
-                        diffDx = diffW
-                        diffDy = diffH
-                    }
-                    if (leftResize) {
-                        const widthR = this.width() - diffDx * reverseX
-                        if (
-                            widthR < this.maxWidth() &&
-                            ((widthR > this.minWidth() &&
-                                !this.horizontalFlipResize()) ||
-                                this.horizontalFlipResize())
-                        ) {
-                            this.x(this.x() + diffDx * reverseX)
-                            this.width(this.width() - diffDx * reverseX)
-                        }
-                    } else if (rightResize) {
-                        const widthR = this.width() + diffDx * reverseX
-                        if (
-                            widthR < this.maxWidth() &&
-                            ((widthR > this.minWidth() &&
-                                !this.horizontalFlipResize()) ||
-                                this.horizontalFlipResize())
-                        ) {
-                            this.width(widthR)
-                        }
-                    }
-                    if (topResize) {
-                        const heightR = this.height() - diffDy * reverseY
-                        if (
-                            heightR < this.maxHeight() &&
-                            ((heightR > this.minHeight() &&
-                                !this.verticalFlipResize()) ||
-                                this.verticalFlipResize())
-                        ) {
-                            this.y(this.y() + diffDy * reverseY)
-                            this.height(heightR)
-                        }
-                    } else if (bottomResize) {
-                        const heightR = this.height() + diffDy * reverseY
-                        if (
-                            heightR < this.maxHeight() &&
-                            ((heightR > this.minHeight() &&
-                                !this.verticalFlipResize()) ||
-                                this.verticalFlipResize())
-                        ) {
-                            this.height(heightR)
-                        }
-                    }
-                    this.#adjustCordsToFLip()
-                    this.onResize()?.(event)
-                    this.invokeChange()
                 }
             }
         }
