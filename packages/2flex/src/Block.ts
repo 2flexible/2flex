@@ -640,20 +640,20 @@ export class Block<T = IBlockOptions> extends Node {
                         if (diffX !== 0 || diffY !== 0) {
                             const dxX = diffX - beforeCords.x
                             const dxY = diffY - beforeCords.y
-                            const angle = Math.atan2(
-                                this.#overflowXscrollBar.innerBarCordinates
-                                    .bottomRight.y -
-                                    this.#overflowXscrollBar.innerBarCordinates
-                                        .topLeft.y,
-                                this.#overflowXscrollBar.innerBarCordinates
-                                    .bottomRight.x -
-                                    this.#overflowXscrollBar.innerBarCordinates
-                                        .bottomLeft.x
+                            const angle = this.__getRealRotate
+
+                            let inverse = 1
+                            if (
+                                (angle >= Math.PI / 2 && angle <= Math.PI) ||
+                                (angle <= -Math.PI / 2 && angle >= -Math.PI)
                             )
-                            const Cos = Math.cos(angle) * dxX
-                            const Sin = Math.sin(angle) * dxY
+                                inverse = -1
                             this.__overflowTranslate({
-                                x: -(Sin + Cos) * Math.sign(angle || 1),
+                                x:
+                                    -(
+                                        Math.cos(angle) * dxX +
+                                        Math.sin(angle) * dxY
+                                    ) * inverse,
                                 y: 0,
                             })
                             beforeCords.x = diffX
@@ -886,22 +886,22 @@ export class Block<T = IBlockOptions> extends Node {
                         if (diffY !== 0 || diffX !== 0) {
                             const dxX = diffX - beforeCords.x
                             const dxY = diffY - beforeCords.y
-                            const angle = Math.atan2(
-                                this.#overflowYscrollBar.innerBarCordinates
-                                    .bottomLeft.y -
-                                    this.#overflowYscrollBar.innerBarCordinates
-                                        .topLeft.y,
-                                this.#overflowYscrollBar.innerBarCordinates
-                                    .bottomLeft.x -
-                                    this.#overflowYscrollBar.innerBarCordinates
-                                        .topLeft.x
-                            )
+                            const angle = this.__getRealRotate
 
-                            const Cos = Math.cos(angle) * dxX
-                            const Sin = Math.sin(angle) * dxY
+                            let inverse = 1
+                            if (
+                                (angle >= Math.PI / 2 && angle <= Math.PI) ||
+                                (angle <= -Math.PI / 2 && angle >= -Math.PI)
+                            )
+                                inverse = -1
+
                             this.__overflowTranslate({
                                 x: 0,
-                                y: -(Sin + Cos) * Math.sign(angle || 1),
+                                y:
+                                    -(
+                                        -Math.sin(angle) * dxX +
+                                        Math.cos(angle) * dxY
+                                    ) * inverse,
                             })
                             beforeCords.x = diffX
                             beforeCords.y = diffY
@@ -3589,6 +3589,24 @@ export class Block<T = IBlockOptions> extends Node {
     }
     get __getRealCenterY() {
         return this.__getTop.y + this.__getRealHeight / 2
+    }
+    get __getRotateCornerX() {
+        return (
+            this.cornerTopRight().x +
+            (this.cornerBottomRight().x - this.cornerTopRight().x) / 2
+        )
+    }
+    get __getRotateCornerY() {
+        return (
+            this.cornerTopRight().y +
+            (this.cornerBottomRight().y - this.cornerTopRight().y) / 2
+        )
+    }
+    get __getRealRotate() {
+        return Math.atan2(
+            this.__getRotateCornerY - this.rotationCenterY(),
+            this.__getRotateCornerX - this.rotationCenterX()
+        )
     }
 
     #updateCornerbyRot(corner: string, diffR: number) {
