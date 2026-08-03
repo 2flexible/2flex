@@ -4963,8 +4963,12 @@ export class Block<T = IBlockOptions> extends Node {
                         let angle = this.__getRealRotate
 
                         if (leftResize || rightResize) {
-                            const Cos = Math.cos(angle)
-                            const Sin = Math.sin(angle)
+                            let Cos = Math.cos(angle)
+                            let Sin = Math.sin(angle)
+                            if (this.__isHorizontalFlipped) {
+                                Cos = -Cos
+                                Sin = -Sin
+                            }
                             const increaseX = Cos * diffW + Sin * diffH
 
                             const cx = increaseX * Cos
