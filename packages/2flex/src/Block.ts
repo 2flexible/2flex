@@ -5263,33 +5263,34 @@ export class Block<T = IBlockOptions> extends Node {
             'nesw-resize': ['ew-resize', 'nwse-resize', 'ns-resize'],
             'nwse-resize': ['ns-resize', 'nesw-resize', 'ew-resize'],
         }
+        const angle = this.__getRealRotate
 
-        const angle = this.#rightCornerRad
-        if (inRange(angle, -125, -85) || inRange(angle, 45, 70))
-            return cursors[defaultCursor][1]
-        else if (inRange(angle, -105, -20) || inRange(angle, 70, 105))
-            return cursors[defaultCursor][2]
-        else if (
-            inRange(angle, -180, -125) ||
-            inRange(angle, 145, 180) ||
-            inRange(angle, 15, 45)
-        )
+        // 22.5° to 67.5° (45° rotation)
+        if (angle >= 0.3927 && angle < 1.1781) {
             return cursors[defaultCursor][0]
+        }
+        // 67.5° to 112.5° (90° rotation)
+        else if (angle >= 1.1781 && angle < 1.9635) {
+            return cursors[defaultCursor][1]
+        }
+        // 112.5° to 157.5° (135° rotation)
+        else if (angle >= 1.9635 && angle < 2.7489) {
+            return cursors[defaultCursor][2]
+        }
+        // -157.5° to -112.5° (-135° rotation)
+        else if (angle >= -2.7489 && angle < -1.9635) {
+            return cursors[defaultCursor][0]
+        }
+        // -112.5° to -67.5° (-90° rotation)
+        else if (angle >= -1.9635 && angle < -1.1781) {
+            return cursors[defaultCursor][1]
+        }
+        // -67.5° to -22.5° (-45° rotation)
+        else if (angle >= -1.1781 && angle < -0.3927) {
+            return cursors[defaultCursor][2]
+        }
+        // 0° to 22.5°, 157.5° to 180°, -22.5° to 0°, -180° to -157.5°
         return defaultCursor
-    }
-
-    get #rightCornerRad() {
-        return radianToDegree(
-            Math.atan2(
-                this.cornerTopRight().y +
-                    Math.abs(
-                        this.cornerTopRight().y - this.cornerBottomRight().y
-                    ) /
-                        2 -
-                    this.rotationCenterY(),
-                this.cornerTopRight().x - this.rotationCenterX()
-            )
-        )
     }
 
     onDrag(opt?: (event: MouseEvent) => void) {
