@@ -4960,73 +4960,205 @@ export class Block<T = IBlockOptions> extends Node {
                     if (diffX !== 0 || diffY !== 0) {
                         let diffW = diffX - beforeCords.x
                         let diffH = diffY - beforeCords.y
-                        let angle = 0
+                        let angle = this.__getRealRotate
 
+                        if (leftResize || rightResize) {
+                            const Cos = Math.cos(angle)
+                            const Sin = Math.sin(angle)
+                            const increaseX = Cos * diffW + Sin * diffH
+
+                            const cx = increaseX * Cos
+                            const cy = increaseX * Sin
+
+                            const increaseW = increaseX * (leftResize ? 1 : -1)
+                            const widthR = this.width() - increaseW
+
+                            if (
+                                widthR < this.maxWidth() &&
+                                ((widthR > this.minWidth() &&
+                                    !this.horizontalFlipResize()) ||
+                                    this.horizontalFlipResize())
+                            ) {
+                                this.rotationCenterX(
+                                    this.rotationCenterX() + cx / 2
+                                )
+                                this.rotationCenterY(
+                                    this.rotationCenterY() + cy / 2
+                                )
+
+                                const cacheR = this.rotate()
+                                this.rotate(0)
+
+                                if (leftResize) {
+                                    const adjustX = ((increaseX + cx) /
+                                        2) as any
+                                    this.ownOptions.x += adjustX
+
+                                    if (this.#overflowXscrollBar.block)
+                                        this.#overflowXscrollBar.outerBarCordinates.x +=
+                                            adjustX
+
+                                    if (this.#overflowYscrollBar.block)
+                                        this.#overflowYscrollBar.outerBarCordinates.x -=
+                                            ((increaseX - cx) / 2) as any
+
+                                    this.cornerTopLeft({
+                                        x: this.cornerTopLeft().x + increaseX,
+                                        y: this.cornerTopLeft().y,
+                                    })
+                                    this.cornerBottomLeft({
+                                        x:
+                                            this.cornerBottomLeft().x +
+                                            increaseX,
+                                        y: this.cornerBottomLeft().y,
+                                    })
+                                } else {
+                                    const adjustX = ((increaseX - cx) /
+                                        2) as any
+
+                                    this.ownOptions.x =
+                                        (this.ownOptions.x as any) - adjustX
+
+                                    if (this.#overflowXscrollBar.block)
+                                        this.#overflowXscrollBar.outerBarCordinates.x -=
+                                            adjustX
+                                    if (this.#overflowYscrollBar.block)
+                                        this.#overflowYscrollBar.outerBarCordinates.x +=
+                                            ((increaseX + cx) / 2) as any
+
+                                    this.cornerTopRight({
+                                        x: this.cornerTopRight().x + increaseX,
+                                        y: this.cornerTopRight().y,
+                                    })
+                                    this.cornerBottomRight({
+                                        x:
+                                            this.cornerBottomRight().x +
+                                            increaseX,
+                                        y: this.cornerBottomRight().y,
+                                    })
+                                }
+                                this.ownOptions.y += (cy / 2) as any
+                                this.ownOptions.width = widthR as any
+
+                                if (this.#overflowXscrollBar.block) {
+                                    this.#overflowXscrollBar.outerBarCordinates.width -=
+                                        increaseW
+                                    this.#overflowXscrollBar.outerBarCordinates.y +=
+                                        cy / 2
+                                }
+
+                                if (this.#overflowYscrollBar.block) {
+                                    this.#overflowYscrollBar.outerBarCordinates.y +=
+                                        cy / 2
+
+                                    this.#overflowYscrollBar.outerBarCordinates.width =
+                                        (this.ownOptions.width as any) <
+                                        OVERFLOW_AREA_GAP
+                                            ? (this.ownOptions.width as any)
+                                            : OVERFLOW_AREA_GAP
+                                }
+                                this.rotate(cacheR)
+                            }
+                        }
                         if (topResize || bottomResize) {
-                            angle = Math.atan2(
-                                this.cornerBottomRight().y -
-                                    this.cornerTopRight().y,
-                                this.cornerBottomRight().x -
-                                    this.cornerTopRight().x
-                            )
-                        } else if (leftResize || rightResize) {
-                            angle = Math.atan2(
-                                this.cornerBottomRight().y -
-                                    this.cornerBottomLeft().y,
-                                this.cornerTopRight().x - this.cornerTopLeft().x
-                            )
+                            const Cos = Math.cos(-angle)
+                            const Sin = Math.sin(-angle)
+                            const increaseY = Sin * diffW + Cos * diffH
+
+                            const cx = increaseY * Sin
+                            const cy = increaseY * Cos
+
+                            const increaseH = increaseY * (topResize ? 1 : -1)
+                            const heightR = this.height() - increaseH
+
+                            if (
+                                heightR < this.maxHeight() &&
+                                ((heightR > this.minHeight() &&
+                                    !this.verticalFlipResize()) ||
+                                    this.verticalFlipResize())
+                            ) {
+                                this.rotationCenterX(
+                                    this.rotationCenterX() + cx / 2
+                                )
+                                this.rotationCenterY(
+                                    this.rotationCenterY() + cy / 2
+                                )
+
+                                const cacheR = this.rotate()
+                                this.rotate(0)
+
+                                if (topResize) {
+                                    const adjustY = ((increaseY + cy) /
+                                        2) as any
+                                    this.ownOptions.y += adjustY
+
+                                    if (this.#overflowXscrollBar.block)
+                                        this.#overflowXscrollBar.outerBarCordinates.y -=
+                                            ((increaseY - cy) / 2) as any
+
+                                    if (this.#overflowYscrollBar.block)
+                                        this.#overflowYscrollBar.outerBarCordinates.y +=
+                                            adjustY
+                                    this.cornerTopLeft({
+                                        x: this.cornerTopLeft().x,
+                                        y: this.cornerTopLeft().y + increaseY,
+                                    })
+                                    this.cornerTopRight({
+                                        x: this.cornerTopRight().x,
+                                        y: this.cornerTopRight().y + increaseY,
+                                    })
+                                } else {
+                                    const adjustY = ((increaseY - cy) /
+                                        2) as any
+                                    this.ownOptions.y =
+                                        (this.ownOptions.y as any) - adjustY
+
+                                    if (this.#overflowXscrollBar.block)
+                                        this.#overflowXscrollBar.outerBarCordinates.y +=
+                                            ((increaseY + cy) / 2) as any
+                                    if (this.#overflowYscrollBar.block)
+                                        this.#overflowYscrollBar.outerBarCordinates.y -=
+                                            adjustY
+
+                                    this.cornerBottomRight({
+                                        x: this.cornerBottomRight().x,
+                                        y:
+                                            this.cornerBottomRight().y +
+                                            increaseY,
+                                    })
+                                    this.cornerBottomLeft({
+                                        x: this.cornerBottomLeft().x,
+                                        y:
+                                            this.cornerBottomLeft().y +
+                                            increaseY,
+                                    })
+                                }
+
+                                this.ownOptions.x += (cx / 2) as any
+                                this.ownOptions.height = heightR as any
+
+                                if (this.#overflowYscrollBar.block) {
+                                    this.#overflowYscrollBar.outerBarCordinates.height -=
+                                        increaseH
+                                    this.#overflowYscrollBar.outerBarCordinates.x +=
+                                        cx / 2
+                                }
+
+                                if (this.#overflowXscrollBar.block) {
+                                    this.#overflowXscrollBar.outerBarCordinates.x +=
+                                        cx / 2
+
+                                    this.#overflowXscrollBar.outerBarCordinates.height =
+                                        (this.ownOptions.height as any) <
+                                        OVERFLOW_AREA_GAP
+                                            ? (this.ownOptions.height as any)
+                                            : OVERFLOW_AREA_GAP
+                                }
+
+                                this.rotate(cacheR)
+                            }
                         }
 
-                        const Cos = Math.cos(angle) * diffW
-                        const Sin = Math.sin(angle) * diffH
-                        const angleSign = Math.sign(angle || 1)
-                        const increase = (Sin + Cos) * angleSign
-                        if (leftResize) {
-                            const widthR = this.width() - increase * angleSign
-                            if (
-                                widthR < this.maxWidth() &&
-                                ((widthR > this.minWidth() &&
-                                    !this.horizontalFlipResize()) ||
-                                    this.horizontalFlipResize())
-                            ) {
-                                if (angle >= 0) this.x(this.x() + increase)
-                                this.width(widthR)
-                            }
-                        } else if (rightResize) {
-                            const widthR = this.width() + increase * angleSign
-                            if (
-                                widthR < this.maxWidth() &&
-                                ((widthR > this.minWidth() &&
-                                    !this.horizontalFlipResize()) ||
-                                    this.horizontalFlipResize())
-                            ) {
-                                if (angle < 0) this.x(this.x() + increase)
-                                this.width(widthR)
-                            }
-                        }
-                        if (topResize) {
-                            const heightR = this.height() - increase * angleSign
-                            if (
-                                heightR < this.maxHeight() &&
-                                ((heightR > this.minHeight() &&
-                                    !this.verticalFlipResize()) ||
-                                    this.verticalFlipResize())
-                            ) {
-                                if (angle >= 0) this.y(this.y() + increase)
-                                this.height(heightR)
-                            }
-                        } else if (bottomResize) {
-                            const heightR = this.height() + increase * angleSign
-                            if (
-                                heightR < this.maxHeight() &&
-                                ((heightR > this.minHeight() &&
-                                    !this.verticalFlipResize()) ||
-                                    this.verticalFlipResize())
-                            ) {
-                                if (angle < 0) this.y(this.y() + increase)
-                                this.height(heightR)
-                            }
-                        }
                         beforeCords.x = diffX
                         beforeCords.y = diffY
                         this.#adjustCordsToFLip()
