@@ -1827,74 +1827,74 @@ export class Block<T = IBlockOptions> extends Node {
         })
         this.hotResizableAreaTop({
             topLeft: {
-                x: this.hotCornerTopLeft().x,
-                y: this.hotCornerTopLeft().y,
+                x: this.hotCornerTopLeft().x + this.hotAreaSize(),
+                y: this.hotCornerTopLeft().y-this.hotAreaSize()/2,
             },
             topRight: {
-                x: this.hotCornerTopRight().x,
-                y: this.hotCornerTopRight().y,
+                x: this.hotCornerTopRight().x - this.hotAreaSize(),
+                y: this.hotCornerTopRight().y-this.hotAreaSize()/2,
             },
             bottomLeft: {
-                x: this.hotCornerTopLeft().x,
-                y: this.hotCornerTopLeft().y + this.hotAreaSize(),
+                x: this.hotCornerTopLeft().x + this.hotAreaSize(),
+                y: this.hotCornerTopLeft().y + this.hotAreaSize()/2,
             },
             bottomRight: {
-                x: this.hotCornerTopRight().x,
-                y: this.hotCornerTopRight().y + this.hotAreaSize(),
+                x: this.hotCornerTopRight().x - this.hotAreaSize(),
+                y: this.hotCornerTopRight().y + this.hotAreaSize()/2,
             },
         })
         this.hotResizableAreaRight({
             topLeft: {
-                x: this.hotCornerTopRight().x - this.hotAreaSize(),
-                y: this.hotCornerTopRight().y,
+                x: this.hotCornerTopRight().x - this.hotAreaSize()/2,
+                y: this.hotCornerTopRight().y + this.hotAreaSize(),
             },
             topRight: {
-                x: this.hotCornerTopRight().x,
-                y: this.hotCornerTopRight().y,
+                x: this.hotCornerTopRight().x+this.hotAreaSize()/2,
+                y: this.hotCornerTopRight().y + this.hotAreaSize(),
             },
             bottomLeft: {
-                x: this.hotCornerBottomRight().x - this.hotAreaSize(),
-                y: this.hotCornerBottomRight().y,
+                x: this.hotCornerBottomRight().x - this.hotAreaSize()/2,
+                y: this.hotCornerBottomRight().y - this.hotAreaSize(),
             },
             bottomRight: {
-                x: this.hotCornerBottomRight().x,
-                y: this.hotCornerBottomRight().y,
+                x: this.hotCornerBottomRight().x+this.hotAreaSize()/2,
+                y: this.hotCornerBottomRight().y - this.hotAreaSize(),
             },
         })
         this.hotResizableAreaLeft({
             topLeft: {
-                x: this.hotCornerTopLeft().x,
-                y: this.hotCornerTopLeft().y,
+                x: this.hotCornerTopLeft().x-this.hotAreaSize()/2,
+                y: this.hotCornerTopLeft().y + this.hotAreaSize(),
             },
             topRight: {
-                x: this.hotCornerTopLeft().x + this.hotAreaSize(),
-                y: this.hotCornerTopLeft().y,
+                x: this.hotCornerTopLeft().x + this.hotAreaSize()/2,
+                y: this.hotCornerTopLeft().y + this.hotAreaSize(),
             },
             bottomLeft: {
-                x: this.hotCornerBottomLeft().x,
-                y: this.hotCornerBottomLeft().y,
+                x: this.hotCornerBottomLeft().x-this.hotAreaSize()/2,
+                y: this.hotCornerBottomLeft().y - this.hotAreaSize(),
             },
             bottomRight: {
-                x: this.hotCornerBottomLeft().x + this.hotAreaSize(),
-                y: this.hotCornerBottomLeft().y,
+                x: this.hotCornerBottomLeft().x + this.hotAreaSize()/2,
+                y: this.hotCornerBottomLeft().y - this.hotAreaSize(),
             },
         })
         this.hotResizableAreaBottom({
             topLeft: {
-                x: this.hotCornerBottomLeft().x,
-                y: this.hotCornerBottomLeft().y - this.hotAreaSize(),
+                x: this.hotCornerBottomLeft().x + this.hotAreaSize(),
+                y: this.hotCornerBottomLeft().y - this.hotAreaSize()/2,
             },
             topRight: {
-                x: this.hotCornerBottomRight().x,
-                y: this.hotCornerBottomRight().y - this.hotAreaSize(),
+                x: this.hotCornerBottomRight().x - this.hotAreaSize(),
+                y: this.hotCornerBottomRight().y - this.hotAreaSize()/2,
             },
             bottomLeft: {
-                x: this.hotCornerBottomLeft().x,
-                y: this.hotCornerBottomLeft().y,
+                x: this.hotCornerBottomLeft().x + this.hotAreaSize(),
+                y: this.hotCornerBottomLeft().y+this.hotAreaSize()/2,
             },
             bottomRight: {
-                x: this.hotCornerBottomRight().x,
-                y: this.hotCornerBottomRight().y,
+                x: this.hotCornerBottomRight().x - this.hotAreaSize(),
+                y: this.hotCornerBottomRight().y+this.hotAreaSize()/2,
             },
         })
 
@@ -1913,62 +1913,54 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     get __isHorizontalFlipped() {
-        let topLeft = this.cornerTopLeft()
-        let topRight = this.cornerTopRight()
-        let bottomLeft = this.cornerBottomLeft()
-        let bottomRight = this.cornerBottomRight()
-        if (this.rotate() !== 0) {
-            topLeft = this.__rotateCorners(
-                this.cornerTopLeft().x,
-                this.cornerTopLeft().y,
-                0
-            )
-            topRight = this.__rotateCorners(
-                this.cornerTopRight().x,
-                this.cornerTopRight().y,
-                0
-            )
-            bottomLeft = this.__rotateCorners(
-                this.cornerBottomLeft().x,
-                this.cornerBottomLeft().y,
-                0
-            )
-            bottomRight = this.__rotateCorners(
-                this.cornerBottomRight().x,
-                this.cornerBottomRight().y,
-                0
-            )
-        }
+        if (!this.horizontalFlipResize()) return false
+
+        const topLeft = this.__rotateCorners(
+            this.cornerTopLeft().x,
+            this.cornerTopLeft().y,
+            -this.rotate()
+        )
+        const topRight = this.__rotateCorners(
+            this.cornerTopRight().x,
+            this.cornerTopRight().y,
+            -this.rotate()
+        )
+        const bottomLeft = this.__rotateCorners(
+            this.cornerBottomLeft().x,
+            this.cornerBottomLeft().y,
+            -this.rotate()
+        )
+        const bottomRight = this.__rotateCorners(
+            this.cornerBottomRight().x,
+            this.cornerBottomRight().y,
+            -this.rotate()
+        )
         if (topLeft.x > topRight.x || bottomLeft.x > bottomRight.x) return true
         return false
     }
     get __isVerticalFlipped() {
-        let topLeft = this.cornerTopLeft()
-        let topRight = this.cornerTopRight()
-        let bottomLeft = this.cornerBottomLeft()
-        let bottomRight = this.cornerBottomRight()
-        if (this.rotate() !== 0) {
-            topLeft = this.__rotateCorners(
-                this.cornerTopLeft().x,
-                this.cornerTopLeft().y,
-                0
-            )
-            topRight = this.__rotateCorners(
-                this.cornerTopRight().x,
-                this.cornerTopRight().y,
-                0
-            )
-            bottomLeft = this.__rotateCorners(
-                this.cornerBottomLeft().x,
-                this.cornerBottomLeft().y,
-                0
-            )
-            bottomRight = this.__rotateCorners(
-                this.cornerBottomRight().x,
-                this.cornerBottomRight().y,
-                0
-            )
-        }
+        if (!this.verticalFlipResize()) return false
+
+        const topLeft = this.__rotateCorners(
+            this.cornerTopLeft().x,
+            this.cornerTopLeft().y,
+            -this.rotate()
+        )
+        const topRight = this.__rotateCorners(
+            this.cornerTopRight().x,
+            this.cornerTopRight().y,
+            -this.rotate()
+        )
+        const bottomLeft = this.__rotateCorners(
+            this.cornerBottomLeft().x,
+            this.cornerBottomLeft().y,
+            -this.rotate()
+        )
+        const bottomRight = this.__rotateCorners(
+            this.cornerBottomRight().x,
+            this.cornerBottomRight().y,
+            -this.rotate()
+        )
         if (topLeft.y > bottomLeft.y || topRight.y > bottomRight.y) return true
         return false
     }
@@ -4163,18 +4155,6 @@ export class Block<T = IBlockOptions> extends Node {
             y: this.cornerBottomRight().y,
         }
 
-        if (this.__isHorizontalFlipped) {
-            topLeft.x = this.cornerTopRight().x
-            topLeft.y = this.cornerTopRight().y
-            topRight.x = this.cornerTopLeft().x
-            topRight.y = this.cornerTopLeft().y
-
-            bottomLeft.x = this.cornerBottomRight().x
-            bottomLeft.y = this.cornerBottomRight().y
-            bottomRight.x = this.cornerBottomLeft().x
-            bottomRight.y = this.cornerBottomLeft().y
-        }
-
         if (this.__isVerticalFlipped) {
             if (this.__isHorizontalFlipped) {
                 topLeft.x = this.cornerBottomRight().x
@@ -4197,7 +4177,18 @@ export class Block<T = IBlockOptions> extends Node {
                 bottomRight.x = this.cornerTopRight().x
                 bottomRight.y = this.cornerTopRight().y
             }
+        } else if (this.__isHorizontalFlipped) {
+            topLeft.x = this.cornerTopRight().x
+            topLeft.y = this.cornerTopRight().y
+            topRight.x = this.cornerTopLeft().x
+            topRight.y = this.cornerTopLeft().y
+
+            bottomLeft.x = this.cornerBottomRight().x
+            bottomLeft.y = this.cornerBottomRight().y
+            bottomRight.x = this.cornerBottomLeft().x
+            bottomRight.y = this.cornerBottomLeft().y
         }
+
         let inBound = checkInBound(
             x,
             y,
@@ -5065,8 +5056,13 @@ export class Block<T = IBlockOptions> extends Node {
                             }
                         }
                         if (topResize || bottomResize) {
-                            const Cos = Math.cos(-angle)
-                            const Sin = Math.sin(-angle)
+                            let Cos = Math.cos(-angle)
+                            let Sin = Math.sin(-angle)
+                            if (this.__isHorizontalFlipped) {
+                                Cos = -Cos
+                                Sin = -Sin
+                            }
+
                             const increaseY = Sin * diffW + Cos * diffH
 
                             const cx = increaseY * Sin
