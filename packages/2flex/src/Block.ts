@@ -1828,73 +1828,73 @@ export class Block<T = IBlockOptions> extends Node {
         this.hotResizableAreaTop({
             topLeft: {
                 x: this.hotCornerTopLeft().x + this.hotAreaSize(),
-                y: this.hotCornerTopLeft().y-this.hotAreaSize()/2,
+                y: this.hotCornerTopLeft().y - this.hotAreaSize() / 2,
             },
             topRight: {
                 x: this.hotCornerTopRight().x - this.hotAreaSize(),
-                y: this.hotCornerTopRight().y-this.hotAreaSize()/2,
+                y: this.hotCornerTopRight().y - this.hotAreaSize() / 2,
             },
             bottomLeft: {
                 x: this.hotCornerTopLeft().x + this.hotAreaSize(),
-                y: this.hotCornerTopLeft().y + this.hotAreaSize()/2,
+                y: this.hotCornerTopLeft().y + this.hotAreaSize() / 2,
             },
             bottomRight: {
                 x: this.hotCornerTopRight().x - this.hotAreaSize(),
-                y: this.hotCornerTopRight().y + this.hotAreaSize()/2,
+                y: this.hotCornerTopRight().y + this.hotAreaSize() / 2,
             },
         })
         this.hotResizableAreaRight({
             topLeft: {
-                x: this.hotCornerTopRight().x - this.hotAreaSize()/2,
+                x: this.hotCornerTopRight().x - this.hotAreaSize() / 2,
                 y: this.hotCornerTopRight().y + this.hotAreaSize(),
             },
             topRight: {
-                x: this.hotCornerTopRight().x+this.hotAreaSize()/2,
+                x: this.hotCornerTopRight().x + this.hotAreaSize() / 2,
                 y: this.hotCornerTopRight().y + this.hotAreaSize(),
             },
             bottomLeft: {
-                x: this.hotCornerBottomRight().x - this.hotAreaSize()/2,
+                x: this.hotCornerBottomRight().x - this.hotAreaSize() / 2,
                 y: this.hotCornerBottomRight().y - this.hotAreaSize(),
             },
             bottomRight: {
-                x: this.hotCornerBottomRight().x+this.hotAreaSize()/2,
+                x: this.hotCornerBottomRight().x + this.hotAreaSize() / 2,
                 y: this.hotCornerBottomRight().y - this.hotAreaSize(),
             },
         })
         this.hotResizableAreaLeft({
             topLeft: {
-                x: this.hotCornerTopLeft().x-this.hotAreaSize()/2,
+                x: this.hotCornerTopLeft().x - this.hotAreaSize() / 2,
                 y: this.hotCornerTopLeft().y + this.hotAreaSize(),
             },
             topRight: {
-                x: this.hotCornerTopLeft().x + this.hotAreaSize()/2,
+                x: this.hotCornerTopLeft().x + this.hotAreaSize() / 2,
                 y: this.hotCornerTopLeft().y + this.hotAreaSize(),
             },
             bottomLeft: {
-                x: this.hotCornerBottomLeft().x-this.hotAreaSize()/2,
+                x: this.hotCornerBottomLeft().x - this.hotAreaSize() / 2,
                 y: this.hotCornerBottomLeft().y - this.hotAreaSize(),
             },
             bottomRight: {
-                x: this.hotCornerBottomLeft().x + this.hotAreaSize()/2,
+                x: this.hotCornerBottomLeft().x + this.hotAreaSize() / 2,
                 y: this.hotCornerBottomLeft().y - this.hotAreaSize(),
             },
         })
         this.hotResizableAreaBottom({
             topLeft: {
                 x: this.hotCornerBottomLeft().x + this.hotAreaSize(),
-                y: this.hotCornerBottomLeft().y - this.hotAreaSize()/2,
+                y: this.hotCornerBottomLeft().y - this.hotAreaSize() / 2,
             },
             topRight: {
                 x: this.hotCornerBottomRight().x - this.hotAreaSize(),
-                y: this.hotCornerBottomRight().y - this.hotAreaSize()/2,
+                y: this.hotCornerBottomRight().y - this.hotAreaSize() / 2,
             },
             bottomLeft: {
                 x: this.hotCornerBottomLeft().x + this.hotAreaSize(),
-                y: this.hotCornerBottomLeft().y+this.hotAreaSize()/2,
+                y: this.hotCornerBottomLeft().y + this.hotAreaSize() / 2,
             },
             bottomRight: {
                 x: this.hotCornerBottomRight().x - this.hotAreaSize(),
-                y: this.hotCornerBottomRight().y+this.hotAreaSize()/2,
+                y: this.hotCornerBottomRight().y + this.hotAreaSize() / 2,
             },
         })
 
@@ -4931,8 +4931,20 @@ export class Block<T = IBlockOptions> extends Node {
                     rightResize = true
                     cursor = 'nwse-resize'
                 }
+                
                 if (cursor) {
                     inBound = true
+
+                    const horizontalFlipped = this.__isHorizontalFlipped
+                    const verticalFlipped = this.__isVerticalFlipped
+                    if (
+                        (horizontalFlipped || verticalFlipped) &&
+                        horizontalFlipped !== verticalFlipped
+                    ) {
+                        if (cursor === 'nwse-resize') cursor = 'nesw-resize'
+                        else if (cursor === 'nesw-resize')
+                            cursor = 'nwse-resize'
+                    }
                     cursor = this.#chooseCursor(cursor)
                     this.canvas?.changeCursor(cursor)
                 } else {
@@ -4949,6 +4961,8 @@ export class Block<T = IBlockOptions> extends Node {
                     let diffY = y - initCords.y
 
                     if (diffX !== 0 || diffY !== 0) {
+                        const horizontalFlipped = this.__isHorizontalFlipped
+
                         let diffW = diffX - beforeCords.x
                         let diffH = diffY - beforeCords.y
                         let angle = this.__getRealRotate
@@ -4956,7 +4970,7 @@ export class Block<T = IBlockOptions> extends Node {
                         if (leftResize || rightResize) {
                             let Cos = Math.cos(angle)
                             let Sin = Math.sin(angle)
-                            if (this.__isHorizontalFlipped) {
+                            if (horizontalFlipped) {
                                 Cos = -Cos
                                 Sin = -Sin
                             }
@@ -5058,7 +5072,7 @@ export class Block<T = IBlockOptions> extends Node {
                         if (topResize || bottomResize) {
                             let Cos = Math.cos(-angle)
                             let Sin = Math.sin(-angle)
-                            if (this.__isHorizontalFlipped) {
+                            if (horizontalFlipped) {
                                 Cos = -Cos
                                 Sin = -Sin
                             }
