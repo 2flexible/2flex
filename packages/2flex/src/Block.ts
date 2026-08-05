@@ -583,7 +583,6 @@ export class Block<T = IBlockOptions> extends Node {
             // moving overflow scrollbar
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
-            let isMouseDown = false
             const mousedown = (event: MouseEvent) => {
                 initCords =
                     this.#overflowXscrollBar.block?.canvas?.getCursorPosition(
@@ -611,19 +610,22 @@ export class Block<T = IBlockOptions> extends Node {
                     )
                 ) {
                     beforeCords = { x: 0, y: 0 }
-                    isMouseDown = true
-                    this.#overflowXscrollBar.block?.registerZIndex({
+                    this.#overflowXscrollBar.block!.__runningEvents.drag = true
+                    this.#overflowXscrollBar.block!.registerZIndex({
                         in: this.#overflowXscrollBar.block?.zIndex(),
                     })
+                    this.__runningEvents.resize = false
+                    this.__runningEvents.drag = false
+                    this.__runningEvents.rotate = false
                 } else
-                    this.#overflowXscrollBar.block?.registerZIndex({
+                    this.#overflowXscrollBar.block!.registerZIndex({
                         out: this.#overflowXscrollBar.block?.zIndex(),
                     })
             }
 
             const mousemove = (event: MouseEvent) => {
                 const { x, y } =
-                    this.#overflowXscrollBar.block?.canvas?.getCursorPosition(
+                    this.#overflowXscrollBar.block!.canvas?.getCursorPosition(
                         event
                     ) || {
                         x: 0,
@@ -631,7 +633,7 @@ export class Block<T = IBlockOptions> extends Node {
                     }
                 // checking cursor cause resize area overlaps with the overflow area
                 if (
-                    !isMouseDown &&
+                    !this.#overflowXscrollBar.block?.__runningEvents.drag &&
                     checkInBound(
                         x,
                         y,
@@ -653,7 +655,10 @@ export class Block<T = IBlockOptions> extends Node {
                     this.canvas?.changeCursor('auto')
                 }
 
-                if (isMouseDown && this.__isOverflowXScrollable) {
+                if (
+                    this.#overflowXscrollBar.block?.__runningEvents.drag &&
+                    this.__isOverflowXScrollable
+                ) {
                     this.#overflowXscrollBar.block?.registerZIndex({
                         in: this.#overflowXscrollBar.block?.zIndex(),
                     })
@@ -688,8 +693,8 @@ export class Block<T = IBlockOptions> extends Node {
                 }
             }
             const mouseup = () => {
-                if (isMouseDown) {
-                    isMouseDown = false
+                if (this.#overflowXscrollBar.block!.__runningEvents.drag) {
+                    this.#overflowXscrollBar.block!.__runningEvents.drag = false
                     this.#overflowXscrollBar.block?.registerZIndex({
                         out: this.#overflowXscrollBar.block?.zIndex(),
                     })
@@ -828,10 +833,9 @@ export class Block<T = IBlockOptions> extends Node {
             // moving overflow scrollbar
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
-            let isMouseDown = false
             const mousedown = (event: MouseEvent) => {
                 initCords =
-                    this.#overflowYscrollBar.block?.canvas?.getCursorPosition(
+                    this.#overflowYscrollBar.block!.canvas?.getCursorPosition(
                         event
                     ) || {
                         x: 0,
@@ -857,18 +861,21 @@ export class Block<T = IBlockOptions> extends Node {
                     !(this.__isOverflowYAuto && this.__overflowCords.height > 0)
                 ) {
                     beforeCords = { x: 0, y: 0 }
-                    isMouseDown = true
-                    this.#overflowYscrollBar.block?.registerZIndex({
-                        in: this.#overflowYscrollBar.block?.zIndex(),
+                    this.#overflowYscrollBar.block!.__runningEvents.drag = true
+                    this.#overflowYscrollBar.block!.registerZIndex({
+                        in: this.#overflowYscrollBar.block!.zIndex(),
                     })
+                    this.__runningEvents.resize = false
+                    this.__runningEvents.drag = false
+                    this.__runningEvents.rotate = false
                 } else
-                    this.#overflowYscrollBar.block?.registerZIndex({
-                        out: this.#overflowYscrollBar.block?.zIndex(),
+                    this.#overflowYscrollBar.block!.registerZIndex({
+                        out: this.#overflowYscrollBar.block!.zIndex(),
                     })
             }
             const mousemove = (event: MouseEvent) => {
                 const { x, y } =
-                    this.#overflowYscrollBar.block?.canvas?.getCursorPosition(
+                    this.#overflowYscrollBar.block!.canvas?.getCursorPosition(
                         event
                     ) || {
                         x: 0,
@@ -877,7 +884,7 @@ export class Block<T = IBlockOptions> extends Node {
 
                 // checking cursor cause resize area overlaps with the overflow area
                 if (
-                    !isMouseDown &&
+                    !this.#overflowYscrollBar.block!.__runningEvents.drag &&
                     checkInBound(
                         x,
                         y,
@@ -898,11 +905,14 @@ export class Block<T = IBlockOptions> extends Node {
                 ) {
                     this.canvas?.changeCursor('auto')
                 }
-                if (isMouseDown && this.__isOverflowYScrollable) {
-                    this.#overflowYscrollBar.block?.registerZIndex({
-                        in: this.#overflowYscrollBar.block?.zIndex(),
+                if (
+                    this.#overflowYscrollBar.block!.__runningEvents.drag &&
+                    this.__isOverflowYScrollable
+                ) {
+                    this.#overflowYscrollBar.block!.registerZIndex({
+                        in: this.#overflowYscrollBar.block!.zIndex(),
                     })
-                    if (this.#overflowYscrollBar.block?.ImFirst) {
+                    if (this.#overflowYscrollBar.block!.ImFirst) {
                         let diffX = x - initCords.x
                         let diffY = y - initCords.y
 
@@ -928,18 +938,18 @@ export class Block<T = IBlockOptions> extends Node {
                             })
                             beforeCords.x = diffX
                             beforeCords.y = diffY
-                            this.#overflowYscrollBar.block?.invokeChange()
+                            this.#overflowYscrollBar.block!.invokeChange()
                         }
                     }
                 }
             }
             const mouseup = () => {
-                if (isMouseDown) {
-                    isMouseDown = false
-                    this.#overflowYscrollBar.block?.registerZIndex({
-                        out: this.#overflowYscrollBar.block?.zIndex(),
+                if (this.#overflowYscrollBar.block!.__runningEvents.drag) {
+                    this.#overflowYscrollBar.block!.__runningEvents.drag = false
+                    this.#overflowYscrollBar.block!.registerZIndex({
+                        out: this.#overflowYscrollBar.block!.zIndex(),
                     })
-                    this.#overflowYscrollBar.block?.invokeChange()
+                    this.#overflowYscrollBar.block!.invokeChange()
                 }
             }
             this.#overflowYscrollBar.block.eventHandler<MouseEvent>(
@@ -1078,6 +1088,10 @@ export class Block<T = IBlockOptions> extends Node {
         this.__runningEvents.drag = false
         this.__runningEvents.rotate = false
         this.__runningEvents.resize = false
+        if (this.#overflowXscrollBar.block)
+            this.#overflowXscrollBar.block.__runningEvents.drag = false
+        if (this.#overflowYscrollBar.block)
+            this.#overflowYscrollBar.block.__runningEvents.drag = false
     }
 
     // Overrided default listing methods for filter out unwanted child classes
