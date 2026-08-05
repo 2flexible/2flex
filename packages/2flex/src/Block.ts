@@ -312,6 +312,8 @@ interface OverflowScrollBar {
     outerBarCordinates: OverflowOuterScrollCordinates
 }
 
+const HOT_LINE_BLOCK_NAME = '__hot_line_hidden'
+
 const OVERFLOW_SCROLL_BAR_BLOCK_NAME = '__overflow_scroll_bar_hidden'
 const OVERFLOW_SCROLL_BAR_MIN_SIZE = 15
 const OVERFLOW_AREA_GAP = 15
@@ -352,6 +354,8 @@ export class Block<T = IBlockOptions> extends Node {
 
     #overflowXscrollBar: OverflowScrollBar
     #overflowYscrollBar: OverflowScrollBar
+
+    #hotLineBlock?: Block<any>
 
     #isZIndexPredefined = false
 
@@ -474,9 +478,14 @@ export class Block<T = IBlockOptions> extends Node {
         return renderFunc
     }
     __isSelected() {
-        if (this.__runningEvents.selected && this.hotLines()) {
-            if (this.ImFirst) this.__hotLines()
-            else this.__runningEvents.selected = false
+        if (this.__runningEvents.selected) {
+            if (this.hotLines()) {
+                if (this.ImFirst) this.__buildHotLines()
+                else this.__runningEvents.selected = false
+            } else {
+                if (this.#hotLineBlock) this.removeChild(this.#hotLineBlock)
+                this.#hotLineBlock = undefined
+            }
         }
     }
 
@@ -1067,8 +1076,12 @@ export class Block<T = IBlockOptions> extends Node {
         let arrLenExt = 0
         if (this.#overflowXscrollBar.block) arrLenExt -= 1
         if (this.#overflowYscrollBar.block) arrLenExt -= 1
+        if (this.#hotLineBlock) arrLenExt -= 1
         const listingFunc = (node: B, currIdx: number, arrLen: number) => {
-            if ((node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME) {
+            if (
+                (node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME ||
+                (node as Block).name() !== HOT_LINE_BLOCK_NAME
+            ) {
                 _func(node, currIdx, arrLen + arrLenExt)
             }
         }
@@ -1077,7 +1090,10 @@ export class Block<T = IBlockOptions> extends Node {
 
     listAllChilds<T>(_func: (node: T) => void): void {
         const listingFunc = (node: T) => {
-            if ((node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME) {
+            if (
+                (node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME ||
+                (node as Block).name() !== HOT_LINE_BLOCK_NAME
+            ) {
                 _func(node)
             }
         }
@@ -1196,154 +1212,192 @@ export class Block<T = IBlockOptions> extends Node {
         this.__clipPath?.rect(this.x(), this.y(), this.width(), this.height())
     }
 
-    __hotLines() {
-        if (!this.context) return
-        const size = this.hotCornerSize()
-        const radius = this.hotCornerRadius()
-        const strokeWidth = this.hotCornerStrokeWidth()
-        const strokeColor = this.hotCornerStrokeColor()
-        const background = this.hotCornerBackgroundColor()
-        const lineWidth = this.hotLineStrokeWidth()
-        const lineColor = this.hotLineStrokeColor()
-        this.context.save()
-        this.context.setLineDash([])
-        this.context.beginPath()
+    __buildHotLines() {
+        if (!this.#hotLineBlock) {
+            this.#hotLineBlock = new Block({
+                name: HOT_LINE_BLOCK_NAME,
+                width: this.width(),
+                height: this.height(),
+                rotate: this.rotate(),
+                zIndex: (this.zIndex() || 1) + this.childNodes.length,
+                hotLines: false,
+            })
 
-        // need to clip hot line area too
-        this.__childClipping?.(this)
+            this.#hotLineBlock.onRender(() => {
+                if (this.#hotLineBlock !== undefined) {
+                    if (
+                        !this.#hotLineBlock!.context ||
+                        !this.__runningEvents.selected
+                    )
+                        return
+                    const size = this.hotCornerSize()
+                    const radius = this.hotCornerRadius()
+                    const strokeWidth = this.hotCornerStrokeWidth()
+                    const strokeColor = this.hotCornerStrokeColor()
+                    const background = this.hotCornerBackgroundColor()
+                    const lineWidth = this.hotLineStrokeWidth()
+                    const lineColor = this.hotLineStrokeColor()
+                    this.#hotLineBlock.context.save()
+                    this.#hotLineBlock!.context.setLineDash([])
+                    this.#hotLineBlock!.context.beginPath()
 
-        this.context.moveTo(
-            this.hotCornerTopLeft().x,
-            this.hotCornerTopLeft().y
-        )
-        if (!this.hotTopFunc()) {
-            this.context.lineTo(
-                this.hotCornerTopRight().x,
-                this.hotCornerTopRight().y
-            )
-            this.context.lineWidth = lineWidth
-            this.context.strokeStyle = lineColor
-            this.context.stroke()
-        } else this.hotTopFunc()?.(this.context)
+                    // need to clip hot line area too
+                    this.__childClipping?.(this)
 
-        this.context.beginPath()
-        this.context.moveTo(
-            this.hotCornerTopLeft().x,
-            this.hotCornerTopLeft().y
-        )
-        if (!this.hotLeftFunc()) {
-            this.context.lineTo(
-                this.hotCornerBottomLeft().x,
-                this.hotCornerBottomLeft().y
-            )
-            this.context.lineWidth = lineWidth
-            this.context.strokeStyle = lineColor
-            this.context.stroke()
-        } else this.hotLeftFunc()?.(this.context)
+                    this.#hotLineBlock!.context.moveTo(
+                        this.hotCornerTopLeft().x,
+                        this.hotCornerTopLeft().y
+                    )
+                    if (!this.hotTopFunc()) {
+                        this.#hotLineBlock!.context.lineTo(
+                            this.hotCornerTopRight().x,
+                            this.hotCornerTopRight().y
+                        )
+                        this.#hotLineBlock!.context.lineWidth = lineWidth
+                        this.#hotLineBlock!.context.strokeStyle = lineColor
+                        this.#hotLineBlock!.context.stroke()
+                    } else this.hotTopFunc()?.(this.#hotLineBlock!.context)
 
-        this.context.beginPath()
-        this.context.moveTo(
-            this.hotCornerBottomLeft().x,
-            this.hotCornerBottomLeft().y
-        )
-        if (!this.hotBottomFunc()) {
-            this.context.lineTo(
-                this.hotCornerBottomRight().x,
-                this.hotCornerBottomRight().y
-            )
-            this.context.lineWidth = lineWidth
-            this.context.strokeStyle = lineColor
-            this.context.stroke()
-        } else this.hotBottomFunc()?.(this.context)
+                    this.#hotLineBlock!.context.beginPath()
+                    this.#hotLineBlock!.context.moveTo(
+                        this.hotCornerTopLeft().x,
+                        this.hotCornerTopLeft().y
+                    )
+                    if (!this.hotLeftFunc()) {
+                        this.#hotLineBlock!.context.lineTo(
+                            this.hotCornerBottomLeft().x,
+                            this.hotCornerBottomLeft().y
+                        )
+                        this.#hotLineBlock!.context.lineWidth = lineWidth
+                        this.#hotLineBlock!.context.strokeStyle = lineColor
+                        this.#hotLineBlock!.context.stroke()
+                    } else this.hotLeftFunc()?.(this.#hotLineBlock!.context)
 
-        this.context.beginPath()
-        this.context.moveTo(
-            this.hotCornerBottomRight().x,
-            this.hotCornerBottomRight().y
-        )
-        if (!this.hotRightFunc()) {
-            this.context.lineTo(
-                this.hotCornerTopRight().x,
-                this.hotCornerTopRight().y
-            )
-            this.context.lineWidth = lineWidth
-            this.context.strokeStyle = lineColor
-            this.context.stroke()
-        } else this.hotRightFunc()?.(this.context)
+                    this.#hotLineBlock!.context.beginPath()
+                    this.#hotLineBlock!.context.moveTo(
+                        this.hotCornerBottomLeft().x,
+                        this.hotCornerBottomLeft().y
+                    )
+                    if (!this.hotBottomFunc()) {
+                        this.#hotLineBlock!.context.lineTo(
+                            this.hotCornerBottomRight().x,
+                            this.hotCornerBottomRight().y
+                        )
+                        this.#hotLineBlock!.context.lineWidth = lineWidth
+                        this.#hotLineBlock!.context.strokeStyle = lineColor
+                        this.#hotLineBlock!.context.stroke()
+                    } else this.hotBottomFunc()?.(this.#hotLineBlock!.context)
 
-        this.context.beginPath()
-        if (!this.hotCornerTopLeftFunc()) {
-            this.context.roundRect(
-                this.hotCornerTopLeft().x - size / 2,
-                this.hotCornerTopLeft().y - size / 2,
-                size,
-                size,
-                radius
-            )
-            this.context.lineWidth = strokeWidth
-            this.context.strokeStyle = strokeColor
-            this.context.fillStyle = background
-            this.context.fill()
-            this.context.stroke()
+                    this.#hotLineBlock!.context.beginPath()
+                    this.#hotLineBlock!.context.moveTo(
+                        this.hotCornerBottomRight().x,
+                        this.hotCornerBottomRight().y
+                    )
+                    if (!this.hotRightFunc()) {
+                        this.#hotLineBlock!.context.lineTo(
+                            this.hotCornerTopRight().x,
+                            this.hotCornerTopRight().y
+                        )
+                        this.#hotLineBlock!.context.lineWidth = lineWidth
+                        this.#hotLineBlock!.context.strokeStyle = lineColor
+                        this.#hotLineBlock!.context.stroke()
+                    } else this.hotRightFunc()?.(this.#hotLineBlock!.context)
+
+                    this.#hotLineBlock!.context.beginPath()
+                    if (!this.hotCornerTopLeftFunc()) {
+                        this.#hotLineBlock!.context.roundRect(
+                            this.hotCornerTopLeft().x - size / 2,
+                            this.hotCornerTopLeft().y - size / 2,
+                            size,
+                            size,
+                            radius
+                        )
+                        this.#hotLineBlock!.context.lineWidth = strokeWidth
+                        this.#hotLineBlock!.context.strokeStyle = strokeColor
+                        this.#hotLineBlock!.context.fillStyle = background
+                        this.#hotLineBlock!.context.fill()
+                        this.#hotLineBlock!.context.stroke()
+                    } else {
+                        this.hotCornerTopLeftFunc()?.(
+                            this.#hotLineBlock!.context
+                        )
+                    }
+
+                    this.#hotLineBlock!.context.beginPath()
+                    if (!this.hotCornerTopRightFunc()) {
+                        this.#hotLineBlock!.context.roundRect(
+                            this.hotCornerTopRight().x - size / 2,
+                            this.hotCornerTopRight().y - size / 2,
+                            size,
+                            size,
+                            radius
+                        )
+                        this.#hotLineBlock!.context.lineWidth = strokeWidth
+                        this.#hotLineBlock!.context.strokeStyle = strokeColor
+                        this.#hotLineBlock!.context.fillStyle = background
+                        this.#hotLineBlock!.context.fill()
+                        this.#hotLineBlock!.context.stroke()
+                    } else {
+                        this.hotCornerTopRightFunc()?.(
+                            this.#hotLineBlock!.context
+                        )
+                    }
+
+                    this.#hotLineBlock!.context.beginPath()
+                    if (!this.hotCornerBottomLeftFunc()) {
+                        this.#hotLineBlock!.context.roundRect(
+                            this.hotCornerBottomLeft().x - size / 2,
+                            this.hotCornerBottomLeft().y - size / 2,
+                            size,
+                            size,
+                            radius
+                        )
+                        this.#hotLineBlock!.context.lineWidth = strokeWidth
+                        this.#hotLineBlock!.context.strokeStyle = strokeColor
+                        this.#hotLineBlock!.context.fillStyle = background
+                        this.#hotLineBlock!.context.fill()
+                        this.#hotLineBlock!.context.stroke()
+                    } else {
+                        this.hotCornerBottomLeftFunc()?.(
+                            this.#hotLineBlock!.context
+                        )
+                    }
+
+                    this.#hotLineBlock!.context.beginPath()
+                    if (!this.hotCornerBottomRightFunc()) {
+                        this.#hotLineBlock!.context.roundRect(
+                            this.hotCornerBottomRight().x - size / 2,
+                            this.hotCornerBottomRight().y - size / 2,
+                            size,
+                            size,
+                            radius
+                        )
+                        this.#hotLineBlock!.context.lineWidth = strokeWidth
+                        this.#hotLineBlock!.context.strokeStyle = strokeColor
+                        this.#hotLineBlock!.context.fillStyle = background
+                        this.#hotLineBlock!.context.fill()
+                        this.#hotLineBlock!.context.stroke()
+                    } else {
+                        this.hotCornerBottomRightFunc()?.(
+                            this.#hotLineBlock!.context
+                        )
+                    }
+
+                    this.#hotLineBlock!.context.restore()
+                }
+            })
+            this.addChild(this.#hotLineBlock)
         } else {
-            this.hotCornerTopLeftFunc()?.(this.context)
-        }
-
-        this.context.beginPath()
-        if (!this.hotCornerTopRightFunc()) {
-            this.context.roundRect(
-                this.hotCornerTopRight().x - size / 2,
-                this.hotCornerTopRight().y - size / 2,
-                size,
-                size,
-                radius
+            this.#hotLineBlock.rotationCenterX(this.__getRealCenterX)
+            this.#hotLineBlock.rotationCenterY(this.__getRealCenterY)
+            this.#hotLineBlock.rotate(this.rotate())
+            this.#hotLineBlock.width(this.width())
+            this.#hotLineBlock.height(this.height())
+            this.#hotLineBlock.zIndex(
+                (this.zIndex() || 1) + this.childNodes.length
             )
-            this.context.lineWidth = strokeWidth
-            this.context.strokeStyle = strokeColor
-            this.context.fillStyle = background
-            this.context.fill()
-            this.context.stroke()
-        } else {
-            this.hotCornerTopRightFunc()?.(this.context)
+            // this.#hotLineBlock.hidden(!this.__runningEvents.selected)
         }
-
-        this.context.beginPath()
-        if (!this.hotCornerBottomLeftFunc()) {
-            this.context.roundRect(
-                this.hotCornerBottomLeft().x - size / 2,
-                this.hotCornerBottomLeft().y - size / 2,
-                size,
-                size,
-                radius
-            )
-            this.context.lineWidth = strokeWidth
-            this.context.strokeStyle = strokeColor
-            this.context.fillStyle = background
-            this.context.fill()
-            this.context.stroke()
-        } else {
-            this.hotCornerBottomLeftFunc()?.(this.context)
-        }
-
-        this.context.beginPath()
-        if (!this.hotCornerBottomRightFunc()) {
-            this.context.roundRect(
-                this.hotCornerBottomRight().x - size / 2,
-                this.hotCornerBottomRight().y - size / 2,
-                size,
-                size,
-                radius
-            )
-            this.context.lineWidth = strokeWidth
-            this.context.strokeStyle = strokeColor
-            this.context.fillStyle = background
-            this.context.fill()
-            this.context.stroke()
-        } else {
-            this.hotCornerBottomRightFunc()?.(this.context)
-        }
-
-        this.context.restore()
     }
 
     hotLines(opt?: boolean) {
