@@ -492,11 +492,19 @@ export class Block<T = IBlockOptions> extends Node {
     __isOverflowAreaVisible() {
         if (this.__isOverflowXScroll || this.__isOverflowXAuto)
             this.__overflowXScrollBar()
-        else this.#overflowXscrollBar.block = undefined
+        else {
+            if (this.#overflowXscrollBar.block)
+                this.removeChild(this.#overflowXscrollBar.block)
+            this.#overflowXscrollBar.block = undefined
+        }
 
         if (this.__isOverflowYScroll || this.__isOverflowYAuto)
             this.__overflowYScrollBar()
-        else this.#overflowYscrollBar.block = undefined
+        else {
+            if (this.#overflowYscrollBar.block)
+                this.removeChild(this.#overflowYscrollBar.block)
+            this.#overflowYscrollBar.block = undefined
+        }
     }
 
     __updateOverflowXCords() {
@@ -681,7 +689,7 @@ export class Block<T = IBlockOptions> extends Node {
                     this.#overflowXscrollBar.block?.invokeChange()
                 }
             }
-            this.eventHandler<MouseEvent>(
+            this.#overflowXscrollBar.block.eventHandler<MouseEvent>(
                 'mousedown',
                 mousedown,
                 'overflowMouseDown'
@@ -698,7 +706,11 @@ export class Block<T = IBlockOptions> extends Node {
                 'overflowMouseUp'
             )
             this.#overflowXscrollBar.block.onRender(() => {
-                if (this.__isOverflowXAuto && this.__overflowCords.width > 0)
+                if (
+                    (this.__isOverflowXAuto &&
+                        this.__overflowCords.width > 0) ||
+                    !this.#overflowXscrollBar.block
+                )
                     return
 
                 const areaWidth = clamp(
@@ -728,9 +740,7 @@ export class Block<T = IBlockOptions> extends Node {
                     OVERFLOW_INNER_AREA_RADIUS
                 )
             })
-            if (!this.childNodes.includes(this.#overflowXscrollBar.block)) {
-                this.childNodes.push(this.#overflowXscrollBar.block)
-            }
+            this.addChild(this.#overflowXscrollBar.block)
         } else {
             this.#overflowXscrollBar.block.rotationCenterX(
                 this.__getRealCenterX
@@ -928,7 +938,7 @@ export class Block<T = IBlockOptions> extends Node {
                     this.#overflowYscrollBar.block?.invokeChange()
                 }
             }
-            this.eventHandler<MouseEvent>(
+            this.#overflowYscrollBar.block.eventHandler<MouseEvent>(
                 'mousedown',
                 mousedown,
                 'overflowYMouseDown'
@@ -944,7 +954,11 @@ export class Block<T = IBlockOptions> extends Node {
                 'overflowYMouseUp'
             )
             this.#overflowYscrollBar.block.onRender(() => {
-                if (this.__isOverflowYAuto && this.__overflowCords.height > 0)
+                if (
+                    (this.__isOverflowYAuto &&
+                        this.__overflowCords.height > 0) ||
+                    !this.#overflowYscrollBar
+                )
                     return
 
                 const areaHeight = clamp(
@@ -976,9 +990,7 @@ export class Block<T = IBlockOptions> extends Node {
                     OVERFLOW_INNER_AREA_RADIUS
                 )
             })
-            if (!this.childNodes.includes(this.#overflowYscrollBar.block)) {
-                this.childNodes.push(this.#overflowYscrollBar.block)
-            }
+            this.addChild(this.#overflowYscrollBar.block)
         } else {
             this.#overflowYscrollBar.block.rotationCenterX(
                 this.__getRealCenterX
@@ -1022,9 +1034,9 @@ export class Block<T = IBlockOptions> extends Node {
         if (!block.context) return
 
         block.context.save()
-        this.context?.translate(this.rotationCenterX(), this.rotationCenterY())
-        this.context?.rotate(this.rotate())
-        this.context?.translate(
+        block.context?.translate(this.rotationCenterX(), this.rotationCenterY())
+        block.context?.rotate(this.rotate())
+        block.context?.translate(
             -this.rotationCenterX(),
             -this.rotationCenterY()
         )
