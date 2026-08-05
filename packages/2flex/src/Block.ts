@@ -312,9 +312,9 @@ interface OverflowScrollBar {
     outerBarCordinates: OverflowOuterScrollCordinates
 }
 
-const HOT_LINE_BLOCK_NAME = '__hot_line_hidden'
+export const HOT_LINE_BLOCK_NAME = '__hot_line_hidden'
 
-const OVERFLOW_SCROLL_BAR_BLOCK_NAME = '__overflow_scroll_bar_hidden'
+export const OVERFLOW_SCROLL_BAR_BLOCK_NAME = '__overflow_scroll_bar_hidden'
 const OVERFLOW_SCROLL_BAR_MIN_SIZE = 15
 const OVERFLOW_AREA_GAP = 15
 const OVERFLOW_INNER_AREA_GAP = 3
@@ -357,7 +357,9 @@ export class Block<T = IBlockOptions> extends Node {
 
     #hotLineBlock?: Block<any>
 
-    #isZIndexPredefined = false
+    #isZIndexPredefined: boolean
+
+    #upperMostZIndex: number
 
     constructor(options: IBlock<T>) {
         super()
@@ -422,6 +424,10 @@ export class Block<T = IBlockOptions> extends Node {
 
         this.#lastOrder = 0
 
+        this.#isZIndexPredefined = false
+
+        this.#upperMostZIndex = 0
+
         this.setChangeCache('isVerticalFlipped', false)
         this.setChangeCache('isHorizontalFlipped', false)
 
@@ -462,6 +468,7 @@ export class Block<T = IBlockOptions> extends Node {
 
         this.__isSelected()
         this.__isOverflowAreaVisible()
+        this.__findHighestChildZIndex()
         this.onRender()?.()
     }
 
@@ -560,7 +567,7 @@ export class Block<T = IBlockOptions> extends Node {
                 top: this.height() - OVERFLOW_AREA_GAP,
                 selectable: true,
                 // Showing overflow scroll bar block on top of the child blocks
-                zIndex: (this.zIndex() || 1) + this.childNodes.length,
+                zIndex: 1 + this.#upperMostZIndex,
                 hotLines: false,
             })
             this.__updateOverflowXCords()
@@ -755,11 +762,8 @@ export class Block<T = IBlockOptions> extends Node {
             )
             this.#overflowXscrollBar.block.width(this.width())
             this.#overflowXscrollBar.block.height(OVERFLOW_AREA_GAP)
-
             // Showing overflow scroll bar block on top of the child blocks
-            this.#overflowXscrollBar.block.zIndex(
-                (this.zIndex() || 1) + this.childNodes.length
-            )
+            this.#overflowXscrollBar.block.zIndex(1 + this.#upperMostZIndex)
         }
     }
 
@@ -807,7 +811,7 @@ export class Block<T = IBlockOptions> extends Node {
                 top: this.y(),
                 selectable: true,
                 // Showing overflow scroll bar block on top of the child blocks
-                zIndex: (this.zIndex() || 1) + this.childNodes.length,
+                zIndex: 1 + this.#upperMostZIndex,
                 hotLines: false,
             })
             this.__updateOverflowYCords()
@@ -1008,9 +1012,7 @@ export class Block<T = IBlockOptions> extends Node {
                 this.height() - this.#overflowScrollYHeightCut
             )
             // Showing overflow scroll bar block on top of the child blocks
-            this.#overflowYscrollBar.block.zIndex(
-                (this.zIndex() || 1) + this.childNodes.length
-            )
+            this.#overflowYscrollBar.block.zIndex(1 + this.#upperMostZIndex)
         }
     }
 
@@ -1091,7 +1093,7 @@ export class Block<T = IBlockOptions> extends Node {
         if (this.#hotLineBlock) arrLenExt -= 1
         const listingFunc = (node: B, currIdx: number, arrLen: number) => {
             if (
-                (node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME ||
+                (node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
                 (node as Block).name() !== HOT_LINE_BLOCK_NAME
             ) {
                 _func(node, currIdx, arrLen + arrLenExt)
@@ -1103,7 +1105,7 @@ export class Block<T = IBlockOptions> extends Node {
     listAllChilds<T>(_func: (node: T) => void): void {
         const listingFunc = (node: T) => {
             if (
-                (node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME ||
+                (node as Block).name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
                 (node as Block).name() !== HOT_LINE_BLOCK_NAME
             ) {
                 _func(node)
@@ -1128,18 +1130,18 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     addChild(...blocks: Block<any>[]): void {
-        this.setChangeCache('childNodes', this.childNodes.length)
         const exists = blocks.filter((r) => !this.childNodes.includes(r))
+        if (exists.length === 0) return
+        this.setChangeCache('childNodes', this.childNodes.length)
         let before: any = {}
         before[this.nodeId!] = {
             childNodes: [...this.childNodes],
         }
         super.addChild(...exists)
-        if (exists.length === 0) return
-        let z = this.zIndex() || 1
-
         this.canvas?.invokeNodeListing()
-        this.listOnlyChilds((b: Block) => {
+        let z = this.zIndex() || 1
+        for (let i = 0, len = exists.length; i < len; i++) {
+            const b = exists[i]
             if (b.order() === undefined) {
                 b.order(this.#lastOrder)
                 this.#lastOrder += 1
@@ -1157,7 +1159,7 @@ export class Block<T = IBlockOptions> extends Node {
             b.__initCordinates()
             this.canvas?.__takeInitSnaphshot(before)
             this.canvas?.__takeBlockSnapshot(this, before)
-        })
+        }
         this.invokeChange()
     }
 
@@ -1191,6 +1193,20 @@ export class Block<T = IBlockOptions> extends Node {
     }
     __removeChildInternal(child: Block): void {
         super.removeChild(child)
+    }
+
+    __findHighestChildZIndex() {
+        const cachedChildsCount = this.getCacheValue('childsCount')
+        if (cachedChildsCount !== this.childsCount) {
+            this.#upperMostZIndex = this.zIndex() || 0
+            this.listAllChilds((b: Block) => {
+                const bZIndex = b.zIndex()
+                if (bZIndex !== undefined && bZIndex > this.#upperMostZIndex) {
+                    this.#upperMostZIndex = bZIndex
+                }
+            })
+            this.setChangeCache('childsCount', this.childsCount)
+        }
     }
 
     findChilds(queries: IBlockOptions) {
@@ -1231,7 +1247,10 @@ export class Block<T = IBlockOptions> extends Node {
                 width: this.width(),
                 height: this.height(),
                 rotate: this.rotate(),
-                zIndex: (this.zIndex() || 1) + this.childNodes.length,
+                zIndex:
+                    1 +
+                    this.#upperMostZIndex +
+                    (this.__isOverflowExists ? 1 : 0),
                 hotLines: false,
             })
 
@@ -1406,9 +1425,8 @@ export class Block<T = IBlockOptions> extends Node {
             this.#hotLineBlock.width(this.width())
             this.#hotLineBlock.height(this.height())
             this.#hotLineBlock.zIndex(
-                (this.zIndex() || 1) + this.childNodes.length
+                1 + this.#upperMostZIndex + (this.__isOverflowExists ? 1 : 0)
             )
-            // this.#hotLineBlock.hidden(!this.__runningEvents.selected)
         }
     }
 
@@ -3490,6 +3508,17 @@ export class Block<T = IBlockOptions> extends Node {
         return this.overflow() === 'auto' || this.overflowY() === 'auto'
     }
 
+    get __isOverflowExists() {
+        return (
+            this.overflow() === 'scroll' ||
+            this.overflowY() === 'scroll' ||
+            this.overflowX() === 'scroll' ||
+            this.overflow() === 'auto' ||
+            this.overflowY() === 'auto' ||
+            this.overflowX() === 'auto'
+        )
+    }
+
     get __isOverflowXAutoAllowScrool() {
         return this.__isOverflowXAuto && this.__overflowCords.width < 0
     }
@@ -4997,7 +5026,7 @@ export class Block<T = IBlockOptions> extends Node {
                     rightResize = true
                     cursor = 'nwse-resize'
                 }
-                
+
                 if (cursor) {
                     inBound = true
 

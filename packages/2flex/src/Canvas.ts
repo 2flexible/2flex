@@ -3,6 +3,7 @@ import { CanvasTree } from './CanvasTree'
 import { CanvasDOMManager } from './DOMManager'
 import { getPrototype, xIntersect, yIntersect } from './Utils'
 import type { Block, IBlockOptions, BlockPayload, Animator } from './Block'
+import { OVERFLOW_SCROLL_BAR_BLOCK_NAME, HOT_LINE_BLOCK_NAME } from './Block'
 import type {
     ICssProperties,
     SnapshotObject,
@@ -223,6 +224,7 @@ export class Canvas {
                 this.__takeInitSnaphshot(b)
                 b.__initCordinates()
                 b.__hidden = !this.inBoundBlock(b)
+                b.listAllChilds(() => (b.childsCount += 1))
                 b.render()
             }
         })
@@ -538,7 +540,16 @@ export class Canvas {
 
     invokeNodeListing() {
         this.#initTime = new Date().getTime()
-        this.#tree.preOrderTraversal<Block>()
+        this.#tree.preOrderTraversal<Block>((b: Block) => {
+            b.childsCount = 0
+            b.listAllChilds((block: Block) => {
+                if (
+                    block.name() !== HOT_LINE_BLOCK_NAME &&
+                    block.name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME
+                )
+                    b.childsCount += 1
+            })
+        })
     }
 
     refreshHead() {

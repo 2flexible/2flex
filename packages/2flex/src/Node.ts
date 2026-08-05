@@ -4,10 +4,12 @@ export class Node {
     childNodes: Node[]
     parentNode?: Node
     nodeId?: NodeId
+    childsCount: number
     #sortedBy?: string
 
     constructor() {
         this.childNodes = []
+        this.childsCount = 0
     }
 
     addChild(...node: Node[]) {
