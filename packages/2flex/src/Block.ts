@@ -671,17 +671,20 @@ export class Block<T = IBlockOptions> extends Node {
                             const dxY = diffY - beforeCords.y
                             const angle = this.__getRealRotate
 
+                            const horizontalFlipped = this.__isHorizontalFlipped
+                            const verticalFlipped = this.__isVerticalFlipped
                             let inverse = 1
                             if (
-                                (angle >= Math.PI / 2 && angle <= Math.PI) ||
-                                (angle <= -Math.PI / 2 && angle >= -Math.PI)
+                                (horizontalFlipped || verticalFlipped) &&
+                                horizontalFlipped !== verticalFlipped
                             )
                                 inverse = -1
+
                             this.__overflowTranslate({
                                 x:
                                     -(
-                                        Math.cos(angle) * dxX +
-                                        Math.sin(angle) * dxY
+                                        Math.cos(angle) * inverse * dxX +
+                                        Math.sin(angle) * inverse * dxY
                                     ) * inverse,
                                 y: 0,
                             })
@@ -921,20 +924,22 @@ export class Block<T = IBlockOptions> extends Node {
                             const dxY = diffY - beforeCords.y
                             const angle = this.__getRealRotate
 
+                            const horizontalFlipped = this.__isHorizontalFlipped
+                            const verticalFlipped = this.__isVerticalFlipped
+
                             let inverse = 1
                             if (
-                                (angle >= Math.PI / 2 && angle <= Math.PI) ||
-                                (angle <= -Math.PI / 2 && angle >= -Math.PI)
+                                (horizontalFlipped || verticalFlipped) &&
+                                horizontalFlipped !== verticalFlipped
                             )
                                 inverse = -1
 
                             this.__overflowTranslate({
                                 x: 0,
-                                y:
-                                    -(
-                                        -Math.sin(angle) * dxX +
-                                        Math.cos(angle) * dxY
-                                    ) * inverse,
+                                y: -(
+                                    -Math.sin(angle) * inverse * dxX +
+                                    Math.cos(angle) * inverse * dxY
+                                ),
                             })
                             beforeCords.x = diffX
                             beforeCords.y = diffY
