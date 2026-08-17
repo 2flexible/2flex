@@ -393,7 +393,7 @@ export class Block<T = IBlockOptions> extends Node {
         this.__updateCordinatesByRot(cacheRotate + diffR)
         this.__updateOptionsCache()
         this.__clippingPath()
-        
+
         if (this.__isHidden) return
         this.context?.save()
         // need to clip child before restore if its exist
@@ -2460,12 +2460,12 @@ export class Block<T = IBlockOptions> extends Node {
                 else if (val.endsWith('em')) {
                     return (fromEm(Number(val.split('em')[0]), size || 1) -
                         space) as O
-                } else if (val.endsWith('vh') && widthRelated === false)
+                } else if (val.endsWith('vh') && !widthRelated)
                     return (fromVH(
                         Number(val.split('vh')[0]),
                         this.canvas?.height || 1
                     ) - space) as O
-                else if (val.endsWith('vw') && widthRelated === true)
+                else if (val.endsWith('vw') && widthRelated)
                     return (fromVW(
                         Number(val.split('vw')[0]),
                         this.canvas?.width || 1

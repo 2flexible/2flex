@@ -17,7 +17,6 @@ export function fromVW(from: number, parentWidth: number) {
 export function fromVH(from: number, parentHeight: number) {
     return (from * parentHeight) / 100
 }
-//  root size shoold be cavnas fonts size via styleing or options passing value
 export function fromRem(from: number, parentSize: number) {
     return from * parentSize
 }
@@ -274,30 +273,57 @@ export function hexToRgba(hex: string) {
 }
 
 export function hslToRgba(hsl: string): string {
-    const colors = hsl.match(/\d+\.?\d*/g) || []
-    let H = 0
-    let S = 0
-    let L = 0
-    if (colors[0]) H = Number(colors[0])
-    if (colors[1]) S = Number(colors[1]) / 100
-    if (colors[2]) L = Number(colors[2]) / 100
+    const colors = hsl.match(/-?\d+\.?\d*/g) || []
+    const H = (((Number(colors[0]) || 0) % 360) + 360) % 360 // Normalize hue to 0-359
+    const S = Math.min(1, Math.max(0, (Number(colors[1]) || 0) / 100))
+    const L = Math.min(1, Math.max(0, (Number(colors[2]) || 0) / 100))
+    const A = colors[3] !== undefined ? Number(colors[3]) : 1
 
-    if (S === 0) return rgbaRepresenter([L, L, L])
-    const C = (1 - (2 * L - 1)) * S
+    if (S === 0) {
+        const val = Math.round(L * 255)
+        return rgbaRepresenter([val, val, val, A])
+    }
+
+    const C = (1 - Math.abs(2 * L - 1)) * S
     const Hd = H / 60
-    let RGB = { R: 0, G: 0, B: 0 }
     const X = C * (1 - Math.abs((Hd % 2) - 1))
-    if (0 < Hd && Hd < 1) RGB = { R: C, G: X, B: 0 }
-    else if (1 <= Hd && Hd <= 2) RGB = { R: X, G: C, B: 0 }
-    else if (2 <= Hd && Hd <= 3) RGB = { R: 0, G: C, B: X }
-    else if (3 <= Hd && Hd <= 4) RGB = { R: 0, G: X, B: C }
-    else if (4 <= Hd && Hd <= 5) RGB = { R: X, G: 0, B: C }
-    else if (5 <= Hd && Hd <= 6) RGB = { R: C, G: 0, B: X }
+
+    let r = 0,
+        g = 0,
+        b = 0
+
+    if (0 <= Hd && Hd < 1) {
+        r = C
+        g = X
+        b = 0
+    } else if (1 <= Hd && Hd < 2) {
+        r = X
+        g = C
+        b = 0
+    } else if (2 <= Hd && Hd < 3) {
+        r = 0
+        g = C
+        b = X
+    } else if (3 <= Hd && Hd < 4) {
+        r = 0
+        g = X
+        b = C
+    } else if (4 <= Hd && Hd < 5) {
+        r = X
+        g = 0
+        b = C
+    } else if (5 <= Hd && Hd <= 6) {
+        r = C
+        g = 0
+        b = X
+    }
+
     const m = L - C / 2
-    RGB.R = (RGB.R + m) * 255
-    RGB.G = (RGB.G + m) * 255
-    RGB.B = (RGB.B + m) * 255
-    return rgbaRepresenter([RGB.R, RGB.G, RGB.B])
+    const R = Math.round((r + m) * 255)
+    const G = Math.round((g + m) * 255)
+    const B = Math.round((b + m) * 255)
+
+    return rgbaRepresenter([R, G, B, A])
 }
 
 export function colorToRgba(color: string) {
