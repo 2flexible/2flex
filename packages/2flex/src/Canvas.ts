@@ -2,7 +2,8 @@ import { Node } from './Node'
 import { CanvasTree } from './CanvasTree'
 import { CanvasDOMManager } from './DOMManager'
 import { getPrototype, xIntersect, yIntersect } from './Utils'
-import type { Block, IBlockOptions, BlockPayload, Animator } from './Block'
+import { Block } from './Block'
+import type { IBlockOptions, BlockPayload, Animator } from './Block'
 import { OVERFLOW_SCROLL_BAR_BLOCK_NAME, HOT_LINE_BLOCK_NAME } from './Block'
 import type {
     ICssProperties,
@@ -54,7 +55,7 @@ interface CanvasPayload {
 
 interface Payload {
     canvas: CanvasPayload
-    blocks: BlockPayload[]
+    blocks: BlockPayload<any>[]
 }
 
 interface BlockAnimation {
@@ -88,6 +89,8 @@ export class Canvas {
     #animations: CanvasAnimations
     #reservedAnimation?: number
     #registeredBlocks: any[]
+
+    #sortedBy?: string
 
     currentPosition: { x: number; y: number; z: number }
 
@@ -223,6 +226,7 @@ export class Canvas {
                 this.__collectAnimations(b)
                 this.__takeInitSnaphshot(b)
                 b.__initCordinates()
+                
                 b.__hidden = !this.inBoundBlock(b)
                 b.listAllChilds(() => (b.childsCount += 1))
                 b.render()
@@ -267,7 +271,7 @@ export class Canvas {
         const blocks = parsedPayload.blocks
         const constructedBlocks: Block<any>[] = []
 
-        const checkBlock = (block: BlockPayload) => {
+        const checkBlock = (block: BlockPayload<any>) => {
             const exists = this.find({ nodeId: block.nodeId })
             const childs: Block[] = []
             let foundBlock
@@ -288,7 +292,7 @@ export class Canvas {
                         foundBlock = new invokeClass(block.options || {})
                     }
             }
-            foundBlock.ownOptions = block.ownOptions || block.options
+            foundBlock.options = block.options || block.options
             if (block.childs?.length !== 0)
                 for (let i = 0, len = block.childs!.length; i < len; i++) {
                     const childBlock = checkBlock(block.childs![i])
@@ -314,7 +318,7 @@ export class Canvas {
         this.#tree.head.listAllChilds((block: Block) => {
             for (const [k, v] of Object.entries(queries)) {
                 if (
-                    block.ownOptions[k] === v ||
+                    block.getOptionCurrentVal(k)?.currentValue === v ||
                     (k === 'nodeId' && block.nodeId === v)
                 )
                     blocks.push(block)
@@ -357,17 +361,20 @@ export class Canvas {
     __handleOptions(block: Block): void {
         if (
             !block.nodeId ||
-            !block.ownOptions ||
+            !block.options ||
             (block.nodeId && this.#handledNodes[block.nodeId])
         )
             return
         block.canvas = this
         this.#handleBindOptions(block)
-        for (const [key, value] of Object.entries(block.ownOptions)) {
-            getPrototype(block, key)?.value.call(block, value)
+        for (const [key, value] of block.options) {
+            getPrototype(block, key as string)?.value.call(
+                block,
+                value?.currentValue
+            )
         }
         if (block.zIndex() === undefined) {
-            block.ownOptions.zIndex = block.nodeId
+            block.setOptionCurrentVal('zIndex', block.nodeId)
         }
         this.#handledNodes[block.nodeId] = true
     }
@@ -375,10 +382,10 @@ export class Canvas {
     #handleBindOptions(block: Block) {
         if (block.__bindOptions.length !== 0) {
             for (const opt of block.__bindOptions) {
-                for (const key of opt.options) {
-                    getPrototype(block, key as string)?.value.call(
+                for (const key of opt.options.keys()) {
+                    getPrototype(block, key as any)?.value.call(
                         block,
-                        opt.bindTo.ownOptions[key]
+                        opt.bindTo.getOptionCurrentVal(key)
                     )
                 }
             }
@@ -387,7 +394,7 @@ export class Canvas {
 
     __takeInitSnaphshot(block: Block) {
         const dummy: any = {}
-        dummy[block.nodeId!] = { ...block.ownOptions }
+        dummy[block.nodeId!] = { ...block.options }
         this.#tree.takeSanpshot(this.#initTime!, null, dummy)
     }
 
@@ -524,18 +531,27 @@ export class Canvas {
         this.context?.restore()
         this.context?.save()
         this.clearRect()
-        this.#tree.head.listOnlyChilds(
-            (b: Block<any>) => {
-                if (this.#handledNodes[b.nodeId!]) {
-                    this.#handleBindOptions(b)
-                    if (_func) _func(b)
-                    b.__hidden = !this.inBoundBlock(b)
-                    b.render()
-                }
-            },
-            'zIndex',
-            this.#tree.nodes
-        )
+        const nodes = this.#tree.nodes
+        for (let i = 0, len = nodes.length; i < len; i++) {
+            const b = nodes[i] as Block
+            if (this.#handledNodes[b.nodeId!]) {
+                this.#handleBindOptions(b)
+                if (_func) _func(b)
+                b.__hidden = !this.inBoundBlock(b)
+                b.render()
+            }
+        }
+    }
+
+    sortNodesByZIndex() {
+        const sortedNodes = this.#tree.nodes
+        if (this.#sortedBy === undefined) {
+            sortedNodes.sort(
+                (a: any, b: any) =>
+                    a.options.get('zIndex') - b.options.get('zIndex')
+            )
+            this.#sortedBy = 'zIndex'
+        }
     }
 
     invokeNodeListing() {
@@ -550,10 +566,11 @@ export class Canvas {
                     b.childsCount += 1
             })
         })
+        this.refreshHead()
     }
 
     refreshHead() {
-        this.#tree.head.resetSort()
+        this.#sortedBy = undefined
         this.#sortRegisteredDomEvents()
     }
 
@@ -567,16 +584,16 @@ export class Canvas {
             { left: 0, right: this.canvasBounding.width },
             {
                 left: Math.min(
-                    block.ownOptions.cornerTopLeft?.x || 0,
-                    block.ownOptions.cornerTopRight?.x || 0,
-                    block.ownOptions.cornerBottomLeft?.x || 0,
-                    block.ownOptions.cornerBottomRight?.x || 0
+                    block.getOptionCurrentVal('cornerTopLeft')?.x || 0,
+                    block.getOptionCurrentVal('cornerTopRight')?.x || 0,
+                    block.getOptionCurrentVal('cornerBottomLeft')?.x || 0,
+                    block.getOptionCurrentVal('cornerBottomRight')?.x || 0
                 ),
                 right: Math.max(
-                    block.ownOptions.cornerTopLeft?.x || 0,
-                    block.ownOptions.cornerTopRight?.x || 0,
-                    block.ownOptions.cornerBottomLeft?.x || 0,
-                    block.ownOptions.cornerBottomRight?.x || 0
+                    block.getOptionCurrentVal('cornerTopLeft')?.x || 0,
+                    block.getOptionCurrentVal('cornerTopRight')?.x || 0,
+                    block.getOptionCurrentVal('cornerBottomLeft')?.x || 0,
+                    block.getOptionCurrentVal('cornerBottomRight')?.x || 0
                 ),
             }
         )
@@ -584,16 +601,16 @@ export class Canvas {
             { top: 0, bottom: this.canvasBounding.height },
             {
                 top: Math.min(
-                    block.ownOptions.cornerTopLeft?.y || 0,
-                    block.ownOptions.cornerTopRight?.y || 0,
-                    block.ownOptions.cornerBottomLeft?.y || 0,
-                    block.ownOptions.cornerBottomRight?.y || 0
+                    block.getOptionCurrentVal('cornerTopLeft')?.y || 0,
+                    block.getOptionCurrentVal('cornerTopRight')?.y || 0,
+                    block.getOptionCurrentVal('cornerBottomLeft')?.y || 0,
+                    block.getOptionCurrentVal('cornerBottomRight')?.y || 0
                 ),
                 bottom: Math.max(
-                    block.ownOptions.cornerTopLeft?.y || 0,
-                    block.ownOptions.cornerTopRight?.y || 0,
-                    block.ownOptions.cornerBottomLeft?.y || 0,
-                    block.ownOptions.cornerBottomRight?.y || 0
+                    block.getOptionCurrentVal('cornerTopLeft')?.y || 0,
+                    block.getOptionCurrentVal('cornerTopRight')?.y || 0,
+                    block.getOptionCurrentVal('cornerBottomLeft')?.y || 0,
+                    block.getOptionCurrentVal('cornerBottomRight')?.y || 0
                 ),
             }
         )
@@ -664,7 +681,7 @@ export class Canvas {
                                 x: this.currentPosition.x - beforeX,
                                 y: 0,
                             })
-                            block.scale(scale)
+                            block.__scale(scale)
                         })
                         this.currentPosition.z *= scale
                     } else {
@@ -678,7 +695,7 @@ export class Canvas {
                                 x: this.currentPosition.x - beforeX,
                                 y: this.currentPosition.y - beforeY,
                             })
-                            block.scale(invScale)
+                            block.__scale(invScale)
                         })
 
                         this.currentPosition.z *= invScale
@@ -723,7 +740,7 @@ export class Canvas {
                                 x: beforeX - this.currentPosition.x,
                                 y: 0,
                             })
-                            block.scale(scale)
+                            block.__scale(scale)
                             this.currentPosition.z *= scale
                         } else {
                             this.currentPosition.x +=
@@ -738,7 +755,7 @@ export class Canvas {
                                 x: this.currentPosition.x - beforeX,
                                 y: this.currentPosition.y - beforeY,
                             })
-                            block.scale(invScale)
+                            block.__scale(invScale)
                             this.currentPosition.z *= invScale
                         }
                     })
@@ -849,7 +866,7 @@ export class Canvas {
 
     #setCanvasZoom() {
         this.invokeChange((block) => {
-            block.scale(this.currentPosition.z)
+            block.__scale(this.currentPosition.z)
         })
     }
 

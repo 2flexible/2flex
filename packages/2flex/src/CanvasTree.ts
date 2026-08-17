@@ -27,7 +27,7 @@ export class CanvasTree {
     }
 
     preOrderTraversal<T>(_func?: (node: T) => void) {
-        this.refreshNodes()
+        this.cleanNodes()
         this.head.listAllChilds((current: Node) => {
             if (current === this.head) return
             this.assignNodeId(current)
@@ -36,7 +36,7 @@ export class CanvasTree {
         })
     }
 
-    refreshNodes() {
+    cleanNodes() {
         this.nodes = []
     }
 

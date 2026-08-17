@@ -5,7 +5,6 @@ export class Node {
     parentNode?: Node
     nodeId?: NodeId
     childsCount: number
-    #sortedBy?: string
 
     constructor() {
         this.childNodes = []
@@ -13,13 +12,13 @@ export class Node {
     }
 
     addChild(...node: Node[]) {
+        const childsNodes = this.childNodes
         for (let i = 0; i < node.length; i++) {
-            if (!this.childNodes.includes(node[i])) {
+            if (!childsNodes.includes(node[i])) {
                 node[i].parentNode = this
-                this.childNodes.push(node[i])
+                childsNodes.push(node[i])
             }
         }
-        this.#sortedBy = undefined
     }
 
     listAllChilds<T>(_func: (node: T) => void) {
@@ -32,24 +31,12 @@ export class Node {
     }
 
     listOnlyChilds<B>(
-        _func: (node: B, currIdx: number, arrLen: number) => void,
-        sort?: string,
-        nodes?: Node[]
+        _func: (node: B, currIdx: number, arrLen: number) => void
     ) {
-        const sortedNodes = nodes || this.childNodes
-        if (sort && this.#sortedBy !== sort) {
-            sortedNodes.sort(
-                (a: any, b: any) => a.ownOptions[sort] - b.ownOptions[sort]
-            )
-            this.#sortedBy = sort
+        const childNodes = this.childNodes
+        for (let i = 0, len = childNodes.length; i < len; i++) {
+            _func(childNodes[i] as B, i, len)
         }
-        for (let i = 0, len = sortedNodes.length; i < len; i++) {
-            _func(sortedNodes[i] as B, i, sortedNodes.length)
-        }
-    }
-
-    resetSort() {
-        this.#sortedBy = undefined
     }
 
     removeChild(child: Node) {

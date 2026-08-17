@@ -13,22 +13,20 @@ import {
     fromRem,
     fromVH,
     fromVW,
-    radianToDegree,
-    bezierEasing,
     lerp,
-    linear,
-    steps,
     hexToRgba,
     colorToRgba,
     rgbaRepresenter,
     getPrototype,
     rotateCordinates,
-    inRange,
     namedColors,
     hslToRgba,
     rgbaToArray,
     clamp,
+    chooseBoxCursorInAgle,
+    easingHanndler,
 } from './Utils'
+import { initalXY, initialCorners, intiBoxCords } from './const'
 import type {
     CubicBezier,
     IBlock,
@@ -108,10 +106,16 @@ export type SelfType = 'self' | 'parent'
 
 export type MarginType =
     | [RelativeType, RelativeType, RelativeType, RelativeType]
+    | [RelativeType, RelativeType, RelativeType]
+    | [RelativeType, RelativeType]
+    | [RelativeType]
     | RelativeType
 
 export type PaddingType =
     | [RelativeType, RelativeType, RelativeType, RelativeType]
+    | [RelativeType, RelativeType, RelativeType]
+    | [RelativeType, RelativeType]
+    | [RelativeType]
     | RelativeType
 
 export interface IBlockOptions {
@@ -202,14 +206,6 @@ export interface IBlockOptions {
     cornerTopRight?: XY
     cornerBottomLeft?: XY
     cornerBottomRight?: XY
-    hotCornerTopLeft?: XY
-    hotCornerTopRight?: XY
-    hotCornerBottomLeft?: XY
-    hotCornerBottomRight?: XY
-    hotRotCornerTopLeft?: XY
-    hotRotCornerTopRight?: XY
-    hotRotCornerBottomLeft?: XY
-    hotRotCornerBottomRight?: XY
     rotatable?: boolean
     hotRotatableAreaTopLeft?: HotCornerArea
     hotRotatableAreaTopRight?: HotCornerArea
@@ -226,12 +222,16 @@ export interface IBlockOptions {
     onRender?: () => void
 }
 
-export interface BlockPayload {
+type BlockOptionKeys<T> = keyof IBlock<T>
+
+export type OptionsMap<T> = Map<keyof IBlock<T>, any>
+
+export interface BlockPayload<T> {
     nodeId: NodeId
     name: string
-    options: IBlockOptions
-    ownOptions: IBlockOptions
-    childs: BlockPayload[]
+    options: OptionsMap<T>
+    cacheOptions: OptionsMap<T>
+    childs: BlockPayload<any>[]
     additionalParams: any[]
 }
 
@@ -288,7 +288,6 @@ interface KeyframeIterations {
     [key: AnimationId]: KeyframeIterationConfigs &
         Required<{ [K in keyof KeyFrame]-?: KeyFrame[K] }>
 }
-type Flipped = { vertical: boolean; horizontal: boolean }
 
 export type Animator = (timestamp: number) => void
 export type CallbackAnimator = (timestamp: number, easing: number) => void
@@ -298,23 +297,11 @@ interface OverflowCords extends XY {
     height: number
 }
 
-interface OverflowInnerScrollCordinates extends HotCornerArea {}
-interface OverflowOuterScrollCordinates {
-    x: number
-    y: number
-    width: number
-    height: number
-}
-
-interface OverflowScrollBar {
-    block?: Block<any>
-    innerBarCordinates: OverflowInnerScrollCordinates
-    outerBarCordinates: OverflowOuterScrollCordinates
-}
-
 export const HOT_LINE_BLOCK_NAME = '__hot_line_hidden'
 
 export const OVERFLOW_SCROLL_BAR_BLOCK_NAME = '__overflow_scroll_bar_hidden'
+
+// these const values should be customizable options
 const OVERFLOW_SCROLL_BAR_MIN_SIZE = 15
 const OVERFLOW_AREA_GAP = 15
 const OVERFLOW_INNER_AREA_GAP = 3
@@ -326,8 +313,8 @@ export class Block<T = IBlockOptions> extends Node {
     declare childNodes: Block[]
 
     canvas?: Canvas
-    ownOptions: IBlock<T>
-    options: IBlock<T>
+    options: OptionsMap<T>
+    cacheOptions: OptionsMap<T>
 
     __hidden = false
     __bindOptions: BindOptions[]
@@ -335,7 +322,6 @@ export class Block<T = IBlockOptions> extends Node {
     __runningEvents: RunningEvents
     __events: BlockEvent
 
-    #rotationCorners: HotCornerArea
     __overflowCords: OverflowCords
 
     #keyframeIterations: KeyframeIterations
@@ -348,23 +334,26 @@ export class Block<T = IBlockOptions> extends Node {
 
     __childAdjustment?: (b: Block<T>) => void
 
-    #changedCache: {
-        [key: string]: { oldValue: any }
-    }
-
-    #overflowXscrollBar: OverflowScrollBar
-    #overflowYscrollBar: OverflowScrollBar
+    #overflowXscrollBarBlock?: Block<any>
+    #overflowYscrollBarBlock?: Block<any>
 
     #hotLineBlock?: Block<any>
+    #hotCornerCords: HotCornerArea
 
     #isZIndexPredefined: boolean
 
     #upperMostZIndex: number
+    #childsCount: number
+
+    __isHorizontalFlipped: boolean
+    __isVerticalFlipped: boolean
 
     constructor(options: IBlock<T>) {
         super()
-        this.options = { ...options }
-        this.ownOptions = { ...options }
+        this.options = new Map()
+        this.cacheOptions = new Map()
+        this.#buildOptions(options)
+
         this.__bindOptions = []
         this.__runningEvents = {
             drag: false,
@@ -374,77 +363,18 @@ export class Block<T = IBlockOptions> extends Node {
         }
         this.__events = {}
 
-        this.#changedCache = {}
+        this.__overflowCords = intiBoxCords
 
-        this.#rotationCorners = {
-            topLeft: { x: 0, y: 0 },
-            bottomLeft: { x: 0, y: 0 },
-            topRight: { x: 0, y: 0 },
-            bottomRight: { x: 0, y: 0 },
-        }
-        this.__overflowCords = {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-        }
-
-        this.#overflowXscrollBar = {
-            innerBarCordinates: {
-                topLeft: { x: 0, y: 0 },
-                bottomLeft: { x: 0, y: 0 },
-                topRight: { x: 0, y: 0 },
-                bottomRight: { x: 0, y: 0 },
-            },
-            outerBarCordinates: {
-                x: 0,
-                y: 0,
-                width: 0,
-                height: 0,
-            },
-        }
-
-        this.#overflowYscrollBar = {
-            innerBarCordinates: {
-                topLeft: { x: 0, y: 0 },
-                bottomLeft: { x: 0, y: 0 },
-                topRight: { x: 0, y: 0 },
-                bottomRight: { x: 0, y: 0 },
-            },
-            outerBarCordinates: {
-                x: 0,
-                y: 0,
-                width: 0,
-                height: 0,
-            },
-        }
-
+        this.#hotCornerCords = initialCorners
         this.__animations = []
         this.#keyframeIterations = {}
 
         this.#lastOrder = 0
-
         this.#isZIndexPredefined = false
-
         this.#upperMostZIndex = 0
-
-        this.setChangeCache('isVerticalFlipped', false)
-        this.setChangeCache('isHorizontalFlipped', false)
-
-        this.setChangeCache('clipWdith', 0)
-        this.setChangeCache('clipHeight', 0)
-        this.setChangeCache('clipX', 0)
-        this.setChangeCache('clipY', 0)
-
-        // permenant
-        this.setChangeCache('setInBound', false)
-
-        // In first paddings assignment need to change width and heights realtive to paddings
-        if (this.paddingLeft()) this.width(this.width() + this.paddingLeft())
-        if (this.paddingRight()) this.width(this.width() + this.paddingRight())
-        if (this.paddingTop()) this.height(this.height() + this.paddingTop())
-        if (this.paddingBottom())
-            this.height(this.height() + this.paddingBottom())
+        this.#childsCount = 0
+        this.__isHorizontalFlipped = false
+        this.__isVerticalFlipped = false
     }
 
     get context(): CanvasRenderingContext2D | undefined | null {
@@ -452,15 +382,19 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     render() {
-        this.position()
-
+                const currentRotate = this.getOptionCurrentVal('rotate') || 0
+        const cacheRotate = this.getOptionCacheVal('rotate') || 0
+        const diffR = currentRotate - cacheRotate
+        this.__updateCordinatesByRot(-cacheRotate)
+        this.__hasZIndexChanged()
         this.__childAdjustment?.(this)
-
-        this.__clippingPath()
+        this.__updateCordinates()
         this.__adjustChildBlocks()
-
+        this.__updateCordinatesByRot(cacheRotate + diffR)
+        this.__updateOptionsCache()
+        this.__clippingPath()
+        
         if (this.__isHidden) return
-
         this.context?.save()
         // need to clip child before restore if its exist
         this.__childClipping?.(this)
@@ -472,10 +406,489 @@ export class Block<T = IBlockOptions> extends Node {
         this.onRender()?.()
     }
 
-    name(opt?: string) {
-        return this.__valueHandler(opt, 'name', undefined)
+    __hasZIndexChanged() {
+        if (
+            this.getOptionCacheVal('zIndex') !==
+            this.getOptionCurrentVal('zIndex')
+        )
+            this.canvas?.refreshHead()
     }
 
+    __updateCordinates() {
+        this.__handleMarginChange()
+        this.__handlePaddingChange()
+
+        let currentX = this.getOptionCurrentVal('x')
+        let currentY = this.getOptionCurrentVal('y')
+        const cacheX = this.getOptionCacheVal('x')
+        const cacheY = this.getOptionCacheVal('y')
+
+        let currentWidth = this.getOptionCurrentVal('width')
+        let currentHeight = this.getOptionCurrentVal('height')
+        const cacheWidth = this.getOptionCacheVal('width')
+        const cacheHeight = this.getOptionCacheVal('height')
+
+        const minWidth = this.getOptionCurrentVal('minWidth')
+        const maxWidth = this.getOptionCurrentVal('maxWidth')
+        const minHeight = this.getOptionCurrentVal('minHeight')
+        const maxHeight = this.getOptionCurrentVal('maxHeight')
+
+        const rotationCenterX = this.getOptionCurrentVal('rotationCenterX')
+        const rotationCenterY = this.getOptionCurrentVal('rotationCenterY')
+
+        const position = this.getOptionCurrentVal('position')
+        const top = this.getOptionCurrentVal('top')
+        const bottom = this.getOptionCurrentVal('bottom')
+        const left = this.getOptionCurrentVal('left')
+        const right = this.getOptionCurrentVal('right')
+
+        const cornerTopLeftCache = this.getOptionCacheVal('cornerTopLeft')
+        const cornerTopRightCache = this.getOptionCacheVal('cornerTopRight')
+        const cornerBottomLeftCache = this.getOptionCacheVal('cornerBottomLeft')
+        const cornerBottomRightCache =
+            this.getOptionCacheVal('cornerBottomRight')
+        let cornerTopLeftCurrent = this.getOptionCurrentVal('cornerTopLeft')
+        let cornerTopRightCurrent = this.getOptionCurrentVal('cornerTopRight')
+        let cornerBottomLeftCurrent =
+            this.getOptionCurrentVal('cornerBottomLeft')
+        let cornerBottomRightCurrent =
+            this.getOptionCurrentVal('cornerBottomRight')
+
+        const diffScale =
+            this.getOptionCurrentVal('scale') - this.getOptionCacheVal('scale')
+
+        const diffPaddingTop =
+            this.getOptionCurrentVal('paddingTop') -
+            this.getOptionCacheVal('paddingTop')
+        const diffPaddingBottom =
+            this.getOptionCurrentVal('paddingBottom') -
+            this.getOptionCacheVal('paddingBottom')
+        const diffPaddingLeft =
+            this.getOptionCurrentVal('paddingLeft') -
+            this.getOptionCacheVal('paddingLeft')
+        const diffPaddingRight =
+            this.getOptionCurrentVal('paddingRight') -
+            this.getOptionCacheVal('paddingRight')
+
+        if (diffPaddingRight || diffPaddingLeft)
+            currentWidth = currentWidth + diffPaddingRight + diffPaddingLeft
+        if (diffPaddingTop || diffPaddingBottom)
+            currentHeight = currentHeight + diffPaddingTop + diffPaddingBottom
+
+        if (diffScale) {
+            currentWidth *= diffScale
+            currentHeight *= diffScale
+        }
+
+        if (currentWidth < minWidth && !this.horizontalFlipResize())
+            currentWidth = minWidth
+        else if (currentWidth > maxWidth) currentWidth = maxWidth
+        if (currentHeight < minHeight && !this.verticalFlipResize())
+            currentHeight = minHeight
+        else if (currentHeight > maxHeight) currentHeight = maxHeight
+
+        if (position === 'fixed') {
+            if (top !== undefined) currentY = top
+            else if (bottom !== undefined)
+                currentY =
+                    Math.abs((this.canvas?.height || 1) - currentHeight) -
+                    bottom
+            if (left !== undefined) currentX = left
+            else if (right !== undefined)
+                currentX =
+                    Math.abs((this.canvas?.width || 1) - currentWidth) - right
+        } else if (position === 'sticky') {
+            if (top !== undefined && currentY < top) {
+                currentY = top
+            } else if (
+                bottom !== undefined &&
+                currentY + currentHeight > (this.canvas?.height || 1) - bottom
+            ) {
+                currentY =
+                    Math.abs((this.canvas?.height || 1) - currentHeight) -
+                    bottom
+            }
+            if (left !== undefined && currentX < left) {
+                currentX = left
+            } else if (
+                right !== undefined &&
+                currentX + currentWidth > (this.canvas?.width || 1) - right
+            ) {
+                currentX =
+                    Math.abs((this.canvas?.width || 1) - currentWidth) - right
+            }
+        } else if (position === 'absolute') {
+            if (left !== undefined) currentX = left
+            else if (right !== undefined)
+                currentX =
+                    Math.abs((this.canvas?.width || 1) - currentWidth) - right
+            if (top !== undefined) {
+                currentY = top
+            } else if (bottom !== undefined)
+                currentY =
+                    Math.abs((this.canvas?.height || 1) - currentHeight) -
+                    bottom
+        } else if (position === 'relative') {
+            if (left !== undefined) currentX = left
+            else if (right !== undefined) currentX = -right
+            if (top !== undefined) currentY = top
+            else if (bottom !== undefined) currentY = -bottom
+        }
+
+        const diffX = currentX - cacheX
+        const diffY = currentY - cacheY
+        const diffW = currentWidth - cacheWidth
+        const diffH = currentHeight - cacheHeight
+        const dX = diffX + diffW
+        const dY = diffY + diffH
+
+        cornerTopLeftCurrent = {
+            x: cornerTopLeftCurrent.x + diffX,
+            y: cornerTopLeftCurrent.y + diffY,
+        }
+        cornerTopRightCurrent = {
+            x: cornerTopRightCurrent.x + dX,
+            y: cornerTopRightCurrent.y + diffY,
+        }
+        cornerBottomLeftCurrent = {
+            x: cornerBottomLeftCurrent.x + diffX,
+            y: cornerBottomLeftCurrent.y + dY,
+        }
+        cornerBottomRightCurrent = {
+            x: cornerBottomRightCurrent.x + dX,
+            y: cornerBottomRightCurrent.y + dY,
+        }
+        const diffCornerTopLeft = {
+            x: cornerTopLeftCurrent.x - cornerTopLeftCache.x,
+            y: cornerTopLeftCurrent.y - cornerTopLeftCache.y,
+        }
+        const diffCornerTopRight = {
+            x: cornerTopRightCurrent.x - cornerTopRightCache.x,
+            y: cornerTopRightCurrent.y - cornerTopRightCache.y,
+        }
+        const diffCornerBottomLeft = {
+            x: cornerBottomLeftCurrent.x - cornerBottomLeftCache.x,
+            y: cornerBottomLeftCurrent.y - cornerBottomLeftCache.y,
+        }
+        const diffCornerBottomRight = {
+            x: cornerBottomRightCurrent.x - cornerBottomRightCache.x,
+            y: cornerBottomRightCurrent.y - cornerBottomRightCache.y,
+        }
+
+        const horizontalFlipped = this.__isHorizontalFlipped
+        const verticalFlipped = this.__isVerticalFlipped
+        if (
+            cornerTopLeftCurrent.x > cornerTopRightCurrent.x ||
+            cornerBottomLeftCurrent.x > cornerBottomRightCurrent.x
+        )
+            this.__isHorizontalFlipped = true
+        else this.__isHorizontalFlipped = false
+        if (
+            cornerTopLeftCurrent.y > cornerBottomLeftCurrent.y ||
+            cornerTopRightCurrent.y > cornerBottomRightCurrent.y
+        )
+            this.__isVerticalFlipped = true
+        else this.__isVerticalFlipped = false
+
+        if (
+            horizontalFlipped !== this.__isHorizontalFlipped ||
+            verticalFlipped !== this.__isVerticalFlipped
+        ) {
+            const hotAreaGap = this.hotAreaGap()
+            const topLeftCorner = {
+                x: cornerTopLeftCurrent.x - hotAreaGap,
+                y: cornerTopLeftCurrent.y - hotAreaGap,
+            }
+            const topRightCorner = {
+                x: cornerTopRightCurrent.x + hotAreaGap,
+                y: cornerTopRightCurrent.y - hotAreaGap,
+            }
+            const bottomLeftCorner = {
+                x: cornerBottomLeftCurrent.x - hotAreaGap,
+                y: cornerBottomLeftCurrent.y + hotAreaGap,
+            }
+            const bottomRightCorner = {
+                x: cornerBottomRightCurrent.x + hotAreaGap,
+                y: cornerBottomRightCurrent.y + hotAreaGap,
+            }
+            this.#initHorizontalHotLineArea(
+                topLeftCorner,
+                topRightCorner,
+                bottomLeftCorner,
+                bottomRightCorner
+            )
+        } else {
+            this.#updateAreaCords(
+                'hotResizableAreaTopLeft',
+                diffCornerTopLeft,
+                diffCornerTopLeft,
+                diffCornerTopLeft,
+                diffCornerTopLeft
+            )
+            this.#updateAreaCords(
+                'hotResizableAreaTopRight',
+                diffCornerTopRight,
+                diffCornerTopRight,
+                diffCornerTopRight,
+                diffCornerTopRight
+            )
+            this.#updateAreaCords(
+                'hotResizableAreaBottomLeft',
+                diffCornerBottomLeft,
+                diffCornerBottomLeft,
+                diffCornerBottomLeft,
+                diffCornerBottomLeft
+            )
+            this.#updateAreaCords(
+                'hotResizableAreaBottomRight',
+                diffCornerBottomRight,
+                diffCornerBottomRight,
+                diffCornerBottomRight,
+                diffCornerBottomRight
+            )
+            if (this.__isHorizontalFlipped) {
+                this.#updateAreaCords(
+                    'hotResizableAreaTop',
+                    diffCornerTopRight,
+                    diffCornerTopLeft,
+                    diffCornerTopRight,
+                    diffCornerTopLeft
+                )
+                this.#updateAreaCords(
+                    'hotResizableAreaBottom',
+                    diffCornerBottomRight,
+                    diffCornerBottomLeft,
+                    diffCornerBottomRight,
+                    diffCornerBottomLeft
+                )
+            } else {
+                this.#updateAreaCords(
+                    'hotResizableAreaTop',
+                    diffCornerTopLeft,
+                    diffCornerTopRight,
+                    diffCornerTopLeft,
+                    diffCornerTopRight
+                )
+                this.#updateAreaCords(
+                    'hotResizableAreaBottom',
+                    diffCornerBottomLeft,
+                    diffCornerBottomRight,
+                    diffCornerBottomLeft,
+                    diffCornerBottomRight
+                )
+            }
+            if (this.__isVerticalFlipped) {
+                this.#updateAreaCords(
+                    'hotResizableAreaLeft',
+                    diffCornerBottomLeft,
+                    diffCornerBottomLeft,
+                    diffCornerTopLeft,
+                    diffCornerTopLeft
+                )
+                this.#updateAreaCords(
+                    'hotResizableAreaRight',
+                    diffCornerBottomRight,
+                    diffCornerBottomRight,
+                    diffCornerTopRight,
+                    diffCornerTopRight
+                )
+            } else {
+                this.#updateAreaCords(
+                    'hotResizableAreaLeft',
+                    diffCornerTopLeft,
+                    diffCornerTopLeft,
+                    diffCornerBottomLeft,
+                    diffCornerBottomLeft
+                )
+                this.#updateAreaCords(
+                    'hotResizableAreaRight',
+                    diffCornerTopRight,
+                    diffCornerTopRight,
+                    diffCornerBottomRight,
+                    diffCornerBottomRight
+                )
+            }
+            this.#updateAreaCords(
+                'hotRotatableAreaTopLeft',
+                diffCornerTopLeft,
+                diffCornerTopLeft,
+                diffCornerTopLeft,
+                diffCornerTopLeft
+            )
+            this.#updateAreaCords(
+                'hotRotatableAreaTopRight',
+                diffCornerTopRight,
+                diffCornerTopRight,
+                diffCornerTopRight,
+                diffCornerTopRight
+            )
+            this.#updateAreaCords(
+                'hotRotatableAreaBottomLeft',
+                diffCornerBottomLeft,
+                diffCornerBottomLeft,
+                diffCornerBottomLeft,
+                diffCornerBottomLeft
+            )
+            this.#updateAreaCords(
+                'hotRotatableAreaBottomRight',
+                diffCornerBottomRight,
+                diffCornerBottomRight,
+                diffCornerBottomRight,
+                diffCornerBottomRight
+            )
+        }
+        this.setOptionCurrentVal(
+            'rotationCenterX',
+            rotationCenterX + diffX + diffW / 2
+        )
+        this.setOptionCurrentVal(
+            'rotationCenterY',
+            rotationCenterY + diffY + diffH / 2
+        )
+        this.#hotCornerCords = {
+            topLeft: cornerTopLeftCurrent,
+            topRight: cornerTopRightCurrent,
+            bottomLeft: cornerBottomLeftCurrent,
+            bottomRight: cornerBottomRightCurrent,
+        }
+        this.setOptionCurrentVal('x', currentX)
+        this.setOptionCurrentVal('y', currentY)
+        this.setOptionCurrentVal('width', currentWidth)
+        this.setOptionCurrentVal('height', currentHeight)
+        this.setOptionCurrentVal('cornerTopLeft', cornerTopLeftCurrent)
+        this.setOptionCurrentVal('cornerTopRight', cornerTopRightCurrent)
+        this.setOptionCurrentVal('cornerBottomLeft', cornerBottomLeftCurrent)
+        this.setOptionCurrentVal('cornerBottomRight', cornerBottomRightCurrent)
+    }
+    __updateOptionsCache() {
+        const options = this.options
+        const cacheOptions = this.cacheOptions
+        for (const [key, value] of options) {
+            cacheOptions.set(key, value)
+        }
+    }
+    #buildOptions(options: IBlock<T>) {
+        const ownOptions = this.options
+        for (const [key, value] of Object.entries(options)) {
+            ownOptions.set(key, value)
+        }
+    }
+    __handleMarginChange() {
+        const currentMargin = this.getOptionCurrentVal('margin') as MarginType
+        const cacheMargin = this.getOptionCacheVal('margin') as MarginType
+        if (currentMargin instanceof Array && cacheMargin instanceof Array) {
+            if (
+                currentMargin[0] !== cacheMargin[0] ||
+                currentMargin[1] !== cacheMargin[1] ||
+                currentMargin[2] !== cacheMargin[2] ||
+                currentMargin[3] !== cacheMargin[3]
+            )
+                this.#parseMargin(currentMargin)
+        } else if (currentMargin !== cacheMargin)
+            this.#parseMargin(currentMargin)
+    }
+    #parseMargin(margin: MarginType) {
+        if (typeof margin === 'number') {
+            this.marginTop(margin)
+            this.marginBottom(margin)
+            this.marginLeft(margin)
+            this.marginRight(margin)
+            return margin
+        }
+        if (margin[0] !== undefined) this.marginTop(margin[0])
+        switch (margin.length) {
+            case 1:
+                if (margin[0] !== undefined) {
+                    this.marginBottom(margin[0])
+                    this.marginLeft(margin[0])
+                    this.marginRight(margin[0])
+                }
+                break
+            case 2:
+                if (margin[0] !== undefined) this.marginBottom(margin[0])
+                if (margin[1] !== undefined) {
+                    this.marginLeft(margin[1])
+                    this.marginRight(margin[1])
+                }
+                break
+            case 3:
+                if (margin[1] !== undefined) {
+                    this.marginLeft(margin[1])
+                    this.marginRight(margin[1])
+                }
+                if (margin[2] !== undefined) this.marginBottom(margin[2])
+                break
+            case 4:
+                if (margin[1] !== undefined) this.marginRight(margin[1])
+                if (margin[2] !== undefined) this.marginBottom(margin[2])
+                if (margin[3] !== undefined) this.marginLeft(margin[3])
+                break
+        }
+    }
+    __handlePaddingChange() {
+        const currentPadding = this.getOptionCurrentVal(
+            'padding'
+        ) as PaddingType
+        const cachePadding = this.getOptionCacheVal('padding') as PaddingType
+        if (currentPadding instanceof Array && cachePadding instanceof Array) {
+            if (
+                currentPadding[0] !== cachePadding[0] ||
+                currentPadding[1] !== cachePadding[1] ||
+                currentPadding[2] !== cachePadding[2] ||
+                currentPadding[3] !== cachePadding[3]
+            )
+                this.#parsePadding(currentPadding)
+        } else if (currentPadding !== cachePadding)
+            this.#parsePadding(currentPadding)
+    }
+    #parsePadding(padding: PaddingType) {
+        if (typeof padding === 'number') {
+            this.paddingTop(padding)
+            this.paddingBottom(padding)
+            this.paddingLeft(padding)
+            this.paddingRight(padding)
+            return padding
+        }
+        this.paddingTop(padding[0] || 0)
+        switch (padding.length) {
+            case 1:
+                this.paddingBottom(padding[0])
+                this.paddingLeft(padding[0])
+                this.paddingRight(padding[0])
+                break
+            case 2:
+                this.paddingBottom(padding[0])
+                this.paddingLeft(padding[1])
+                this.paddingRight(padding[1])
+                break
+            case 3:
+                this.paddingLeft(padding[1])
+                this.paddingRight(padding[1])
+                this.paddingBottom(padding[2])
+                break
+            case 4:
+                this.paddingRight(padding[1])
+                this.paddingBottom(padding[2])
+                this.paddingLeft(padding[3])
+                break
+        }
+    }
+
+    getOptionCacheVal(key: string) {
+        return this.cacheOptions.get(key)
+    }
+    getOptionCurrentVal(key: BlockOptionKeys<T>) {
+        return this.options.get(key)
+    }
+    setOptionCacheVal(key: BlockOptionKeys<T>, value: any) {
+        this.cacheOptions.set(key, value)
+    }
+    setOptionCurrentVal(key: BlockOptionKeys<T>, value: any) {
+        this.options.set(key, value)
+    }
+    name(opt?: string) {
+        return this.__cacheOption(opt, 'name', undefined)
+    }
     onRender(opt?: () => void) {
         const renderFunc = this.__valueHandler<
             () => void,
@@ -500,65 +913,23 @@ export class Block<T = IBlockOptions> extends Node {
         if (this.__isOverflowXScroll || this.__isOverflowXAuto)
             this.__overflowXScrollBar()
         else {
-            if (this.#overflowXscrollBar.block)
-                this.removeChild(this.#overflowXscrollBar.block)
-            this.#overflowXscrollBar.block = undefined
+            if (this.#overflowXscrollBarBlock)
+                this.removeChild(this.#overflowXscrollBarBlock)
+            this.#overflowXscrollBarBlock = undefined
         }
 
         if (this.__isOverflowYScroll || this.__isOverflowYAuto)
             this.__overflowYScrollBar()
         else {
-            if (this.#overflowYscrollBar.block)
-                this.removeChild(this.#overflowYscrollBar.block)
-            this.#overflowYscrollBar.block = undefined
+            if (this.#overflowYscrollBarBlock)
+                this.removeChild(this.#overflowYscrollBarBlock)
+            this.#overflowYscrollBarBlock = undefined
         }
     }
-
-    __updateOverflowXCords() {
-        const width = Math.abs(this.width())
-        const currentWidth = width + this.__overflowCords.width
-
-        const areaWidth = clamp(
-            currentWidth,
-            OVERFLOW_SCROLL_BAR_MIN_SIZE,
-            width
-        )
-
-        //  while inner scroll bar in minimum width need to calculate correct cordiantes
-        let xPer = 1
-        if (currentWidth < 0) {
-            xPer = this.__overflowCords.width / -(width - areaWidth)
-        }
-        const topLeftX = this.__getLeft.x - this.__overflowCords.x / xPer
-        const topLeftY =
-            this.__getBottom.y - OVERFLOW_AREA_GAP + OVERFLOW_INNER_AREA_GAP
-
-        const topRightX =
-            this.__getLeft.x - this.__overflowCords.x / xPer + areaWidth
-
-        const bottomRightY =
-            this.__getBottom.y -
-            OVERFLOW_AREA_GAP +
-            OVERFLOW_INNER_AREA_GAP +
-            OVERFLOW_INNER_AREA_SIZE
-
-        this.#overflowXscrollBar.innerBarCordinates.topLeft.x = topLeftX
-        this.#overflowXscrollBar.innerBarCordinates.topLeft.y = topLeftY
-
-        this.#overflowXscrollBar.innerBarCordinates.topRight.x = topRightX
-        this.#overflowXscrollBar.innerBarCordinates.topRight.y = topLeftY
-
-        this.#overflowXscrollBar.innerBarCordinates.bottomLeft.x = topLeftX
-        this.#overflowXscrollBar.innerBarCordinates.bottomLeft.y = bottomRightY
-
-        this.#overflowXscrollBar.innerBarCordinates.bottomRight.x = topRightX
-        this.#overflowXscrollBar.innerBarCordinates.bottomRight.y = bottomRightY
-    }
-
     __overflowXScrollBar() {
-        if (!this.#overflowXscrollBar.block) {
+        if (!this.#overflowXscrollBarBlock) {
             // Intilizating overflow block and its realted cordinates
-            this.#overflowXscrollBar.block = new Block({
+            this.#overflowXscrollBarBlock = new Block({
                 name: OVERFLOW_SCROLL_BAR_BLOCK_NAME,
                 width: this.width(),
                 height: OVERFLOW_AREA_GAP,
@@ -568,87 +939,83 @@ export class Block<T = IBlockOptions> extends Node {
                 selectable: true,
                 // Showing overflow scroll bar block on top of the child blocks
                 zIndex: 1 + this.#upperMostZIndex,
+                rotationCenterX: this.rotationCenterX(),
+                rotationCenterY: this.rotationCenterY(),
+                rotate: this.rotate(),
                 hotLines: false,
             })
-            this.__updateOverflowXCords()
-            this.#overflowXscrollBar.outerBarCordinates.x = this.__getLeft.x
-            this.#overflowXscrollBar.outerBarCordinates.y =
-                this.__getBottom.y - OVERFLOW_AREA_GAP
-            this.#overflowXscrollBar.outerBarCordinates.width = this.width()
-            this.#overflowXscrollBar.outerBarCordinates.height =
-                this.height() < OVERFLOW_AREA_GAP
-                    ? this.height()
-                    : OVERFLOW_AREA_GAP
-
             // moving overflow scrollbar
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
             const mousedown = (event: MouseEvent) => {
+                const cornerTopLeft =
+                    this.#overflowXscrollBarBlock?.cornerTopLeft()!
+                const cornerTopRight =
+                    this.#overflowXscrollBarBlock?.cornerTopRight()!
+                const cornerBottomLeft =
+                    this.#overflowXscrollBarBlock?.cornerBottomLeft()!
+                const cornerBottomRight =
+                    this.#overflowXscrollBarBlock?.cornerBottomRight()!
                 initCords =
-                    this.#overflowXscrollBar.block?.canvas?.getCursorPosition(
+                    this.#overflowXscrollBarBlock?.canvas?.getCursorPosition(
                         event
-                    ) || {
-                        x: 0,
-                        y: 0,
-                    }
+                    )!
                 if (
                     checkInBound(
                         initCords.x,
                         initCords.y,
-                        this.#overflowXscrollBar.innerBarCordinates.topLeft.x,
-                        this.#overflowXscrollBar.innerBarCordinates.topLeft.y,
-                        this.#overflowXscrollBar.innerBarCordinates.topRight.x,
-                        this.#overflowXscrollBar.innerBarCordinates.topRight.y,
-                        this.#overflowXscrollBar.innerBarCordinates.bottomLeft
-                            .x,
-                        this.#overflowXscrollBar.innerBarCordinates.bottomLeft
-                            .y,
-                        this.#overflowXscrollBar.innerBarCordinates.bottomRight
-                            .x,
-                        this.#overflowXscrollBar.innerBarCordinates.bottomRight
-                            .y
-                    )
+                        cornerTopLeft.x,
+                        cornerTopLeft.y,
+                        cornerTopRight.x,
+                        cornerTopRight.y,
+                        cornerBottomLeft.x,
+                        cornerBottomLeft.y,
+                        cornerBottomRight.x,
+                        cornerBottomRight.y
+                    ) &&
+                    !(this.__isOverflowXAuto && this.__overflowCords.width > 0)
                 ) {
                     beforeCords = { x: 0, y: 0 }
-                    this.#overflowXscrollBar.block!.__runningEvents.drag = true
-                    this.#overflowXscrollBar.block!.registerZIndex({
-                        in: this.#overflowXscrollBar.block?.zIndex(),
+                    this.#overflowXscrollBarBlock!.__runningEvents.drag = true
+                    this.#overflowXscrollBarBlock!.registerZIndex({
+                        in: this.#overflowXscrollBarBlock?.zIndex(),
                     })
                     this.__runningEvents.resize = false
                     this.__runningEvents.drag = false
                     this.__runningEvents.rotate = false
                 } else
-                    this.#overflowXscrollBar.block!.registerZIndex({
-                        out: this.#overflowXscrollBar.block?.zIndex(),
+                    this.#overflowXscrollBarBlock!.registerZIndex({
+                        out: this.#overflowXscrollBarBlock?.zIndex(),
                     })
             }
 
             const mousemove = (event: MouseEvent) => {
                 const { x, y } =
-                    this.#overflowXscrollBar.block!.canvas?.getCursorPosition(
+                    this.#overflowXscrollBarBlock!.canvas?.getCursorPosition(
                         event
-                    ) || {
-                        x: 0,
-                        y: 0,
-                    }
+                    )!
+                const cornerTopLeft =
+                    this.#overflowXscrollBarBlock?.cornerTopLeft()!
+                const cornerTopRight =
+                    this.#overflowXscrollBarBlock?.cornerTopRight()!
+                const cornerBottomLeft =
+                    this.#overflowXscrollBarBlock?.cornerBottomLeft()!
+                const cornerBottomRight =
+                    this.#overflowXscrollBarBlock?.cornerBottomRight()!
                 // checking cursor cause resize area overlaps with the overflow area
                 if (
-                    !this.#overflowXscrollBar.block?.__runningEvents.drag &&
+                    !this.#overflowXscrollBarBlock?.__runningEvents.drag &&
                     checkInBound(
                         x,
                         y,
-                        this.#overflowXscrollBar.innerBarCordinates.topLeft.x,
-                        this.#overflowXscrollBar.innerBarCordinates.topLeft.y,
-                        this.#overflowXscrollBar.innerBarCordinates.topRight.x,
-                        this.#overflowXscrollBar.innerBarCordinates.topRight.y,
-                        this.#overflowXscrollBar.innerBarCordinates.bottomLeft
-                            .x,
-                        this.#overflowXscrollBar.innerBarCordinates.bottomLeft
-                            .y,
-                        this.#overflowXscrollBar.innerBarCordinates.bottomRight
-                            .x,
-                        this.#overflowXscrollBar.innerBarCordinates.bottomRight
-                            .y
+                        cornerTopLeft.x,
+                        cornerTopLeft.y,
+                        cornerTopRight.x,
+                        cornerTopRight.y,
+                        cornerBottomLeft.x,
+                        cornerBottomLeft.y,
+                        cornerBottomRight.x,
+                        cornerBottomRight.y
                     ) &&
                     !(this.__isOverflowXAuto && this.__overflowCords.width > 0)
                 ) {
@@ -656,13 +1023,13 @@ export class Block<T = IBlockOptions> extends Node {
                 }
 
                 if (
-                    this.#overflowXscrollBar.block?.__runningEvents.drag &&
+                    this.#overflowXscrollBarBlock?.__runningEvents.drag &&
                     this.__isOverflowXScrollable
                 ) {
-                    this.#overflowXscrollBar.block?.registerZIndex({
-                        in: this.#overflowXscrollBar.block?.zIndex(),
+                    this.#overflowXscrollBarBlock?.registerZIndex({
+                        in: this.#overflowXscrollBarBlock?.zIndex(),
                     })
-                    if (this.#overflowXscrollBar.block?.ImFirst) {
+                    if (this.#overflowXscrollBarBlock?.ImFirst) {
                         let diffX = x - initCords.x
                         let diffY = y - initCords.y
 
@@ -690,127 +1057,106 @@ export class Block<T = IBlockOptions> extends Node {
                             })
                             beforeCords.x = diffX
                             beforeCords.y = diffY
-                            this.#overflowXscrollBar.block?.invokeChange()
+                            this.#overflowXscrollBarBlock?.invokeChange()
                         }
                     }
                 }
             }
             const mouseup = () => {
-                if (this.#overflowXscrollBar.block!.__runningEvents.drag) {
-                    this.#overflowXscrollBar.block!.__runningEvents.drag = false
-                    this.#overflowXscrollBar.block?.registerZIndex({
-                        out: this.#overflowXscrollBar.block?.zIndex(),
+                if (this.#overflowXscrollBarBlock!.__runningEvents.drag) {
+                    this.#overflowXscrollBarBlock!.__runningEvents.drag = false
+                    this.#overflowXscrollBarBlock?.registerZIndex({
+                        out: this.#overflowXscrollBarBlock?.zIndex(),
                     })
-                    this.#overflowXscrollBar.block?.invokeChange()
+                    this.#overflowXscrollBarBlock?.invokeChange()
                 }
             }
-            this.#overflowXscrollBar.block.eventHandler<MouseEvent>(
+            this.#overflowXscrollBarBlock.eventHandler<MouseEvent>(
                 'mousedown',
                 mousedown,
                 'overflowMouseDown'
             )
 
-            this.#overflowXscrollBar.block.eventHandler<MouseEvent>(
+            this.#overflowXscrollBarBlock.eventHandler<MouseEvent>(
                 'mousemove',
                 mousemove,
                 'overflowMouseMove'
             )
-            this.#overflowXscrollBar.block.eventHandler<MouseEvent>(
+            this.#overflowXscrollBarBlock.eventHandler<MouseEvent>(
                 'mouseup',
                 mouseup,
                 'overflowMouseUp'
             )
-            this.#overflowXscrollBar.block.onRender(() => {
+            this.#overflowXscrollBarBlock.onRender(() => {
                 if (
                     (this.__isOverflowXAuto &&
                         this.__overflowCords.width > 0) ||
-                    !this.#overflowXscrollBar.block
+                    !this.#overflowXscrollBarBlock
                 )
                     return
 
+                const width = Math.abs(this.width())
                 const areaWidth = clamp(
-                    Math.abs(this.width()) + this.__overflowCords.width,
+                    Math.abs(width) + this.__overflowCords.width,
                     OVERFLOW_SCROLL_BAR_MIN_SIZE,
-                    Math.abs(this.width())
+                    Math.abs(width)
                 )
+                const currentWidth = width + this.__overflowCords.width
 
-                const topleft = rotateCordinates(
-                    this.#overflowXscrollBar.innerBarCordinates.topLeft.x,
-                    this.#overflowXscrollBar.innerBarCordinates.topLeft.y,
-                    this.__getRealCenterX,
-                    this.__getRealCenterY,
+                //  while inner scroll bar in minimum width need to calculate correct cordiantes
+                let xPer = 1
+                if (currentWidth < 0) {
+                    xPer = this.__overflowCords.width / -(width - areaWidth)
+                }
+                let bottomLeftCorner = this.cornerBottomLeft()
+                bottomLeftCorner = this.__rotateCorners(
+                    bottomLeftCorner.x,
+                    bottomLeftCorner.y,
                     -this.rotate()
                 )
+                const innerCordX =
+                    bottomLeftCorner.x - this.__overflowCords.x / xPer
+                const innerCordY =
+                    bottomLeftCorner.y -
+                    OVERFLOW_AREA_GAP +
+                    OVERFLOW_INNER_AREA_GAP
 
                 this.#buildOverflowScrollAreaBar(
-                    this.#overflowXscrollBar.block!,
-                    this.#overflowXscrollBar.outerBarCordinates.x,
-                    this.#overflowXscrollBar.outerBarCordinates.y,
-                    this.#overflowXscrollBar.outerBarCordinates.width,
-                    this.#overflowXscrollBar.outerBarCordinates.height,
-                    topleft.x,
-                    topleft.y,
+                    this.#overflowXscrollBarBlock!,
+                    this.#overflowXscrollBarBlock!.x(),
+                    this.#overflowXscrollBarBlock!.y(),
+                    this.#overflowXscrollBarBlock!.width(),
+                    this.#overflowXscrollBarBlock!.height(),
+                    innerCordX,
+                    innerCordY,
                     areaWidth,
                     OVERFLOW_INNER_AREA_SIZE,
                     OVERFLOW_INNER_AREA_RADIUS
                 )
             })
-            this.addChild(this.#overflowXscrollBar.block)
+            this.addChild(this.#overflowXscrollBarBlock)
         } else {
-            this.#overflowXscrollBar.block.rotationCenterX(
-                this.__getRealCenterX
+            this.#overflowXscrollBarBlock.rotationCenterX(
+                this.rotationCenterX()
             )
-            this.#overflowXscrollBar.block.rotationCenterY(
-                this.__getRealCenterY
+            this.#overflowXscrollBarBlock.rotationCenterY(
+                this.rotationCenterY()
             )
-            this.#overflowXscrollBar.block.rotate(this.rotate())
-            this.#overflowXscrollBar.block.left(this.x())
-            this.#overflowXscrollBar.block.top(
+            this.#overflowXscrollBarBlock.rotate(this.rotate())
+            this.#overflowXscrollBarBlock.left(this.x())
+            this.#overflowXscrollBarBlock.top(
                 this.y() + this.height() - OVERFLOW_AREA_GAP
             )
-            this.#overflowXscrollBar.block.width(this.width())
-            this.#overflowXscrollBar.block.height(OVERFLOW_AREA_GAP)
+            this.#overflowXscrollBarBlock.width(this.width())
+            this.#overflowXscrollBarBlock.height(OVERFLOW_AREA_GAP)
             // Showing overflow scroll bar block on top of the child blocks
-            this.#overflowXscrollBar.block.zIndex(1 + this.#upperMostZIndex)
+            this.#overflowXscrollBarBlock.zIndex(1 + this.#upperMostZIndex)
         }
-    }
-
-    __updateOverflowYCords() {
-        const height = Math.abs(this.height())
-        const currentHeight =
-            height +
-            (this.__overflowCords.height - this.#overflowScrollYHeightCut)
-        const areaHeight = clamp(
-            currentHeight,
-            OVERFLOW_SCROLL_BAR_MIN_SIZE,
-            height - this.#overflowScrollYHeightCut
-        )
-        let yPer = 1
-        if (currentHeight < 0) {
-            yPer =
-                this.__overflowCords.height /
-                -(height - areaHeight - this.#overflowScrollYHeightCut)
-        }
-        const topLeftX =
-            this.__getRight.x - OVERFLOW_AREA_GAP + OVERFLOW_INNER_AREA_GAP
-        const topLeftY = this.__getTop.y - this.__overflowCords.y / yPer
-
-        const topRightX = this.__getRight.x - OVERFLOW_INNER_AREA_GAP
-        const bottomRightY = topLeftY + areaHeight
-
-        this.#overflowYscrollBar.innerBarCordinates.topLeft.x = topLeftX
-        this.#overflowYscrollBar.innerBarCordinates.topLeft.y = topLeftY
-        this.#overflowYscrollBar.innerBarCordinates.topRight.x = topRightX
-        this.#overflowYscrollBar.innerBarCordinates.topRight.y = topLeftY
-        this.#overflowYscrollBar.innerBarCordinates.bottomLeft.x = topLeftX
-        this.#overflowYscrollBar.innerBarCordinates.bottomLeft.y = bottomRightY
-        this.#overflowYscrollBar.innerBarCordinates.bottomRight.x = topRightX
-        this.#overflowYscrollBar.innerBarCordinates.bottomRight.y = bottomRightY
     }
 
     __overflowYScrollBar() {
-        if (!this.#overflowYscrollBar.block) {
-            this.#overflowYscrollBar.block = new Block({
+        if (!this.#overflowYscrollBarBlock) {
+            this.#overflowYscrollBarBlock = new Block({
                 name: OVERFLOW_SCROLL_BAR_BLOCK_NAME,
                 width: OVERFLOW_AREA_GAP,
                 height: this.height() - this.#overflowScrollYHeightCut,
@@ -820,102 +1166,97 @@ export class Block<T = IBlockOptions> extends Node {
                 selectable: true,
                 // Showing overflow scroll bar block on top of the child blocks
                 zIndex: 1 + this.#upperMostZIndex,
+                rotationCenterX: this.rotationCenterX(),
+                rotationCenterY: this.rotationCenterY(),
+                rotate: this.rotate(),
                 hotLines: false,
             })
-            this.__updateOverflowYCords()
-            this.#overflowYscrollBar.outerBarCordinates.x =
-                this.__getRight.x - OVERFLOW_AREA_GAP
-            this.#overflowYscrollBar.outerBarCordinates.y = this.__getTop.y
-            this.#overflowYscrollBar.outerBarCordinates.width =
-                this.width() < OVERFLOW_AREA_GAP
-                    ? this.width()
-                    : OVERFLOW_AREA_GAP
-            this.#overflowYscrollBar.outerBarCordinates.height =
-                this.height() - this.#overflowScrollYHeightCut
 
             // moving overflow scrollbar
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
             const mousedown = (event: MouseEvent) => {
+                const cornerTopLeft =
+                    this.#overflowYscrollBarBlock?.cornerTopLeft()!
+                const cornerTopRight =
+                    this.#overflowYscrollBarBlock?.cornerTopRight()!
+                const cornerBottomLeft =
+                    this.#overflowYscrollBarBlock?.cornerBottomLeft()!
+                const cornerBottomRight =
+                    this.#overflowYscrollBarBlock?.cornerBottomRight()!
+
                 initCords =
-                    this.#overflowYscrollBar.block!.canvas?.getCursorPosition(
+                    this.#overflowYscrollBarBlock!.canvas?.getCursorPosition(
                         event
-                    ) || {
-                        x: 0,
-                        y: 0,
-                    }
+                    )!
                 if (
                     checkInBound(
                         initCords.x,
                         initCords.y,
-                        this.#overflowYscrollBar.innerBarCordinates.topLeft.x,
-                        this.#overflowYscrollBar.innerBarCordinates.topLeft.y,
-                        this.#overflowYscrollBar.innerBarCordinates.topRight.x,
-                        this.#overflowYscrollBar.innerBarCordinates.topRight.y,
-                        this.#overflowYscrollBar.innerBarCordinates.bottomLeft
-                            .x,
-                        this.#overflowYscrollBar.innerBarCordinates.bottomLeft
-                            .y,
-                        this.#overflowYscrollBar.innerBarCordinates.bottomRight
-                            .x,
-                        this.#overflowYscrollBar.innerBarCordinates.bottomRight
-                            .y
+                        cornerTopLeft.x,
+                        cornerTopLeft.y,
+                        cornerTopRight.x,
+                        cornerTopRight.y,
+                        cornerBottomLeft.x,
+                        cornerBottomLeft.y,
+                        cornerBottomRight.x,
+                        cornerBottomRight.y
                     ) &&
                     !(this.__isOverflowYAuto && this.__overflowCords.height > 0)
                 ) {
                     beforeCords = { x: 0, y: 0 }
-                    this.#overflowYscrollBar.block!.__runningEvents.drag = true
-                    this.#overflowYscrollBar.block!.registerZIndex({
-                        in: this.#overflowYscrollBar.block!.zIndex(),
+                    this.#overflowYscrollBarBlock!.__runningEvents.drag = true
+                    this.#overflowYscrollBarBlock!.registerZIndex({
+                        in: this.#overflowYscrollBarBlock!.zIndex(),
                     })
                     this.__runningEvents.resize = false
                     this.__runningEvents.drag = false
                     this.__runningEvents.rotate = false
                 } else
-                    this.#overflowYscrollBar.block!.registerZIndex({
-                        out: this.#overflowYscrollBar.block!.zIndex(),
+                    this.#overflowYscrollBarBlock!.registerZIndex({
+                        out: this.#overflowYscrollBarBlock!.zIndex(),
                     })
             }
             const mousemove = (event: MouseEvent) => {
                 const { x, y } =
-                    this.#overflowYscrollBar.block!.canvas?.getCursorPosition(
+                    this.#overflowYscrollBarBlock!.canvas?.getCursorPosition(
                         event
-                    ) || {
-                        x: 0,
-                        y: 0,
-                    }
-
+                    )!
+                const cornerTopLeft =
+                    this.#overflowYscrollBarBlock?.cornerTopLeft()!
+                const cornerTopRight =
+                    this.#overflowYscrollBarBlock?.cornerTopRight()!
+                const cornerBottomLeft =
+                    this.#overflowYscrollBarBlock?.cornerBottomLeft()!
+                const cornerBottomRight =
+                    this.#overflowYscrollBarBlock?.cornerBottomRight()!
                 // checking cursor cause resize area overlaps with the overflow area
                 if (
-                    !this.#overflowYscrollBar.block!.__runningEvents.drag &&
+                    !this.#overflowYscrollBarBlock!.__runningEvents.drag &&
                     checkInBound(
                         x,
                         y,
-                        this.#overflowYscrollBar.innerBarCordinates.topLeft.x,
-                        this.#overflowYscrollBar.innerBarCordinates.topLeft.y,
-                        this.#overflowYscrollBar.innerBarCordinates.topRight.x,
-                        this.#overflowYscrollBar.innerBarCordinates.topRight.y,
-                        this.#overflowYscrollBar.innerBarCordinates.bottomLeft
-                            .x,
-                        this.#overflowYscrollBar.innerBarCordinates.bottomLeft
-                            .y,
-                        this.#overflowYscrollBar.innerBarCordinates.bottomRight
-                            .x,
-                        this.#overflowYscrollBar.innerBarCordinates.bottomRight
-                            .y
+                        cornerTopLeft.x,
+                        cornerTopLeft.y,
+                        cornerTopRight.x,
+                        cornerTopRight.y,
+                        cornerBottomLeft.x,
+                        cornerBottomLeft.y,
+                        cornerBottomRight.x,
+                        cornerBottomRight.y
                     ) &&
                     !(this.__isOverflowYAuto && this.__overflowCords.height > 0)
                 ) {
                     this.canvas?.changeCursor('auto')
                 }
                 if (
-                    this.#overflowYscrollBar.block!.__runningEvents.drag &&
+                    this.#overflowYscrollBarBlock!.__runningEvents.drag &&
                     this.__isOverflowYScrollable
                 ) {
-                    this.#overflowYscrollBar.block!.registerZIndex({
-                        in: this.#overflowYscrollBar.block!.zIndex(),
+                    this.#overflowYscrollBarBlock!.registerZIndex({
+                        in: this.#overflowYscrollBarBlock!.zIndex(),
                     })
-                    if (this.#overflowYscrollBar.block!.ImFirst) {
+                    if (this.#overflowYscrollBarBlock!.ImFirst) {
                         let diffX = x - initCords.x
                         let diffY = y - initCords.y
 
@@ -943,91 +1284,107 @@ export class Block<T = IBlockOptions> extends Node {
                             })
                             beforeCords.x = diffX
                             beforeCords.y = diffY
-                            this.#overflowYscrollBar.block!.invokeChange()
+                            this.#overflowYscrollBarBlock!.invokeChange()
                         }
                     }
                 }
             }
             const mouseup = () => {
-                if (this.#overflowYscrollBar.block!.__runningEvents.drag) {
-                    this.#overflowYscrollBar.block!.__runningEvents.drag = false
-                    this.#overflowYscrollBar.block!.registerZIndex({
-                        out: this.#overflowYscrollBar.block!.zIndex(),
+                if (this.#overflowYscrollBarBlock!.__runningEvents.drag) {
+                    this.#overflowYscrollBarBlock!.__runningEvents.drag = false
+                    this.#overflowYscrollBarBlock!.registerZIndex({
+                        out: this.#overflowYscrollBarBlock!.zIndex(),
                     })
-                    this.#overflowYscrollBar.block!.invokeChange()
+                    this.#overflowYscrollBarBlock!.invokeChange()
                 }
             }
-            this.#overflowYscrollBar.block.eventHandler<MouseEvent>(
+            this.#overflowYscrollBarBlock.eventHandler<MouseEvent>(
                 'mousedown',
                 mousedown,
                 'overflowYMouseDown'
             )
-            this.#overflowYscrollBar.block.eventHandler<MouseEvent>(
+            this.#overflowYscrollBarBlock.eventHandler<MouseEvent>(
                 'mousemove',
                 mousemove,
                 'overflowYMouseMove'
             )
-            this.#overflowYscrollBar.block.eventHandler<MouseEvent>(
+            this.#overflowYscrollBarBlock.eventHandler<MouseEvent>(
                 'mouseup',
                 mouseup,
                 'overflowYMouseUp'
             )
-            this.#overflowYscrollBar.block.onRender(() => {
+            this.#overflowYscrollBarBlock.onRender(() => {
                 if (
                     (this.__isOverflowYAuto &&
                         this.__overflowCords.height > 0) ||
-                    !this.#overflowYscrollBar
+                    !this.#overflowYscrollBarBlock
                 )
                     return
-
+                const height = Math.abs(this.height())
                 const areaHeight = clamp(
-                    Math.abs(this.height()) +
+                    height +
                         (this.__overflowCords.height -
                             this.#overflowScrollYHeightCut),
                     OVERFLOW_SCROLL_BAR_MIN_SIZE,
-                    Math.abs(this.height()) - this.#overflowScrollYHeightCut
+                    height - this.#overflowScrollYHeightCut
                 )
+                const currentHeight =
+                    height +
+                    (this.__overflowCords.height -
+                        this.#overflowScrollYHeightCut)
+                //  while inner scroll bar in minimum width need to calculate correct cordiantes
+                let yPer = 1
+                if (currentHeight < 0) {
+                    yPer =
+                        this.__overflowCords.height /
+                        -(height - areaHeight - this.#overflowScrollYHeightCut)
+                }
 
-                const topleft = rotateCordinates(
-                    this.#overflowYscrollBar.innerBarCordinates.topLeft.x,
-                    this.#overflowYscrollBar.innerBarCordinates.topLeft.y,
-                    this.__getRealCenterX,
-                    this.__getRealCenterY,
+                let topRightCorner = this.cornerTopRight()
+                topRightCorner = this.__rotateCorners(
+                    topRightCorner.x,
+                    topRightCorner.y,
                     -this.rotate()
                 )
+                const innerCordX =
+                    topRightCorner.x -
+                    OVERFLOW_AREA_GAP +
+                    OVERFLOW_INNER_AREA_GAP
+                const innerCordY =
+                    topRightCorner.y - this.__overflowCords.y / yPer
 
                 this.#buildOverflowScrollAreaBar(
-                    this.#overflowYscrollBar.block!,
-                    this.#overflowYscrollBar.outerBarCordinates.x,
-                    this.#overflowYscrollBar.outerBarCordinates.y,
-                    this.#overflowYscrollBar.outerBarCordinates.width,
-                    this.#overflowYscrollBar.outerBarCordinates.height,
-                    topleft.x,
-                    topleft.y,
+                    this.#overflowYscrollBarBlock!,
+                    this.#overflowYscrollBarBlock!.x(),
+                    this.#overflowYscrollBarBlock!.y(),
+                    this.#overflowYscrollBarBlock!.width(),
+                    this.#overflowYscrollBarBlock!.height(),
+                    innerCordX,
+                    innerCordY,
                     OVERFLOW_INNER_AREA_SIZE,
                     areaHeight,
                     OVERFLOW_INNER_AREA_RADIUS
                 )
             })
-            this.addChild(this.#overflowYscrollBar.block)
+            this.addChild(this.#overflowYscrollBarBlock)
         } else {
-            this.#overflowYscrollBar.block.rotationCenterX(
-                this.__getRealCenterX
+            this.#overflowYscrollBarBlock.rotationCenterX(
+                this.rotationCenterX()
             )
-            this.#overflowYscrollBar.block.rotationCenterY(
-                this.__getRealCenterY
+            this.#overflowYscrollBarBlock.rotationCenterY(
+                this.rotationCenterY()
             )
-            this.#overflowYscrollBar.block.rotate(this.rotate())
-            this.#overflowYscrollBar.block.left(
+            this.#overflowYscrollBarBlock.rotate(this.rotate())
+            this.#overflowYscrollBarBlock.left(
                 this.x() + this.width() - OVERFLOW_AREA_GAP
             )
-            this.#overflowYscrollBar.block.top(this.y())
-            this.#overflowYscrollBar.block.width(OVERFLOW_AREA_GAP)
-            this.#overflowYscrollBar.block.height(
+            this.#overflowYscrollBarBlock.top(this.y())
+            this.#overflowYscrollBarBlock.width(OVERFLOW_AREA_GAP)
+            this.#overflowYscrollBarBlock.height(
                 this.height() - this.#overflowScrollYHeightCut
             )
             // Showing overflow scroll bar block on top of the child blocks
-            this.#overflowYscrollBar.block.zIndex(1 + this.#upperMostZIndex)
+            this.#overflowYscrollBarBlock.zIndex(1 + this.#upperMostZIndex)
         }
     }
 
@@ -1093,22 +1450,20 @@ export class Block<T = IBlockOptions> extends Node {
         this.__runningEvents.drag = false
         this.__runningEvents.rotate = false
         this.__runningEvents.resize = false
-        if (this.#overflowXscrollBar.block)
-            this.#overflowXscrollBar.block.__runningEvents.drag = false
-        if (this.#overflowYscrollBar.block)
-            this.#overflowYscrollBar.block.__runningEvents.drag = false
+        if (this.#overflowXscrollBarBlock)
+            this.#overflowXscrollBarBlock.__runningEvents.drag = false
+        if (this.#overflowYscrollBarBlock)
+            this.#overflowYscrollBarBlock.__runningEvents.drag = false
     }
 
     // Overrided default listing methods for filter out unwanted child classes
     listOnlyChilds<B>(
-        _func: (node: B, currIdx: number, arrLen: number) => void,
-        sort?: string,
-        nodes?: Node[]
+        _func: (node: B, currIdx: number, arrLen: number) => void
     ): void {
         // for correct array length need to extract additonall overflow blocks
         let arrLenExt = 0
-        if (this.#overflowXscrollBar.block) arrLenExt -= 1
-        if (this.#overflowYscrollBar.block) arrLenExt -= 1
+        if (this.#overflowXscrollBarBlock) arrLenExt -= 1
+        if (this.#overflowYscrollBarBlock) arrLenExt -= 1
         if (this.#hotLineBlock) arrLenExt -= 1
         const listingFunc = (node: B, currIdx: number, arrLen: number) => {
             if (
@@ -1118,7 +1473,7 @@ export class Block<T = IBlockOptions> extends Node {
                 _func(node, currIdx, arrLen + arrLenExt)
             }
         }
-        super.listOnlyChilds(listingFunc, sort, nodes)
+        super.listOnlyChilds(listingFunc)
     }
 
     listAllChilds<T>(_func: (node: T) => void): void {
@@ -1133,8 +1488,8 @@ export class Block<T = IBlockOptions> extends Node {
         super.listAllChilds(listingFunc)
     }
 
-    __generatePayload(): BlockPayload {
-        const childs: BlockPayload[] = []
+    __generatePayload(): BlockPayload<T> {
+        const childs: BlockPayload<any>[] = []
         this.listOnlyChilds((b: Block) => {
             childs.push(b.__generatePayload())
         })
@@ -1142,7 +1497,7 @@ export class Block<T = IBlockOptions> extends Node {
             nodeId: this.nodeId,
             name: this.constructor.name,
             options: this.options,
-            ownOptions: this.ownOptions,
+            cacheOptions: this.cacheOptions,
             childs: childs,
             additionalParams: [],
         }
@@ -1151,7 +1506,6 @@ export class Block<T = IBlockOptions> extends Node {
     addChild(...blocks: Block<any>[]): void {
         const exists = blocks.filter((r) => !this.childNodes.includes(r))
         if (exists.length === 0) return
-        this.setChangeCache('childNodes', this.childNodes.length)
         let before: any = {}
         before[this.nodeId!] = {
             childNodes: [...this.childNodes],
@@ -1215,8 +1569,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __findHighestChildZIndex() {
-        const cachedChildsCount = this.getCacheValue('childsCount')
-        if (cachedChildsCount !== this.childsCount) {
+        if (this.#childsCount !== this.childsCount) {
             this.#upperMostZIndex = this.zIndex() || 0
             this.listAllChilds((b: Block) => {
                 const bZIndex = b.zIndex()
@@ -1224,7 +1577,7 @@ export class Block<T = IBlockOptions> extends Node {
                     this.#upperMostZIndex = bZIndex
                 }
             })
-            this.setChangeCache('childsCount', this.childsCount)
+            this.#childsCount = this.childsCount
         }
     }
 
@@ -1232,29 +1585,18 @@ export class Block<T = IBlockOptions> extends Node {
         let blocks: Block[] = []
         this.listAllChilds((block: Block) => {
             for (const [k, v] of Object.entries(queries)) {
-                if (block.ownOptions[k] === v) blocks.push(block)
+                if (this.getOptionCurrentVal(k) === v) blocks.push(block)
             }
         })
         return blocks
     }
 
     __clippingPath() {
-        const left = this.__getLeft.x + this.__leftSpace
-        const right = this.__getRealWidth - this.__widthSpaces
-        const top = this.__getTop.y + this.__topSpace
-        const bottom = this.__getRealHeight - this.__heightSpaces
-        if (
-            !this.__isOverflowVisible &&
-            (this.optionHasChanged('clipX', left) ||
-                this.optionHasChanged('clipY', top) ||
-                this.optionHasChanged('clipWdith', right) ||
-                this.optionHasChanged('clipHeight', bottom))
-        ) {
+        if (!this.__isOverflowVisible) {
             this.__clipPath = new Path2D()
             this.__clipShape()
         }
     }
-
     __clipShape() {
         this.__clipPath?.rect(this.x(), this.y(), this.width(), this.height())
     }
@@ -1263,9 +1605,13 @@ export class Block<T = IBlockOptions> extends Node {
         if (!this.#hotLineBlock) {
             this.#hotLineBlock = new Block({
                 name: HOT_LINE_BLOCK_NAME,
-                width: this.width(),
-                height: this.height(),
+                x: this.x(),
+                y: this.y(),
+                width: Math.abs(this.width()),
+                height: Math.abs(this.height()),
                 rotate: this.rotate(),
+                rotationCenterX: this.rotationCenterX(),
+                rotationCenterY: this.rotationCenterY(),
                 zIndex:
                     1 +
                     this.#upperMostZIndex +
@@ -1287,162 +1633,93 @@ export class Block<T = IBlockOptions> extends Node {
                     const background = this.hotCornerBackgroundColor()
                     const lineWidth = this.hotLineStrokeWidth()
                     const lineColor = this.hotLineStrokeColor()
+
                     this.#hotLineBlock.context.save()
-                    this.#hotLineBlock!.context.setLineDash([])
-                    this.#hotLineBlock!.context.beginPath()
+                    this.context?.translate(
+                        this.rotationCenterX(),
+                        this.rotationCenterY()
+                    )
+                    this.context?.rotate(this.rotate())
+                    this.context?.translate(
+                        -this.rotationCenterX(),
+                        -this.rotationCenterY()
+                    )
+                    this.#hotLineBlock.context.setLineDash([])
+                    this.#hotLineBlock.context.beginPath()
 
                     // need to clip hot line area too
                     this.__childClipping?.(this)
 
-                    this.#hotLineBlock!.context.moveTo(
-                        this.hotCornerTopLeft().x,
-                        this.hotCornerTopLeft().y
+                    // Draw Lines first
+                    this.#hotLineBlock.context.moveTo(
+                        this.#hotCornerCords.topLeft.x,
+                        this.#hotCornerCords.topLeft.y
                     )
-                    if (!this.hotTopFunc()) {
-                        this.#hotLineBlock!.context.lineTo(
-                            this.hotCornerTopRight().x,
-                            this.hotCornerTopRight().y
-                        )
-                        this.#hotLineBlock!.context.lineWidth = lineWidth
-                        this.#hotLineBlock!.context.strokeStyle = lineColor
-                        this.#hotLineBlock!.context.stroke()
-                    } else this.hotTopFunc()?.(this.#hotLineBlock!.context)
-
-                    this.#hotLineBlock!.context.beginPath()
-                    this.#hotLineBlock!.context.moveTo(
-                        this.hotCornerTopLeft().x,
-                        this.hotCornerTopLeft().y
+                    this.#hotLineBlock.context.lineTo(
+                        this.#hotCornerCords.topRight.x,
+                        this.#hotCornerCords.topRight.y
                     )
-                    if (!this.hotLeftFunc()) {
-                        this.#hotLineBlock!.context.lineTo(
-                            this.hotCornerBottomLeft().x,
-                            this.hotCornerBottomLeft().y
-                        )
-                        this.#hotLineBlock!.context.lineWidth = lineWidth
-                        this.#hotLineBlock!.context.strokeStyle = lineColor
-                        this.#hotLineBlock!.context.stroke()
-                    } else this.hotLeftFunc()?.(this.#hotLineBlock!.context)
 
-                    this.#hotLineBlock!.context.beginPath()
-                    this.#hotLineBlock!.context.moveTo(
-                        this.hotCornerBottomLeft().x,
-                        this.hotCornerBottomLeft().y
+                    this.#hotLineBlock.context.lineTo(
+                        this.#hotCornerCords.bottomRight.x,
+                        this.#hotCornerCords.bottomRight.y
                     )
-                    if (!this.hotBottomFunc()) {
-                        this.#hotLineBlock!.context.lineTo(
-                            this.hotCornerBottomRight().x,
-                            this.hotCornerBottomRight().y
-                        )
-                        this.#hotLineBlock!.context.lineWidth = lineWidth
-                        this.#hotLineBlock!.context.strokeStyle = lineColor
-                        this.#hotLineBlock!.context.stroke()
-                    } else this.hotBottomFunc()?.(this.#hotLineBlock!.context)
-
-                    this.#hotLineBlock!.context.beginPath()
-                    this.#hotLineBlock!.context.moveTo(
-                        this.hotCornerBottomRight().x,
-                        this.hotCornerBottomRight().y
+                    this.#hotLineBlock.context.lineTo(
+                        this.#hotCornerCords.bottomLeft.x,
+                        this.#hotCornerCords.bottomLeft.y
                     )
-                    if (!this.hotRightFunc()) {
-                        this.#hotLineBlock!.context.lineTo(
-                            this.hotCornerTopRight().x,
-                            this.hotCornerTopRight().y
-                        )
-                        this.#hotLineBlock!.context.lineWidth = lineWidth
-                        this.#hotLineBlock!.context.strokeStyle = lineColor
-                        this.#hotLineBlock!.context.stroke()
-                    } else this.hotRightFunc()?.(this.#hotLineBlock!.context)
+                    this.#hotLineBlock.context.closePath()
+                    this.#hotLineBlock.context.lineWidth = lineWidth
+                    this.#hotLineBlock.context.strokeStyle = lineColor
+                    this.#hotLineBlock.context.stroke()
 
-                    this.#hotLineBlock!.context.beginPath()
-                    if (!this.hotCornerTopLeftFunc()) {
-                        this.#hotLineBlock!.context.roundRect(
-                            this.hotCornerTopLeft().x - size / 2,
-                            this.hotCornerTopLeft().y - size / 2,
-                            size,
-                            size,
-                            radius
-                        )
-                        this.#hotLineBlock!.context.lineWidth = strokeWidth
-                        this.#hotLineBlock!.context.strokeStyle = strokeColor
-                        this.#hotLineBlock!.context.fillStyle = background
-                        this.#hotLineBlock!.context.fill()
-                        this.#hotLineBlock!.context.stroke()
-                    } else {
-                        this.hotCornerTopLeftFunc()?.(
-                            this.#hotLineBlock!.context
-                        )
-                    }
-
-                    this.#hotLineBlock!.context.beginPath()
-                    if (!this.hotCornerTopRightFunc()) {
-                        this.#hotLineBlock!.context.roundRect(
-                            this.hotCornerTopRight().x - size / 2,
-                            this.hotCornerTopRight().y - size / 2,
-                            size,
-                            size,
-                            radius
-                        )
-                        this.#hotLineBlock!.context.lineWidth = strokeWidth
-                        this.#hotLineBlock!.context.strokeStyle = strokeColor
-                        this.#hotLineBlock!.context.fillStyle = background
-                        this.#hotLineBlock!.context.fill()
-                        this.#hotLineBlock!.context.stroke()
-                    } else {
-                        this.hotCornerTopRightFunc()?.(
-                            this.#hotLineBlock!.context
-                        )
-                    }
-
-                    this.#hotLineBlock!.context.beginPath()
-                    if (!this.hotCornerBottomLeftFunc()) {
-                        this.#hotLineBlock!.context.roundRect(
-                            this.hotCornerBottomLeft().x - size / 2,
-                            this.hotCornerBottomLeft().y - size / 2,
-                            size,
-                            size,
-                            radius
-                        )
-                        this.#hotLineBlock!.context.lineWidth = strokeWidth
-                        this.#hotLineBlock!.context.strokeStyle = strokeColor
-                        this.#hotLineBlock!.context.fillStyle = background
-                        this.#hotLineBlock!.context.fill()
-                        this.#hotLineBlock!.context.stroke()
-                    } else {
-                        this.hotCornerBottomLeftFunc()?.(
-                            this.#hotLineBlock!.context
-                        )
-                    }
-
-                    this.#hotLineBlock!.context.beginPath()
-                    if (!this.hotCornerBottomRightFunc()) {
-                        this.#hotLineBlock!.context.roundRect(
-                            this.hotCornerBottomRight().x - size / 2,
-                            this.hotCornerBottomRight().y - size / 2,
-                            size,
-                            size,
-                            radius
-                        )
-                        this.#hotLineBlock!.context.lineWidth = strokeWidth
-                        this.#hotLineBlock!.context.strokeStyle = strokeColor
-                        this.#hotLineBlock!.context.fillStyle = background
-                        this.#hotLineBlock!.context.fill()
-                        this.#hotLineBlock!.context.stroke()
-                    } else {
-                        this.hotCornerBottomRightFunc()?.(
-                            this.#hotLineBlock!.context
-                        )
-                    }
-
-                    this.#hotLineBlock!.context.restore()
+                    // Draw corner boxes
+                    this.#hotLineBlock.context.beginPath()
+                    this.#hotLineBlock.context.roundRect(
+                        this.#hotCornerCords.topLeft.x - size / 2,
+                        this.#hotCornerCords.topLeft.y - size / 2,
+                        size,
+                        size,
+                        radius
+                    )
+                    this.#hotLineBlock.context.roundRect(
+                        this.#hotCornerCords.topRight.x - size / 2,
+                        this.#hotCornerCords.topRight.y - size / 2,
+                        size,
+                        size,
+                        radius
+                    )
+                    this.#hotLineBlock.context.roundRect(
+                        this.#hotCornerCords.bottomLeft.x - size / 2,
+                        this.#hotCornerCords.bottomLeft.y - size / 2,
+                        size,
+                        size,
+                        radius
+                    )
+                    this.#hotLineBlock.context.roundRect(
+                        this.#hotCornerCords.bottomRight.x - size / 2,
+                        this.#hotCornerCords.bottomRight.y - size / 2,
+                        size,
+                        size,
+                        radius
+                    )
+                    this.#hotLineBlock.context.lineWidth = strokeWidth
+                    this.#hotLineBlock.context.strokeStyle = strokeColor
+                    this.#hotLineBlock.context.fillStyle = background
+                    this.#hotLineBlock.context.fill()
+                    this.#hotLineBlock.context.stroke()
+                    this.#hotLineBlock.context.restore()
                 }
             })
             this.addChild(this.#hotLineBlock)
         } else {
-            this.#hotLineBlock.rotationCenterX(this.__getRealCenterX)
-            this.#hotLineBlock.rotationCenterY(this.__getRealCenterY)
+            this.#hotLineBlock.rotationCenterX(this.rotationCenterX())
+            this.#hotLineBlock.rotationCenterY(this.rotationCenterY())
             this.#hotLineBlock.rotate(this.rotate())
-            this.#hotLineBlock.width(this.width())
-            this.#hotLineBlock.height(this.height())
+            this.#hotLineBlock.x(this.x())
+            this.#hotLineBlock.y(this.y())
+            this.#hotLineBlock.width(Math.abs(this.width()))
+            this.#hotLineBlock.height(Math.abs(this.height()))
             this.#hotLineBlock.zIndex(
                 1 + this.#upperMostZIndex + (this.__isOverflowExists ? 1 : 0)
             )
@@ -1454,10 +1731,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     __adjustChildBlocks(): void {
-        if (this.childNodes.length !== 0 || !this.useCacheAdjust) {
-            const cacheR = this.rotate()
-            this.rotate(0)
-
+        if (this.childsCount !== 0) {
             const pWidth = this.width()
             const pHeight = this.height()
 
@@ -1471,6 +1745,9 @@ export class Block<T = IBlockOptions> extends Node {
 
             const centerX = this.rotationCenterX()
             const centerY = this.rotationCenterY()
+
+            const pCurrentRotate = this.getOptionCurrentVal('rotate')
+            const pCacheRotate = this.getOptionCacheVal('rotate')
 
             const cornerLeftX = this.__getLeft.x
             const cornerTopY = this.__getTop.y
@@ -1488,8 +1765,6 @@ export class Block<T = IBlockOptions> extends Node {
                 const blockPosition = b.position()
                 if (blockPosition === 'absolute' || blockPosition === 'fixed')
                     return
-
-                b.rotate(0)
 
                 const blockMarginTop = b.marginTop()
                 const blockMarginBottom = b.marginBottom()
@@ -1600,19 +1875,18 @@ export class Block<T = IBlockOptions> extends Node {
                 ) {
                     blockH += pHeightSpaces - blockH
                 }
-
+                b.setOptionCurrentVal('rotate', pCurrentRotate)
+                b.setOptionCacheVal('rotate', pCacheRotate)
                 b.__childAdjustment = (b: Block) => {
                     b.hidden(this.hidden())
                     if (b.rotationCenter() === 'parent') {
                         b.rotationCenterX(centerX)
                         b.rotationCenterY(centerY)
                     }
-                    b.rotate(cacheR)
                     b.x(x)
                     b.y(y)
                     b.width(blockW)
                     b.height(blockH)
-
                     // parent block taking care all transformations of child block
                     b.__runningEvents.drag = false
                     b.__runningEvents.resize = false
@@ -1622,15 +1896,9 @@ export class Block<T = IBlockOptions> extends Node {
                 if (this.__clipPath || this.parentNode?.__clipPath) {
                     b.__childClipping = (b: Block) => {
                         // in rotate of partent clipping also need to be rotated
-                        b.context?.translate(
-                            this.__getRealCenterX,
-                            this.__getRealCenterY
-                        )
-                        b.context?.rotate(this.rotate())
-                        b.context?.translate(
-                            -this.__getRealCenterX,
-                            -this.__getRealCenterY
-                        )
+                        b.context?.translate(centerX, centerY)
+                        b.context?.rotate(pCurrentRotate)
+                        b.context?.translate(-centerX, -centerY)
                         // if parent clipping exists need to add another clip for it too
                         if (this.__clipPath!)
                             b.context?.clip(this.__clipPath!, 'nonzero')
@@ -1641,15 +1909,9 @@ export class Block<T = IBlockOptions> extends Node {
                             )
 
                         // after clip need to reset to its default rotation
-                        b.context?.translate(
-                            this.__getRealCenterX,
-                            this.__getRealCenterY
-                        )
-                        b.context?.rotate(-this.rotate())
-                        b.context?.translate(
-                            -this.__getRealCenterX,
-                            -this.__getRealCenterY
-                        )
+                        b.context?.translate(centerX, centerY)
+                        b.context?.rotate(-pCurrentRotate)
+                        b.context?.translate(-centerX, -centerY)
                     }
                 }
             })
@@ -1682,391 +1944,487 @@ export class Block<T = IBlockOptions> extends Node {
                     if (this.__overflowCords.y < 0)
                         this.__overflowCords.y += diffH
                     else this.__overflowCords.y = 0
-
-                if (this.#overflowXscrollBar.block)
-                    this.__updateOverflowXCords()
-                if (this.#overflowYscrollBar.block)
-                    this.__updateOverflowYCords()
             }
-
-            this.rotate(cacheR)
         }
-    }
-
-    get useCacheAdjust() {
-        if (
-            this.optionHasChanged('childNodes', this.childNodes.length) ||
-            this.optionHasChanged('x') ||
-            this.optionHasChanged('y') ||
-            this.optionHasChanged('width') ||
-            this.optionHasChanged('height') ||
-            this.optionHasChanged('minWidth') ||
-            this.optionHasChanged('minHeight') ||
-            this.optionHasChanged('maxWidth') ||
-            this.optionHasChanged('maxHeight') ||
-            this.optionHasChanged('zIndex') ||
-            this.optionHasChanged('paddingLeft') ||
-            this.optionHasChanged('paddingRight') ||
-            this.optionHasChanged('paddingBottom') ||
-            this.optionHasChanged('paddingTop') ||
-            this.optionHasChanged('marginLeft') ||
-            this.optionHasChanged('marginRight') ||
-            this.optionHasChanged('marginBottom') ||
-            this.optionHasChanged('marginTop') ||
-            this.optionHasChanged('rotationCenterX') ||
-            this.optionHasChanged('rotationCenterY') ||
-            this.optionHasChanged('rotate') ||
-            this.optionHasChanged('hidden')
-        )
-            return false
-        return true
     }
 
     __initCordinates() {
-        this.padding()
-        this.margin()
+        const padding = this.getOptionCurrentVal('padding')
+        const margin = this.getOptionCurrentVal('margin')
+        if (padding !== undefined) this.#parsePadding(padding)
+        if (margin !== undefined) this.#parseMargin(margin)
+        const x = this.x()
+        const y = this.y()
+        const scale = this.scale()
+        const width = this.width(
+            (this.width() + this.paddingLeft() + this.paddingRight()) * scale
+        )
+        const height = this.height(
+            (this.height() + this.paddingTop() + this.paddingBottom()) * scale
+        )
 
-        this.cornerTopLeft({
-            x: this.x(),
-            y: this.y(),
-        })
-        this.cornerTopRight({
-            x: this.x() + this.width(),
-            y: this.y(),
-        })
-        this.cornerBottomLeft({
-            x: this.x(),
-            y: this.y() + this.height(),
-        })
-        this.cornerBottomRight({
-            x: this.x() + this.width(),
-            y: this.y() + this.height(),
-        })
+        if (this.getOptionCurrentVal('cornerTopLeft') === undefined)
+            this.setOptionCurrentVal('cornerTopLeft', {
+                x: x,
+                y: y,
+            })
+        if (this.getOptionCurrentVal('cornerTopRight') === undefined)
+            this.setOptionCurrentVal('cornerTopRight', {
+                x: x + width,
+                y: y,
+            })
+        if (this.getOptionCurrentVal('cornerBottomLeft') === undefined)
+            this.setOptionCurrentVal('cornerBottomLeft', {
+                x: x,
+                y: y + height,
+            })
+        if (this.getOptionCurrentVal('cornerBottomRight') === undefined)
+            this.setOptionCurrentVal('cornerBottomRight', {
+                x: x + width,
+                y: y + height,
+            })
+        if (this.getOptionCurrentVal('rotationCenterX') === undefined)
+            this.setOptionCurrentVal('rotationCenterX', this.__getRealCenterX)
+        if (this.getOptionCurrentVal('rotationCenterY') === undefined)
+            this.setOptionCurrentVal('rotationCenterY', this.__getRealCenterY)
+        const hotAreaGap = this.hotAreaGap()
+        const topLeftCorner = {
+            x: this.cornerTopLeft().x - hotAreaGap,
+            y: this.cornerTopLeft().y - hotAreaGap,
+        }
+        const topRightCorner = {
+            x: this.cornerTopRight().x + hotAreaGap,
+            y: this.cornerTopRight().y - hotAreaGap,
+        }
+        const bottomLeftCorner = {
+            x: this.cornerBottomLeft().x - hotAreaGap,
+            y: this.cornerBottomLeft().y + hotAreaGap,
+        }
+        const bottomRightCorner = {
+            x: this.cornerBottomRight().x + hotAreaGap,
+            y: this.cornerBottomRight().y + hotAreaGap,
+        }
+        this.#initHorizontalHotLineArea(
+            topLeftCorner,
+            topRightCorner,
+            bottomLeftCorner,
+            bottomRightCorner
+        )
+        this.__updateOptionsCache()
+        this.__updateCordinatesByRot(this.rotate())
+    }
 
-        const centerX = this.__getRealCenterX
-        const centerY = this.__getRealCenterY
-
-        this.rotationCenterX(centerX)
-        this.rotationCenterY(centerY)
-
-        this.hotCornerTopLeft({
-            x: this.cornerTopLeft().x - this.hotAreaGap(),
-            y: this.cornerTopLeft().y - this.hotAreaGap(),
-        })
-        this.hotCornerTopRight({
-            x: this.cornerTopRight().x + this.hotAreaGap(),
-            y: this.cornerTopRight().y - this.hotAreaGap(),
-        })
-        this.hotCornerBottomLeft({
-            x: this.cornerBottomLeft().x - this.hotAreaGap(),
-            y: this.cornerBottomLeft().y + this.hotAreaGap(),
-        })
-        this.hotCornerBottomRight({
-            x: this.cornerBottomRight().x + this.hotAreaGap(),
-            y: this.cornerBottomRight().y + this.hotAreaGap(),
-        })
-
-        this.hotRotCornerTopLeft({
-            x: this.hotCornerTopLeft().x - this.hotAreaSize(),
-            y: this.hotCornerTopLeft().y - this.hotAreaSize(),
-        })
-        this.hotRotCornerTopRight({
-            x: this.hotCornerTopRight().x + this.hotAreaSize(),
-            y: this.hotCornerTopRight().y - this.hotAreaSize(),
-        })
-        this.hotRotCornerBottomLeft({
-            x: this.hotCornerBottomLeft().x - this.hotAreaSize(),
-            y: this.hotCornerBottomLeft().y + this.hotAreaSize(),
-        })
-        this.hotRotCornerBottomRight({
-            x: this.hotCornerBottomRight().x + this.hotAreaSize(),
-            y: this.hotCornerBottomRight().y + this.hotAreaSize(),
-        })
-
-        this.hotRotatableAreaTopLeft({
-            topLeft: {
-                x: this.hotRotCornerTopLeft().x,
-                y: this.hotRotCornerTopLeft().y,
-            },
-            topRight: {
-                x: this.hotRotCornerTopLeft().x + this.hotAreaSize(),
-                y: this.hotRotCornerTopLeft().y,
-            },
-            bottomLeft: {
-                x: this.hotRotCornerTopLeft().x,
-                y: this.hotRotCornerTopLeft().y + this.hotAreaSize(),
-            },
-            bottomRight: {
-                x: this.hotRotCornerTopLeft().x + this.hotAreaSize(),
-                y: this.hotRotCornerTopLeft().y + this.hotAreaSize(),
-            },
-        })
-        this.hotRotatableAreaTopRight({
-            topLeft: {
-                x: this.hotRotCornerTopRight().x - this.hotAreaSize(),
-                y: this.hotRotCornerTopRight().y,
-            },
-            topRight: {
-                x: this.hotRotCornerTopRight().x,
-                y: this.hotRotCornerTopRight().y,
-            },
-            bottomLeft: {
-                x: this.hotRotCornerTopRight().x - this.hotAreaSize(),
-                y: this.hotRotCornerTopRight().y + this.hotAreaSize(),
-            },
-            bottomRight: {
-                x: this.hotRotCornerTopRight().x,
-                y: this.hotRotCornerTopRight().y + this.hotAreaSize(),
-            },
-        })
-        this.hotRotatableAreaBottomLeft({
-            topLeft: {
-                x: this.hotRotCornerBottomLeft().x,
-                y: this.hotRotCornerBottomLeft().y - this.hotAreaSize(),
-            },
-            topRight: {
-                x: this.hotRotCornerBottomLeft().x + this.hotAreaSize(),
-                y: this.hotRotCornerBottomLeft().y - this.hotAreaSize(),
-            },
-            bottomLeft: {
-                x: this.hotRotCornerBottomLeft().x,
-                y: this.hotRotCornerBottomLeft().y,
-            },
-            bottomRight: {
-                x: this.hotRotCornerBottomLeft().x + this.hotAreaSize(),
-                y: this.hotRotCornerBottomLeft().y,
-            },
-        })
-        this.hotRotatableAreaBottomRight({
-            topLeft: {
-                x: this.hotRotCornerBottomRight().x - this.hotAreaSize(),
-                y: this.hotRotCornerBottomRight().y - this.hotAreaSize(),
-            },
-            topRight: {
-                x: this.hotRotCornerBottomRight().x,
-                y: this.hotRotCornerBottomRight().y - this.hotAreaSize(),
-            },
-            bottomLeft: {
-                x: this.hotRotCornerBottomRight().x - this.hotAreaSize(),
-                y: this.hotRotCornerBottomRight().y,
-            },
-            bottomRight: {
-                x: this.hotRotCornerBottomRight().x,
-                y: this.hotRotCornerBottomRight().y,
-            },
-        })
-
-        this.hotResizableAreaTopLeft({
-            topLeft: {
-                x: this.hotCornerTopLeft().x,
-                y: this.hotCornerTopLeft().y,
-            },
-            topRight: {
-                x: this.hotCornerTopLeft().x + this.hotAreaSize(),
-                y: this.hotCornerTopLeft().y,
-            },
-            bottomLeft: {
-                x: this.hotCornerTopLeft().x,
-                y: this.hotCornerTopLeft().y + this.hotAreaSize(),
-            },
-            bottomRight: {
-                x: this.hotCornerTopLeft().x + this.hotAreaSize(),
-                y: this.hotCornerTopLeft().y + this.hotAreaSize(),
-            },
-        })
-        this.hotResizableAreaTopRight({
-            topLeft: {
-                x: this.hotCornerTopRight().x - this.hotAreaSize(),
-                y: this.hotCornerTopRight().y,
-            },
-            topRight: {
-                x: this.hotCornerTopRight().x,
-                y: this.hotCornerTopRight().y,
-            },
-            bottomLeft: {
-                x: this.hotCornerTopRight().x - this.hotAreaSize(),
-                y: this.hotCornerTopRight().y + this.hotAreaSize(),
-            },
-            bottomRight: {
-                x: this.hotCornerTopRight().x,
-                y: this.hotCornerTopRight().y + this.hotAreaSize(),
-            },
-        })
-        this.hotResizableAreaBottomLeft({
-            topLeft: {
-                x: this.hotCornerBottomLeft().x,
-                y: this.hotCornerBottomLeft().y - this.hotAreaSize(),
-            },
-            topRight: {
-                x: this.hotCornerBottomLeft().x + this.hotAreaSize(),
-                y: this.hotCornerBottomLeft().y - this.hotAreaSize(),
-            },
-            bottomLeft: {
-                x: this.hotCornerBottomLeft().x,
-                y: this.hotCornerBottomLeft().y,
-            },
-            bottomRight: {
-                x: this.hotCornerBottomLeft().x + this.hotAreaSize(),
-                y: this.hotCornerBottomLeft().y,
-            },
-        })
-        this.hotResizableAreaBottomRight({
-            topLeft: {
-                x: this.hotCornerBottomRight().x - this.hotAreaSize(),
-                y: this.hotCornerBottomRight().y - this.hotAreaSize(),
-            },
-            topRight: {
-                x: this.hotCornerBottomRight().x,
-                y: this.hotCornerBottomRight().y - this.hotAreaSize(),
-            },
-            bottomLeft: {
-                x: this.hotCornerBottomRight().x - this.hotAreaSize(),
-                y: this.hotCornerBottomRight().y,
-            },
-            bottomRight: {
-                x: this.hotCornerBottomRight().x,
-                y: this.hotCornerBottomRight().y,
-            },
-        })
-        this.hotResizableAreaTop({
-            topLeft: {
-                x: this.hotCornerTopLeft().x + this.hotAreaSize(),
-                y: this.hotCornerTopLeft().y - this.hotAreaSize() / 2,
-            },
-            topRight: {
-                x: this.hotCornerTopRight().x - this.hotAreaSize(),
-                y: this.hotCornerTopRight().y - this.hotAreaSize() / 2,
-            },
-            bottomLeft: {
-                x: this.hotCornerTopLeft().x + this.hotAreaSize(),
-                y: this.hotCornerTopLeft().y + this.hotAreaSize() / 2,
-            },
-            bottomRight: {
-                x: this.hotCornerTopRight().x - this.hotAreaSize(),
-                y: this.hotCornerTopRight().y + this.hotAreaSize() / 2,
-            },
-        })
-        this.hotResizableAreaRight({
-            topLeft: {
-                x: this.hotCornerTopRight().x - this.hotAreaSize() / 2,
-                y: this.hotCornerTopRight().y + this.hotAreaSize(),
-            },
-            topRight: {
-                x: this.hotCornerTopRight().x + this.hotAreaSize() / 2,
-                y: this.hotCornerTopRight().y + this.hotAreaSize(),
-            },
-            bottomLeft: {
-                x: this.hotCornerBottomRight().x - this.hotAreaSize() / 2,
-                y: this.hotCornerBottomRight().y - this.hotAreaSize(),
-            },
-            bottomRight: {
-                x: this.hotCornerBottomRight().x + this.hotAreaSize() / 2,
-                y: this.hotCornerBottomRight().y - this.hotAreaSize(),
-            },
-        })
-        this.hotResizableAreaLeft({
-            topLeft: {
-                x: this.hotCornerTopLeft().x - this.hotAreaSize() / 2,
-                y: this.hotCornerTopLeft().y + this.hotAreaSize(),
-            },
-            topRight: {
-                x: this.hotCornerTopLeft().x + this.hotAreaSize() / 2,
-                y: this.hotCornerTopLeft().y + this.hotAreaSize(),
-            },
-            bottomLeft: {
-                x: this.hotCornerBottomLeft().x - this.hotAreaSize() / 2,
-                y: this.hotCornerBottomLeft().y - this.hotAreaSize(),
-            },
-            bottomRight: {
-                x: this.hotCornerBottomLeft().x + this.hotAreaSize() / 2,
-                y: this.hotCornerBottomLeft().y - this.hotAreaSize(),
-            },
-        })
-        this.hotResizableAreaBottom({
-            topLeft: {
-                x: this.hotCornerBottomLeft().x + this.hotAreaSize(),
-                y: this.hotCornerBottomLeft().y - this.hotAreaSize() / 2,
-            },
-            topRight: {
-                x: this.hotCornerBottomRight().x - this.hotAreaSize(),
-                y: this.hotCornerBottomRight().y - this.hotAreaSize() / 2,
-            },
-            bottomLeft: {
-                x: this.hotCornerBottomLeft().x + this.hotAreaSize(),
-                y: this.hotCornerBottomLeft().y + this.hotAreaSize() / 2,
-            },
-            bottomRight: {
-                x: this.hotCornerBottomRight().x - this.hotAreaSize(),
-                y: this.hotCornerBottomRight().y + this.hotAreaSize() / 2,
-            },
-        })
-
-        this.#rotationCorners = {
-            topLeft: { ...this.hotRotCornerTopLeft() },
-            bottomLeft: { ...this.hotRotCornerBottomLeft() },
-            topRight: { ...this.hotRotCornerTopRight() },
-            bottomRight: { ...this.hotRotCornerBottomRight() },
+    #initHorizontalHotLineArea(
+        topLeftCorner: XY,
+        topRightCorner: XY,
+        bottomLeftCorner: XY,
+        bottomRightCorner: XY
+    ) {
+        const hotAreaSize = this.hotAreaSize()
+        const hotResizableAreaTopLeft = (corner: XY) => {
+            return {
+                topLeft: {
+                    x: corner.x,
+                    y: corner.y,
+                },
+                topRight: {
+                    x: corner.x + hotAreaSize,
+                    y: corner.y,
+                },
+                bottomLeft: {
+                    x: corner.x,
+                    y: corner.y + hotAreaSize,
+                },
+                bottomRight: {
+                    x: corner.x + hotAreaSize,
+                    y: corner.y + hotAreaSize,
+                },
+            }
+        }
+        const hotResizableAreaTopRight = (corner: XY) => {
+            return {
+                topLeft: {
+                    x: corner.x - hotAreaSize,
+                    y: corner.y,
+                },
+                topRight: {
+                    x: corner.x,
+                    y: corner.y,
+                },
+                bottomLeft: {
+                    x: corner.x - hotAreaSize,
+                    y: corner.y + hotAreaSize,
+                },
+                bottomRight: {
+                    x: corner.x,
+                    y: corner.y + hotAreaSize,
+                },
+            }
+        }
+        const hotResizableAreaBottomLeft = (corner: XY) => {
+            return {
+                topLeft: {
+                    x: corner.x,
+                    y: corner.y - hotAreaSize,
+                },
+                topRight: {
+                    x: corner.x + hotAreaSize,
+                    y: corner.y - hotAreaSize,
+                },
+                bottomLeft: {
+                    x: corner.x,
+                    y: corner.y,
+                },
+                bottomRight: {
+                    x: corner.x + hotAreaSize,
+                    y: corner.y,
+                },
+            }
+        }
+        const hotResizableAreaBottomRight = (corner: XY) => {
+            return {
+                topLeft: {
+                    x: corner.x - hotAreaSize,
+                    y: corner.y - hotAreaSize,
+                },
+                topRight: {
+                    x: corner.x,
+                    y: corner.y - hotAreaSize,
+                },
+                bottomLeft: {
+                    x: corner.x - hotAreaSize,
+                    y: corner.y,
+                },
+                bottomRight: {
+                    x: corner.x,
+                    y: corner.y,
+                },
+            }
+        }
+        const hotResizableAreaVertical = (corner1: XY, corner2: XY) => {
+            return {
+                topLeft: {
+                    x: corner1.x + hotAreaSize,
+                    y: corner1.y - hotAreaSize / 2,
+                },
+                topRight: {
+                    x: corner2.x - hotAreaSize,
+                    y: corner2.y - hotAreaSize / 2,
+                },
+                bottomLeft: {
+                    x: corner1.x + hotAreaSize,
+                    y: corner1.y + hotAreaSize / 2,
+                },
+                bottomRight: {
+                    x: corner2.x - hotAreaSize,
+                    y: corner2.y + hotAreaSize / 2,
+                },
+            }
+        }
+        const hotResizableAreaHorizontal = (corner1: XY, corner2: XY) => {
+            return {
+                topLeft: {
+                    x: corner1.x - hotAreaSize / 2,
+                    y: corner1.y + hotAreaSize,
+                },
+                topRight: {
+                    x: corner1.x + hotAreaSize / 2,
+                    y: corner1.y + hotAreaSize,
+                },
+                bottomLeft: {
+                    x: corner2.x - hotAreaSize / 2,
+                    y: corner2.y - hotAreaSize,
+                },
+                bottomRight: {
+                    x: corner2.x + hotAreaSize / 2,
+                    y: corner2.y - hotAreaSize,
+                },
+            }
+        }
+        const hotRotatableAreaTopLeft = (corner: XY) => {
+            return {
+                topLeft: {
+                    x: corner.x - hotAreaSize,
+                    y: corner.y - hotAreaSize,
+                },
+                topRight: {
+                    x: corner.x,
+                    y: corner.y - hotAreaSize,
+                },
+                bottomLeft: {
+                    x: corner.x - hotAreaSize,
+                    y: corner.y,
+                },
+                bottomRight: {
+                    x: corner.x,
+                    y: corner.y,
+                },
+            }
+        }
+        const hotRotatableAreaTopRight = (corner: XY) => {
+            return {
+                topLeft: {
+                    x: corner.x,
+                    y: corner.y - hotAreaSize,
+                },
+                topRight: {
+                    x: corner.x + hotAreaSize,
+                    y: corner.y - hotAreaSize,
+                },
+                bottomLeft: {
+                    x: corner.x,
+                    y: corner.y,
+                },
+                bottomRight: {
+                    x: corner.x + hotAreaSize,
+                    y: corner.y,
+                },
+            }
+        }
+        const hotRotatableAreaBottomLeft = (corner: XY) => {
+            return {
+                topLeft: {
+                    x: corner.x - hotAreaSize,
+                    y: corner.y,
+                },
+                topRight: {
+                    x: corner.x,
+                    y: corner.y,
+                },
+                bottomLeft: {
+                    x: corner.x - hotAreaSize,
+                    y: corner.y + hotAreaSize,
+                },
+                bottomRight: {
+                    x: corner.x,
+                    y: corner.y + hotAreaSize,
+                },
+            }
+        }
+        const hotRotatableAreaBottomRight = (corner: XY) => {
+            return {
+                topLeft: {
+                    x: corner.x,
+                    y: corner.y,
+                },
+                topRight: {
+                    x: corner.x + hotAreaSize,
+                    y: corner.y,
+                },
+                bottomLeft: {
+                    x: corner.x,
+                    y: corner.y + hotAreaSize,
+                },
+                bottomRight: {
+                    x: corner.x + hotAreaSize,
+                    y: corner.y + hotAreaSize,
+                },
+            }
         }
 
-        this.#updateCornerByRot(this.rotate())
+        if (this.__isHorizontalFlipped && this.__isVerticalFlipped) {
+            this.setOptionCurrentVal(
+                'hotResizableAreaTopLeft',
+                hotResizableAreaBottomRight(topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaTopRight',
+                hotResizableAreaBottomLeft(topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottomLeft',
+                hotResizableAreaTopRight(bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottomRight',
+                hotResizableAreaTopLeft(bottomRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaTop',
+                hotResizableAreaVertical(topRightCorner, topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottom',
+                hotResizableAreaVertical(bottomRightCorner, bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaLeft',
+                hotResizableAreaHorizontal(bottomLeftCorner, topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaRight',
+                hotResizableAreaHorizontal(bottomRightCorner, topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaTopLeft',
+                hotRotatableAreaBottomRight(topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaTopRight',
+                hotRotatableAreaBottomLeft(topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaBottomLeft',
+                hotRotatableAreaTopRight(bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaBottomRight',
+                hotRotatableAreaTopLeft(bottomRightCorner)
+            )
+        } else if (this.__isHorizontalFlipped) {
+            this.setOptionCurrentVal(
+                'hotResizableAreaTopLeft',
+                hotResizableAreaTopRight(topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaTopRight',
+                hotResizableAreaTopLeft(topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottomLeft',
+                hotResizableAreaBottomRight(bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottomRight',
+                hotResizableAreaBottomLeft(bottomRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaTop',
+                hotResizableAreaVertical(topRightCorner, topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottom',
+                hotResizableAreaVertical(bottomRightCorner, bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaLeft',
+                hotResizableAreaHorizontal(topLeftCorner, bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaRight',
+                hotResizableAreaHorizontal(topRightCorner, bottomRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaTopLeft',
+                hotRotatableAreaTopRight(topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaTopRight',
+                hotRotatableAreaTopLeft(topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaBottomLeft',
+                hotRotatableAreaBottomRight(bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaBottomRight',
+                hotRotatableAreaBottomLeft(bottomRightCorner)
+            )
+        } else if (this.__isVerticalFlipped) {
+            this.setOptionCurrentVal(
+                'hotResizableAreaTopLeft',
+                hotResizableAreaBottomLeft(topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaTopRight',
+                hotResizableAreaBottomRight(topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottomLeft',
+                hotResizableAreaTopLeft(bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottomRight',
+                hotResizableAreaTopRight(bottomRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaTop',
+                hotResizableAreaVertical(topLeftCorner, topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottom',
+                hotResizableAreaVertical(bottomLeftCorner, bottomRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaLeft',
+                hotResizableAreaHorizontal(bottomLeftCorner, topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaRight',
+                hotResizableAreaHorizontal(bottomRightCorner, topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaTopLeft',
+                hotRotatableAreaBottomLeft(topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaTopRight',
+                hotRotatableAreaBottomRight(topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaBottomLeft',
+                hotRotatableAreaTopLeft(bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaBottomRight',
+                hotRotatableAreaTopRight(bottomRightCorner)
+            )
+        } else {
+            this.setOptionCurrentVal(
+                'hotResizableAreaTopLeft',
+                hotResizableAreaTopLeft(topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaTopRight',
+                hotResizableAreaTopRight(topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottomLeft',
+                hotResizableAreaBottomLeft(bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottomRight',
+                hotResizableAreaBottomRight(bottomRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaTop',
+                hotResizableAreaVertical(topLeftCorner, topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaBottom',
+                hotResizableAreaVertical(bottomLeftCorner, bottomRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaLeft',
+                hotResizableAreaHorizontal(topLeftCorner, bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotResizableAreaRight',
+                hotResizableAreaHorizontal(topRightCorner, bottomRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaTopLeft',
+                hotRotatableAreaTopLeft(topLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaTopRight',
+                hotRotatableAreaTopRight(topRightCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaBottomLeft',
+                hotRotatableAreaBottomLeft(bottomLeftCorner)
+            )
+            this.setOptionCurrentVal(
+                'hotRotatableAreaBottomRight',
+                hotRotatableAreaBottomRight(bottomRightCorner)
+            )
+        }
     }
 
     get __isHidden() {
         return this.hidden() || this.__hidden
     }
 
-    get __isHorizontalFlipped() {
-        if (!this.horizontalFlipResize()) return false
-
-        const topLeft = this.__rotateCorners(
-            this.cornerTopLeft().x,
-            this.cornerTopLeft().y,
-            -this.rotate()
-        )
-        const topRight = this.__rotateCorners(
-            this.cornerTopRight().x,
-            this.cornerTopRight().y,
-            -this.rotate()
-        )
-        const bottomLeft = this.__rotateCorners(
-            this.cornerBottomLeft().x,
-            this.cornerBottomLeft().y,
-            -this.rotate()
-        )
-        const bottomRight = this.__rotateCorners(
-            this.cornerBottomRight().x,
-            this.cornerBottomRight().y,
-            -this.rotate()
-        )
-        if (topLeft.x > topRight.x || bottomLeft.x > bottomRight.x) return true
-        return false
-    }
-    get __isVerticalFlipped() {
-        if (!this.verticalFlipResize()) return false
-
-        const topLeft = this.__rotateCorners(
-            this.cornerTopLeft().x,
-            this.cornerTopLeft().y,
-            -this.rotate()
-        )
-        const topRight = this.__rotateCorners(
-            this.cornerTopRight().x,
-            this.cornerTopRight().y,
-            -this.rotate()
-        )
-        const bottomLeft = this.__rotateCorners(
-            this.cornerBottomLeft().x,
-            this.cornerBottomLeft().y,
-            -this.rotate()
-        )
-        const bottomRight = this.__rotateCorners(
-            this.cornerBottomRight().x,
-            this.cornerBottomRight().y,
-            -this.rotate()
-        )
-        if (topLeft.y > bottomLeft.y || topRight.y > bottomRight.y) return true
-        return false
-    }
     __unitConverter<T, O>({
         val,
         widthRelated,
@@ -2183,196 +2541,37 @@ export class Block<T = IBlockOptions> extends Node {
         defaultOpt: O,
         widthRelated?: boolean
     ): O {
-        const important =
-            this.ownOptions.important?.[option] !== undefined
-                ? this.ownOptions.important?.[option]
-                : opt
-        const oldVal = this.ownOptions[option]
-        const cached = this.__cacheOption(important, option, defaultOpt)
+        const important = this.getOptionCurrentVal('important')?.[option]
         let val = this.__unitConverter<T, O>({
-            val: cached as any,
+            val: important !== undefined ? important : opt,
             widthRelated: widthRelated,
         })
-        this.setChangeCache(option, oldVal)
-        return val
+        return this.__cacheOption(val, option, defaultOpt)
     }
 
-    __cacheOption<T, O>(
-        opt: T,
-        option: keyof IBlock<IBlockOptions>,
-        defaultOpt: O
-    ) {
-        // @Todo: fix type issue over the generic readonly a.k.a (as any)
-        if (opt !== undefined) (this.ownOptions[option] as any) = opt
-        else if (this.ownOptions[option] === undefined)
-            (this.ownOptions[option] as any) = defaultOpt
-        return this.ownOptions[option]
-    }
-
-    setChangeCache(option: string, old?: any) {
-        this.#changedCache[option] = { oldValue: old }
-    }
-
-    getCacheValue(option: string) {
-        return this.#changedCache[option]?.oldValue
-    }
-
-    optionHasChanged(option: string, currentVal?: any) {
-        if (this.#changedCache[option]) {
-            if (Object.hasOwn(this.ownOptions, option))
-                currentVal = this.ownOptions[option]
-            const changed = this.#changedCache[option].oldValue !== currentVal
-            this.setChangeCache(option, currentVal)
-            return changed
+    __cacheOption<I, O>(opt: I, option: keyof IBlock<T>, defaultOpt: O) {
+        const value = this.getOptionCurrentVal(option)
+        if (opt !== undefined) {
+            this.setOptionCurrentVal(option, opt)
+            return opt
+        } else if (value === undefined) {
+            this.setOptionCurrentVal(option, defaultOpt)
+            return defaultOpt
         }
-        return false
-    }
-
-    get cacheChanges() {
-        return this.#changedCache
+        return value
     }
 
     x(opt?: RelativeType): number {
-        let cacheX = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.x || 0,
-            widthRelated: true,
-        })
-        const x = this.__valueHandler(opt, 'x', 0, true)
-        const diffX = x - cacheX
-        if (diffX !== 0) {
-            const cacheR = this.rotate()
-            this.rotate(0)
-            this.rotationCenterX(this.rotationCenterX() + diffX)
-            this.cornerTopLeft({
-                x: this.cornerTopLeft().x + diffX,
-                y: this.cornerTopLeft().y,
-            })
-            this.cornerTopRight({
-                x: this.cornerTopRight().x + diffX,
-                y: this.cornerTopRight().y,
-            })
-            this.cornerBottomLeft({
-                x: this.cornerBottomLeft().x + diffX,
-                y: this.cornerBottomLeft().y,
-            })
-            this.cornerBottomRight({
-                x: this.cornerBottomRight().x + diffX,
-                y: this.cornerBottomRight().y,
-            })
-            if (this.#overflowXscrollBar.block)
-                this.#overflowXscrollBar.outerBarCordinates.x += diffX
-            if (this.#overflowYscrollBar.block)
-                this.#overflowYscrollBar.outerBarCordinates.x += diffX
-            this.rotate(cacheR)
-        }
-        return x
+        return this.__valueHandler(opt, 'x', 0, true)
     }
-
     y(opt?: RelativeType): number {
-        let cacheY = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.y || 0,
-            widthRelated: false,
-        })
-        const y = this.__valueHandler(opt, 'y', 0, false)
-        const diffY = y - cacheY
-        if (cacheY !== y && diffY !== 0) {
-            const cacheR = this.rotate()
-            this.rotate(0)
-            this.rotationCenterY(this.rotationCenterY() + diffY)
-            this.cornerTopLeft({
-                x: this.cornerTopLeft().x,
-                y: this.cornerTopLeft().y + diffY,
-            })
-            this.cornerTopRight({
-                x: this.cornerTopRight().x,
-                y: this.cornerTopRight().y + diffY,
-            })
-            this.cornerBottomLeft({
-                x: this.cornerBottomLeft().x,
-                y: this.cornerBottomLeft().y + diffY,
-            })
-            this.cornerBottomRight({
-                x: this.cornerBottomRight().x,
-                y: this.cornerBottomRight().y + diffY,
-            })
-            if (this.#overflowXscrollBar.block)
-                this.#overflowXscrollBar.outerBarCordinates.y += diffY
-            if (this.#overflowYscrollBar.block)
-                this.#overflowYscrollBar.outerBarCordinates.y += diffY
-            this.rotate(cacheR)
-        }
-        return y
+        return this.__valueHandler(opt, 'y', 0, false)
     }
-
     width(opt?: RelativeType): number {
-        let cacheW = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.width || 0,
-            widthRelated: true,
-        })
-
-        let w = this.__valueHandler(opt, 'width', 0, true)
-        if (w < this.minWidth() && !this.horizontalFlipResize())
-            return this.minWidth()
-        if (w > this.maxWidth()) w = this.ownOptions.width = this.maxWidth()
-
-        const diffW = w - cacheW
-        if (diffW !== 0) {
-            const cacheR = this.rotate()
-            this.rotate(0)
-            this.rotationCenterX(this.rotationCenterX() + diffW / 2)
-            this.cornerTopRight({
-                x: this.cornerTopRight().x + diffW,
-                y: this.cornerTopRight().y,
-            })
-            this.cornerBottomRight({
-                x: this.cornerBottomRight().x + diffW,
-                y: this.cornerBottomRight().y,
-            })
-            if (this.#overflowXscrollBar.block)
-                this.#overflowXscrollBar.outerBarCordinates.width += diffW
-            if (this.#overflowYscrollBar.block) {
-                this.#overflowYscrollBar.outerBarCordinates.x += diffW
-                this.#overflowYscrollBar.outerBarCordinates.width =
-                    w < OVERFLOW_AREA_GAP ? w : OVERFLOW_AREA_GAP
-            }
-            this.rotate(cacheR)
-        }
-        return w
+        return this.__valueHandler(opt, 'width', 0, true)
     }
-
     height(opt?: RelativeType): number {
-        let cacheH = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.height || 0,
-            widthRelated: false,
-        })
-        let h = this.__valueHandler(opt, 'height', 0, false)
-        if (h < this.minHeight() && !this.verticalFlipResize())
-            return this.minHeight()
-        if (h > this.maxHeight()) h = this.ownOptions.height = this.maxHeight()
-
-        const diffH = h - cacheH
-        if (diffH !== 0) {
-            const cacheR = this.rotate()
-            this.rotate(0)
-            this.rotationCenterY(this.rotationCenterY() + diffH / 2)
-            this.cornerBottomLeft({
-                x: this.cornerBottomLeft().x,
-                y: this.cornerBottomLeft().y + diffH,
-            })
-            this.cornerBottomRight({
-                x: this.cornerBottomRight().x,
-                y: this.cornerBottomRight().y + diffH,
-            })
-            if (this.#overflowXscrollBar.block) {
-                this.#overflowXscrollBar.outerBarCordinates.y += diffH
-                this.#overflowXscrollBar.outerBarCordinates.height =
-                    h < OVERFLOW_AREA_GAP ? h : OVERFLOW_AREA_GAP
-            }
-            if (this.#overflowYscrollBar.block)
-                this.#overflowYscrollBar.outerBarCordinates.height += diffH
-            this.rotate(cacheR)
-        }
-        return h
+        return this.__valueHandler(opt, 'height', 0, false)
     }
     minWidth(opt?: RelativeType): number {
         return this.__valueHandler(opt, 'minWidth', 0, true)
@@ -2387,70 +2586,11 @@ export class Block<T = IBlockOptions> extends Node {
         return this.__valueHandler(opt, 'maxHeight', Infinity, false)
     }
     position(opt?: Position) {
-        // @TODO: z index has no effect on the static
         const pos = this.__valueHandler<Position, Position | undefined>(
             opt,
             'position',
             undefined
         )
-        if (pos === 'fixed') {
-            if (this.top() !== undefined) this.y(this.top()!)
-            else if (this.bottom() !== undefined)
-                this.y(
-                    Math.abs((this.canvas?.height || 1) - this.height()) -
-                        this.bottom()!
-                )
-            if (this.left() !== undefined) this.x(this.left()!)
-            else if (this.right() !== undefined)
-                this.x(
-                    +Math.abs((this.canvas?.width || 1) - this.width()) -
-                        this.right()!
-                )
-        } else if (pos === 'sticky') {
-            if (this.top() !== undefined && this.__getTop.y <= this.top()!) {
-                this.y(this.top())
-            } else if (
-                this.bottom() !== undefined &&
-                this.__getBottom.y >=
-                    (this.canvas?.height || 1) - this.bottom()!
-            ) {
-                this.y(
-                    Math.abs((this.canvas?.height || 1) - this.height()) -
-                        this.bottom()!
-                )
-            }
-            if (this.left() !== undefined && this.__getLeft.x <= this.left()!) {
-                this.x(this.left())
-            } else if (
-                this.right() !== undefined &&
-                this.__getRight.x >= (this.canvas?.width || 1) - this.right()!
-            ) {
-                this.x(
-                    Math.abs((this.canvas?.width || 1) - this.width()) -
-                        this.right()!
-                )
-            }
-        } else if (pos === 'absolute') {
-            if (this.left() !== undefined) this.x(this.left()!)
-            else if (this.right() !== undefined)
-                this.x(
-                    Math.abs((this.canvas?.width || 1) - this.width()) -
-                        this.right()!
-                )
-            if (this.top() !== undefined) {
-                this.y(this.top())
-            } else if (this.bottom() !== undefined)
-                this.y(
-                    Math.abs((this.canvas?.height || 1) - this.height()) -
-                        this.bottom()!
-                )
-        } else if (pos === 'relative') {
-            if (this.left() !== undefined) this.x(this.left())
-            else if (this.right() !== undefined) this.x(-this.right()!)
-            if (this.top() !== undefined) this.y(this.top()!)
-            else if (this.bottom() !== undefined) this.y(-this.bottom()!)
-        }
-
         return pos
     }
     top(opt?: RelativeType) {
@@ -2465,130 +2605,23 @@ export class Block<T = IBlockOptions> extends Node {
     right(opt?: RelativeType) {
         return this.__valueHandler(opt, 'right', undefined, true)
     }
-    padding(opt?: PaddingType): number[] {
-        const padding = this.__valueHandler(opt, 'padding', [])
-        if (typeof padding === 'number') {
-            this.paddingTop(padding)
-            this.paddingBottom(padding)
-            this.paddingLeft(padding)
-            this.paddingRight(padding)
-            return padding
-        }
-        if (padding[0] !== undefined) this.paddingTop(padding[0] || 0)
-
-        switch (padding.length) {
-            case 1:
-                if (padding[0] !== undefined) {
-                    this.paddingBottom(padding[0])
-                    this.paddingLeft(padding[0])
-                    this.paddingRight(padding[0])
-                }
-                break
-            case 2:
-                if (padding[0] !== undefined) this.paddingBottom(padding[0])
-                if (padding[1] !== undefined) {
-                    this.paddingLeft(padding[1])
-                    this.paddingRight(padding[1])
-                }
-                break
-            case 3:
-                if (padding[1] !== undefined) {
-                    this.paddingLeft(padding[1])
-                    this.paddingRight(padding[1])
-                }
-                if (padding[2] !== undefined) this.paddingBottom(padding[2])
-                break
-            case 4:
-                if (padding[1] !== undefined) this.paddingRight(padding[1])
-                if (padding[2] !== undefined) this.paddingBottom(padding[2])
-                if (padding[3] !== undefined) this.paddingLeft(padding[3])
-                break
-        }
-        return padding
+    padding(opt?: PaddingType): PaddingType | undefined {
+        return this.__valueHandler(opt, 'padding', undefined)
     }
     paddingTop(opt?: RelativeType) {
-        const cacheP =
-            this.__unitConverter<RelativeType, number>({
-                val: this.ownOptions.paddingTop,
-                widthRelated: false,
-            }) || 0
-        const p = this.__valueHandler(opt, 'paddingTop', 0, false)
-        const diffP = p - cacheP
-        if (diffP !== 0) this.height(this.height() + diffP)
-        return p
+        return this.__valueHandler(opt, 'paddingTop', 0, false)
     }
     paddingBottom(opt?: RelativeType) {
-        const cacheP =
-            this.__unitConverter<RelativeType, number>({
-                val: this.ownOptions.paddingBottom,
-                widthRelated: false,
-            }) || 0
-        const p = this.__valueHandler(opt, 'paddingBottom', 0, false)
-        const diffP = p - cacheP
-        if (diffP !== 0) this.height(this.height() + diffP)
-        return p
+        return this.__valueHandler(opt, 'paddingBottom', 0, false)
     }
     paddingLeft(opt?: RelativeType) {
-        const cacheP =
-            this.__unitConverter<RelativeType, number>({
-                val: this.ownOptions.paddingLeft,
-                widthRelated: false,
-            }) || 0
-        const p = this.__valueHandler(opt, 'paddingLeft', 0, false)
-        const diffP = p - cacheP
-        if (diffP !== 0) this.width(this.width() + diffP)
-        return p
+        return this.__valueHandler(opt, 'paddingLeft', 0, false)
     }
     paddingRight(opt?: RelativeType) {
-        const cacheP =
-            this.__unitConverter<RelativeType, number>({
-                val: this.ownOptions.paddingRight,
-                widthRelated: false,
-            }) || 0
-        const p = this.__valueHandler(opt, 'paddingRight', 0, false)
-        const diffP = p - cacheP
-        if (diffP !== 0) this.width(this.width() + diffP)
-        return p
+        return this.__valueHandler(opt, 'paddingRight', 0, false)
     }
-    margin(opt?: MarginType): number[] {
-        const margin = this.__valueHandler(opt, 'margin', [])
-        if (typeof margin === 'number') {
-            this.marginTop(margin)
-            this.marginBottom(margin)
-            this.marginLeft(margin)
-            this.marginRight(margin)
-            return margin
-        }
-        if (margin[0] !== undefined) this.marginTop(margin[0])
-        switch (margin.length) {
-            case 1:
-                if (margin[0] !== undefined) {
-                    this.marginBottom(margin[0])
-                    this.marginLeft(margin[0])
-                    this.marginRight(margin[0])
-                }
-                break
-            case 2:
-                if (margin[0] !== undefined) this.marginBottom(margin[0])
-                if (margin[1] !== undefined) {
-                    this.marginLeft(margin[1])
-                    this.marginRight(margin[1])
-                }
-                break
-            case 3:
-                if (margin[1] !== undefined) {
-                    this.marginLeft(margin[1])
-                    this.marginRight(margin[1])
-                }
-                if (margin[2] !== undefined) this.marginBottom(margin[2])
-                break
-            case 4:
-                if (margin[1] !== undefined) this.marginRight(margin[1])
-                if (margin[2] !== undefined) this.marginBottom(margin[2])
-                if (margin[3] !== undefined) this.marginLeft(margin[3])
-                break
-        }
-        return margin
+    margin(opt?: MarginType): MarginType | undefined {
+        return this.__valueHandler(opt, 'margin', undefined)
     }
     marginTop(opt?: RelativeType) {
         return this.__valueHandler(opt, 'marginTop', 0, false)
@@ -2615,671 +2648,110 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     cornerTopLeft(opt?: XY) {
-        const cacheCords = this.ownOptions.cornerTopLeft || { x: 0, y: 0 }
-        const corner = this.__valueHandler(opt, 'cornerTopLeft', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCords.x
-        if (diffX !== 0) {
-            this.hotCornerTopLeft({
-                x: this.hotCornerTopLeft().x + diffX,
-                y: this.hotCornerTopLeft().y,
-            })
-            this.hotRotCornerTopLeft({
-                x: this.hotRotCornerTopLeft().x + diffX,
-                y: this.hotRotCornerTopLeft().y,
-            })
-        }
-        const diffY = corner.y - cacheCords.y
-        if (diffY !== 0) {
-            this.hotCornerTopLeft({
-                x: this.hotCornerTopLeft().x,
-                y: this.hotCornerTopLeft().y + diffY,
-            })
-            this.hotRotCornerTopLeft({
-                x: this.hotRotCornerTopLeft().x,
-                y: this.hotRotCornerTopLeft().y + diffY,
-            })
-        }
-        return corner
+        return this.__valueHandler(opt, 'cornerTopLeft', initalXY)
     }
 
     cornerTopRight(opt?: XY) {
-        const cacheCords = this.ownOptions.cornerTopRight || { x: 0, y: 0 }
-        const corner = this.__valueHandler(opt, 'cornerTopRight', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCords.x
-        if (diffX !== 0) {
-            this.hotCornerTopRight({
-                x: this.hotCornerTopRight().x + diffX,
-                y: this.hotCornerTopRight().y,
-            })
-            this.hotRotCornerTopRight({
-                x: this.hotRotCornerTopRight().x + diffX,
-                y: this.hotRotCornerTopRight().y,
-            })
-        }
-        const diffY = corner.y - cacheCords.y
-        if (diffY !== 0) {
-            this.hotCornerTopRight({
-                x: this.hotCornerTopRight().x,
-                y: this.hotCornerTopRight().y + diffY,
-            })
-            this.hotRotCornerTopRight({
-                x: this.hotRotCornerTopRight().x,
-                y: this.hotRotCornerTopRight().y + diffY,
-            })
-        }
-        return corner
+        return this.__valueHandler(opt, 'cornerTopRight', initalXY)
     }
 
     cornerBottomLeft(opt?: XY) {
-        const cacheCords = this.ownOptions.cornerBottomLeft || { x: 0, y: 0 }
-        const corner = this.__valueHandler(opt, 'cornerBottomLeft', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCords.x
-        if (diffX !== 0) {
-            this.hotCornerBottomLeft({
-                x: this.hotCornerBottomLeft().x + diffX,
-                y: this.hotCornerBottomLeft().y,
-            })
-            this.hotRotCornerBottomLeft({
-                x: this.hotRotCornerBottomLeft().x + diffX,
-                y: this.hotRotCornerBottomLeft().y,
-            })
-        }
-        const diffY = corner.y - cacheCords.y
-        if (diffY !== 0) {
-            this.hotCornerBottomLeft({
-                x: this.hotCornerBottomLeft().x,
-                y: this.hotCornerBottomLeft().y + diffY,
-            })
-            this.hotRotCornerBottomLeft({
-                x: this.hotRotCornerBottomLeft().x,
-                y: this.hotRotCornerBottomLeft().y + diffY,
-            })
-        }
-        return corner
+        return this.__valueHandler(opt, 'cornerBottomLeft', initalXY)
     }
 
     cornerBottomRight(opt?: XY) {
-        const cacheCords = this.ownOptions.cornerBottomRight || { x: 0, y: 0 }
-        const corner = this.__valueHandler(opt, 'cornerBottomRight', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCords.x
-        if (diffX !== 0) {
-            this.hotCornerBottomRight({
-                x: this.hotCornerBottomRight().x + diffX,
-                y: this.hotCornerBottomRight().y,
-            })
-            this.hotRotCornerBottomRight({
-                x: this.hotRotCornerBottomRight().x + diffX,
-                y: this.hotRotCornerBottomRight().y,
-            })
-        }
-        const diffY = corner.y - cacheCords.y
-        if (diffY !== 0) {
-            this.hotCornerBottomRight({
-                x: this.hotCornerBottomRight().x,
-                y: this.hotCornerBottomRight().y + diffY,
-            })
-            this.hotRotCornerBottomRight({
-                x: this.hotRotCornerBottomRight().x,
-                y: this.hotRotCornerBottomRight().y + diffY,
-            })
-        }
-        return corner
-    }
-
-    hotCornerTopLeft(opt?: XY) {
-        const cacheCords = this.ownOptions.hotCornerTopLeft || { x: 0, y: 0 }
-        const corner = this.__valueHandler(opt, 'hotCornerTopLeft', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCords.x
-        if (diffX !== 0) {
-            this.#updateAreaCordX('hotResizableAreaTopLeft', diffX)
-            if (this.ownOptions.hotResizableAreaTop) {
-                this.ownOptions.hotResizableAreaTop.topLeft.x += diffX
-                this.ownOptions.hotResizableAreaTop.bottomLeft.x += diffX
-            }
-            if (this.ownOptions.hotResizableAreaLeft) {
-                this.ownOptions.hotResizableAreaLeft.topLeft.x += diffX
-                this.ownOptions.hotResizableAreaLeft.topRight.x += diffX
-            }
-        }
-        const diffY = corner.y - cacheCords.y
-        if (diffY !== 0) {
-            this.#updateAreaCordY('hotResizableAreaTopLeft', diffY)
-            if (this.ownOptions.hotResizableAreaTop) {
-                this.ownOptions.hotResizableAreaTop.topLeft.y += diffY
-                this.ownOptions.hotResizableAreaTop.bottomLeft.y += diffY
-            }
-            if (this.ownOptions.hotResizableAreaLeft) {
-                this.ownOptions.hotResizableAreaLeft.topLeft.y += diffY
-                this.ownOptions.hotResizableAreaLeft.topRight.y += diffY
-            }
-        }
-        return corner
-    }
-
-    hotCornerTopRight(opt?: XY) {
-        const cacheCords = this.ownOptions.hotCornerTopRight || { x: 0, y: 0 }
-        const corner = this.__valueHandler(opt, 'hotCornerTopRight', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCords.x
-        if (diffX !== 0) {
-            this.#updateAreaCordX('hotResizableAreaTopRight', diffX)
-            if (this.ownOptions.hotResizableAreaTop) {
-                this.ownOptions.hotResizableAreaTop.topRight.x += diffX
-                this.ownOptions.hotResizableAreaTop.bottomRight.x += diffX
-            }
-            if (this.ownOptions.hotResizableAreaRight) {
-                this.ownOptions.hotResizableAreaRight.topRight.x += diffX
-                this.ownOptions.hotResizableAreaRight.topLeft.x += diffX
-            }
-        }
-        const diffY = corner.y - cacheCords.y
-        if (diffY !== 0) {
-            this.#updateAreaCordY('hotResizableAreaTopRight', diffY)
-            if (this.ownOptions.hotResizableAreaTop) {
-                this.ownOptions.hotResizableAreaTop.topRight.y += diffY
-                this.ownOptions.hotResizableAreaTop.bottomRight.y += diffY
-            }
-            if (this.ownOptions.hotResizableAreaRight) {
-                this.ownOptions.hotResizableAreaRight.topRight.y += diffY
-                this.ownOptions.hotResizableAreaRight.topLeft.y += diffY
-            }
-        }
-        return corner
-    }
-
-    hotCornerBottomLeft(opt?: XY) {
-        const cacheCords = this.ownOptions.hotCornerBottomLeft || {
-            x: 0,
-            y: 0,
-        }
-        const corner = this.__valueHandler(opt, 'hotCornerBottomLeft', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCords.x
-        if (diffX !== 0) {
-            this.#updateAreaCordX('hotResizableAreaBottomLeft', diffX)
-            if (this.ownOptions.hotResizableAreaBottom) {
-                this.ownOptions.hotResizableAreaBottom.topLeft.x += diffX
-                this.ownOptions.hotResizableAreaBottom.bottomLeft.x += diffX
-            }
-            if (this.ownOptions.hotResizableAreaLeft) {
-                this.ownOptions.hotResizableAreaLeft.bottomLeft.x += diffX
-                this.ownOptions.hotResizableAreaLeft.bottomRight.x += diffX
-            }
-        }
-        const diffY = corner.y - cacheCords.y
-        if (diffY !== 0) {
-            this.#updateAreaCordY('hotResizableAreaBottomLeft', diffY)
-            if (this.ownOptions.hotResizableAreaBottom) {
-                this.ownOptions.hotResizableAreaBottom.topLeft.y += diffY
-                this.ownOptions.hotResizableAreaBottom.bottomLeft.y += diffY
-            }
-            if (this.ownOptions.hotResizableAreaLeft) {
-                this.ownOptions.hotResizableAreaLeft.bottomLeft.y += diffY
-                this.ownOptions.hotResizableAreaLeft.bottomRight.y += diffY
-            }
-        }
-        return corner
-    }
-
-    hotCornerBottomRight(opt?: XY) {
-        const cacheCords = this.ownOptions.hotCornerBottomRight || {
-            x: 0,
-            y: 0,
-        }
-        const corner = this.__valueHandler(opt, 'hotCornerBottomRight', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCords.x
-        if (diffX !== 0) {
-            this.#updateAreaCordX('hotResizableAreaBottomRight', diffX)
-            if (this.ownOptions.hotResizableAreaBottom) {
-                this.ownOptions.hotResizableAreaBottom.topRight.x += diffX
-                this.ownOptions.hotResizableAreaBottom.bottomRight.x += diffX
-            }
-            if (this.ownOptions.hotResizableAreaRight) {
-                this.ownOptions.hotResizableAreaRight.bottomRight.x += diffX
-                this.ownOptions.hotResizableAreaRight.bottomLeft.x += diffX
-            }
-        }
-        const diffY = corner.y - cacheCords.y
-        if (diffY !== 0) {
-            this.#updateAreaCordY('hotResizableAreaBottomRight', diffY)
-            if (this.ownOptions.hotResizableAreaBottom) {
-                this.ownOptions.hotResizableAreaBottom.topRight.y += diffY
-                this.ownOptions.hotResizableAreaBottom.bottomRight.y += diffY
-            }
-            if (this.ownOptions.hotResizableAreaRight) {
-                this.ownOptions.hotResizableAreaRight.bottomRight.y += diffY
-                this.ownOptions.hotResizableAreaRight.bottomLeft.y += diffY
-            }
-        }
-        return corner
-    }
-
-    hotRotCornerTopLeft(opt?: XY) {
-        const cacheCorner = this.ownOptions.hotRotCornerTopLeft || {
-            x: 0,
-            y: 0,
-        }
-        const corner = this.__valueHandler(opt, 'hotRotCornerTopLeft', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCorner.x
-        if (diffX !== 0) {
-            this.#updateAreaCordX('hotRotatableAreaTopLeft', diffX)
-            this.#rotationCorners.topLeft.x = corner.x
-        }
-        const diffY = corner.y - cacheCorner.y
-        if (diffY !== 0) {
-            this.#updateAreaCordY('hotRotatableAreaTopLeft', diffY)
-            this.#rotationCorners.topLeft.y = corner.y
-        }
-        return corner
-    }
-
-    hotRotCornerTopRight(opt?: XY) {
-        const cacheCorner = this.ownOptions.hotRotCornerTopRight || {
-            x: 0,
-            y: 0,
-        }
-        const corner = this.__valueHandler(opt, 'hotRotCornerTopRight', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCorner.x
-        if (diffX !== 0) {
-            this.#updateAreaCordX('hotRotatableAreaTopRight', diffX)
-            this.#rotationCorners.topRight.x = corner.x
-        }
-        const diffY = corner.y - cacheCorner.y
-        if (diffY !== 0) {
-            this.#updateAreaCordY('hotRotatableAreaTopRight', diffY)
-            this.#rotationCorners.topRight.y = corner.y
-        }
-        return corner
-    }
-
-    hotRotCornerBottomLeft(opt?: XY) {
-        const cacheCorner = this.ownOptions.hotRotCornerBottomLeft || {
-            x: 0,
-            y: 0,
-        }
-        const corner = this.__valueHandler(opt, 'hotRotCornerBottomLeft', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCorner.x
-        if (diffX !== 0) {
-            this.#updateAreaCordX('hotRotatableAreaBottomLeft', diffX)
-            this.#rotationCorners.bottomLeft.x = corner.x
-        }
-        const diffY = corner.y - cacheCorner.y
-        if (diffY !== 0) {
-            this.#updateAreaCordY('hotRotatableAreaBottomLeft', diffY)
-            this.#rotationCorners.bottomLeft.y = corner.y
-        }
-        return corner
-    }
-
-    hotRotCornerBottomRight(opt?: XY) {
-        const cacheCorner = this.ownOptions.hotRotCornerBottomRight || {
-            x: 0,
-            y: 0,
-        }
-        const corner = this.__valueHandler(opt, 'hotRotCornerBottomRight', {
-            x: 0,
-            y: 0,
-        })
-        const diffX = corner.x - cacheCorner.x
-        if (diffX !== 0) {
-            this.#updateAreaCordX('hotRotatableAreaBottomRight', diffX)
-            this.#rotationCorners.bottomRight.x = corner.x
-        }
-        const diffY = corner.y - cacheCorner.y
-        if (diffY !== 0) {
-            this.#updateAreaCordY('hotRotatableAreaBottomRight', diffY)
-            this.#rotationCorners.bottomRight.y = corner.y
-        }
-        return corner
+        return this.__valueHandler(opt, 'cornerBottomRight', initalXY)
     }
 
     hotRotatableAreaTopLeft(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotRotatableAreaTopLeft', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(
+            opt,
+            'hotRotatableAreaTopLeft',
+            initialCorners
+        )
     }
 
     hotRotatableAreaTopRight(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotRotatableAreaTopRight', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(
+            opt,
+            'hotRotatableAreaTopRight',
+            initialCorners
+        )
     }
 
     hotRotatableAreaBottomLeft(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotRotatableAreaBottomLeft', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(
+            opt,
+            'hotRotatableAreaBottomLeft',
+            initialCorners
+        )
     }
 
     hotRotatableAreaBottomRight(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotRotatableAreaBottomRight', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(
+            opt,
+            'hotRotatableAreaBottomRight',
+            initialCorners
+        )
     }
 
     hotResizableAreaTopLeft(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotResizableAreaTopLeft', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(
+            opt,
+            'hotResizableAreaTopLeft',
+            initialCorners
+        )
     }
 
     hotResizableAreaTopRight(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotResizableAreaTopRight', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(
+            opt,
+            'hotResizableAreaTopRight',
+            initialCorners
+        )
     }
 
     hotResizableAreaBottomLeft(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotResizableAreaBottomLeft', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(
+            opt,
+            'hotResizableAreaBottomLeft',
+            initialCorners
+        )
     }
 
     hotResizableAreaBottomRight(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotResizableAreaBottomRight', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(
+            opt,
+            'hotResizableAreaBottomRight',
+            initialCorners
+        )
     }
 
     hotResizableAreaTop(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotResizableAreaTop', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(opt, 'hotResizableAreaTop', initialCorners)
     }
 
     hotResizableAreaBottom(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotResizableAreaBottom', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(
+            opt,
+            'hotResizableAreaBottom',
+            initialCorners
+        )
     }
 
     hotResizableAreaLeft(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotResizableAreaLeft', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
+        return this.__valueHandler(opt, 'hotResizableAreaLeft', initialCorners)
     }
 
     hotResizableAreaRight(opt?: HotCornerArea) {
-        return this.__valueHandler(opt, 'hotResizableAreaRight', {
-            topLeft: {
-                x: 0,
-                y: 0,
-            },
-            topRight: {
-                x: 0,
-                y: 0,
-            },
-            bottomLeft: {
-                x: 0,
-                y: 0,
-            },
-            bottomRight: {
-                x: 0,
-                y: 0,
-            },
-        })
-    }
-
-    hotTopFunc(opt?: (context: CanvasRenderingContext2D) => void) {
-        return this.__valueHandler<typeof opt, typeof opt>(
-            opt,
-            'hotTopFunc',
-            undefined
-        )
-    }
-    hotLeftFunc(opt?: (context: CanvasRenderingContext2D) => void) {
-        return this.__valueHandler<typeof opt, typeof opt>(
-            opt,
-            'hotLeftFunc',
-            undefined
-        )
-    }
-    hotRightFunc(opt?: (context: CanvasRenderingContext2D) => void) {
-        return this.__valueHandler<typeof opt, typeof opt>(
-            opt,
-            'hotRightFunc',
-            undefined
-        )
-    }
-    hotBottomFunc(opt?: (context: CanvasRenderingContext2D) => void) {
-        return this.__valueHandler<typeof opt, typeof opt>(
-            opt,
-            'hotBottomFunc',
-            undefined
-        )
-    }
-    hotCornerTopLeftFunc(opt?: (context: CanvasRenderingContext2D) => void) {
-        return this.__valueHandler<typeof opt, typeof opt>(
-            opt,
-            'hotCornerTopLeftFunc',
-            undefined
-        )
-    }
-    hotCornerTopRightFunc(opt?: (context: CanvasRenderingContext2D) => void) {
-        return this.__valueHandler<typeof opt, typeof opt>(
-            opt,
-            'hotCornerTopRightFunc',
-            undefined
-        )
-    }
-    hotCornerBottomLeftFunc(opt?: (context: CanvasRenderingContext2D) => void) {
-        return this.__valueHandler<typeof opt, typeof opt>(
-            opt,
-            'hotCornerBottomLeftFunc',
-            undefined
-        )
-    }
-    hotCornerBottomRightFunc(
-        opt?: (context: CanvasRenderingContext2D) => void
-    ) {
-        return this.__valueHandler<typeof opt, typeof opt>(
-            opt,
-            'hotCornerBottomRightFunc',
-            undefined
-        )
+        return this.__valueHandler(opt, 'hotResizableAreaRight', initialCorners)
     }
 
     hotAreaSize(opt?: number) {
         return this.__valueHandler(opt, 'hotAreaSize', 15)
     }
     rotationCenter(opt?: SelfType) {
-        return this.__valueHandler(opt, 'rotationCenter', 'self', true)
+        return this.__valueHandler(opt, 'rotationCenter', 'parent', true)
     }
     rotationCenterX(opt?: RelativeType) {
         return this.__valueHandler(opt, 'rotationCenterX', 0, true)
@@ -3299,7 +2771,6 @@ export class Block<T = IBlockOptions> extends Node {
     rotatableBottomRight(opt?: boolean) {
         return this.__valueHandler(opt, 'rotatableBottomRight', true)
     }
-
     resizableTopLeft(opt?: boolean) {
         return this.__valueHandler(opt, 'resizableTopLeft', true)
     }
@@ -3365,7 +2836,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
     important(opt?: IBlock<T>) {
         return this.__valueHandler<IBlock<T>, IBlock<T> | {}>(
-            { ...this.ownOptions.important, ...opt },
+            { ...this.getOptionCurrentVal('important'), ...opt },
             'important',
             {}
         )
@@ -3431,11 +2902,8 @@ export class Block<T = IBlockOptions> extends Node {
         return gridArea
     }
 
-    zIndex(opt?: number): number | undefined {
-        const cacheZ = this.ownOptions.zIndex || undefined
-        const z = this.__valueHandler(opt, 'zIndex', undefined)
-        if (z !== cacheZ) this.canvas?.refreshHead()
-        return z
+    zIndex(opt?: number) {
+        return this.__valueHandler(opt, 'zIndex', undefined)
     }
 
     set(options: IBlock<IBlockOptions | T>): void {
@@ -3456,17 +2924,16 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
     scale(opt?: number) {
-        const scale = this.__valueHandler(opt, 'scale', 1)
-        this.width(this.width() * scale)
-        this.height(this.height() * scale)
+        return this.__valueHandler(opt, 'scale', 1)
     }
     __translate(t: { x: number; y: number }) {
-        if (this.ownOptions.position === 'fixed') return
+        const position = this.position()
+        if (position === 'fixed') return
         this.x(this.x() + t.x)
         this.y(this.y() + t.y)
         if (
-            this.ownOptions.position === 'absolute' ||
-            (this.ownOptions.position === 'relative' && !this.#hasParentBlock)
+            position === 'absolute' ||
+            (position === 'relative' && !this.#hasParentBlock)
         ) {
             if (this.left() !== undefined) this.left(this.left()! + t.x)
             else if (this.right() !== undefined) this.right(this.right()! - t.x)
@@ -3475,6 +2942,11 @@ export class Block<T = IBlockOptions> extends Node {
                 this.bottom(this.bottom()! - t.y)
         }
     }
+    __scale(scale: number) {
+        this.width(this.width() * scale)
+        this.height(this.height() * scale)
+    }
+
     __overflowTranslate(t: { x: number; y: number }) {
         const currentHeight =
             this.height() +
@@ -3567,53 +3039,13 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     rotate(opt?: number): number {
-        const cacheRotate = this.ownOptions['rotate'] || 0
-        const rotate = this.__valueHandler(opt, 'rotate', 0)
-        const diffR = rotate - cacheRotate
-        if (diffR !== 0) this.#updateCornerByRot(diffR)
-        return rotate
+        return this.__valueHandler(opt, 'rotate', 0)
     }
 
-    #updateCornerByRot(radian: number) {
-        this.#updateCornerbyRot('cornerTopLeft', radian)
-        this.#updateCornerbyRot('cornerTopRight', radian)
-        this.#updateCornerbyRot('cornerBottomLeft', radian)
-        this.#updateCornerbyRot('cornerBottomRight', radian)
-
-        this.#updateCornerbyRot('hotCornerTopLeft', radian)
-        this.#updateCornerbyRot('hotCornerTopRight', radian)
-        this.#updateCornerbyRot('hotCornerBottomLeft', radian)
-        this.#updateCornerbyRot('hotCornerBottomRight', radian)
-
-        this.#updateCornerbyRot('hotRotCornerTopLeft', radian)
-        this.#updateCornerbyRot('hotRotCornerTopRight', radian)
-        this.#updateCornerbyRot('hotRotCornerBottomLeft', radian)
-        this.#updateCornerbyRot('hotRotCornerBottomRight', radian)
-
-        this.#updateCornerAreabyRot('hotResizableAreaTopLeft', radian)
-        this.#updateCornerAreabyRot('hotResizableAreaTopRight', radian)
-        this.#updateCornerAreabyRot('hotResizableAreaBottomLeft', radian)
-        this.#updateCornerAreabyRot('hotResizableAreaBottomRight', radian)
-        this.#updateCornerAreabyRot('hotResizableAreaTop', radian)
-        this.#updateCornerAreabyRot('hotResizableAreaRight', radian)
-        this.#updateCornerAreabyRot('hotResizableAreaLeft', radian)
-        this.#updateCornerAreabyRot('hotResizableAreaBottom', radian)
-
-        this.#updateCornerAreabyRot('hotRotatableAreaTopLeft', radian)
-        this.#updateCornerAreabyRot('hotRotatableAreaTopRight', radian)
-        this.#updateCornerAreabyRot('hotRotatableAreaBottomLeft', radian)
-        this.#updateCornerAreabyRot('hotRotatableAreaBottomRight', radian)
-
-        if (this.#overflowXscrollBar.block)
-            this.#updateOverflowInnerCordsByRotate(
-                this.#overflowXscrollBar,
-                radian
-            )
-        if (this.#overflowYscrollBar.block)
-            this.#updateOverflowInnerCordsByRotate(
-                this.#overflowYscrollBar,
-                radian
-            )
+    __updateCordinatesByRot(radian: number) {
+        this.#updateAllCornesByRot(radian)
+        this.#updateAllResizableAreaCornesByRot(radian)
+        this.#updateAllRotatableAreaCornesByRot(radian)
     }
 
     get __getTop() {
@@ -3716,23 +3148,54 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     #updateCornerbyRot(corner: string, diffR: number) {
-        const cordsArea = this.ownOptions[corner] as XY
-        if (!cordsArea) return
-        const c = this.__rotateCorners(cordsArea.x, cordsArea.y, diffR)
-        cordsArea.x = c.x
-        cordsArea.y = c.y
+        const cordsAreaCurrent = this.getOptionCurrentVal(corner)
+        const cordsAreaCache = this.getOptionCacheVal(corner)
+        const currentCords = this.__rotateCorners(
+            cordsAreaCurrent.x,
+            cordsAreaCurrent.y,
+            diffR
+        )
+        const cacheCords = this.__rotateCorners(
+            cordsAreaCache.x,
+            cordsAreaCache.y,
+            diffR
+        )
+        this.setOptionCurrentVal(corner, currentCords)
+        this.setOptionCacheVal(corner, cacheCords)
+    }
+
+    #updateAllCornesByRot(radian: number) {
+        this.#updateCornerbyRot('cornerTopLeft', radian)
+        this.#updateCornerbyRot('cornerTopRight', radian)
+        this.#updateCornerbyRot('cornerBottomLeft', radian)
+        this.#updateCornerbyRot('cornerBottomRight', radian)
+    }
+    #updateAllResizableAreaCornesByRot(radian: number) {
+        this.#updateCornerAreabyRot('hotResizableAreaTopLeft', radian)
+        this.#updateCornerAreabyRot('hotResizableAreaTopRight', radian)
+        this.#updateCornerAreabyRot('hotResizableAreaBottomLeft', radian)
+        this.#updateCornerAreabyRot('hotResizableAreaBottomRight', radian)
+        this.#updateCornerAreabyRot('hotResizableAreaTop', radian)
+        this.#updateCornerAreabyRot('hotResizableAreaRight', radian)
+        this.#updateCornerAreabyRot('hotResizableAreaLeft', radian)
+        this.#updateCornerAreabyRot('hotResizableAreaBottom', radian)
+    }
+    #updateAllRotatableAreaCornesByRot(radian: number) {
+        this.#updateCornerAreabyRot('hotRotatableAreaTopLeft', radian)
+        this.#updateCornerAreabyRot('hotRotatableAreaTopRight', radian)
+        this.#updateCornerAreabyRot('hotRotatableAreaBottomLeft', radian)
+        this.#updateCornerAreabyRot('hotRotatableAreaBottomRight', radian)
     }
 
     #updateCornerAreabyRot(corner: string, diffR: number) {
-        const cordsArea = this.ownOptions[corner] as HotCornerArea
-        if (!cordsArea) return
+        const cordsArea = this.getOptionCurrentVal(corner)
         const a = this.__rotateCorners(
             cordsArea.topLeft.x,
             cordsArea.topLeft.y,
             diffR
         )
         const b = this.__rotateCorners(
-            cordsArea?.topRight.x,
+            cordsArea.topRight.x,
             cordsArea.topRight.y,
             diffR
         )
@@ -3746,83 +3209,42 @@ export class Block<T = IBlockOptions> extends Node {
             cordsArea.bottomRight.y,
             diffR
         )
-
-        cordsArea.topLeft = { x: a.x, y: a.y }
-        cordsArea.topRight = { x: b.x, y: b.y }
-        cordsArea.bottomLeft = { x: c.x, y: c.y }
-        cordsArea.bottomRight = { x: d.x, y: d.y }
+        this.setOptionCurrentVal(corner, {
+            topLeft: a,
+            topRight: b,
+            bottomLeft: c,
+            bottomRight: d,
+        })
     }
 
-    #updateOverflowInnerCordsByRotate(
-        overflowScrollBar: OverflowScrollBar,
-        radian: number
+    #updateAreaCords(
+        corner: string,
+        topLeft: XY,
+        topRight: XY,
+        bottomLeft: XY,
+        bottomRight: XY
     ) {
-        const centerX = this.__getRealCenterX
-        const centerY = this.__getRealCenterY
-
-        const topleft = rotateCordinates(
-            overflowScrollBar.innerBarCordinates.topLeft.x,
-            overflowScrollBar.innerBarCordinates.topLeft.y,
-            centerX,
-            centerY,
-            radian
-        )
-        const topRight = rotateCordinates(
-            overflowScrollBar.innerBarCordinates.topRight.x,
-            overflowScrollBar.innerBarCordinates.topRight.y,
-            centerX,
-            centerY,
-            radian
-        )
-        const bottomLeft = rotateCordinates(
-            overflowScrollBar.innerBarCordinates.bottomLeft.x,
-            overflowScrollBar.innerBarCordinates.bottomLeft.y,
-            centerX,
-            centerY,
-            radian
-        )
-        const bottomRight = rotateCordinates(
-            overflowScrollBar.innerBarCordinates.bottomRight.x,
-            overflowScrollBar.innerBarCordinates.bottomRight.y,
-            centerX,
-            centerY,
-            radian
-        )
-        overflowScrollBar.innerBarCordinates.topLeft = {
-            x: topleft.x,
-            y: topleft.y,
-        }
-        overflowScrollBar.innerBarCordinates.topRight = {
-            x: topRight.x,
-            y: topRight.y,
-        }
-        overflowScrollBar.innerBarCordinates.bottomLeft = {
-            x: bottomLeft.x,
-            y: bottomLeft.y,
-        }
-        overflowScrollBar.innerBarCordinates.bottomRight = {
-            x: bottomRight.x,
-            y: bottomRight.y,
-        }
+        const cornerCords = this.getOptionCurrentVal(corner)
+        this.setOptionCurrentVal(corner, {
+            topLeft: {
+                x: cornerCords.topLeft.x + topLeft.x,
+                y: cornerCords.topLeft.y + topLeft.y,
+            },
+            topRight: {
+                x: cornerCords.topRight.x + topRight.x,
+                y: cornerCords.topRight.y + topRight.y,
+            },
+            bottomLeft: {
+                x: cornerCords.bottomLeft.x + bottomLeft.x,
+                y: cornerCords.bottomLeft.y + bottomLeft.y,
+            },
+            bottomRight: {
+                x: cornerCords.bottomRight.x + bottomRight.x,
+                y: cornerCords.bottomRight.y + bottomRight.y,
+            },
+        })
     }
 
-    #updateAreaCordX(corner: string, x: number) {
-        const cordsArea = this.ownOptions[corner] as HotCornerArea
-        if (!cordsArea) return
-        cordsArea.topLeft.x += x
-        cordsArea.topRight.x += x
-        cordsArea.bottomLeft.x += x
-        cordsArea.bottomRight.x = cordsArea.bottomRight.x + x
-    }
-
-    #updateAreaCordY(corner: string, y: number) {
-        const cordsArea = this.ownOptions[corner] as HotCornerArea
-        if (!cordsArea) return
-        cordsArea.topLeft.y += y
-        cordsArea.topRight.y += y
-        cordsArea.bottomLeft.y += y
-        cordsArea.bottomRight.y += y
-    }
     __rotateCorners(x: number, y: number, radian: number) {
         return rotateCordinates(
             x,
@@ -3974,7 +3396,7 @@ export class Block<T = IBlockOptions> extends Node {
                     if (anime.onFinish) anime.onFinish()
                 }
 
-                const easing = this.#easingHanndler(anime.easing)(
+                const easing = easingHanndler(anime.easing)(
                     clamp((timestamp - anime.startTime) / anime.duration, 0, 1),
                     1 / anime.duration
                 )
@@ -4236,73 +3658,25 @@ export class Block<T = IBlockOptions> extends Node {
         this.#keyframeIterations[animationId]['autoStart'] = value
     }
 
-    #easingHanndler(easing: Easing): (t: number, duration: number) => number {
-        if (easing === 'linear') return linear(0, 1)
-        else if (easing == 'step-start') return steps(1, 'jump-start')
-        else if (easing == 'step-end') return steps(1, 'jump-end')
-        else if (easing == 'ease') return bezierEasing(0.25, 0.1, 0.25, 1)
-        else if (easing == 'ease-in') return bezierEasing(0.42, 0, 1, 1)
-        else if (easing == 'ease-out') return bezierEasing(0, 0, 0.58, 1)
-        else if (easing == 'ease-in-out') return bezierEasing(0.42, 0, 0.58, 1)
-        else return easing
-    }
-
     checkInBound(event: MouseEvent): boolean {
-        const { x, y } = this.canvas?.getCursorPosition(event) || {
-            x: 0,
-            y: 0,
-        }
-        const topLeft = {
-            x: this.cornerTopLeft().x,
-            y: this.cornerTopLeft().y,
-        }
-        const topRight = {
-            x: this.cornerTopRight().x,
-            y: this.cornerTopRight().y,
-        }
-        const bottomLeft = {
-            x: this.cornerBottomLeft().x,
-            y: this.cornerBottomLeft().y,
-        }
-        const bottomRight = {
-            x: this.cornerBottomRight().x,
-            y: this.cornerBottomRight().y,
-        }
-
-        if (this.__isVerticalFlipped) {
-            if (this.__isHorizontalFlipped) {
-                topLeft.x = this.cornerBottomRight().x
-                topLeft.y = this.cornerBottomRight().y
-                topRight.x = this.cornerBottomLeft().x
-                topRight.y = this.cornerBottomLeft().y
-
-                bottomLeft.x = this.cornerTopRight().x
-                bottomLeft.y = this.cornerTopRight().y
-                bottomRight.x = this.cornerTopLeft().x
-                bottomRight.y = this.cornerTopLeft().y
-            } else {
-                topLeft.x = this.cornerBottomLeft().x
-                topLeft.y = this.cornerBottomLeft().y
-                topRight.x = this.cornerBottomRight().x
-                topRight.y = this.cornerBottomRight().y
-
-                bottomLeft.x = this.cornerTopLeft().x
-                bottomLeft.y = this.cornerTopLeft().y
-                bottomRight.x = this.cornerTopRight().x
-                bottomRight.y = this.cornerTopRight().y
+        const { x, y } = this.canvas?.getCursorPosition(event)!
+        let topLeft = this.cornerTopLeft()
+        let topRight = this.cornerTopRight()
+        let bottomLeft = this.cornerBottomLeft()
+        let bottomRight = this.cornerBottomRight()
+        if (this.__isVerticalFlipped !== this.__isHorizontalFlipped) {
+            if (this.__isVerticalFlipped) {
+                topLeft = this.cornerBottomLeft()
+                topRight = this.cornerBottomRight()
+                bottomLeft = this.cornerTopLeft()
+                bottomRight = this.cornerTopRight()
+            } else if (this.__isHorizontalFlipped) {
+                topLeft = this.cornerTopRight()
+                topRight = this.cornerTopLeft()
+                bottomLeft = this.cornerBottomRight()
+                bottomRight = this.cornerBottomLeft()
             }
-        } else if (this.__isHorizontalFlipped) {
-            topLeft.x = this.cornerTopRight().x
-            topLeft.y = this.cornerTopRight().y
-            topRight.x = this.cornerTopLeft().x
-            topRight.y = this.cornerTopLeft().y
-
-            bottomLeft.x = this.cornerBottomRight().x
-            bottomLeft.y = this.cornerBottomRight().y
-            bottomRight.x = this.cornerBottomLeft().x
-            bottomRight.y = this.cornerBottomLeft().y
         }
-
         let inBound = checkInBound(
             x,
             y,
@@ -4557,23 +3931,21 @@ export class Block<T = IBlockOptions> extends Node {
         if (!selectable) return false
 
         const click = (e: MouseEvent) => {
-            const { x, y } = this.canvas?.getCursorPosition(e) || {
-                x: 0,
-                y: 0,
-            }
+            const { x, y } = this.canvas?.getCursorPosition(e)!
             let inBound
+            const cacheSelected = this.__runningEvents.selected
             if (this.__runningEvents.selected) {
                 inBound = checkInBound(
                     x,
                     y,
-                    this.hotCornerTopLeft().x,
-                    this.hotCornerTopLeft().y,
-                    this.hotCornerTopRight().x,
-                    this.hotCornerTopRight().y,
-                    this.hotCornerBottomLeft().x,
-                    this.hotCornerBottomLeft().y,
-                    this.hotCornerBottomRight().x,
-                    this.hotCornerBottomRight().y
+                    this.cornerTopLeft().x,
+                    this.cornerTopLeft().y,
+                    this.cornerTopRight().x,
+                    this.cornerTopRight().y,
+                    this.cornerBottomLeft().x,
+                    this.cornerBottomLeft().y,
+                    this.cornerBottomRight().x,
+                    this.cornerBottomRight().y
                 )
             } else inBound = this.checkInBound(e)
 
@@ -4584,11 +3956,8 @@ export class Block<T = IBlockOptions> extends Node {
                 this.registerZIndex({ out: this.zIndex() })
                 this.__runningEvents.selected = false
             }
-            // Todo: permanent fix, need to fix caching for invokeChange
-            if (this.optionHasChanged('setInBound', inBound)) {
+            if (cacheSelected !== this.__runningEvents.selected)
                 this.invokeChange()
-            }
-            this.setChangeCache('setInBound', inBound)
         }
         this.eventHandler('click', click, 'selectable')
         return selectable
@@ -4630,24 +3999,14 @@ export class Block<T = IBlockOptions> extends Node {
             )
                 return
 
-            let { x, y } = this.canvas?.getCursorPosition(event) || {
-                x: 0,
-                y: 0,
-            }
+            let { x, y } = this.canvas?.getCursorPosition(event)!
             if (!this.__runningEvents.rotate) {
                 let cursor: string | undefined = undefined
                 if (
-                    checkInBound(
+                    this.__checkCornersInBound(
                         x,
                         y,
-                        this.hotRotatableAreaTopLeft().topLeft.x,
-                        this.hotRotatableAreaTopLeft().topLeft.y,
-                        this.hotRotatableAreaTopLeft().topRight.x,
-                        this.hotRotatableAreaTopLeft().topRight.y,
-                        this.hotRotatableAreaTopLeft().bottomLeft.x,
-                        this.hotRotatableAreaTopLeft().bottomLeft.y,
-                        this.hotRotatableAreaTopLeft().bottomRight.x,
-                        this.hotRotatableAreaTopLeft().bottomRight.y
+                        'hotRotatableAreaTopLeft'
                     ) &&
                     this.rotatableTopLeft()
                 ) {
@@ -4655,17 +4014,10 @@ export class Block<T = IBlockOptions> extends Node {
                     topMove = true
                     leftMove = true
                 } else if (
-                    checkInBound(
+                    this.__checkCornersInBound(
                         x,
                         y,
-                        this.hotRotatableAreaTopRight().topLeft.x,
-                        this.hotRotatableAreaTopRight().topLeft.y,
-                        this.hotRotatableAreaTopRight().topRight.x,
-                        this.hotRotatableAreaTopRight().topRight.y,
-                        this.hotRotatableAreaTopRight().bottomLeft.x,
-                        this.hotRotatableAreaTopRight().bottomLeft.y,
-                        this.hotRotatableAreaTopRight().bottomRight.x,
-                        this.hotRotatableAreaTopRight().bottomRight.y
+                        'hotRotatableAreaTopRight'
                     ) &&
                     this.rotatableTopRight()
                 ) {
@@ -4673,17 +4025,10 @@ export class Block<T = IBlockOptions> extends Node {
                     topMove = true
                     leftMove = false
                 } else if (
-                    checkInBound(
+                    this.__checkCornersInBound(
                         x,
                         y,
-                        this.hotRotatableAreaBottomLeft().topLeft.x,
-                        this.hotRotatableAreaBottomLeft().topLeft.y,
-                        this.hotRotatableAreaBottomLeft().topRight.x,
-                        this.hotRotatableAreaBottomLeft().topRight.y,
-                        this.hotRotatableAreaBottomLeft().bottomLeft.x,
-                        this.hotRotatableAreaBottomLeft().bottomLeft.y,
-                        this.hotRotatableAreaBottomLeft().bottomRight.x,
-                        this.hotRotatableAreaBottomLeft().bottomRight.y
+                        'hotRotatableAreaBottomLeft'
                     ) &&
                     this.rotatableBottomLeft()
                 ) {
@@ -4691,17 +4036,10 @@ export class Block<T = IBlockOptions> extends Node {
                     topMove = false
                     leftMove = true
                 } else if (
-                    checkInBound(
+                    this.__checkCornersInBound(
                         x,
                         y,
-                        this.hotRotatableAreaBottomRight().topLeft.x,
-                        this.hotRotatableAreaBottomRight().topLeft.y,
-                        this.hotRotatableAreaBottomRight().topRight.x,
-                        this.hotRotatableAreaBottomRight().topRight.y,
-                        this.hotRotatableAreaBottomRight().bottomLeft.x,
-                        this.hotRotatableAreaBottomRight().bottomLeft.y,
-                        this.hotRotatableAreaBottomRight().bottomRight.x,
-                        this.hotRotatableAreaBottomRight().bottomRight.y
+                        'hotRotatableAreaBottomRight'
                     ) &&
                     this.rotatableBottomRight()
                 ) {
@@ -4735,47 +4073,61 @@ export class Block<T = IBlockOptions> extends Node {
                         y - this.rotationCenterY(),
                         x - this.rotationCenterX()
                     )
+                    let currentRotate = this.getOptionCurrentVal('rotate')
                     if (topMove && leftMove) {
-                        this.rotate(
-                            radian -
-                                Math.atan2(
-                                    this.#rotationCorners.topLeft.y -
-                                        this.__getRealCenterY,
-                                    this.#rotationCorners.topLeft.x -
-                                        this.__getRealCenterX
-                                )
+                        const topLeftCorner = this.cornerTopLeft()
+                        const topLeft = this.__rotateCorners(
+                            topLeftCorner.x,
+                            topLeftCorner.y,
+                            -currentRotate
                         )
+                        currentRotate =
+                            radian -
+                            Math.atan2(
+                                topLeft.y - this.__getRealCenterY,
+                                topLeft.x - this.__getRealCenterX
+                            )
                     } else if (topMove && !leftMove) {
-                        this.rotate(
-                            radian -
-                                Math.atan2(
-                                    this.#rotationCorners.topRight.y -
-                                        this.__getRealCenterY,
-                                    this.#rotationCorners.topRight.x -
-                                        this.__getRealCenterX
-                                )
+                        const topRightCorner = this.cornerTopRight()
+                        const topRight = this.__rotateCorners(
+                            topRightCorner.x,
+                            topRightCorner.y,
+                            -currentRotate
                         )
+                        currentRotate =
+                            radian -
+                            Math.atan2(
+                                topRight.y - this.__getRealCenterY,
+                                topRight.x - this.__getRealCenterX
+                            )
                     } else if (!topMove && !leftMove) {
-                        this.rotate(
-                            radian -
-                                Math.atan2(
-                                    this.#rotationCorners.bottomRight.y -
-                                        this.__getRealCenterY,
-                                    this.#rotationCorners.bottomRight.x -
-                                        this.__getRealCenterX
-                                )
+                        const bottomRightCorner = this.cornerBottomRight()
+                        const bottomRight = this.__rotateCorners(
+                            bottomRightCorner.x,
+                            bottomRightCorner.y,
+                            -currentRotate
                         )
+                        currentRotate =
+                            radian -
+                            Math.atan2(
+                                bottomRight.y - this.__getRealCenterY,
+                                bottomRight.x - this.__getRealCenterX
+                            )
                     } else if (!topMove && leftMove) {
-                        this.rotate(
-                            radian -
-                                Math.atan2(
-                                    this.#rotationCorners.bottomLeft.y -
-                                        this.__getRealCenterY,
-                                    this.#rotationCorners.bottomLeft.x -
-                                        this.__getRealCenterX
-                                )
+                        const bottomLeftCorner = this.cornerBottomLeft()
+                        const bottomLeft = this.__rotateCorners(
+                            bottomLeftCorner.x,
+                            bottomLeftCorner.y,
+                            -currentRotate
                         )
+                        currentRotate =
+                            radian -
+                            Math.atan2(
+                                bottomLeft.y - this.__getRealCenterY,
+                                bottomLeft.x - this.__getRealCenterX
+                            )
                     }
+                    this.setOptionCurrentVal('rotate', currentRotate)
                     this.onRotate()?.(event)
                     this.invokeChange()
                 }
@@ -4809,25 +4161,19 @@ export class Block<T = IBlockOptions> extends Node {
     resizable(opt?: boolean): boolean {
         const resizable = this.__valueHandler(opt, 'resizable', false)
         if (!resizable) return resizable
-
         let initCords = { x: 0, y: 0 }
         let beforeCords = { x: 0, y: 0 }
         let beforeValues: any = {}
-
         let topResize = false
         let leftResize = false
         let bottomResize = false
         let rightResize = false
-
         let inBound = false
         const mousedown = (event: MouseEvent) => {
             if (this.__runningEvents.rotate) return
             beforeCords = { x: 0, y: 0 }
             if (inBound) {
-                initCords = this.canvas?.getCursorPosition(event) || {
-                    x: 0,
-                    y: 0,
-                }
+                initCords = this.canvas?.getCursorPosition(event)!
                 this.__runningEvents.resize = true
                 beforeValues[this.nodeId!] = {
                     x: this.x(),
@@ -4838,131 +4184,62 @@ export class Block<T = IBlockOptions> extends Node {
                 this.registerZIndex({ in: this.zIndex() })
             } else this.registerZIndex({ out: this.zIndex() })
         }
-
         const mousemove = (event: MouseEvent) => {
             if (!this.__runningEvents.selected || this.__runningEvents.rotate)
                 return
 
-            const { x, y } = this.canvas?.getCursorPosition(event) || {
-                x: 0,
-                y: 0,
-            }
+            const { x, y } = this.canvas?.getCursorPosition(event)!
             if (!this.__runningEvents.resize) {
                 let cursor: string | undefined = undefined
                 bottomResize = rightResize = topResize = leftResize = false
                 if (
                     this.resizableLeft() &&
-                    (checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaLeft().topLeft.x,
-                        this.hotResizableAreaLeft().topLeft.y,
-                        this.hotResizableAreaLeft().topRight.x,
-                        this.hotResizableAreaLeft().topRight.y,
-                        this.hotResizableAreaLeft().bottomLeft.x,
-                        this.hotResizableAreaLeft().bottomLeft.y,
-                        this.hotResizableAreaLeft().bottomRight.x,
-                        this.hotResizableAreaLeft().bottomRight.y
-                    ) ||
-                        checkInBound(
+                    (this.__checkCornersInBound(x, y, 'hotResizableAreaLeft') ||
+                        this.__checkCornersInBoundReverseX(
                             x,
                             y,
-                            this.hotResizableAreaLeft().bottomLeft.x,
-                            this.hotResizableAreaLeft().bottomLeft.y,
-                            this.hotResizableAreaLeft().bottomRight.x,
-                            this.hotResizableAreaLeft().bottomRight.y,
-                            this.hotResizableAreaLeft().topLeft.x,
-                            this.hotResizableAreaLeft().topLeft.y,
-                            this.hotResizableAreaLeft().topRight.x,
-                            this.hotResizableAreaLeft().topRight.y
+                            'hotResizableAreaLeft'
                         ))
                 ) {
                     leftResize = true
                     cursor = 'ew-resize'
                 } else if (
                     this.resizableRight() &&
-                    (checkInBound(
+                    (this.__checkCornersInBound(
                         x,
                         y,
-                        this.hotResizableAreaRight().topLeft.x,
-                        this.hotResizableAreaRight().topLeft.y,
-                        this.hotResizableAreaRight().topRight.x,
-                        this.hotResizableAreaRight().topRight.y,
-                        this.hotResizableAreaRight().bottomLeft.x,
-                        this.hotResizableAreaRight().bottomLeft.y,
-                        this.hotResizableAreaRight().bottomRight.x,
-                        this.hotResizableAreaRight().bottomRight.y
+                        'hotResizableAreaRight'
                     ) ||
-                        checkInBound(
+                        this.__checkCornersInBoundReverseX(
                             x,
                             y,
-                            this.hotResizableAreaRight().bottomLeft.x,
-                            this.hotResizableAreaRight().bottomLeft.y,
-                            this.hotResizableAreaRight().bottomRight.x,
-                            this.hotResizableAreaRight().bottomRight.y,
-                            this.hotResizableAreaRight().topLeft.x,
-                            this.hotResizableAreaRight().topLeft.y,
-                            this.hotResizableAreaRight().topRight.x,
-                            this.hotResizableAreaRight().topRight.y
+                            'hotResizableAreaRight'
                         ))
                 ) {
                     rightResize = true
                     cursor = 'ew-resize'
                 } else if (
                     this.resizableTop() &&
-                    (checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaTop().topLeft.x,
-                        this.hotResizableAreaTop().topLeft.y,
-                        this.hotResizableAreaTop().topRight.x,
-                        this.hotResizableAreaTop().topRight.y,
-                        this.hotResizableAreaTop().bottomLeft.x,
-                        this.hotResizableAreaTop().bottomLeft.y,
-                        this.hotResizableAreaTop().bottomRight.x,
-                        this.hotResizableAreaTop().bottomRight.y
-                    ) ||
-                        checkInBound(
+                    (this.__checkCornersInBound(x, y, 'hotResizableAreaTop') ||
+                        this.__checkCornersInBoundReverseY(
                             x,
                             y,
-
-                            this.hotResizableAreaTop().topRight.x,
-                            this.hotResizableAreaTop().topRight.y,
-                            this.hotResizableAreaTop().topLeft.x,
-                            this.hotResizableAreaTop().topLeft.y,
-                            this.hotResizableAreaTop().bottomRight.x,
-                            this.hotResizableAreaTop().bottomRight.y,
-                            this.hotResizableAreaTop().bottomLeft.x,
-                            this.hotResizableAreaTop().bottomLeft.y
+                            'hotResizableAreaTop'
                         ))
                 ) {
                     topResize = true
                     cursor = 'ns-resize'
                 } else if (
                     this.resizableBottom() &&
-                    (checkInBound(
+                    (this.__checkCornersInBound(
                         x,
                         y,
-                        this.hotResizableAreaBottom().topLeft.x,
-                        this.hotResizableAreaBottom().topLeft.y,
-                        this.hotResizableAreaBottom().topRight.x,
-                        this.hotResizableAreaBottom().topRight.y,
-                        this.hotResizableAreaBottom().bottomLeft.x,
-                        this.hotResizableAreaBottom().bottomLeft.y,
-                        this.hotResizableAreaBottom().bottomRight.x,
-                        this.hotResizableAreaBottom().bottomRight.y
+                        'hotResizableAreaBottom'
                     ) ||
-                        checkInBound(
+                        this.__checkCornersInBoundReverseY(
                             x,
                             y,
-                            this.hotResizableAreaBottom().topRight.x,
-                            this.hotResizableAreaBottom().topRight.y,
-                            this.hotResizableAreaBottom().topLeft.x,
-                            this.hotResizableAreaBottom().topLeft.y,
-                            this.hotResizableAreaBottom().bottomRight.x,
-                            this.hotResizableAreaBottom().bottomRight.y,
-                            this.hotResizableAreaBottom().bottomLeft.x,
-                            this.hotResizableAreaBottom().bottomLeft.y
+                            'hotResizableAreaBottom'
                         ))
                 ) {
                     cursor = 'ns-resize'
@@ -4971,18 +4248,7 @@ export class Block<T = IBlockOptions> extends Node {
 
                 if (
                     this.resizableTopLeft() &&
-                    checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaTopLeft().topLeft.x,
-                        this.hotResizableAreaTopLeft().topLeft.y,
-                        this.hotResizableAreaTopLeft().topRight.x,
-                        this.hotResizableAreaTopLeft().topRight.y,
-                        this.hotResizableAreaTopLeft().bottomLeft.x,
-                        this.hotResizableAreaTopLeft().bottomLeft.y,
-                        this.hotResizableAreaTopLeft().bottomRight.x,
-                        this.hotResizableAreaTopLeft().bottomRight.y
-                    )
+                    this.__checkCornersInBound(x, y, 'hotResizableAreaTopLeft')
                 ) {
                     topResize = true
                     leftResize = true
@@ -4990,18 +4256,7 @@ export class Block<T = IBlockOptions> extends Node {
                 }
                 if (
                     this.resizableTopRight() &&
-                    checkInBound(
-                        x,
-                        y,
-                        this.hotResizableAreaTopRight().topLeft.x,
-                        this.hotResizableAreaTopRight().topLeft.y,
-                        this.hotResizableAreaTopRight().topRight.x,
-                        this.hotResizableAreaTopRight().topRight.y,
-                        this.hotResizableAreaTopRight().bottomLeft.x,
-                        this.hotResizableAreaTopRight().bottomLeft.y,
-                        this.hotResizableAreaTopRight().bottomRight.x,
-                        this.hotResizableAreaTopRight().bottomRight.y
-                    )
+                    this.__checkCornersInBound(x, y, 'hotResizableAreaTopRight')
                 ) {
                     topResize = true
                     rightResize = true
@@ -5009,17 +4264,10 @@ export class Block<T = IBlockOptions> extends Node {
                 }
                 if (
                     this.resizableBottomLeft() &&
-                    checkInBound(
+                    this.__checkCornersInBound(
                         x,
                         y,
-                        this.hotResizableAreaBottomLeft().topLeft.x,
-                        this.hotResizableAreaBottomLeft().topLeft.y,
-                        this.hotResizableAreaBottomLeft().topRight.x,
-                        this.hotResizableAreaBottomLeft().topRight.y,
-                        this.hotResizableAreaBottomLeft().bottomLeft.x,
-                        this.hotResizableAreaBottomLeft().bottomLeft.y,
-                        this.hotResizableAreaBottomLeft().bottomRight.x,
-                        this.hotResizableAreaBottomLeft().bottomRight.y
+                        'hotResizableAreaBottomLeft'
                     )
                 ) {
                     bottomResize = true
@@ -5028,27 +4276,18 @@ export class Block<T = IBlockOptions> extends Node {
                 }
                 if (
                     this.resizableBottomRight() &&
-                    checkInBound(
+                    this.__checkCornersInBound(
                         x,
                         y,
-                        this.hotResizableAreaBottomRight().topLeft.x,
-                        this.hotResizableAreaBottomRight().topLeft.y,
-                        this.hotResizableAreaBottomRight().topRight.x,
-                        this.hotResizableAreaBottomRight().topRight.y,
-                        this.hotResizableAreaBottomRight().bottomLeft.x,
-                        this.hotResizableAreaBottomRight().bottomLeft.y,
-                        this.hotResizableAreaBottomRight().bottomRight.x,
-                        this.hotResizableAreaBottomRight().bottomRight.y
+                        'hotResizableAreaBottomRight'
                     )
                 ) {
                     bottomResize = true
                     rightResize = true
                     cursor = 'nwse-resize'
                 }
-
                 if (cursor) {
                     inBound = true
-
                     const horizontalFlipped = this.__isHorizontalFlipped
                     const verticalFlipped = this.__isVerticalFlipped
                     if (
@@ -5059,7 +4298,7 @@ export class Block<T = IBlockOptions> extends Node {
                         else if (cursor === 'nesw-resize')
                             cursor = 'nwse-resize'
                     }
-                    cursor = this.#chooseCursor(cursor)
+                    cursor = chooseBoxCursorInAgle(cursor, this.__getRealRotate)
                     this.canvas?.changeCursor(cursor)
                 } else {
                     inBound = false
@@ -5073,13 +4312,23 @@ export class Block<T = IBlockOptions> extends Node {
                 if (this.ImFirst || this.__runningEvents.resize) {
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
-
                     if (diffX !== 0 || diffY !== 0) {
+                        const cacheRotate = this.getOptionCacheVal('rotate')
                         const horizontalFlipped = this.__isHorizontalFlipped
-
                         let diffW = diffX - beforeCords.x
                         let diffH = diffY - beforeCords.y
                         let angle = this.__getRealRotate
+                        let currentX = this.x()
+                        let currentY = this.y()
+                        let currentWidth = this.width()
+                        let currentHeight = this.height()
+                        let rotationCenterX = this.rotationCenterX()
+                        let rotationCenterY = this.rotationCenterY()
+                        this.#updateAllCornesByRot(-cacheRotate)
+                        let cornerTopLeft = this.cornerTopLeft()
+                        let cornerTopRight = this.cornerTopRight()
+                        let cornerBottomLeft = this.cornerBottomLeft()
+                        let cornerBottomRight = this.cornerBottomRight()
 
                         if (leftResize || rightResize) {
                             let Cos = Math.cos(angle)
@@ -5089,98 +4338,33 @@ export class Block<T = IBlockOptions> extends Node {
                                 Sin = -Sin
                             }
                             const increaseX = Cos * diffW + Sin * diffH
-
                             const cx = increaseX * Cos
                             const cy = increaseX * Sin
-
                             const increaseW = increaseX * (leftResize ? 1 : -1)
-                            const widthR = this.width() - increaseW
-
+                            const widthR = currentWidth - increaseW
                             if (
                                 widthR < this.maxWidth() &&
                                 ((widthR > this.minWidth() &&
                                     !this.horizontalFlipResize()) ||
                                     this.horizontalFlipResize())
                             ) {
-                                this.rotationCenterX(
-                                    this.rotationCenterX() + cx / 2
-                                )
-                                this.rotationCenterY(
-                                    this.rotationCenterY() + cy / 2
-                                )
-
-                                const cacheR = this.rotate()
-                                this.rotate(0)
-
+                                currentY += cy / 2
+                                currentWidth = widthR
+                                rotationCenterX += cx / 2
+                                rotationCenterY += cy / 2
                                 if (leftResize) {
                                     const adjustX = ((increaseX + cx) /
                                         2) as any
-                                    this.ownOptions.x += adjustX
-
-                                    if (this.#overflowXscrollBar.block)
-                                        this.#overflowXscrollBar.outerBarCordinates.x +=
-                                            adjustX
-
-                                    if (this.#overflowYscrollBar.block)
-                                        this.#overflowYscrollBar.outerBarCordinates.x -=
-                                            ((increaseX - cx) / 2) as any
-
-                                    this.cornerTopLeft({
-                                        x: this.cornerTopLeft().x + increaseX,
-                                        y: this.cornerTopLeft().y,
-                                    })
-                                    this.cornerBottomLeft({
-                                        x:
-                                            this.cornerBottomLeft().x +
-                                            increaseX,
-                                        y: this.cornerBottomLeft().y,
-                                    })
-                                } else {
+                                    cornerTopLeft.x += increaseX
+                                    cornerBottomLeft.x += increaseX
+                                    currentX += adjustX
+                                } else if (rightResize) {
                                     const adjustX = ((increaseX - cx) /
                                         2) as any
-
-                                    this.ownOptions.x =
-                                        (this.ownOptions.x as any) - adjustX
-
-                                    if (this.#overflowXscrollBar.block)
-                                        this.#overflowXscrollBar.outerBarCordinates.x -=
-                                            adjustX
-                                    if (this.#overflowYscrollBar.block)
-                                        this.#overflowYscrollBar.outerBarCordinates.x +=
-                                            ((increaseX + cx) / 2) as any
-
-                                    this.cornerTopRight({
-                                        x: this.cornerTopRight().x + increaseX,
-                                        y: this.cornerTopRight().y,
-                                    })
-                                    this.cornerBottomRight({
-                                        x:
-                                            this.cornerBottomRight().x +
-                                            increaseX,
-                                        y: this.cornerBottomRight().y,
-                                    })
+                                    currentX -= adjustX
+                                    cornerTopRight.x += increaseX
+                                    cornerBottomRight.x += increaseX
                                 }
-                                this.ownOptions.y += (cy / 2) as any
-                                this.ownOptions.width = widthR as any
-
-                                if (this.#overflowXscrollBar.block) {
-                                    this.#overflowXscrollBar.outerBarCordinates.width -=
-                                        increaseW
-                                    this.#overflowXscrollBar.outerBarCordinates.y +=
-                                        cy / 2
-                                }
-
-                                if (this.#overflowYscrollBar.block) {
-                                    this.#overflowYscrollBar.outerBarCordinates.y +=
-                                        cy / 2
-
-                                    this.#overflowYscrollBar.outerBarCordinates.width =
-                                        (this.ownOptions.width as any) <
-                                        OVERFLOW_AREA_GAP
-                                            ? (this.ownOptions.width as any)
-                                            : OVERFLOW_AREA_GAP
-                                }
-                                this.rotate(cacheR)
                             }
                         }
                         if (topResize || bottomResize) {
@@ -5190,106 +4374,67 @@ export class Block<T = IBlockOptions> extends Node {
                                 Cos = -Cos
                                 Sin = -Sin
                             }
-
                             const increaseY = Sin * diffW + Cos * diffH
-
                             const cx = increaseY * Sin
                             const cy = increaseY * Cos
-
                             const increaseH = increaseY * (topResize ? 1 : -1)
-                            const heightR = this.height() - increaseH
-
+                            const heightR = currentHeight - increaseH
                             if (
                                 heightR < this.maxHeight() &&
                                 ((heightR > this.minHeight() &&
                                     !this.verticalFlipResize()) ||
                                     this.verticalFlipResize())
                             ) {
-                                this.rotationCenterX(
-                                    this.rotationCenterX() + cx / 2
-                                )
-                                this.rotationCenterY(
-                                    this.rotationCenterY() + cy / 2
-                                )
-
-                                const cacheR = this.rotate()
-                                this.rotate(0)
-
+                                currentX += cx / 2
+                                currentHeight = heightR
+                                rotationCenterX += cx / 2
+                                rotationCenterY += cy / 2
                                 if (topResize) {
                                     const adjustY = ((increaseY + cy) /
                                         2) as any
-                                    this.ownOptions.y += adjustY
-
-                                    if (this.#overflowXscrollBar.block)
-                                        this.#overflowXscrollBar.outerBarCordinates.y -=
-                                            ((increaseY - cy) / 2) as any
-
-                                    if (this.#overflowYscrollBar.block)
-                                        this.#overflowYscrollBar.outerBarCordinates.y +=
-                                            adjustY
-                                    this.cornerTopLeft({
-                                        x: this.cornerTopLeft().x,
-                                        y: this.cornerTopLeft().y + increaseY,
-                                    })
-                                    this.cornerTopRight({
-                                        x: this.cornerTopRight().x,
-                                        y: this.cornerTopRight().y + increaseY,
-                                    })
-                                } else {
-                                    const adjustY = ((increaseY - cy) /
-                                        2) as any
-                                    this.ownOptions.y =
-                                        (this.ownOptions.y as any) - adjustY
-
-                                    if (this.#overflowXscrollBar.block)
-                                        this.#overflowXscrollBar.outerBarCordinates.y +=
-                                            ((increaseY + cy) / 2) as any
-                                    if (this.#overflowYscrollBar.block)
-                                        this.#overflowYscrollBar.outerBarCordinates.y -=
-                                            adjustY
-
-                                    this.cornerBottomRight({
-                                        x: this.cornerBottomRight().x,
-                                        y:
-                                            this.cornerBottomRight().y +
-                                            increaseY,
-                                    })
-                                    this.cornerBottomLeft({
-                                        x: this.cornerBottomLeft().x,
-                                        y:
-                                            this.cornerBottomLeft().y +
-                                            increaseY,
-                                    })
+                                    currentY += adjustY
+                                    cornerTopLeft.y += increaseY
+                                    cornerTopRight.y += increaseY
+                                } else if (bottomResize) {
+                                    const adjustY = (increaseY - cy) / 2
+                                    currentY -= adjustY
+                                    cornerBottomRight.y += increaseY
+                                    cornerBottomLeft.y += increaseY
                                 }
-
-                                this.ownOptions.x += (cx / 2) as any
-                                this.ownOptions.height = heightR as any
-
-                                if (this.#overflowYscrollBar.block) {
-                                    this.#overflowYscrollBar.outerBarCordinates.height -=
-                                        increaseH
-                                    this.#overflowYscrollBar.outerBarCordinates.x +=
-                                        cx / 2
-                                }
-
-                                if (this.#overflowXscrollBar.block) {
-                                    this.#overflowXscrollBar.outerBarCordinates.x +=
-                                        cx / 2
-
-                                    this.#overflowXscrollBar.outerBarCordinates.height =
-                                        (this.ownOptions.height as any) <
-                                        OVERFLOW_AREA_GAP
-                                            ? (this.ownOptions.height as any)
-                                            : OVERFLOW_AREA_GAP
-                                }
-
-                                this.rotate(cacheR)
                             }
                         }
-
+                        this.setOptionCurrentVal('cornerTopLeft', cornerTopLeft)
+                        this.setOptionCurrentVal(
+                            'cornerTopRight',
+                            cornerTopRight
+                        )
+                        this.setOptionCurrentVal(
+                            'cornerBottomLeft',
+                            cornerBottomLeft
+                        )
+                        this.setOptionCurrentVal(
+                            'cornerBottomRight',
+                            cornerBottomRight
+                        )
+                        this.#updateAllCornesByRot(cacheRotate)
+                        this.setOptionCurrentVal('x', currentX)
+                        this.setOptionCurrentVal('y', currentY)
+                        this.setOptionCurrentVal('width', currentWidth)
+                        this.setOptionCurrentVal('height', currentHeight)
+                        this.setOptionCacheVal('x', currentX)
+                        this.setOptionCacheVal('y', currentY)
+                        this.setOptionCacheVal('width', currentWidth)
+                        this.setOptionCacheVal('height', currentHeight)
+                        this.setOptionCurrentVal(
+                            'rotationCenterX',
+                            rotationCenterX
+                        )
+                        this.setOptionCurrentVal(
+                            'rotationCenterY',
+                            rotationCenterY
+                        )
                         beforeCords.x = diffX
                         beforeCords.y = diffY
-                        this.#adjustCordsToFLip()
                         this.onResize()?.(event)
                         this.invokeChange()
                     }
@@ -5312,115 +4457,56 @@ export class Block<T = IBlockOptions> extends Node {
                 }
             }
         }
-
         this.eventHandler('mousedown', mousedown, 'resizableDown')
         this.eventHandler('mousemove', mousemove, 'resizableMove')
         this.eventHandler('mouseup', mouseup, 'resizableUp')
         return resizable
     }
-
-    #adjustCordsToFLip() {
-        const hFlip = this.getCacheValue('isHorizontalFlipped')
-        if (this.__isHorizontalFlipped !== hFlip) {
-            this.setChangeCache('isHorizontalFlipped', !hFlip)
-            this.#areaHorizontalFlip('hotResizableAreaLeft', !hFlip)
-            this.#areaHorizontalFlip('hotResizableAreaRight', hFlip)
-            this.#areaHorizontalFlip('hotResizableAreaTopLeft', !hFlip)
-            this.#areaHorizontalFlip('hotResizableAreaTopRight', hFlip)
-            this.#areaHorizontalFlip('hotResizableAreaBottomLeft', !hFlip)
-            this.#areaHorizontalFlip('hotResizableAreaBottomRight', hFlip)
-            this.#areaHorizontalFlip('hotRotatableAreaBottomLeft', hFlip)
-            this.#areaHorizontalFlip('hotRotatableAreaBottomRight', !hFlip)
-            this.#areaHorizontalFlip('hotRotatableAreaTopRight', !hFlip)
-            this.#areaHorizontalFlip('hotRotatableAreaTopLeft', hFlip)
-
-            // this.ownOptions["hotResizableAreaTop"]!.topLeft.x =
-            //     this.cornerTopRight().x - this.hotAreaSize();
-
-            // this.ownOptions["hotResizableAreaTop"]!.bottomLeft.x =
-            //     this.cornerBottomRight().x - this.hotAreaSize();
-
-            // this.ownOptions["hotResizableAreaTop"]!.topRight.x =
-            //     this.cornerTopLeft().x + this.hotAreaSize();
-
-            // this.ownOptions["hotResizableAreaTop"]!.bottomRight.x =
-            //     this.cornerBottomLeft().x + this.hotAreaSize();
-        }
-
-        const vFlip = this.getCacheValue('isVerticalFlipped')
-        if (this.__isVerticalFlipped !== vFlip) {
-            this.setChangeCache('isVerticalFlipped', !vFlip)
-
-            this.#areaVerticalFlip('hotResizableAreaTop', !vFlip)
-            this.#areaVerticalFlip('hotResizableAreaBottom', vFlip)
-            this.#areaVerticalFlip('hotResizableAreaTopLeft', !vFlip)
-            this.#areaVerticalFlip('hotResizableAreaTopRight', !vFlip)
-            this.#areaVerticalFlip('hotResizableAreaBottomLeft', vFlip)
-            this.#areaVerticalFlip('hotResizableAreaBottomRight', vFlip)
-            this.#areaVerticalFlip('hotRotatableAreaBottomLeft', !vFlip)
-            this.#areaVerticalFlip('hotRotatableAreaBottomRight', !vFlip)
-            this.#areaVerticalFlip('hotRotatableAreaTopRight', vFlip)
-            this.#areaVerticalFlip('hotRotatableAreaTopLeft', vFlip)
-        }
+    __checkCornersInBound(x: number, y: number, cornerName: string) {
+        const corner = this.getOptionCurrentVal(cornerName)
+        return checkInBound(
+            x,
+            y,
+            corner.topLeft.x,
+            corner.topLeft.y,
+            corner.topRight.x,
+            corner.topRight.y,
+            corner.bottomLeft.x,
+            corner.bottomLeft.y,
+            corner.bottomRight.x,
+            corner.bottomRight.y
+        )
     }
-
-    #areaHorizontalFlip(area: string, reverse: boolean) {
-        const cornerArea = this.ownOptions[area] as HotCornerArea
-        let flipArea = cornerArea.topLeft.x - cornerArea.topRight.x
-        if (reverse) flipArea = -flipArea
-        cornerArea.topLeft.x += flipArea
-        cornerArea.topRight.x += flipArea
-        cornerArea.bottomLeft.x += flipArea
-        cornerArea.bottomRight.x += flipArea
+    __checkCornersInBoundReverseX(x: number, y: number, cornerName: string) {
+        const corner = this.getOptionCurrentVal(cornerName)
+        return checkInBound(
+            x,
+            y,
+            corner.bottomLeft.x,
+            corner.bottomLeft.y,
+            corner.bottomRight.x,
+            corner.bottomRight.y,
+            corner.topLeft.x,
+            corner.topLeft.y,
+            corner.topRight.x,
+            corner.topRight.y
+        )
     }
-
-    #areaVerticalFlip(area: string, reverse: boolean) {
-        const cornerArea = this.ownOptions[area] as HotCornerArea
-        let flipArea = cornerArea.topLeft.y - cornerArea.bottomLeft.y
-        if (reverse) flipArea = -flipArea
-        cornerArea.topLeft.y += flipArea
-        cornerArea.topRight.y += flipArea
-        cornerArea.bottomLeft.y += flipArea
-        cornerArea.bottomRight.y += flipArea
+    __checkCornersInBoundReverseY(x: number, y: number, cornerName: string) {
+        const corner = this.getOptionCurrentVal(cornerName)
+        checkInBound(
+            x,
+            y,
+            corner.topRight.x,
+            corner.topRight.y,
+            corner.topLeft.x,
+            corner.topLeft.y,
+            corner.bottomRight.x,
+            corner.bottomRight.y,
+            corner.bottomLeft.x,
+            corner.bottomLeft.y
+        )
     }
-
-    #chooseCursor(defaultCursor: string) {
-        const cursors: { [key: string]: string[] } = {
-            'ew-resize': ['nwse-resize', 'ns-resize', 'nesw-resize'],
-            'ns-resize': ['nesw-resize', 'ew-resize', 'nwse-resize'],
-            'nesw-resize': ['ew-resize', 'nwse-resize', 'ns-resize'],
-            'nwse-resize': ['ns-resize', 'nesw-resize', 'ew-resize'],
-        }
-        const angle = this.__getRealRotate
-
-        // 22.5° to 67.5° (45° rotation)
-        if (angle >= 0.3927 && angle < 1.1781) {
-            return cursors[defaultCursor][0]
-        }
-        // 67.5° to 112.5° (90° rotation)
-        else if (angle >= 1.1781 && angle < 1.9635) {
-            return cursors[defaultCursor][1]
-        }
-        // 112.5° to 157.5° (135° rotation)
-        else if (angle >= 1.9635 && angle < 2.7489) {
-            return cursors[defaultCursor][2]
-        }
-        // -157.5° to -112.5° (-135° rotation)
-        else if (angle >= -2.7489 && angle < -1.9635) {
-            return cursors[defaultCursor][0]
-        }
-        // -112.5° to -67.5° (-90° rotation)
-        else if (angle >= -1.9635 && angle < -1.1781) {
-            return cursors[defaultCursor][1]
-        }
-        // -67.5° to -22.5° (-45° rotation)
-        else if (angle >= -1.1781 && angle < -0.3927) {
-            return cursors[defaultCursor][2]
-        }
-        // 0° to 22.5°, 157.5° to 180°, -22.5° to 0°, -180° to -157.5°
-        return defaultCursor
-    }
-
     onDrag(opt?: (event: MouseEvent) => void) {
         const dragE = this.__valueHandler<
             (event: MouseEvent) => void,
@@ -5432,15 +4518,13 @@ export class Block<T = IBlockOptions> extends Node {
     draggable(opt?: boolean): boolean {
         const draggable = this.__valueHandler(opt, 'draggable', false)
         if (!draggable) return draggable
-
         let initCords = { x: 0, y: 0 }
         let beforeCords = { x: 0, y: 0 }
         let beforeValues: any = {}
-
         this.mousedown((event) => {
             if (this.__runningEvents.resize || this.__runningEvents.rotate)
                 return
-            initCords = this.canvas?.getCursorPosition(event) || { x: 0, y: 0 }
+            initCords = this.canvas?.getCursorPosition(event)!
             beforeCords = { x: 0, y: 0 }
             beforeValues[this.nodeId!] = {
                 x: this.x(),
@@ -5448,29 +4532,23 @@ export class Block<T = IBlockOptions> extends Node {
             }
             this.__runningEvents.drag = true
         })
-
         const mousemove = (event: MouseEvent) => {
             if (this.__runningEvents.resize || this.__runningEvents.rotate)
                 return
             if (this.__runningEvents.drag) {
                 this.registerZIndex({ in: this.zIndex() })
                 if (this.ImFirst || this.__runningEvents.drag) {
-                    const { x, y } = this.canvas?.getCursorPosition(event) || {
-                        x: 0,
-                        y: 0,
-                    }
+                    const { x, y } = this.canvas?.getCursorPosition(event)!
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
                     if (diffX !== 0 && this.draggableX()) {
                         const diff = diffX - beforeCords.x
                         this.__translate({ x: diff, y: 0 })
-
                         beforeCords.x = diffX
                     }
                     if (diffY !== 0 && this.draggableY()) {
                         const diff = diffY - beforeCords.y
                         this.__translate({ x: 0, y: diff })
-
                         beforeCords.y = diffY
                     }
                     this.onDrag()?.(event)
@@ -5494,7 +4572,6 @@ export class Block<T = IBlockOptions> extends Node {
         }
         this.eventHandler<MouseEvent>('mousemove', mousemove, 'draggableMove')
         this.eventHandler<MouseEvent>('mouseup', mouseup, 'draggableUp')
-
         return draggable
     }
 }
