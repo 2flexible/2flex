@@ -226,7 +226,7 @@ export class Canvas {
                 this.__collectAnimations(b)
                 this.__takeInitSnaphshot(b)
                 b.__initCordinates()
-                
+
                 b.__hidden = !this.inBoundBlock(b)
                 b.listAllChilds(() => (b.childsCount += 1))
                 b.render()
@@ -382,7 +382,7 @@ export class Canvas {
     #handleBindOptions(block: Block) {
         if (block.__bindOptions.length !== 0) {
             for (const opt of block.__bindOptions) {
-                for (const key of opt.options.keys()) {
+                for (const key of opt.options) {
                     getPrototype(block, key as any)?.value.call(
                         block,
                         opt.bindTo.getOptionCurrentVal(key)
@@ -887,10 +887,7 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.__isOverflowXScrollable
                             ) {
-                                block.__overflowTranslate({
-                                    x: moveSpeed,
-                                    y: 0,
-                                })
+                                block.__overflowTranslateX(moveSpeed)
                                 inBound = true
                             } else block.__translate({ x: moveSpeed, y: 0 })
                         })
@@ -901,10 +898,7 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.__isOverflowXScrollable
                             ) {
-                                block.__overflowTranslate({
-                                    x: -moveSpeed,
-                                    y: 0,
-                                })
+                                block.__overflowTranslateX(-moveSpeed)
                                 inBound = true
                             } else block.__translate({ x: -moveSpeed, y: 0 })
                         })
@@ -917,10 +911,7 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.__isOverflowYScrollable
                             ) {
-                                block.__overflowTranslate({
-                                    x: 0,
-                                    y: moveSpeed,
-                                })
+                                block.__overflowTranslateY(moveSpeed)
                                 inBound = true
                             } else block.__translate({ x: 0, y: moveSpeed })
                         })
@@ -931,10 +922,7 @@ export class Canvas {
                                 block.checkInBound(event) &&
                                 block.__isOverflowYScrollable
                             ) {
-                                block.__overflowTranslate({
-                                    x: 0,
-                                    y: -moveSpeed,
-                                })
+                                block.__overflowTranslateY(-moveSpeed)
                                 inBound = true
                             } else block.__translate({ x: 0, y: -moveSpeed })
                         })
