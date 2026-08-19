@@ -130,6 +130,7 @@ export interface IBlockOptions {
     minHeight?: RelativeType
     maxWidth?: RelativeType
     maxHeight?: RelativeType
+    scale?: RelativeType
     position?: Position
     top?: RelativeType
     bottom?: RelativeType
@@ -382,7 +383,7 @@ export class Block<T = IBlockOptions> extends Node {
     }
 
     render() {
-                const currentRotate = this.getOptionCurrentVal('rotate') || 0
+        const currentRotate = this.getOptionCurrentVal('rotate') || 0
         const cacheRotate = this.getOptionCacheVal('rotate') || 0
         const diffR = currentRotate - cacheRotate
         this.__updateCordinatesByRot(-cacheRotate)
@@ -455,7 +456,8 @@ export class Block<T = IBlockOptions> extends Node {
             this.getOptionCurrentVal('cornerBottomRight')
 
         const diffScale =
-            this.getOptionCurrentVal('scale') - this.getOptionCacheVal('scale')
+            (this.getOptionCurrentVal('scale') || 0) -
+            (this.getOptionCacheVal('scale') || 0)
 
         const diffPaddingTop =
             this.getOptionCurrentVal('paddingTop') -
@@ -1955,7 +1957,8 @@ export class Block<T = IBlockOptions> extends Node {
         if (margin !== undefined) this.#parseMargin(margin)
         const x = this.x()
         const y = this.y()
-        const scale = this.scale()
+        let scale: number | undefined = this.scale()
+        scale = scale !== undefined ? scale : 1
         const width = this.width(
             (this.width() + this.paddingLeft() + this.paddingRight()) * scale
         )
