@@ -489,7 +489,7 @@ export class Block<T = IBlockOptions> extends Node {
             currentHeight = minHeight
         else if (currentHeight > maxHeight) currentHeight = maxHeight
 
-        if (position === 'fixed') {
+        if (position === 'fixed' || position === 'absolute') {
             if (top !== undefined) currentY = top
             else if (bottom !== undefined)
                 currentY =
@@ -499,7 +499,7 @@ export class Block<T = IBlockOptions> extends Node {
             else if (right !== undefined)
                 currentX =
                     Math.abs((this.canvas?.width || 1) - currentWidth) - right
-        } else if (position === 'sticky') {
+        } else if (position === 'sticky' && !this.#hasParentBlock) {
             if (top !== undefined && currentY < top) {
                 currentY = top
             } else if (
@@ -519,18 +519,7 @@ export class Block<T = IBlockOptions> extends Node {
                 currentX =
                     Math.abs((this.canvas?.width || 1) - currentWidth) - right
             }
-        } else if (position === 'absolute') {
-            if (left !== undefined) currentX = left
-            else if (right !== undefined)
-                currentX =
-                    Math.abs((this.canvas?.width || 1) - currentWidth) - right
-            if (top !== undefined) {
-                currentY = top
-            } else if (bottom !== undefined)
-                currentY =
-                    Math.abs((this.canvas?.height || 1) - currentHeight) -
-                    bottom
-        } else if (position === 'relative') {
+        } else if (position === 'relative' && !this.#hasParentBlock) {
             if (left !== undefined) currentX = left
             else if (right !== undefined) currentX = -right
             if (top !== undefined) currentY = top
@@ -613,7 +602,7 @@ export class Block<T = IBlockOptions> extends Node {
                 x: cornerBottomRightCurrent.x + hotAreaGap,
                 y: cornerBottomRightCurrent.y + hotAreaGap,
             }
-            this.#initHorizontalHotLineArea(
+            this.#initHotLineArea(
                 topLeftCorner,
                 topRightCorner,
                 bottomLeftCorner,
@@ -1049,14 +1038,12 @@ export class Block<T = IBlockOptions> extends Node {
                             )
                                 inverse = -1
 
-                            this.__overflowTranslate({
-                                x:
-                                    -(
-                                        Math.cos(angle) * inverse * dxX +
-                                        Math.sin(angle) * inverse * dxY
-                                    ) * inverse,
-                                y: 0,
-                            })
+                            this.__overflowTranslateX(
+                                -(
+                                    Math.cos(angle) * inverse * dxX +
+                                    Math.sin(angle) * inverse * dxY
+                                ) * inverse
+                            )
                             beforeCords.x = diffX
                             beforeCords.y = diffY
                             this.#overflowXscrollBarBlock?.invokeChange()
@@ -1277,13 +1264,12 @@ export class Block<T = IBlockOptions> extends Node {
                             )
                                 inverse = -1
 
-                            this.__overflowTranslate({
-                                x: 0,
-                                y: -(
+                            this.__overflowTranslateY(
+                                -(
                                     -Math.sin(angle) * inverse * dxX +
                                     Math.cos(angle) * inverse * dxY
-                                ),
-                            })
+                                )
+                            )
                             beforeCords.x = diffX
                             beforeCords.y = diffY
                             this.#overflowYscrollBarBlock!.invokeChange()
@@ -1965,7 +1951,6 @@ export class Block<T = IBlockOptions> extends Node {
         const height = this.height(
             (this.height() + this.paddingTop() + this.paddingBottom()) * scale
         )
-
         if (this.getOptionCurrentVal('cornerTopLeft') === undefined)
             this.setOptionCurrentVal('cornerTopLeft', {
                 x: x,
@@ -2007,7 +1992,7 @@ export class Block<T = IBlockOptions> extends Node {
             x: this.cornerBottomRight().x + hotAreaGap,
             y: this.cornerBottomRight().y + hotAreaGap,
         }
-        this.#initHorizontalHotLineArea(
+        this.#initHotLineArea(
             topLeftCorner,
             topRightCorner,
             bottomLeftCorner,
@@ -2017,7 +2002,7 @@ export class Block<T = IBlockOptions> extends Node {
         this.__updateCordinatesByRot(this.rotate())
     }
 
-    #initHorizontalHotLineArea(
+    #initHotLineArea(
         topLeftCorner: XY,
         topRightCorner: XY,
         bottomLeftCorner: XY,
@@ -2544,12 +2529,15 @@ export class Block<T = IBlockOptions> extends Node {
         defaultOpt: O,
         widthRelated?: boolean
     ): O {
-        const important = this.getOptionCurrentVal('important')?.[option]
-        let val = this.__unitConverter<T, O>({
-            val: important !== undefined ? important : opt,
+        let currentValue: any = opt
+        const important = this.getOptionCurrentVal('important')
+        if (important && Object.hasOwn(important, option))
+            currentValue = important[option]
+        currentValue = this.__unitConverter<T, O>({
+            val: currentValue,
             widthRelated: widthRelated,
         })
-        return this.__cacheOption(val, option, defaultOpt)
+        return this.__cacheOption(currentValue, option, defaultOpt)
     }
 
     __cacheOption<I, O>(opt: I, option: keyof IBlock<T>, defaultOpt: O) {
@@ -2915,7 +2903,11 @@ export class Block<T = IBlockOptions> extends Node {
         for (const [key, value] of Object.entries(options)) {
             const obj = getPrototype(this, key)
             let beforeValue = obj?.value.call(this)
-            obj?.value.call(this, value)
+            const handledVal = obj?.value.call(this, value)
+            this.setOptionCurrentVal(
+                key,
+                value === undefined ? undefined : handledVal
+            )
             before[this.nodeId!] = {}
             after[this.nodeId!] = {}
             before[this.nodeId!][key] = beforeValue
@@ -2927,7 +2919,7 @@ export class Block<T = IBlockOptions> extends Node {
         }
     }
     scale(opt?: number) {
-        return this.__valueHandler(opt, 'scale', 1)
+        return this.__valueHandler(opt, 'scale', undefined)
     }
     __translate(t: { x: number; y: number }) {
         const position = this.position()
@@ -2950,24 +2942,12 @@ export class Block<T = IBlockOptions> extends Node {
         this.height(this.height() * scale)
     }
 
-    __overflowTranslate(t: { x: number; y: number }) {
-        const currentHeight =
-            this.height() +
-            (this.__overflowCords.height - this.#overflowScrollYHeightCut)
+    __overflowTranslateX(x: number) {
         const currentWidth = this.width() + this.__overflowCords.width
-
         let xPer = 1
-        let yPer = 1
-        if (currentHeight < 0)
-            yPer = this.__overflowCords.height / -this.height()
         if (currentWidth < 0) xPer = this.__overflowCords.width / -this.width()
-
         const reverseX = this.__isHorizontalFlipped ? -1 : 1
-        const reverseY = this.__isVerticalFlipped ? -1 : 1
-
-        const xPos = this.__overflowCords.x + t.x * xPer * reverseX
-        const yPos = this.__overflowCords.y + t.y * yPer * reverseY
-
+        const xPos = this.__overflowCords.x + x * xPer * reverseX
         if (this.__overflowCords.width < 0) {
             if (xPos < 0) {
                 this.__overflowCords.x = -clamp(
@@ -2977,6 +2957,16 @@ export class Block<T = IBlockOptions> extends Node {
                 )
             } else this.__overflowCords.x = 0
         }
+    }
+    __overflowTranslateY(y: number) {
+        const currentHeight =
+            this.height() +
+            (this.__overflowCords.height - this.#overflowScrollYHeightCut)
+        let yPer = 1
+        if (currentHeight < 0)
+            yPer = this.__overflowCords.height / -this.height()
+        const reverseY = this.__isVerticalFlipped ? -1 : 1
+        const yPos = this.__overflowCords.y + y * yPer * reverseY
         if (this.__overflowCords.height < 0) {
             if (yPos < 0) {
                 this.__overflowCords.y = -clamp(
@@ -3037,7 +3027,7 @@ export class Block<T = IBlockOptions> extends Node {
         )
     }
 
-    bind(block: Block, options: (keyof IBlockOptions)[]) {
+    bindTo(block: Block<any>, options: (keyof IBlockOptions)[]) {
         this.__bindOptions.push({ bindTo: block, options: options })
     }
 
