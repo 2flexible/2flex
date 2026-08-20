@@ -399,12 +399,12 @@ export class Block<T = IBlockOptions> extends Node {
         this.context?.save()
         // need to clip child before restore if its exist
         this.__childClipping?.(this)
+        this.onRender()?.()
         this.context?.restore()
 
         this.__isSelected()
         this.__isOverflowAreaVisible()
         this.__findHighestChildZIndex()
-        this.onRender()?.()
     }
 
     __hasZIndexChanged() {
