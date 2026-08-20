@@ -1,0 +1,2266 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Block > block transformations > should change coordinates on horizontal and vertical flip 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": -80,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": -70,
+  },
+  {
+    "x": -80,
+    "y": -70,
+  },
+]
+`;
+
+exports[`Block > block transformations > should change coordinates on horizontal and vertical flip 2`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -95,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": -80,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": -95,
+      "y": 30,
+    },
+    "topRight": {
+      "x": -80,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": -70,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": -70,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": -85,
+    },
+    "topRight": {
+      "x": 35,
+      "y": -85,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -95,
+      "y": -70,
+    },
+    "bottomRight": {
+      "x": -80,
+      "y": -70,
+    },
+    "topLeft": {
+      "x": -95,
+      "y": -85,
+    },
+    "topRight": {
+      "x": -80,
+      "y": -85,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should change coordinates on horizontal and vertical flip 3`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -80,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": -65,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": -80,
+      "y": 15,
+    },
+    "topRight": {
+      "x": -65,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": -55,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": -55,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": -70,
+    },
+    "topRight": {
+      "x": 20,
+      "y": -70,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -80,
+      "y": -55,
+    },
+    "bottomRight": {
+      "x": -65,
+      "y": -55,
+    },
+    "topLeft": {
+      "x": -80,
+      "y": -70,
+    },
+    "topRight": {
+      "x": -65,
+      "y": -70,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -65,
+      "y": 37.5,
+    },
+    "bottomRight": {
+      "x": 5,
+      "y": 37.5,
+    },
+    "topLeft": {
+      "x": -65,
+      "y": 22.5,
+    },
+    "topRight": {
+      "x": 5,
+      "y": 22.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 12.5,
+      "y": 15,
+    },
+    "bottomRight": {
+      "x": 27.5,
+      "y": 15,
+    },
+    "topLeft": {
+      "x": 12.5,
+      "y": -55,
+    },
+    "topRight": {
+      "x": 27.5,
+      "y": -55,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -65,
+      "y": -62.5,
+    },
+    "bottomRight": {
+      "x": 5,
+      "y": -62.5,
+    },
+    "topLeft": {
+      "x": -65,
+      "y": -77.5,
+    },
+    "topRight": {
+      "x": 5,
+      "y": -77.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -87.5,
+      "y": 15,
+    },
+    "bottomRight": {
+      "x": -72.5,
+      "y": 15,
+    },
+    "topLeft": {
+      "x": -87.5,
+      "y": -55,
+    },
+    "topRight": {
+      "x": -72.5,
+      "y": -55,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should change coordinates on horizontal flip 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": -80,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": 130,
+  },
+  {
+    "x": -80,
+    "y": 130,
+  },
+]
+`;
+
+exports[`Block > block transformations > should change coordinates on horizontal flip 2`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -95,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": -80,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": -95,
+      "y": 15,
+    },
+    "topRight": {
+      "x": -80,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 130,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -95,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": -80,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": -95,
+      "y": 130,
+    },
+    "topRight": {
+      "x": -80,
+      "y": 130,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should change coordinates on horizontal flip 3`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -80,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": -65,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": -80,
+      "y": 30,
+    },
+    "topRight": {
+      "x": -65,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 130,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 130,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 115,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 115,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -80,
+      "y": 130,
+    },
+    "bottomRight": {
+      "x": -65,
+      "y": 130,
+    },
+    "topLeft": {
+      "x": -80,
+      "y": 115,
+    },
+    "topRight": {
+      "x": -65,
+      "y": 115,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -65,
+      "y": 37.5,
+    },
+    "bottomRight": {
+      "x": 5,
+      "y": 37.5,
+    },
+    "topLeft": {
+      "x": -65,
+      "y": 22.5,
+    },
+    "topRight": {
+      "x": 5,
+      "y": 22.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 12.5,
+      "y": 115,
+    },
+    "bottomRight": {
+      "x": 27.5,
+      "y": 115,
+    },
+    "topLeft": {
+      "x": 12.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": 27.5,
+      "y": 45,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -65,
+      "y": 137.5,
+    },
+    "bottomRight": {
+      "x": 5,
+      "y": 137.5,
+    },
+    "topLeft": {
+      "x": -65,
+      "y": 122.5,
+    },
+    "topRight": {
+      "x": 5,
+      "y": 122.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -87.5,
+      "y": 115,
+    },
+    "bottomRight": {
+      "x": -72.5,
+      "y": 115,
+    },
+    "topLeft": {
+      "x": -87.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": -72.5,
+      "y": 45,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should change coordinates on vertical flip 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": 120,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": -70,
+  },
+  {
+    "x": 120,
+    "y": -70,
+  },
+]
+`;
+
+exports[`Block > block transformations > should change coordinates on vertical flip 2`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": -70,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": -70,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": -85,
+    },
+    "topRight": {
+      "x": 20,
+      "y": -85,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": -70,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": -70,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": -85,
+    },
+    "topRight": {
+      "x": 135,
+      "y": -85,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should change coordinates on vertical flip 3`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": -55,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": -55,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": -70,
+    },
+    "topRight": {
+      "x": 35,
+      "y": -70,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": -55,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": -55,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": -70,
+    },
+    "topRight": {
+      "x": 120,
+      "y": -70,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": 37.5,
+    },
+    "bottomRight": {
+      "x": 105,
+      "y": 37.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": 22.5,
+    },
+    "topRight": {
+      "x": 105,
+      "y": 22.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 12.5,
+      "y": 15,
+    },
+    "bottomRight": {
+      "x": 27.5,
+      "y": 15,
+    },
+    "topLeft": {
+      "x": 12.5,
+      "y": -55,
+    },
+    "topRight": {
+      "x": 27.5,
+      "y": -55,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": -62.5,
+    },
+    "bottomRight": {
+      "x": 105,
+      "y": -62.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": -77.5,
+    },
+    "topRight": {
+      "x": 105,
+      "y": -77.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 112.5,
+      "y": 15,
+    },
+    "bottomRight": {
+      "x": 127.5,
+      "y": 15,
+    },
+    "topLeft": {
+      "x": 112.5,
+      "y": -55,
+    },
+    "topRight": {
+      "x": 127.5,
+      "y": -55,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should change rotation center x 1`] = `
+[
+  {
+    "x": 130.36617885069396,
+    "y": -31.321796320556302,
+  },
+  {
+    "x": 166.6019542983613,
+    "y": 61.88211227616632,
+  },
+  {
+    "x": 37.162270253971315,
+    "y": 4.913979127111048,
+  },
+  {
+    "x": 73.3980457016387,
+    "y": 98.11788772383369,
+  },
+]
+`;
+
+exports[`Block > block transformations > should change rotation center y 1`] = `
+[
+  {
+    "x": 145.08602087288895,
+    "y": 47.162270253971315,
+  },
+  {
+    "x": 181.3217963205563,
+    "y": 140.36617885069396,
+  },
+  {
+    "x": 51.88211227616632,
+    "y": 83.3980457016387,
+  },
+  {
+    "x": 88.11788772383369,
+    "y": 176.6019542983613,
+  },
+]
+`;
+
+exports[`Block > block transformations > should change x coordinate 1`] = `
+[
+  {
+    "x": 120,
+    "y": 30,
+  },
+  {
+    "x": 220,
+    "y": 30,
+  },
+  {
+    "x": 120,
+    "y": 130,
+  },
+  {
+    "x": 220,
+    "y": 130,
+  },
+]
+`;
+
+exports[`Block > block transformations > should change x coordinate 2`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 220,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 235,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 220,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 235,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 130,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 220,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 235,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 220,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 235,
+      "y": 130,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should change x coordinate 3`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 205,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 220,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 205,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 220,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 130,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 130,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 115,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 115,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 205,
+      "y": 130,
+    },
+    "bottomRight": {
+      "x": 220,
+      "y": 130,
+    },
+    "topLeft": {
+      "x": 205,
+      "y": 115,
+    },
+    "topRight": {
+      "x": 220,
+      "y": 115,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 135,
+      "y": 37.5,
+    },
+    "bottomRight": {
+      "x": 205,
+      "y": 37.5,
+    },
+    "topLeft": {
+      "x": 135,
+      "y": 22.5,
+    },
+    "topRight": {
+      "x": 205,
+      "y": 22.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 112.5,
+      "y": 115,
+    },
+    "bottomRight": {
+      "x": 127.5,
+      "y": 115,
+    },
+    "topLeft": {
+      "x": 112.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": 127.5,
+      "y": 45,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 135,
+      "y": 137.5,
+    },
+    "bottomRight": {
+      "x": 205,
+      "y": 137.5,
+    },
+    "topLeft": {
+      "x": 135,
+      "y": 122.5,
+    },
+    "topRight": {
+      "x": 205,
+      "y": 122.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 212.5,
+      "y": 115,
+    },
+    "bottomRight": {
+      "x": 227.5,
+      "y": 115,
+    },
+    "topLeft": {
+      "x": 212.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": 227.5,
+      "y": 45,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should change y coordinate 1`] = `
+[
+  {
+    "x": 20,
+    "y": 20,
+  },
+  {
+    "x": 120,
+    "y": 20,
+  },
+  {
+    "x": 20,
+    "y": 120,
+  },
+  {
+    "x": 120,
+    "y": 120,
+  },
+]
+`;
+
+exports[`Block > block transformations > should change y coordinate 2`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 20,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 20,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 5,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 20,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 20,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 5,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 135,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 135,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 120,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 120,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 135,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 135,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 120,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 120,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should change y coordinate 3`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 35,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 35,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 20,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 20,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 35,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 35,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 20,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 20,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 120,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 120,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 105,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 105,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 120,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 120,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 105,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 105,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": 27.5,
+    },
+    "bottomRight": {
+      "x": 105,
+      "y": 27.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": 12.5,
+    },
+    "topRight": {
+      "x": 105,
+      "y": 12.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 12.5,
+      "y": 105,
+    },
+    "bottomRight": {
+      "x": 27.5,
+      "y": 105,
+    },
+    "topLeft": {
+      "x": 12.5,
+      "y": 35,
+    },
+    "topRight": {
+      "x": 27.5,
+      "y": 35,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": 127.5,
+    },
+    "bottomRight": {
+      "x": 105,
+      "y": 127.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": 112.5,
+    },
+    "topRight": {
+      "x": 105,
+      "y": 112.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 112.5,
+      "y": 105,
+    },
+    "bottomRight": {
+      "x": 127.5,
+      "y": 105,
+    },
+    "topLeft": {
+      "x": 112.5,
+      "y": 35,
+    },
+    "topRight": {
+      "x": 127.5,
+      "y": 35,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should resize height 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": 120,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": 80,
+  },
+  {
+    "x": 120,
+    "y": 80,
+  },
+]
+`;
+
+exports[`Block > block transformations > should resize height 2`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 95,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 95,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 80,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 80,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 95,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 95,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 80,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 80,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should resize height 3`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 80,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 80,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 65,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 65,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 80,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 80,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 65,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 65,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": 37.5,
+    },
+    "bottomRight": {
+      "x": 105,
+      "y": 37.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": 22.5,
+    },
+    "topRight": {
+      "x": 105,
+      "y": 22.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 12.5,
+      "y": 65,
+    },
+    "bottomRight": {
+      "x": 27.5,
+      "y": 65,
+    },
+    "topLeft": {
+      "x": 12.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": 27.5,
+      "y": 45,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": 87.5,
+    },
+    "bottomRight": {
+      "x": 105,
+      "y": 87.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": 72.5,
+    },
+    "topRight": {
+      "x": 105,
+      "y": 72.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 112.5,
+      "y": 65,
+    },
+    "bottomRight": {
+      "x": 127.5,
+      "y": 65,
+    },
+    "topLeft": {
+      "x": 112.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": 127.5,
+      "y": 45,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should resize width 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": 70,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": 130,
+  },
+  {
+    "x": 70,
+    "y": 130,
+  },
+]
+`;
+
+exports[`Block > block transformations > should resize width 2`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 70,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 85,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 70,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 85,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 130,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 70,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 85,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 70,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 85,
+      "y": 130,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should resize width 3`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 55,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 70,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 55,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 70,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 130,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 130,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 115,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 115,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 55,
+      "y": 130,
+    },
+    "bottomRight": {
+      "x": 70,
+      "y": 130,
+    },
+    "topLeft": {
+      "x": 55,
+      "y": 115,
+    },
+    "topRight": {
+      "x": 70,
+      "y": 115,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": 37.5,
+    },
+    "bottomRight": {
+      "x": 55,
+      "y": 37.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": 22.5,
+    },
+    "topRight": {
+      "x": 55,
+      "y": 22.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 12.5,
+      "y": 115,
+    },
+    "bottomRight": {
+      "x": 27.5,
+      "y": 115,
+    },
+    "topLeft": {
+      "x": 12.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": 27.5,
+      "y": 45,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": 137.5,
+    },
+    "bottomRight": {
+      "x": 55,
+      "y": 137.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": 122.5,
+    },
+    "topRight": {
+      "x": 55,
+      "y": 122.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 62.5,
+      "y": 115,
+    },
+    "bottomRight": {
+      "x": 77.5,
+      "y": 115,
+    },
+    "topLeft": {
+      "x": 62.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": 77.5,
+      "y": 45,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should rotate block 1`] = `
+[
+  {
+    "x": 98.48406657452763,
+    "y": 15.280157977805004,
+  },
+  {
+    "x": 134.719842022195,
+    "y": 108.48406657452763,
+  },
+  {
+    "x": 5.280157977805004,
+    "y": 51.51593342547237,
+  },
+  {
+    "x": 41.51593342547237,
+    "y": 144.719842022195,
+  },
+]
+`;
+
+exports[`Block > block transformations > should rotate block 2`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 93.04870025737753,
+      "y": 1.2995716882966093,
+    },
+    "bottomRight": {
+      "x": 98.48406657452763,
+      "y": 15.280157977805004,
+    },
+    "topLeft": {
+      "x": 107.02928654688593,
+      "y": -4.135794628853489,
+    },
+    "topRight": {
+      "x": 112.46465286403603,
+      "y": 9.844791660654906,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 134.719842022195,
+      "y": 108.48406657452763,
+    },
+    "bottomRight": {
+      "x": 140.1552083393451,
+      "y": 122.46465286403603,
+    },
+    "topLeft": {
+      "x": 148.70042831170338,
+      "y": 103.04870025737753,
+    },
+    "topRight": {
+      "x": 154.1357946288535,
+      "y": 117.02928654688593,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -14.135794628853489,
+      "y": 42.97071345311407,
+    },
+    "bottomRight": {
+      "x": -8.70042831170339,
+      "y": 56.95129974262247,
+    },
+    "topLeft": {
+      "x": -0.15520833934509426,
+      "y": 37.535347135963974,
+    },
+    "topRight": {
+      "x": 5.280157977805004,
+      "y": 51.51593342547237,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 27.535347135963974,
+      "y": 150.1552083393451,
+    },
+    "bottomRight": {
+      "x": 32.97071345311407,
+      "y": 164.1357946288535,
+    },
+    "topLeft": {
+      "x": 41.51593342547237,
+      "y": 144.719842022195,
+    },
+    "topRight": {
+      "x": 46.95129974262247,
+      "y": 158.70042831170338,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should rotate block 3`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 84.50348028501924,
+      "y": 20.71552429495511,
+    },
+    "bottomRight": {
+      "x": 89.93884660216935,
+      "y": 34.696110584463504,
+    },
+    "topLeft": {
+      "x": 98.48406657452763,
+      "y": 15.280157977805004,
+    },
+    "topRight": {
+      "x": 103.91943289167773,
+      "y": 29.2607442673134,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 115.3038894155365,
+      "y": 99.93884660216935,
+    },
+    "bottomRight": {
+      "x": 120.7392557326866,
+      "y": 113.91943289167773,
+    },
+    "topLeft": {
+      "x": 129.28447570504488,
+      "y": 94.50348028501924,
+    },
+    "topRight": {
+      "x": 134.719842022195,
+      "y": 108.48406657452763,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5.280157977805004,
+      "y": 51.51593342547237,
+    },
+    "bottomRight": {
+      "x": 10.71552429495511,
+      "y": 65.49651971498076,
+    },
+    "topLeft": {
+      "x": 19.2607442673134,
+      "y": 46.08056710832226,
+    },
+    "topRight": {
+      "x": 24.696110584463504,
+      "y": 60.06115339783066,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 36.08056710832226,
+      "y": 130.73925573268662,
+    },
+    "bottomRight": {
+      "x": 41.51593342547237,
+      "y": 144.719842022195,
+    },
+    "topLeft": {
+      "x": 50.06115339783066,
+      "y": 125.3038894155365,
+    },
+    "topRight": {
+      "x": 55.496519714980764,
+      "y": 139.28447570504488,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 96.92913974692354,
+      "y": 31.978427425888455,
+    },
+    "bottomRight": {
+      "x": 122.2941825602907,
+      "y": 97.22116344359429,
+    },
+    "topLeft": {
+      "x": 110.90972603643193,
+      "y": 26.54306110873835,
+    },
+    "topRight": {
+      "x": 136.2747688497991,
+      "y": 91.78579712644418,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 16.54306110873835,
+      "y": 39.090273963568066,
+    },
+    "bottomRight": {
+      "x": 21.978427425888455,
+      "y": 53.07086025307646,
+    },
+    "topLeft": {
+      "x": 81.78579712644418,
+      "y": 13.725231150200912,
+    },
+    "topRight": {
+      "x": 87.22116344359429,
+      "y": 27.705817439709307,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 3.725231150200912,
+      "y": 68.21420287355582,
+    },
+    "bottomRight": {
+      "x": 29.090273963568066,
+      "y": 133.45693889126164,
+    },
+    "topLeft": {
+      "x": 17.705817439709307,
+      "y": 62.77883655640571,
+    },
+    "topRight": {
+      "x": 43.07086025307646,
+      "y": 128.02157257411153,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 52.77883655640571,
+      "y": 132.2941825602907,
+    },
+    "bottomRight": {
+      "x": 58.21420287355581,
+      "y": 146.2747688497991,
+    },
+    "topLeft": {
+      "x": 118.02157257411154,
+      "y": 106.92913974692354,
+    },
+    "topRight": {
+      "x": 123.45693889126164,
+      "y": 120.90972603643193,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should set initial coordinates 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": 120,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": 130,
+  },
+  {
+    "x": 120,
+    "y": 130,
+  },
+]
+`;
+
+exports[`Block > block transformations > should set initial coordinates 2`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 130,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 130,
+    },
+  },
+]
+`;
+
+exports[`Block > block transformations > should set initial coordinates 3`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 130,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 130,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 115,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 115,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 130,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 130,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 115,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 115,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": 37.5,
+    },
+    "bottomRight": {
+      "x": 105,
+      "y": 37.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": 22.5,
+    },
+    "topRight": {
+      "x": 105,
+      "y": 22.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 12.5,
+      "y": 115,
+    },
+    "bottomRight": {
+      "x": 27.5,
+      "y": 115,
+    },
+    "topLeft": {
+      "x": 12.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": 27.5,
+      "y": 45,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 35,
+      "y": 137.5,
+    },
+    "bottomRight": {
+      "x": 105,
+      "y": 137.5,
+    },
+    "topLeft": {
+      "x": 35,
+      "y": 122.5,
+    },
+    "topRight": {
+      "x": 105,
+      "y": 122.5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 112.5,
+      "y": 115,
+    },
+    "bottomRight": {
+      "x": 127.5,
+      "y": 115,
+    },
+    "topLeft": {
+      "x": 112.5,
+      "y": 45,
+    },
+    "topRight": {
+      "x": 127.5,
+      "y": 45,
+    },
+  },
+]
+`;
