@@ -410,9 +410,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     ) &&
                     block.__isOverflowXScrollable
                 ) {
-                    block.#overflowXscrollBarBlock.__registerZIndex({
-                        in: block.#overflowXscrollBarBlock.zIndex(),
-                    })
                     if (block.#overflowXscrollBarBlock.__ImFirst()) {
                         const { x, y } =
                             block.#overflowXscrollBarBlock!.canvas?.getCursorPosition(
@@ -467,7 +464,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 }
             }
             block.#overflowXscrollBarBlock?.__addEvent('mousedown', mousedown)
-
             block.#overflowXscrollBarBlock?.__addEvent('mousemove', mousemove)
             block.#overflowXscrollBarBlock?.__addEvent('mouseup', mouseup)
             block.#overflowXscrollBarBlock.onRender(
@@ -624,9 +620,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     ) &&
                     block.__isOverflowYScrollable
                 ) {
-                    block.#overflowYscrollBarBlock!.__registerZIndex({
-                        in: block.#overflowYscrollBarBlock!.zIndex(),
-                    })
                     if (block.#overflowYscrollBarBlock!.__ImFirst()) {
                         let diffX = x - initCords.x
                         let diffY = y - initCords.y
