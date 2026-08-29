@@ -84,13 +84,18 @@ export class Block extends OverflowBlock(
             if (blockPosition === 'absolute' || blockPosition === 'fixed')
                 return
 
+            let blockW = Math.abs(b.width())
+            let blockH = Math.abs(b.height())
+
+            const blockMaxWidth = b.maxWidth()
+            const blockMaxHeight = b.maxHeight()
+            const blockMinWidth = b.minWidth() || 0
+            const blockMinHeight = b.minHeight() || 0
+
             const blockMarginTop = b.marginTop()
             const blockMarginBottom = b.marginBottom()
             const blockMarginLeft = b.marginLeft()
             const blockMarginRight = b.marginRight()
-
-            let blockW = Math.abs(b.width())
-            let blockH = Math.abs(b.height())
 
             const blockWidthSpaces = blockW + blockMarginLeft + blockMarginRight
             const blockHeightSpaces =
@@ -169,25 +174,21 @@ export class Block extends OverflowBlock(
 
             if (currIdx == arrLen - 1) blocksContainerHeight += containerH
 
-            const blockMaxWidth =
-                b.maxWidth() !== Infinity ? b.maxWidth() : undefined
-            const blockMaxHeight =
-                b.maxHeight() !== Infinity ? b.maxHeight() : undefined
-
             if (
                 blockMaxWidth !== undefined &&
-                ((pWidthSpaces < blockW && pWidth > b.minWidth()) ||
+                ((pWidthSpaces < blockW && pWidth > blockMinWidth) ||
                     blockW < blockMaxWidth)
             )
                 blockW += pWidthSpaces - blockW
-
             if (
                 blockMaxHeight !== undefined &&
-                ((pHeightSpaces < blockH && pHeight > b.minHeight()) ||
+                ((pHeightSpaces < blockH && pHeight > blockMinHeight) ||
                     blockH < blockMaxHeight)
             ) {
                 blockH += pHeightSpaces - blockH
             }
+            console.log(b.options.get('backgroundColor'), blockW)
+
             b.setOptionCurrent('rotate', pCurrentRotate)
             b.setOptionCache('rotate', pCacheRotate)
             b.__childAdjustment = (b: BaseBlock) => {
