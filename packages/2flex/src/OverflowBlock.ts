@@ -163,33 +163,23 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     else this.overflowPositionY(0)
             }
         }
-        #overflowTranslateX(x: number) {
-            const currentWidth = this.width() + this.#overflowWidth
-            let xPer = 1
-            if (currentWidth < 0) xPer = this.#overflowWidth / -this.width()
-            const reverseX = this.horizontalFlip() ? -1 : 1
-            const xPos = this.overflowPositionX() + x * xPer * reverseX
+        #clampOverflowX() {
+            const pos = this.overflowPositionX()
             if (this.#overflowWidth < 0) {
-                if (xPos < 0) {
+                if (pos < 0) {
                     this.overflowPositionX(
-                        -clamp(Math.abs(xPos), 0, Math.abs(this.#overflowWidth))
+                        -clamp(Math.abs(pos), 0, Math.abs(this.#overflowWidth))
                     )
                 } else this.overflowPositionX(0)
             } else this.overflowPositionX(0)
         }
-        #overflowTranslateY(y: number) {
-            const currentHeight =
-                this.height() +
-                (this.#overflowHeight - this.#overflowScrollYHeightCut)
-            let yPer = 1
-            if (currentHeight < 0) yPer = this.#overflowHeight / -this.height()
-            const reverseY = this.verticalFlip() ? -1 : 1
-            const yPos = this.overflowPositionY() + y * yPer * reverseY
+        #clampOverflowY() {
+            const pos = this.overflowPositionY()
             if (this.#overflowHeight < 0) {
-                if (yPos < 0) {
+                if (pos < 0) {
                     this.overflowPositionY(
                         -clamp(
-                            Math.abs(yPos),
+                            Math.abs(pos),
                             0,
                             Math.abs(this.#overflowHeight)
                         )
@@ -199,21 +189,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
         }
         updateCordinates(): void {
             super.updateCordinates()
-            const cacheOverflowTranslateX =
-                this.getOptionCache('overflowPositionX')
-            const currentOverflowTranslateX =
-                this.getOptionCurrent('overflowPositionX')
-            const cacheOverflowTranslateY =
-                this.getOptionCache('overflowPositionY')
-            const currentOverflowTranslateY =
-                this.getOptionCurrent('overflowPositionY')
-
-            this.#overflowTranslateX(
-                currentOverflowTranslateX - cacheOverflowTranslateX
-            )
-            this.#overflowTranslateY(
-                currentOverflowTranslateY - cacheOverflowTranslateY
-            )
+            this.#clampOverflowX()
+            this.#clampOverflowY()
         }
         __clipShape() {
             this.__clipPath?.rect(
@@ -287,6 +264,35 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
         // need to resize height for not overlapping overflow x and y cordinates
         get #overflowScrollYHeightCut() {
             return this.__isOverflowXScrollable ? OVERFLOW_AREA_GAP : 0
+        }
+        get #overflowXScrollPer() {
+            const width = Math.abs(this.width())
+            const areaWidth = clamp(
+                width + this.#overflowWidth,
+                OVERFLOW_SCROLL_BAR_MIN_SIZE,
+                width
+            )
+            const currentWidth = width + this.#overflowWidth
+            if (currentWidth < 0)
+                return this.#overflowWidth / -(width - areaWidth)
+            return 1
+        }
+        get #overflowYScrollPer() {
+            const height = Math.abs(this.height())
+            const areaHeight = clamp(
+                height +
+                    (this.#overflowHeight - this.#overflowScrollYHeightCut),
+                OVERFLOW_SCROLL_BAR_MIN_SIZE,
+                height - this.#overflowScrollYHeightCut
+            )
+            const currentHeight =
+                height + (this.#overflowHeight - this.#overflowScrollYHeightCut)
+            if (currentHeight < 0)
+                return (
+                    this.#overflowHeight /
+                    -(height - areaHeight - this.#overflowScrollYHeightCut)
+                )
+            return 1
         }
         #buildOverflowScrollAreaBar(
             block: BaseBlock,
@@ -429,11 +435,13 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                                 horizontalFlipped !== verticalFlipped
                             )
                                 inverse = -1
+                            const scrollDeltaX =
+                                (Math.cos(angle) * inverse * dxX +
+                                    Math.sin(angle) * inverse * dxY) *
+                                inverse
                             block.overflowPositionX(
                                 block.overflowPositionX() -
-                                    (Math.cos(angle) * inverse * dxX +
-                                        Math.sin(angle) * inverse * dxY) *
-                                        inverse
+                                    scrollDeltaX * block.#overflowXScrollPer
                             )
                             beforeCords.x = diffX
                             beforeCords.y = diffY
@@ -476,13 +484,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         OVERFLOW_SCROLL_BAR_MIN_SIZE,
                         Math.abs(width)
                     )
-                    const currentWidth = width + block.#overflowWidth
-
                     //  while inner scroll bar in minimum width need to calculate correct cordiantes
-                    let xPer = 1
-                    if (currentWidth < 0) {
-                        xPer = block.#overflowWidth / -(width - areaWidth)
-                    }
+                    const xPer = block.#overflowXScrollPer
                     let bottomLeftCorner = block.cornerBottomLeft() || {
                         x: 0,
                         y: 0,
@@ -642,10 +645,12 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                                 horizontalFlipped !== verticalFlipped
                             )
                                 inverse = -1
+                            const scrollDeltaY =
+                                -Math.sin(angle) * inverse * dxX +
+                                Math.cos(angle) * inverse * dxY
                             block.overflowPositionY(
                                 block.overflowPositionY() -
-                                    (-Math.sin(angle) * inverse * dxX +
-                                        Math.cos(angle) * inverse * dxY)
+                                    scrollDeltaY * block.#overflowYScrollPer
                             )
                             beforeCords.x = diffX
                             beforeCords.y = diffY
@@ -690,21 +695,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         OVERFLOW_SCROLL_BAR_MIN_SIZE,
                         height - block.#overflowScrollYHeightCut
                     )
-                    const currentHeight =
-                        height +
-                        (block.#overflowHeight -
-                            block.#overflowScrollYHeightCut)
                     //  while inner scroll bar in minimum width need to calculate correct cordiantes
-                    let yPer = 1
-                    if (currentHeight < 0) {
-                        yPer =
-                            block.#overflowHeight /
-                            -(
-                                height -
-                                areaHeight -
-                                block.#overflowScrollYHeightCut
-                            )
-                    }
+                    const yPer = block.#overflowYScrollPer
 
                     let topRightCorner = block.cornerTopRight() || {
                         x: 0,
