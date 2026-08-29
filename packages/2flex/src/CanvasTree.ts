@@ -22,8 +22,8 @@ export class CanvasTree {
         this.nodes = []
     }
 
-    addNodes(node: Node[]) {
-        this.head.addChild(...node)
+    addNode(node: Node) {
+        this.head.addChild(node)
     }
 
     preOrderTraversal<T>(_func?: (node: T) => void) {
@@ -90,7 +90,6 @@ export class CanvasTree {
                 break
             }
         }
-        console.log(this.#currentSnapshot, this.#snapshots)
         return this.#snapshots[this.#currentSnapshot]
     }
 

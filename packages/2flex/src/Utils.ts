@@ -2,11 +2,13 @@ import {
     CubicBezier,
     JumpPosition,
     LinearEasing,
+    RelativeType,
     RGBA,
+    ShortHandRelativeType,
     StepsEasing,
 } from './types'
 import { Node } from './Node'
-import type { Easing } from './Block'
+import { Easing } from './AnimationBlock'
 
 export function fromPercentage(from: number, parentSize: number) {
     return (from * parentSize) / 100
@@ -95,7 +97,7 @@ export function degreeToRadian(degree: number): number {
     return (degree * Math.PI) / 180
 }
 
-export function rotateCordinates(
+export function rotateCordinatesByRadian(
     x: number,
     y: number,
     centerX: number,
@@ -368,43 +370,8 @@ export function getOwnPrototype(proto: any, key: string) {
 export function inRange(value: number, great: number, less: number) {
     return value >= great && value <= less
 }
-export function chooseBoxCursorInAgle(defaultCursor: string, radian: number) {
-    const cursors: { [key: string]: string[] } = {
-        'ew-resize': ['nwse-resize', 'ns-resize', 'nesw-resize'],
-        'ns-resize': ['nesw-resize', 'ew-resize', 'nwse-resize'],
-        'nesw-resize': ['ew-resize', 'nwse-resize', 'ns-resize'],
-        'nwse-resize': ['ns-resize', 'nesw-resize', 'ew-resize'],
-    }
 
-    // 22.5° to 67.5° (45° rotation)
-    if (radian >= 0.3927 && radian < 1.1781) {
-        return cursors[defaultCursor][0]
-    }
-    // 67.5° to 112.5° (90° rotation)
-    else if (radian >= 1.1781 && radian < 1.9635) {
-        return cursors[defaultCursor][1]
-    }
-    // 112.5° to 157.5° (135° rotation)
-    else if (radian >= 1.9635 && radian < 2.7489) {
-        return cursors[defaultCursor][2]
-    }
-    // -157.5° to -112.5° (-135° rotation)
-    else if (radian >= -2.7489 && radian < -1.9635) {
-        return cursors[defaultCursor][0]
-    }
-    // -112.5° to -67.5° (-90° rotation)
-    else if (radian >= -1.9635 && radian < -1.1781) {
-        return cursors[defaultCursor][1]
-    }
-    // -67.5° to -22.5° (-45° rotation)
-    else if (radian >= -1.1781 && radian < -0.3927) {
-        return cursors[defaultCursor][2]
-    }
-    // 0° to 22.5°, 157.5° to 180°, -22.5° to 0°, -180° to -157.5°
-    return defaultCursor
-}
-
-export function easingHanndler(
+export function easingParser(
     easing: Easing
 ): (t: number, duration: number) => number {
     if (easing === 'linear') return linear(0, 1)
@@ -415,4 +382,36 @@ export function easingHanndler(
     else if (easing == 'ease-out') return bezierEasing(0, 0, 0.58, 1)
     else if (easing == 'ease-in-out') return bezierEasing(0.42, 0, 0.58, 1)
     else return easing
+}
+
+export function shortHandParser(shortHandValue: ShortHandRelativeType) {
+    if (typeof shortHandValue === 'number') {
+        return [shortHandValue, shortHandValue, shortHandValue, shortHandValue]
+    } else if (shortHandValue instanceof Array) {
+        let shortHandList: (RelativeType | undefined)[] = []
+        switch (shortHandValue.length) {
+            case 1:
+                return [
+                    shortHandValue[0],
+                    shortHandValue[0],
+                    shortHandValue[0],
+                    shortHandValue[0],
+                ]
+            case 2:
+                return [
+                    shortHandValue[0],
+                    shortHandValue[1],
+                    shortHandValue[0],
+                    shortHandValue[1],
+                ]
+            case 3:
+                return [
+                    shortHandValue[0],
+                    shortHandValue[1],
+                    shortHandValue[2],
+                    shortHandValue[1],
+                ]
+        }
+    }
+    return shortHandValue
 }

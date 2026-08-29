@@ -1,12 +1,13 @@
-import { RelativeType } from '../Block'
 import { ShapeBlock } from '../ShapeBlock'
 import type { FillStyle, IShapeOptions } from '../ShapeBlock'
-import type { IBlock } from '../types'
+import type { RelativeType, ShortHandRelativeType } from '../types'
+import { shortHandParser } from '../Utils'
 
 export type BorderStyle = 'solid' | 'dotted'
 export type BorderWidth = RelativeType
 export type BorderColor = FillStyle
-export type RectangleBorder = [BorderWidth, BorderStyle, BorderColor]
+export type RectangleBorder = [BorderWidth, BorderStyle, BorderColor] | string
+export type BorderRadius = ShortHandRelativeType
 
 export interface IRectangleOptions extends IShapeOptions {
     backgroundColor?: FillStyle
@@ -15,23 +16,87 @@ export interface IRectangleOptions extends IShapeOptions {
     borderStyle?: BorderStyle
     borderWidth?: BorderWidth
     borderColor?: BorderColor
-    border?: RectangleBorder | string
-    borderTop?: RectangleBorder | string
-    borderBottom?: RectangleBorder | string
-    borderLeft?: RectangleBorder | string
-    borderRight?: RectangleBorder | string
+    border?: RectangleBorder
+    borderTop?: RectangleBorder
+    borderBottom?: RectangleBorder
+    borderLeft?: RectangleBorder
+    borderRight?: RectangleBorder
 }
 
-export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
-    constructor(options: IBlock<IRectangleOptions>) {
+export class RectangleBlock extends ShapeBlock {
+    constructor(options: IRectangleOptions) {
         super(options)
+        this.addProperty(
+            'backgroundColor',
+            'white',
+            false,
+            (block: RectangleBlock, opt: FillStyle) =>
+                this.#backgroundColor(block, opt)
+        )
+        this.addProperty(
+            'borderRadius',
+            [0, 0, 0, 0],
+            false,
+            (block: RectangleBlock, opt?: BorderRadius) =>
+                this.#borderRadius(block, opt)
+        )
+        this.addProperty(
+            'border',
+            undefined,
+            false,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#border(block, opt)
+        )
+        this.addProperty(
+            'borderWidth',
+            0,
+            false,
+            (block: RectangleBlock, opt?: RelativeType) =>
+                this.#borderWidth(block, opt)
+        )
+        this.addProperty(
+            'borderColor',
+            'white',
+            false,
+            (block: RectangleBlock, opt?: FillStyle) =>
+                this.#borderColor(block, opt)
+        )
+        this.addProperty('borderStyle', 'solid')
+        this.addProperty(
+            'borderTop',
+            undefined,
+            false,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderTop(block, opt)
+        )
+        this.addProperty(
+            'borderBottom',
+            undefined,
+            false,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderBottom(block, opt)
+        )
+        this.addProperty(
+            'borderLeft',
+            undefined,
+            false,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderLeft(block, opt)
+        )
+        this.addProperty(
+            'borderRight',
+            undefined,
+            false,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderRight(block, opt)
+        )
     }
 
     draw(
         _func?: ((context: CanvasRenderingContext2D) => void) | undefined
     ): void {
-        const cacheR = this.rotate()
-        this.rotate(0)
+        // const cacheR = this.rotate()
+        // this.rotate(0)
         this.context?.roundRect(
             this.x(),
             this.y(),
@@ -44,165 +109,131 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         this.borderTop()
         this.borderLeft()
         this.borderRight()
-        this.rotate(cacheR)
+        // this.rotate(cacheR)
     }
-    borderRadius(opt?: number[] | number): number[] {
-        const radius = this.__valueHandler<
-            number[] | number,
-            number[] | number
-        >(opt, 'borderRadius', [0, 0, 0, 0])
-        if (typeof radius === 'number') {
-            return [radius, radius, radius, radius]
-        } else if (radius instanceof Array) {
-            let defRadius: number[] = radius
-            switch (radius.length) {
-                case 1:
-                    defRadius = [radius[0], radius[0], radius[0], radius[0]]
-                    break
-                case 2:
-                    defRadius = [radius[0], radius[0], radius[1], radius[1]]
-                    break
-                case 3:
-                    defRadius = [radius[0], radius[0], radius[1], radius[2]]
-                    break
-            }
-            return defRadius
+    #borderRadius(block: RectangleBlock, radius?: BorderRadius) {
+        if (radius !== undefined) return shortHandParser(radius)
+    }
+    #backgroundColor(block: RectangleBlock, bg: FillStyle) {
+        if (bg !== undefined) {
+            block.fillStyle(bg)
+            block.fill({ fill: true })
         }
-        return radius
     }
-
-    backgroundColor(opt?: FillStyle) {
-        const bg = this.__valueHandler(opt, 'backgroundColor', undefined)
-        if (bg) {
-            super.fillStyle(bg)
-            this.fill({ fill: true })
-        }
-        return bg
-    }
-
-    border(opt?: RectangleBorder | string) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const border = this.__valueHandler(opt, 'border', undefined)
+    #border(block: RectangleBlock, border?: RectangleBorder) {
         if (border) {
-            const { borderStyleArrWidth } = this.#borderParser(border)
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash(borderStyleArrWidth)
+            if (typeof border === 'string') block.#borderConvert(border)
+            if (border instanceof Array) {
+                const { borderStyleArrWidth } = block.#borderParser(border)
+                if (block.borderStyle() === 'dotted') {
+                    block.lineDash(borderStyleArrWidth)
+                }
+                block.stroke({ stroke: true })
             }
-            this.stroke({ stroke: true })
         }
-        return border
     }
-    borderWidth(opt?: RelativeType) {
-        const borderWidth = this.__valueHandler(opt, 'borderWidth', 0)
-        super.lineWidth(borderWidth)
-        return borderWidth
+    #borderWidth(block: RectangleBlock, opt?: RelativeType) {
+        if (opt !== undefined) super.lineWidth(opt)
     }
-    borderColor(opt?: FillStyle) {
-        const borderColor = this.__valueHandler(opt, 'borderColor', 'black')
-        super.strokeStyle(borderColor)
-        return borderColor
+    #borderColor(block: RectangleBlock, opt?: FillStyle) {
+        if (opt !== undefined) super.strokeStyle(opt)
     }
-    borderStyle(opt?: BorderStyle): BorderStyle {
-        return this.__valueHandler(opt, 'borderStyle', 'solid')
-    }
-    borderTop(opt?: RectangleBorder | string) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const borderTop = this.__valueHandler(opt, 'borderTop', undefined)
-        if (borderTop) {
-            let { borderStyleArrWidth } = this.#borderParser(borderTop)
-            borderStyleArrWidth.pop()
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash([
-                    ...borderStyleArrWidth,
-                    this.__getRealHeight * 2 + this.__getRealWidth,
-                ])
-            } else {
-                this.lineDash([
-                    this.__getRealWidth,
-                    this.__getRealWidth + 2 * this.__getRealHeight,
-                    0,
-                    0,
-                ])
+    #borderTop(block: RectangleBlock, opt?: RectangleBorder) {
+        if (opt !== undefined) {
+            if (typeof opt === 'string') opt = block.#borderConvert(opt)
+            else if (opt instanceof Array) {
+                let { borderStyleArrWidth } = block.#borderParser(opt)
+                borderStyleArrWidth.pop()
+                if (block.borderStyle() === 'dotted') {
+                    block.lineDash([
+                        ...borderStyleArrWidth,
+                        block.realHeight * 2 + block.realWidth,
+                    ])
+                } else {
+                    block.lineDash([
+                        block.realWidth,
+                        block.realWidth + 2 * block.realHeight,
+                        0,
+                        0,
+                    ])
+                }
+                block.stroke({ stroke: true })
             }
-            this.stroke({ stroke: true })
         }
-        return borderTop
     }
+    #borderRight(block: RectangleBlock, opt?: RectangleBorder) {
+        if (opt !== undefined) {
+            if (typeof opt === 'string') opt = block.#borderConvert(opt)
+            else if (opt instanceof Array) {
+                const { borderStyleArrHeight } = block.#borderParser(opt)
+                borderStyleArrHeight.pop()
 
-    borderRight(opt?: RectangleBorder | string) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const borderRight = this.__valueHandler(opt, 'borderRight', undefined)
-        if (borderRight) {
-            const { borderStyleArrHeight } = this.#borderParser(borderRight)
-            borderStyleArrHeight.pop()
-
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash([
-                    0,
-                    this.__getRealWidth,
-                    ...borderStyleArrHeight,
-                    this.__getRealWidth + this.__getRealHeight,
-                ])
-            } else if (this.borderStyle() === 'solid') {
-                this.lineDash([
-                    0,
-                    this.__getRealWidth,
-                    this.__getRealHeight,
-                    this.__getRealWidth + this.__getRealHeight,
-                ])
+                if (block.borderStyle() === 'dotted') {
+                    block.lineDash([
+                        0,
+                        block.realWidth,
+                        ...borderStyleArrHeight,
+                        block.realWidth + block.realHeight,
+                    ])
+                } else if (block.borderStyle() === 'solid') {
+                    block.lineDash([
+                        0,
+                        block.realWidth,
+                        block.realHeight,
+                        block.realWidth + block.realHeight,
+                    ])
+                }
+                block.stroke({ stroke: true })
             }
-            this.stroke({ stroke: true })
         }
-        return borderRight
     }
-    borderBottom(opt?: RectangleBorder | string) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const borderBottom = this.__valueHandler(opt, 'borderBottom', undefined)
-        if (borderBottom) {
-            let { borderStyleArrWidth } = this.#borderParser(borderBottom)
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash([
-                    0,
-                    this.__getRealWidth + this.__getRealHeight,
-                    ...borderStyleArrWidth,
-                ])
-            } else if (this.borderStyle() === 'solid') {
-                this.lineDash([
-                    0,
-                    this.__getRealWidth + this.__getRealHeight,
-                    this.__getRealWidth,
-                    0,
-                ])
+    #borderBottom(block: RectangleBlock, opt?: RectangleBorder) {
+        if (opt !== undefined) {
+            if (typeof opt === 'string') opt = block.#borderConvert(opt)
+            else if (opt instanceof Array) {
+                let { borderStyleArrWidth } = block.#borderParser(opt)
+                if (block.borderStyle() === 'dotted') {
+                    block.lineDash([
+                        0,
+                        block.realWidth + block.realHeight,
+                        ...borderStyleArrWidth,
+                    ])
+                } else if (block.borderStyle() === 'solid') {
+                    block.lineDash([
+                        0,
+                        block.realWidth + block.realHeight,
+                        block.realWidth,
+                        0,
+                    ])
+                }
+                block.stroke({ stroke: true })
             }
-            this.stroke({ stroke: true })
         }
-        return borderBottom
     }
-    borderLeft(opt?: RectangleBorder | string) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const borderLeft = this.__valueHandler(opt, 'borderLeft', undefined)
-        if (borderLeft) {
-            let { borderStyleArrHeight } = this.#borderParser(borderLeft)
+    #borderLeft(block: RectangleBlock, opt?: RectangleBorder) {
+        if (opt !== undefined) {
+            if (typeof opt === 'string') opt = block.#borderConvert(opt)
+            else if (opt instanceof Array) {
+                let { borderStyleArrHeight } = block.#borderParser(opt)
 
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash([
-                    0,
-                    this.__getRealWidth * 2 + this.__getRealHeight,
-                    ...borderStyleArrHeight,
-                ])
-            } else if (this.borderStyle() === 'solid') {
-                this.lineDash([
-                    0,
-                    this.__getRealWidth * 2 + this.__getRealHeight,
-                    this.__getRealHeight,
-                    this.__getRealWidth,
-                ])
+                if (block.borderStyle() === 'dotted') {
+                    block.lineDash([
+                        0,
+                        block.realWidth * 2 + block.realHeight,
+                        ...borderStyleArrHeight,
+                    ])
+                } else if (block.borderStyle() === 'solid') {
+                    block.lineDash([
+                        0,
+                        block.realWidth * 2 + block.realHeight,
+                        block.realHeight,
+                        block.realWidth,
+                    ])
+                }
+                block.stroke({ stroke: true })
             }
-            this.stroke({ stroke: true })
         }
-        return borderLeft
     }
-
     #borderConvert(opt: string): RectangleBorder {
         const splitted = opt.split(' ')
         const borderWidth = this.__unitConverter<string | number, number>({
@@ -222,7 +253,6 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         })
         return [borderWidth, borderStyle, borderColor]
     }
-
     // border size, style(required), color
     #borderParser(obj: RectangleBorder) {
         const borderWidth = obj[0]
@@ -233,15 +263,15 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         const borderStyleArrHeight = []
         if (borderStyle === 'dotted') {
             let total = 0
-            const step = this.__getRealWidth / (this.__getRealWidth / 4)
-            while (total < this.__getRealWidth) {
+            const step = this.realWidth / (this.realWidth / 4)
+            while (total < this.realWidth) {
                 borderStyleArrWidth.push(step, step)
                 total += step * 2
             }
 
             total = 0
-            const stepHeight = this.__getRealHeight / (this.__getRealHeight / 4)
-            while (total < this.__getRealHeight) {
+            const stepHeight = this.realHeight / (this.realHeight / 4)
+            while (total < this.realHeight) {
                 borderStyleArrHeight.push(
                     stepHeight,
                     stepHeight,
@@ -256,7 +286,6 @@ export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
         this.borderColor(borderColor)
         return { borderStyleArrWidth, borderStyleArrHeight }
     }
-
     __clipShape() {
         this.__clipPath?.roundRect(
             this.x(),

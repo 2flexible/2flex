@@ -4,20 +4,15 @@ export class Node {
     childNodes: Node[]
     parentNode?: Node
     nodeId?: NodeId
-    childsCount: number
 
     constructor() {
         this.childNodes = []
-        this.childsCount = 0
     }
 
-    addChild(...node: Node[]) {
-        const childsNodes = this.childNodes
-        for (let i = 0; i < node.length; i++) {
-            if (!childsNodes.includes(node[i])) {
-                node[i].parentNode = this
-                childsNodes.push(node[i])
-            }
+    addChild(node: Node) {
+        if (!this.childNodes.includes(node)) {
+            node.parentNode = this
+            this.childNodes.push(node)
         }
     }
 
@@ -41,16 +36,17 @@ export class Node {
 
     removeChild(child: Node) {
         const getChild = (topNode: Node, child: Node) => {
-            topNode.listOnlyChilds((n: Node) => {
-                if (n.nodeId === (child as Node).nodeId) {
+            for (let i = 0, len = this.childNodes.length; i < len; i++) {
+                const node = this.childNodes[i]
+                if (node.nodeId === (child as Node).nodeId) {
                     ;(child as Node).parentNode = undefined
                     topNode.childNodes = topNode.childNodes.filter(
                         (n) => n.nodeId !== (child as Node).nodeId
                     )
                     return
                 }
-                getChild(n, child)
-            })
+                getChild(node, child)
+            }
         }
         getChild(this, child)
     }

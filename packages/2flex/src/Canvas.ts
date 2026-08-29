@@ -3,16 +3,18 @@ import { CanvasTree } from './CanvasTree'
 import { CanvasDOMManager } from './DOMManager'
 import { getPrototype, xIntersect, yIntersect } from './Utils'
 import { Block } from './Block'
-import type { IBlockOptions, BlockPayload, Animator } from './Block'
-import { OVERFLOW_SCROLL_BAR_BLOCK_NAME, HOT_LINE_BLOCK_NAME } from './Block'
+import type { IBlockOptions } from './Block'
 import type {
     ICssProperties,
     SnapshotObject,
     CustomEvent,
     SnapshotSize,
     inOut,
+    Animator,
 } from './types'
 import { defaultBlocks } from './defaultBlocks'
+import { BaseBlock, BlockPayload } from './BaseBlock'
+import { HOT_LINE_BLOCK_NAME, OVERFLOW_SCROLL_BAR_BLOCK_NAME } from './const'
 
 // Canvas options shouldn't be style properties
 interface CanvasOptions {
@@ -55,7 +57,7 @@ interface CanvasPayload {
 
 interface Payload {
     canvas: CanvasPayload
-    blocks: BlockPayload<any>[]
+    blocks: BlockPayload[]
 }
 
 interface BlockAnimation {
@@ -89,6 +91,7 @@ export class Canvas {
     #animations: CanvasAnimations
     #reservedAnimation?: number
     #registeredBlocks: any[]
+    #latestZIndex: number
 
     #sortedBy?: string
 
@@ -137,6 +140,7 @@ export class Canvas {
         )
         this.#initTime = new Date().getTime()
         this.#registeredBlocks = defaultBlocks
+        this.#latestZIndex = 1
         this.#initCanvas()
         this.#checkMousePositionInCanvas()
     }
@@ -216,8 +220,13 @@ export class Canvas {
             this.#setCanvasZoom()
         }
     }
-    add(...block: Block<any>[]) {
-        this.#tree.addNodes(block)
+    add(...blocks: Block[]) {
+        for (let i = 0, len = blocks.length; i < len; i++) {
+            this.#tree.addNode(blocks[i])
+        }
+        this.__demandAddBlock()
+    }
+    __demandAddBlock() {
         this.#initTime = new Date().getTime()
         this.#tree.preOrderTraversal<Block>((b: Block) => {
             if (b.nodeId && !this.#handledNodes[b.nodeId]) {
@@ -225,23 +234,24 @@ export class Canvas {
                 this.__collectEvents(b)
                 this.__collectAnimations(b)
                 this.__takeInitSnaphshot(b)
-                b.__initCordinates()
-
+                b.init()
                 b.__hidden = !this.inBoundBlock(b)
-                b.listAllChilds(() => (b.childsCount += 1))
+                if (b.parentNode) b.__refreshHeadBlock()
                 b.render()
             }
         })
+        this.invokeNodeListing()
     }
-
-    remove(block: Block<any>) {
+    remove(block: Block) {
         this.#tree.head.removeChild(block)
+        this.__demandRemoveBlock(block)
+        // @Todo: take snapshot for this
+    }
+    __demandRemoveBlock(block: BaseBlock) {
         this.__clearEvents(block)
         this.__clearAnimations(block)
         this.invokeNodeListing()
-        // @Todo: take snapshot for this
     }
-
     export(): string {
         const payload: Payload = {
             canvas: {
@@ -269,9 +279,9 @@ export class Canvas {
         this.#initCanvas()
 
         const blocks = parsedPayload.blocks
-        const constructedBlocks: Block<any>[] = []
+        const constructedBlocks: Block[] = []
 
-        const checkBlock = (block: BlockPayload<any>) => {
+        const checkBlock = (block: BlockPayload) => {
             const exists = this.find({ nodeId: block.nodeId })
             const childs: Block[] = []
             let foundBlock
@@ -318,7 +328,7 @@ export class Canvas {
         this.#tree.head.listAllChilds((block: Block) => {
             for (const [k, v] of Object.entries(queries)) {
                 if (
-                    block.getOptionCurrentVal(k)?.currentValue === v ||
+                    block.getOptionCurrent(k)?.currentValue === v ||
                     (k === 'nodeId' && block.nodeId === v)
                 )
                     blocks.push(block)
@@ -340,7 +350,7 @@ export class Canvas {
         }
     }
 
-    whoIsTheFirst(zIndex: number) {
+    whoIsTheFirst(zIndex?: number) {
         return this.#higherBlockZIndex === zIndex
     }
 
@@ -358,7 +368,7 @@ export class Canvas {
         }
     }
 
-    __handleOptions(block: Block): void {
+    __handleOptions(block: BaseBlock): void {
         if (
             !block.nodeId ||
             !block.options ||
@@ -366,6 +376,7 @@ export class Canvas {
         )
             return
         block.canvas = this
+        this.#handledNodes[block.nodeId] = true
         this.#handleBindOptions(block)
         for (const [key, value] of block.options) {
             getPrototype(block, key as string)?.value.call(
@@ -374,31 +385,31 @@ export class Canvas {
             )
         }
         if (block.zIndex() === undefined) {
-            block.setOptionCurrentVal('zIndex', block.nodeId)
+            block.setOptionCurrent('zIndex', this.#latestZIndex)
+            this.#latestZIndex += 1
         }
-        this.#handledNodes[block.nodeId] = true
     }
 
-    #handleBindOptions(block: Block) {
+    #handleBindOptions(block: BaseBlock) {
         if (block.__bindOptions.length !== 0) {
             for (const opt of block.__bindOptions) {
                 for (const key of opt.options) {
                     getPrototype(block, key as any)?.value.call(
                         block,
-                        opt.bindTo.getOptionCurrentVal(key)
+                        opt.block.getOptionCurrent(key)
                     )
                 }
             }
         }
     }
 
-    __takeInitSnaphshot(block: Block) {
+    __takeInitSnaphshot(block: BaseBlock) {
         const dummy: any = {}
         dummy[block.nodeId!] = { ...block.options }
         this.#tree.takeSanpshot(this.#initTime!, null, dummy)
     }
 
-    __takeBlockSnapshot<T>(parentBlock: Block<T>, before: any) {
+    __takeBlockSnapshot<T>(parentBlock: BaseBlock, before: any) {
         const after: any = {}
         after[parentBlock.nodeId!] = {
             childNodes: [...parentBlock.childNodes],
@@ -406,13 +417,13 @@ export class Canvas {
         this.#tree.takeSanpshot(this.#initTime!, before, after)
     }
 
-    __collectAnimations(block: Block) {
+    __collectAnimations(block: BaseBlock) {
         for (const func of block.__animations) {
             if (block.nodeId) this.registerAnimation(block.nodeId, func)
         }
     }
 
-    __clearAnimations(block: Block) {
+    __clearAnimations(block: BaseBlock) {
         if (block.nodeId) this.removeAnimation(block.nodeId)
     }
 
@@ -435,7 +446,7 @@ export class Canvas {
         this.#handleAnimation()
     }
 
-    __collectEvents(block: Block) {
+    __collectEvents(block: BaseBlock) {
         for (const key in block.__events) {
             for (const event of block.__events[key]['funcs'])
                 this.registerEvent(
@@ -446,7 +457,7 @@ export class Canvas {
         }
     }
 
-    __clearEvents<T>(block: Block<T>) {
+    __clearEvents<T>(block: BaseBlock) {
         for (const key in block.__events) {
             for (const event of block.__events[key]['funcs'])
                 this.removeEvent(key, event)
@@ -456,7 +467,7 @@ export class Canvas {
     #sortRegisteredDomEvents() {
         for (const key in this.#canvasEvents) {
             const events = this.#canvasEvents[key].events.sort(
-                (a, b) => a.zIndex - b.zIndex
+                (a, b) => Math.abs(a.zIndex) - Math.abs(b.zIndex)
             )
             this.#buildEventFunc(key, events)
         }
@@ -477,12 +488,13 @@ export class Canvas {
             zIndex: zIndex,
         })
         const events = this.#canvasEvents[event].events.sort(
-            (a, b) => a.zIndex - b.zIndex
+            (a, b) => Math.abs(a.zIndex) - Math.abs(b.zIndex)
         )
         this.#buildEventFunc(event, events)
         this.#registerDomEvent()
     }
     removeEvent(event: string, callFunc: CustomEvent<Event>) {
+        if (!this.#canvasEvents[event]) return
         const funcIncludes = this.#canvasEvents[event].events.filter(
             (i) => i.func == callFunc
         )
@@ -496,10 +508,11 @@ export class Canvas {
         ].events.filter((i) => i.func !== callFunc)
         const events = this.#canvasEvents[event].events
         this.#buildEventFunc(event, events)
+        this.#registerDomEvent()
     }
 
-    #buildEventFunc(event: string, events: CanvasEventsFunc[]) {
-        this.#canvasEvents[event].func = (e: Event) => {
+    #buildEventFunc(eventName: string, events: CanvasEventsFunc[]) {
+        this.#canvasEvents[eventName].func = (e: Event) => {
             for (const event of events) event.func(e)
         }
     }
@@ -518,16 +531,15 @@ export class Canvas {
             }
         }
     }
-
     #checkMousePositionInCanvas() {
         this.canvas.addEventListener('mouseleave', (event) => {
             this.invokeChange((b) => {
-                b.resetRunningEvents()
+                b.__disableRunningEvents()
             })
         })
     }
 
-    invokeChange(_func?: (block: Block<any>) => void) {
+    invokeChange(_func?: (block: Block) => void) {
         this.context?.restore()
         this.context?.save()
         this.clearRect()
@@ -543,10 +555,10 @@ export class Canvas {
         }
     }
 
-    sortNodesByZIndex() {
+    #sortNodesByZIndex() {
         const sortedNodes = this.#tree.nodes
         if (this.#sortedBy === undefined) {
-            sortedNodes.sort(
+            this.#tree.nodes = sortedNodes.sort(
                 (a: any, b: any) =>
                     a.options.get('zIndex') - b.options.get('zIndex')
             )
@@ -556,22 +568,14 @@ export class Canvas {
 
     invokeNodeListing() {
         this.#initTime = new Date().getTime()
-        this.#tree.preOrderTraversal<Block>((b: Block) => {
-            b.childsCount = 0
-            b.listAllChilds((block: Block) => {
-                if (
-                    block.name() !== HOT_LINE_BLOCK_NAME &&
-                    block.name() !== OVERFLOW_SCROLL_BAR_BLOCK_NAME
-                )
-                    b.childsCount += 1
-            })
-        })
+        this.#tree.preOrderTraversal()
         this.refreshHead()
     }
 
     refreshHead() {
         this.#sortedBy = undefined
         this.#sortRegisteredDomEvents()
+        this.#sortNodesByZIndex()
     }
 
     takeSnapshot(before: SnapshotObject, after: SnapshotObject) {
@@ -579,21 +583,21 @@ export class Canvas {
             this.#tree.takeSanpshot(new Date().getTime(), before, after)
     }
 
-    inBoundBlock(block: Block<any>) {
+    inBoundBlock(block: Block) {
         const x = xIntersect(
             { left: 0, right: this.canvasBounding.width },
             {
                 left: Math.min(
-                    block.getOptionCurrentVal('cornerTopLeft')?.x || 0,
-                    block.getOptionCurrentVal('cornerTopRight')?.x || 0,
-                    block.getOptionCurrentVal('cornerBottomLeft')?.x || 0,
-                    block.getOptionCurrentVal('cornerBottomRight')?.x || 0
+                    block.getOptionCurrent('cornerTopLeft')?.x || 0,
+                    block.getOptionCurrent('cornerTopRight')?.x || 0,
+                    block.getOptionCurrent('cornerBottomLeft')?.x || 0,
+                    block.getOptionCurrent('cornerBottomRight')?.x || 0
                 ),
                 right: Math.max(
-                    block.getOptionCurrentVal('cornerTopLeft')?.x || 0,
-                    block.getOptionCurrentVal('cornerTopRight')?.x || 0,
-                    block.getOptionCurrentVal('cornerBottomLeft')?.x || 0,
-                    block.getOptionCurrentVal('cornerBottomRight')?.x || 0
+                    block.getOptionCurrent('cornerTopLeft')?.x || 0,
+                    block.getOptionCurrent('cornerTopRight')?.x || 0,
+                    block.getOptionCurrent('cornerBottomLeft')?.x || 0,
+                    block.getOptionCurrent('cornerBottomRight')?.x || 0
                 ),
             }
         )
@@ -601,16 +605,16 @@ export class Canvas {
             { top: 0, bottom: this.canvasBounding.height },
             {
                 top: Math.min(
-                    block.getOptionCurrentVal('cornerTopLeft')?.y || 0,
-                    block.getOptionCurrentVal('cornerTopRight')?.y || 0,
-                    block.getOptionCurrentVal('cornerBottomLeft')?.y || 0,
-                    block.getOptionCurrentVal('cornerBottomRight')?.y || 0
+                    block.getOptionCurrent('cornerTopLeft')?.y || 0,
+                    block.getOptionCurrent('cornerTopRight')?.y || 0,
+                    block.getOptionCurrent('cornerBottomLeft')?.y || 0,
+                    block.getOptionCurrent('cornerBottomRight')?.y || 0
                 ),
                 bottom: Math.max(
-                    block.getOptionCurrentVal('cornerTopLeft')?.y || 0,
-                    block.getOptionCurrentVal('cornerTopRight')?.y || 0,
-                    block.getOptionCurrentVal('cornerBottomLeft')?.y || 0,
-                    block.getOptionCurrentVal('cornerBottomRight')?.y || 0
+                    block.getOptionCurrent('cornerTopLeft')?.y || 0,
+                    block.getOptionCurrent('cornerTopRight')?.y || 0,
+                    block.getOptionCurrent('cornerBottomLeft')?.y || 0,
+                    block.getOptionCurrent('cornerBottomRight')?.y || 0
                 ),
             }
         )
@@ -677,10 +681,7 @@ export class Canvas {
                         this.currentPosition.y -= (y - beforeY) * scaleFactor
 
                         this.invokeChange((block) => {
-                            block.__translate({
-                                x: this.currentPosition.x - beforeX,
-                                y: 0,
-                            })
+                            block.__translateX(this.currentPosition.x - beforeX)
                             block.__scale(scale)
                         })
                         this.currentPosition.z *= scale
@@ -691,10 +692,8 @@ export class Canvas {
                         this.currentPosition.x -= (x - beforeX) * scaleFactor
                         this.currentPosition.y -= (y - beforeY) * scaleFactor
                         this.invokeChange((block) => {
-                            block.__translate({
-                                x: this.currentPosition.x - beforeX,
-                                y: this.currentPosition.y - beforeY,
-                            })
+                            block.__translateX(this.currentPosition.x - beforeX)
+                            block.__translateY(this.currentPosition.y - beforeY)
                             block.__scale(invScale)
                         })
 
@@ -732,14 +731,10 @@ export class Canvas {
                                     this.currentPosition.z -
                                     1)
 
-                            console.log(this.currentPosition.x)
                             // this.currentPosition.y +=
                             //     y / (this.currentPosition.z * scale) -
                             //     y / this.currentPosition.z;
-                            block.__translate({
-                                x: beforeX - this.currentPosition.x,
-                                y: 0,
-                            })
+                            block.__translateX(beforeX - this.currentPosition.x)
                             block.__scale(scale)
                             this.currentPosition.z *= scale
                         } else {
@@ -751,10 +746,9 @@ export class Canvas {
                                 y / (this.currentPosition.z * invScale) -
                                 y / this.currentPosition.z
 
-                            block.__translate({
-                                x: this.currentPosition.x - beforeX,
-                                y: this.currentPosition.y - beforeY,
-                            })
+                            block.__translateX(this.currentPosition.x - beforeX)
+                            block.__translateY(this.currentPosition.y - beforeY)
+
                             block.__scale(invScale)
                             this.currentPosition.z *= invScale
                         }
@@ -830,14 +824,14 @@ export class Canvas {
                         let diffY = event.clientY - initY
                         if (diffX !== 0) {
                             this.invokeChange((block: Block) => {
-                                block.__translate({ x: diffX - beforeX, y: 0 })
+                                block.__translateX(diffX - beforeX)
                             })
                             this.currentPosition.x += diffX
                             beforeX = diffX
                         }
                         if (diffY !== 0) {
                             this.invokeChange((block: Block) => {
-                                block.__translate({ x: 0, y: diffY - beforeY })
+                                block.__translateY(diffY - beforeY)
                             })
                             this.currentPosition.y += diffY
                             beforeY = diffY
@@ -857,10 +851,8 @@ export class Canvas {
 
     #setCanvasPosition() {
         this.invokeChange((block: Block) => {
-            block.__translate({
-                x: this.currentPosition.x,
-                y: this.currentPosition.y,
-            })
+            block.__translateX(this.currentPosition.x)
+            block.__translateY(this.currentPosition.y)
         })
     }
 
@@ -889,7 +881,7 @@ export class Canvas {
                             ) {
                                 block.__overflowTranslateX(moveSpeed)
                                 inBound = true
-                            } else block.__translate({ x: moveSpeed, y: 0 })
+                            } else block.__translateX(moveSpeed)
                         })
                         if (!inBound) this.currentPosition.x += moveSpeed
                     } else {
@@ -900,7 +892,7 @@ export class Canvas {
                             ) {
                                 block.__overflowTranslateX(-moveSpeed)
                                 inBound = true
-                            } else block.__translate({ x: -moveSpeed, y: 0 })
+                            } else block.__translateX(-moveSpeed)
                         })
                         if (!inBound) this.currentPosition.x -= moveSpeed
                     }
@@ -913,7 +905,7 @@ export class Canvas {
                             ) {
                                 block.__overflowTranslateY(moveSpeed)
                                 inBound = true
-                            } else block.__translate({ x: 0, y: moveSpeed })
+                            } else block.__translateY(moveSpeed)
                         })
                         if (!inBound) this.currentPosition.y += moveSpeed
                     } else {
@@ -924,7 +916,7 @@ export class Canvas {
                             ) {
                                 block.__overflowTranslateY(-moveSpeed)
                                 inBound = true
-                            } else block.__translate({ x: 0, y: -moveSpeed })
+                            } else block.__translateY(-moveSpeed)
                         })
                         if (!inBound) this.currentPosition.y -= moveSpeed
                     }

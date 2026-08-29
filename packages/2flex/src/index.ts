@@ -3,9 +3,7 @@ import { Block } from './Block'
 import {
     CircleBlock,
     ImageBlock,
-    LineBlock,
     RectangleBlock,
-    TextBlock,
     VideoBlock,
 } from './shapes/index'
 import { LayoutBlock } from './LayoutBlock'
@@ -13,7 +11,7 @@ import { ShapeBlock } from './ShapeBlock'
 import {
     radianToDegree,
     degreeToRadian,
-    rotateCordinates,
+    rotateCordinatesByRadian,
     checkInBound,
     fromPercentage,
     fromVW,
@@ -46,13 +44,11 @@ export {
     ShapeBlock,
     RectangleBlock,
     CircleBlock,
-    LineBlock,
-    TextBlock,
     ImageBlock,
     VideoBlock,
     radianToDegree,
     degreeToRadian,
-    rotateCordinates,
+    rotateCordinatesByRadian,
     checkInBound,
     fromPercentage,
     fromVW,
