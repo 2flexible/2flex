@@ -187,8 +187,6 @@ export class Block extends OverflowBlock(
             ) {
                 blockH += pHeightSpaces - blockH
             }
-            console.log(b.options.get('backgroundColor'), blockW)
-
             b.setOptionCurrent('rotate', pCurrentRotate)
             b.setOptionCache('rotate', pCacheRotate)
             b.__childAdjustment = (b: BaseBlock) => {

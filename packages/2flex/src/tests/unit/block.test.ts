@@ -1,12 +1,38 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
-import { OVERFLOW_SCROLL_BAR_BLOCK_NAME } from '../../Block'
+import { OVERFLOW_SCROLL_BAR_BLOCK_NAME } from '../../const'
 
-let block: Block<any>
+let block: Block
 let canvas: Canvas
 
+const dispatchMouse = (
+    element: HTMLElement,
+    type: string,
+    x: number,
+    y: number,
+    buttons = 0
+) => {
+    const rect = element.getBoundingClientRect()
+    element.dispatchEvent(
+        new MouseEvent(type, {
+            clientX: rect.left + x,
+            clientY: rect.top + y,
+            button: 0,
+            buttons,
+            bubbles: true,
+            cancelable: true,
+        })
+    )
+}
+
 describe('Block', () => {
+    afterEach(() => {
+        document
+            .querySelectorAll('canvas')
+            .forEach((element) => element.remove())
+    })
+
     describe('Constructor', () => {
         it('creates a Block instance', () => {
             block = new Block({
@@ -129,12 +155,12 @@ describe('Block', () => {
             expect(block.x()).toBe(40)
         })
         it('should set current value of block options', () => {
-            block.setOptionCurrentVal('x', 10)
-            expect(block.getOptionCurrentVal('x')).toBe(10)
+            block.setOptionCurrent('x', 10)
+            expect(block.getOptionCurrent('x')).toBe(10)
         })
         it('should set cache value of block options', () => {
-            block.setOptionCacheVal('x', 10)
-            expect(block.getOptionCacheVal('x')).toBe(10)
+            block.setOptionCache('x', 10)
+            expect(block.getOptionCache('x')).toBe(10)
         })
         it('should set method set options of block', () => {
             block.set({ x: 10 })
@@ -488,7 +514,9 @@ describe('Block', () => {
                 overflow: 'scroll',
             })
             const childBlocks = [new Block({}), new Block({}), new Block({})]
-            block.addChild(...childBlocks)
+            block.addChild(childBlocks[0])
+            block.addChild(childBlocks[1])
+            block.addChild(childBlocks[2])
             // listing childs should also ignore overflow and hotline blocks which is created internally
             block.listOnlyChilds((block, currIdx, arrLen) => {
                 expect(childBlocks[currIdx]).toBe(block)
@@ -506,7 +534,9 @@ describe('Block', () => {
                 overflow: 'scroll',
             })
             const childBlocks = [new Block({}), new Block({}), new Block({})]
-            block.addChild(...childBlocks)
+            block.addChild(childBlocks[0])
+            block.addChild(childBlocks[1])
+            block.addChild(childBlocks[2])
             let currIdx = 0
             block.listAllChilds((block) => {
                 expect(childBlocks[currIdx]).toBe(block)
@@ -527,7 +557,9 @@ describe('Block', () => {
                 new Block({ x: 12, y: 0, width: 50, height: 30 }),
                 new Block({ x: 2, y: 10, width: 55, height: 32 }),
             ]
-            block.addChild(...childBlocks)
+            block.addChild(childBlocks[0])
+            block.addChild(childBlocks[1])
+            block.addChild(childBlocks[2])
             canvas.add(block)
             expect([
                 childBlocks[0].x(),
@@ -535,21 +567,41 @@ describe('Block', () => {
                 childBlocks[0].width(),
                 childBlocks[0].height(),
                 childBlocks[0].rotate(),
-            ]).toStrictEqual([70, 90, 40, 50, 1.2])
+            ]).toEqual([
+                expect.closeTo(70),
+                expect.closeTo(90),
+                expect.closeTo(40),
+                expect.closeTo(50),
+                expect.closeTo(1.2),
+            ])
+
             expect([
                 childBlocks[1].x(),
                 childBlocks[1].y(),
                 childBlocks[1].width(),
                 childBlocks[1].height(),
                 childBlocks[0].rotate(),
-            ]).toStrictEqual([110, 90, 50, 30, 1.2])
+            ]).toEqual([
+                expect.closeTo(110),
+                expect.closeTo(90),
+                expect.closeTo(50),
+                expect.closeTo(30),
+                expect.closeTo(1.2),
+            ])
+
             expect([
                 childBlocks[2].x(),
                 childBlocks[2].y(),
                 childBlocks[2].width(),
                 childBlocks[2].height(),
                 childBlocks[0].rotate(),
-            ]).toStrictEqual([70, 140, 55, 32, 1.2])
+            ]).toEqual([
+                expect.closeTo(70),
+                expect.closeTo(140),
+                expect.closeTo(55),
+                expect.closeTo(32),
+                expect.closeTo(1.2),
+            ])
         })
         it('should adjust child rotation center to self', () => {
             canvas = new Canvas('myCanvas', 400, 500)
@@ -667,8 +719,10 @@ describe('Block', () => {
                 new Block({ width: 130, height: 40 }),
                 new Block({ width: 100, height: 40 }),
             ]
+            block.addChild(childBlocks[0])
+            block.addChild(childBlocks[1])
+            block.addChild(childBlocks[2])
             block.set({ padding: padding })
-            block.addChild(...childBlocks)
             expect(childBlocks[0].x()).toBe(padding)
             expect(childBlocks[1].x()).toBe(childBlocks[0].width() + padding)
             expect(childBlocks[2].x()).toBe(
@@ -727,7 +781,10 @@ describe('Block', () => {
                 new Block({ width: 130, height: 40, margin: margin }),
                 new Block({ width: 100, height: 40 }),
             ]
-            block.addChild(...childBlocks)
+            block.addChild(childBlocks[0])
+            block.addChild(childBlocks[1])
+            block.addChild(childBlocks[2])
+            block.__invokeChange()
             expect(childBlocks[0].x()).toBe(0)
             expect(childBlocks[1].x()).toBe(childBlocks[0].width() + margin)
             expect(childBlocks[2].x()).toBe(
@@ -781,8 +838,11 @@ describe('Block', () => {
                     minWith: 40,
                 }),
             ]
-            block.addChild(...childBlocks)
+            block.addChild(childBlocks[0])
+            block.addChild(childBlocks[1])
+            block.addChild(childBlocks[2])
             block.set({ width: 200 })
+            block.__invokeChange()
             expect([
                 childBlocks[0].x(),
                 childBlocks[0].y(),
@@ -931,9 +991,11 @@ describe('Block', () => {
                 height: 20,
             })
 
-            block.addChild(childBlock, childBlockSecond)
+            block.addChild(childBlock)
+            block.addChild(childBlockSecond)
             block.__overflowTranslateX(100)
             block.__overflowTranslateY(100)
+            block.__invokeChange()
             expect([childBlock.x(), childBlock.y()]).toStrictEqual([110, 110])
 
             childBlockSecond.set({
@@ -983,19 +1045,32 @@ describe('Block', () => {
             }
             childBlock.set({ onRender: onRenderChildDraw })
             block.addChild(childBlock)
+            block.__invokeChange()
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'overflow-hidden'
             )
         })
         it('should show overflow', async () => {
             block.set({ overflow: 'visible' })
-            block.addChild(
-                new RectangleBlock({
-                    width: 300,
-                    height: 300,
-                    backgroundColor: 'red',
-                })
-            )
+            const childBlock = new Block({
+                width: 300,
+                height: 300,
+                backgroundColor: 'red',
+            })
+            const onRenderChildDraw = () => {
+                const context = childBlock.context
+                if (!context) return
+                context.beginPath()
+                context.fillStyle = 'red'
+                context.fillRect(
+                    childBlock.x(),
+                    childBlock.y(),
+                    childBlock.width(),
+                    childBlock.height()
+                )
+            }
+            childBlock.set({ onRender: onRenderChildDraw })
+            block.addChild(childBlock)
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'overflow-visible'
             )
@@ -1081,63 +1156,20 @@ describe('Block', () => {
         it('should resize block by dragging', async () => {
             block.set({ resizable: true })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
+            const element = (await targetLocator.element()) as HTMLElement
 
             // select the block so the resize handles become active
-            element.dispatchEvent(
-                new MouseEvent('click', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
 
             // hover the right resizable edge to arm the resize handle
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 100,
-                    clientY: 50,
-                    button: 0,
-                    buttons: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 100, 50)
 
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 100,
-                    clientY: 50,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 100, 50, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 200,
-                    clientY: 50,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 200, 50, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mouseup', {
-                    clientX: 200,
-                    clientY: 50,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
-
+            dispatchMouse(element, 'mouseup', 200, 50)
             expect(block.width()).toBe(200)
             expect(block.x()).toBe(0)
             expect(block.y()).toBe(0)
@@ -1146,62 +1178,20 @@ describe('Block', () => {
         it('should resize from specified corners', async () => {
             block.set({ resizable: true })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
+            const element = (await targetLocator.element()) as HTMLElement
 
             // select the block so the resize handles become active
-            element.dispatchEvent(
-                new MouseEvent('click', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
 
             // hover the top-left resizable corner to arm the corner handle
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 5,
-                    clientY: 5,
-                    button: 0,
-                    buttons: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 5, 5)
 
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 5,
-                    clientY: 5,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 5, 5, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 20,
-                    clientY: 20,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 20, 20, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mouseup', {
-                    clientX: 20,
-                    clientY: 20,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mouseup', 20, 20)
 
             expect(block.x()).toBe(15)
             expect(block.y()).toBe(15)
@@ -1215,63 +1205,21 @@ describe('Block', () => {
             }
             block.set({
                 resizable: true,
-                onResize: onResizeFunc,
+                onResizable: onResizeFunc,
             })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
+            const element = (await targetLocator.element()) as HTMLElement
 
-            element.dispatchEvent(
-                new MouseEvent('click', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 100,
-                    clientY: 50,
-                    button: 0,
-                    buttons: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 100, 50)
 
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 100,
-                    clientY: 50,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 100, 50, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 200,
-                    clientY: 50,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 200, 50, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mouseup', {
-                    clientX: 200,
-                    clientY: 50,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mouseup', 200, 50)
 
             expect(isResizingOn).toBeTruthy()
         })
@@ -1279,123 +1227,39 @@ describe('Block', () => {
         it('should rotate block by dragging', async () => {
             block.set({ rotatable: true })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
+            const element = (await targetLocator.element()) as HTMLElement
 
             // select the block so the rotation handles become active
-            element.dispatchEvent(
-                new MouseEvent('click', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
 
             // hover the bottom-right rotatable corner to arm the handle
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 105,
-                    clientY: 105,
-                    button: 0,
-                    buttons: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 105, 105)
 
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 105,
-                    clientY: 105,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 105, 105, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 150,
-                    clientY: 50,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 150, 50, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mouseup', {
-                    clientX: 150,
-                    clientY: 50,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mouseup', 150, 50)
 
             expect(block.rotate()).toBeCloseTo(-Math.PI / 4, 10)
         })
         it('should rotate from specified corners', async () => {
             block.set({ rotatable: true })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
+            const element = (await targetLocator.element()) as HTMLElement
 
-            element.dispatchEvent(
-                new MouseEvent('click', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
 
             // hover the top-left rotatable corner to arm the handle
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: -7,
-                    clientY: -7,
-                    button: 0,
-                    buttons: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', -7, -7)
 
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: -7,
-                    clientY: -7,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', -7, -7, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 150,
-                    clientY: 50,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 150, 50, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mouseup', {
-                    clientX: 150,
-                    clientY: 50,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mouseup', 150, 50)
 
             expect(block.rotate()).toBeCloseTo((3 * Math.PI) / 4, 10)
         })
@@ -1406,63 +1270,21 @@ describe('Block', () => {
             }
             block.set({
                 rotatable: true,
-                onRotate: onRotateFunc,
+                onRotatable: onRotateFunc,
             })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
+            const element = (await targetLocator.element()) as HTMLElement
 
-            element.dispatchEvent(
-                new MouseEvent('click', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 105,
-                    clientY: 105,
-                    button: 0,
-                    buttons: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 105, 105)
 
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 105,
-                    clientY: 105,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 105, 105, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 150,
-                    clientY: 50,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 150, 50, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mouseup', {
-                    clientX: 150,
-                    clientY: 50,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mouseup', 150, 50)
 
             expect(isRotatingOn).toBeTruthy()
         })
@@ -1470,83 +1292,29 @@ describe('Block', () => {
         it('should drag block', async () => {
             block.set({ draggable: true })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
+            const element = (await targetLocator.element()) as HTMLElement
 
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 10, 10, 1)
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 100,
-                    clientY: 100,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 100, 100, 1)
             expect(block.x()).toBe(90)
             expect(block.y()).toBe(90)
         })
         it('should drag block only along x axis', async () => {
             block.set({ draggable: true, draggableY: false })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 100,
-                    clientY: 100,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            const element = (await targetLocator.element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 10, 10, 1)
+            dispatchMouse(element, 'mousemove', 100, 100, 1)
             expect(block.x()).toBe(90)
             expect(block.y()).toBe(0)
         })
         it('should drag block only along y axis', async () => {
             block.set({ draggable: true, draggableX: false })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 100,
-                    clientY: 100,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            const element = (await targetLocator.element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 10, 10, 1)
+            dispatchMouse(element, 'mousemove', 100, 100, 1)
             expect(block.x()).toBe(0)
             expect(block.y()).toBe(90)
         })
@@ -1558,30 +1326,12 @@ describe('Block', () => {
             block.set({
                 draggable: true,
                 draggableX: false,
-                onDrag: onDragFunc,
+                onDraggable: onDragFunc,
             })
             const targetLocator = page.elementLocator(canvas.canvas)
-            const element = await targetLocator.element()
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 100,
-                    clientY: 100,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            const element = (await targetLocator.element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 10, 10, 1)
+            dispatchMouse(element, 'mousemove', 100, 100, 1)
             expect(isDraggingOn).toBeTruthy()
         })
     })
@@ -1631,42 +1381,24 @@ describe('Block', () => {
         })
         it('should trigger mousedown event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
-            const element = await currentCanvas.element()
+            const element = (await currentCanvas.element()) as HTMLElement
 
             let isMouseDown = false
             block.mousedown(() => {
                 isMouseDown = true
             })
-            element.dispatchEvent(
-                new MouseEvent('mousedown', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousedown', 10, 10, 1)
             expect(isMouseDown).toBeTruthy()
         })
         it('should trigger mouseup event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
-            const element = await currentCanvas.element()
+            const element = (await currentCanvas.element()) as HTMLElement
 
             let isMouseUp = false
             block.mouseup(() => {
                 isMouseUp = true
             })
-            element.dispatchEvent(
-                new MouseEvent('mouseup', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mouseup', 10, 10)
             expect(isMouseUp).toBeTruthy()
         })
         it('should trigger mousemove event', async () => {
@@ -1691,52 +1423,27 @@ describe('Block', () => {
         })
         it('should trigger mouseenter event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
-            const element = await currentCanvas.element()
+            const element = (await currentCanvas.element()) as HTMLElement
 
             let isMouseEnter = false
             block.mouseenter(() => {
                 isMouseEnter = true
             })
 
-            // select the block so it becomes the top-most block
-            element.dispatchEvent(
-                new MouseEvent('click', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
-
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 10,
-                    clientY: 10,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 10, 10)
 
             expect(isMouseEnter).toBeTruthy()
         })
         it('should trigger mouseleave event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
-            const element = await currentCanvas.element()
+            const element = (await currentCanvas.element()) as HTMLElement
 
             let isMouseLeave = false
             block.mouseleave(() => {
                 isMouseLeave = true
             })
 
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 320,
-                    clientY: 320,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            dispatchMouse(element, 'mousemove', 320, 320)
 
             expect(isMouseLeave).toBeTruthy()
         })
@@ -1804,15 +1511,14 @@ describe('Block', () => {
 
             expect(isWheeled).toBeTruthy()
         })
-        it('does not trigger events on non-selectable block', async () => {
+        it('does not select non-selectable block', async () => {
             block.set({ selectable: false })
             const currentCanvas = page.elementLocator(canvas.canvas)
-            let isClicked = false
-            block.click(() => {
-                isClicked = true
-            })
-            await userEvent.click(currentCanvas, { position: { x: 10, y: 10 } })
-            expect(isClicked).toBeFalsy()
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousedown', 10, 10, 1)
+
+            expect(canvas.whoIsTheFirst(block.zIndex())).toBeFalsy()
         })
         it('registers events before adding block to canvas', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
