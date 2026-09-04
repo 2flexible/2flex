@@ -39,6 +39,9 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             block.#isSelectable = opt
 
             block.#mouseDownEvent = (event: MouseEvent) => {
+                const isSelected = block.__isRunningEventActive(
+                    SELECTABLE_RUNNING_EVENT
+                )
                 if (block.checkInBound(event)) {
                     block.__registerZIndex({ in: block.zIndex() })
                     if (block.__ImFirst()) {
@@ -57,7 +60,14 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__registerZIndex({ out: block.zIndex() })
                     block.__updateRunningEvent(SELECTABLE_RUNNING_EVENT, false)
                 }
-                block.__invokeChange()
+
+                if (
+                    isSelected !==
+                    block.__isRunningEventActive(SELECTABLE_RUNNING_EVENT)
+                ) {
+                    block.__invokeChange()
+                    block.canvas?.__demandInvoke(block)
+                }
             }
 
             block.#mouseUpEvent = (event: MouseEvent) => {
