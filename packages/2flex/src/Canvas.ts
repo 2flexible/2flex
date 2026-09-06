@@ -1,4 +1,4 @@
-import { Node } from './Node'
+import { Node, NodeId } from './Node'
 import { CanvasTree } from './CanvasTree'
 import { CanvasDOMManager } from './DOMManager'
 import { getPrototype, xIntersect, yIntersect } from './Utils'
@@ -15,6 +15,7 @@ import type {
 import { defaultBlocks } from './defaultBlocks'
 import { BaseBlock, BlockPayload } from './BaseBlock'
 import { HOT_LINE_BLOCK_NAME, OVERFLOW_SCROLL_BAR_BLOCK_NAME } from './const'
+import { DummyCanvas } from './DummyCanvas'
 
 // Canvas options shouldn't be style properties
 interface CanvasOptions {
@@ -68,6 +69,9 @@ interface BlockAnimation {
 interface CanvasAnimations {
     [key: string]: BlockAnimation
 }
+type BlockCanvasCache = {
+    [key: number]: ImageBitmap
+}
 
 export class Canvas {
     canvasId: string
@@ -97,6 +101,10 @@ export class Canvas {
 
     currentPosition: { x: number; y: number; z: number }
 
+    #invokedBlocks: Set<BaseBlock>
+
+    #blocksCanvasCache: BlockCanvasCache
+
     constructor(
         canvasId: string,
         width: number,
@@ -108,6 +116,8 @@ export class Canvas {
         this.width = width
         this.height = height
         this.#context = null
+
+        this.#blocksCanvasCache = []
 
         this.currentCursor = 'auto'
         this.#handledNodes = {}
@@ -124,9 +134,10 @@ export class Canvas {
             positionX: 0,
             positionY: 0,
             positionZ: 1,
-            fps: 60,
+            fps: 0,
         }
         this.#animations = {}
+        this.#invokedBlocks = new Set()
 
         this.currentPosition = { x: 0, y: 0, z: 1 }
 
@@ -143,6 +154,7 @@ export class Canvas {
         this.#latestZIndex = 1
         this.#initCanvas()
         this.#checkMousePositionInCanvas()
+        this.#render()
     }
 
     get context(): CanvasRenderingContext2D | null {
@@ -222,9 +234,10 @@ export class Canvas {
     }
     add(...blocks: Block[]) {
         for (let i = 0, len = blocks.length; i < len; i++) {
-            this.#tree.addNode(blocks[i])
+            this.#tree.addNode(blocks[len - i - 1])
         }
         this.__demandAddBlock()
+        this.#initCacheBlocks()
     }
     __demandAddBlock() {
         this.#initTime = new Date().getTime()
@@ -235,8 +248,9 @@ export class Canvas {
                 this.__collectAnimations(b)
                 this.__takeInitSnaphshot(b)
                 b.init()
-                b.__hidden = !this.inBoundBlock(b)
                 if (b.parentNode) b.__refreshHeadBlock()
+                b.updateBlockCords()
+                b.__hidden = !this.inBoundBlock(b)
                 b.render()
             }
         })
@@ -432,7 +446,6 @@ export class Canvas {
             this.#animations[nodeId] = { animations: [] }
         this.#animations[nodeId].animations.push(func)
         this.#buildAnimatonFunc(nodeId, this.#animations[nodeId].animations)
-        this.#handleAnimation()
     }
 
     #buildAnimatonFunc(nodeId: number, animations: Animator[]) {
@@ -443,7 +456,6 @@ export class Canvas {
 
     removeAnimation(nodeId: number) {
         delete this.#animations[nodeId]
-        this.#handleAnimation()
     }
 
     __collectEvents(block: BaseBlock) {
@@ -539,20 +551,114 @@ export class Canvas {
         })
     }
 
-    invokeChange(_func?: (block: Block) => void) {
-        this.context?.restore()
-        this.context?.save()
+    invokeChange(_func?: (block: Block) => void) {}
+    #renderFromCache() {
+        if (this.#invokedBlocks.size === 0) return
+        this.#cacheInvokedBlocks()
+        const ctx = this.context
+        if (!ctx) return
         this.clearRect()
+
         const nodes = this.#tree.nodes
         for (let i = 0, len = nodes.length; i < len; i++) {
-            const b = nodes[i] as Block
-            if (this.#handledNodes[b.nodeId!]) {
-                this.#handleBindOptions(b)
-                if (_func) _func(b)
-                b.__hidden = !this.inBoundBlock(b)
-                b.render()
+            const node = nodes[i]
+            if (node.nodeId === undefined) continue
+            const bitmap = this.#blocksCanvasCache[node.nodeId]
+            if (!bitmap) continue
+            const b = node as Block
+            ctx.drawImage(
+                bitmap,
+                b.boundingBox.topLeft.x,
+                b.boundingBox.topLeft.y
+            )
+        }
+    }
+
+    #initCacheBlocks() {
+        const nodes = this.#tree.nodes
+        for (let i = 0, len = nodes.length; i < len; i++) {
+            const n = nodes[i] as Block
+            if (n.nodeId !== undefined && !this.#blocksCanvasCache[n.nodeId]) {
+                this.#createBlocksCache(n)
             }
         }
+    }
+
+    #cacheInvokedBlocks() {
+        for (const block of this.#invokedBlocks) {
+            this.#createBlocksCache(block)
+        }
+    }
+
+    #createBlocksCache(block: BaseBlock) {
+        if (
+            block.nodeId === undefined ||
+            (block.nodeId && !this.#handledNodes[block.nodeId])
+        )
+            return
+
+        if (block.__isHidden) {
+            const old = this.#blocksCanvasCache[block.nodeId]
+            if (old) {
+                old.close()
+                delete this.#blocksCanvasCache[block.nodeId]
+            }
+            return
+        }
+
+        const old = this.#blocksCanvasCache[block.nodeId]
+        if (old) old.close()
+
+        const w = Math.abs(block.realWidth)
+        const h = Math.abs(block.realHeight)
+        const dummyCanvas = new DummyCanvas(w, h)
+
+        const ctx = dummyCanvas.context
+        if (!ctx) return
+
+        block.context = ctx
+
+        ctx.save()
+        block.updateBlockCords()
+        this.#handleBindOptions(block)
+        ctx.translate(
+            -block.boundingBox.topLeft.x,
+            -block.boundingBox.topLeft.y
+        )
+        block.render()
+
+        ctx.restore()
+
+        const snapshot = dummyCanvas.transferToImageBitmap()
+        if (snapshot) this.#blocksCanvasCache[block.nodeId] = snapshot
+    }
+
+    __demandInvoke(block: BaseBlock) {
+        this.#invokedBlocks.add(block)
+    }
+
+    #render() {
+        let lastFrame = 0
+        const framer = (timestamp: number) => {
+            requestAnimationFrame(framer)
+            if (lastFrame === 0) lastFrame = timestamp
+            // getting true frame per second
+            const delta = timestamp - lastFrame
+            const frameDuration = 1000 / this.#defaultOptions.fps
+            if (this.#defaultOptions.fps && delta < frameDuration) return
+            const obj = Object.entries(this.#animations)
+            for (let [nodeId, anime] of obj) {
+                const b = this.find({ nodeId: Number(nodeId) })
+                anime.func?.(timestamp)
+                b[0]?.__invokeChange()
+            }
+            this.#renderFromCache()
+            // cache and render
+            const execTime = delta % frameDuration
+            lastFrame = timestamp - execTime
+            this.#invokedBlocks.clear()
+        }
+        requestAnimationFrame(framer)
     }
 
     #sortNodesByZIndex() {
@@ -622,38 +728,6 @@ export class Canvas {
         return true
     }
 
-    #handleAnimation() {
-        if (
-            Object.entries(this.#animations).length !== 0 &&
-            this.#reservedAnimation === undefined
-        )
-            this.#animationInvoker()
-        else if (
-            Object.entries(this.#animations).length === 0 &&
-            this.#reservedAnimation !== undefined
-        ) {
-            cancelAnimationFrame(this.#reservedAnimation)
-        }
-    }
-
-    #animationInvoker() {
-        let lastFrame = 0
-        const framer = (timestamp: number) => {
-            const obj = Object.entries(this.#animations)
-            if (obj.length === 0) return
-            requestAnimationFrame(framer)
-            // getting true frame per second
-            const delta = timestamp - lastFrame
-            if (lastFrame && delta < this.#defaultOptions.fps / 1000) return
-            for (let [nodeId, anime] of obj) {
-                anime.func?.(timestamp)
-            }
-            const execTime = delta % this.#defaultOptions.fps
-            lastFrame = timestamp - execTime
-            this.invokeChange()
-        }
-        this.#reservedAnimation = requestAnimationFrame(framer)
-    }
     #pointZoom() {
         window.addEventListener(
             'wheel',

@@ -1,5 +1,5 @@
 import { ShapeBlock } from '../ShapeBlock'
-import type { FillStyle, IShapeOptions } from '../ShapeBlock'
+import type { DrawFunc, FillStyle, IShapeOptions } from '../ShapeBlock'
 import type { RelativeType, ShortHandRelativeType } from '../types'
 import { shortHandParser } from '../Utils'
 
@@ -92,9 +92,7 @@ export class RectangleBlock extends ShapeBlock {
         )
     }
 
-    draw(
-        _func?: ((context: CanvasRenderingContext2D) => void) | undefined
-    ): void {
+    draw(_func?: DrawFunc): void {
         // const cacheR = this.rotate()
         // this.rotate(0)
         this.context?.roundRect(

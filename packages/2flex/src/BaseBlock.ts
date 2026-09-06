@@ -160,6 +160,7 @@ export class BaseBlock extends Node {
     declare childNodes: BaseBlock[]
 
     canvas?: Canvas
+    context?: OffscreenCanvasRenderingContext2D | null
     options: OptionsMap
     cacheOptions: OptionsMap
 
@@ -187,6 +188,8 @@ export class BaseBlock extends Node {
 
     #runningEvents: RunningEvents
 
+    #zIndex?: number
+
     constructor(options: IBaseBlockOptions) {
         super()
         this.options = new Map()
@@ -212,6 +215,14 @@ export class BaseBlock extends Node {
         this.#isZIndexPredefined = false
     }
     render() {
+        if (this.__isHidden) {
+            this.#updateOptionsCache()
+            return
+        }
+        this.onRender()?.(this)
+        this.#updateOptionsCache()
+    }
+    updateBlockCords() {
         const currentRotate = this.getOptionCurrent('rotate') || 0
         const cacheRotate = this.getOptionCache('rotate') || 0
         const diffR = currentRotate - cacheRotate
@@ -231,12 +242,6 @@ export class BaseBlock extends Node {
         this.#calculateRealHeight()
         this.#calculateRealCenterX()
         this.#calculateRealCenterY()
-        if (this.__isHidden) {
-            this.#updateOptionsCache()
-            return
-        }
-        this.onRender()?.(this)
-        this.#updateOptionsCache()
     }
     init() {
         this.#initializeCordinates()
@@ -299,8 +304,12 @@ export class BaseBlock extends Node {
         this.addProperty('rotationCenter', 'parent', true)
         this.addProperty('horizontalFlip', false)
         this.addProperty('verticalFlip', false)
-        this.addProperty('zIndex', undefined, false, () =>
-            this.#hasZIndexChanged()
+        this.addProperty(
+            'zIndex',
+            undefined,
+            false,
+            (block: BaseBlock, zIndex: number) =>
+                this.#hasZIndexChanged(block, zIndex)
         )
         this.addProperty('order', undefined)
         this.addProperty('hidden', false)
@@ -492,8 +501,9 @@ export class BaseBlock extends Node {
     //     this.gridRowEnd(gridArea[2] || 'auto')
     //     this.gridColumnEnd(gridArea[3] || 'auto')
     // }
-    #hasZIndexChanged() {
-        this.canvas?.refreshHead()
+    #hasZIndexChanged(block: BaseBlock, zIndex: number) {
+        if (block.#zIndex !== zIndex) this.canvas?.refreshHead()
+        block.#zIndex = zIndex
     }
     updateCordinates() {
         let currentX = this.getOptionCurrent('x')
@@ -770,6 +780,7 @@ export class BaseBlock extends Node {
                 b.width(blockW)
                 b.height(blockH)
             }
+            b.canvas?.__demandInvoke(b)
         })
         this.__childsContainer = {
             width: blocksContainerWidth,
@@ -829,9 +840,6 @@ export class BaseBlock extends Node {
     }
     setOptionCurrent(key: BlockOptionKeys, value: any) {
         this.options.set(key, value)
-    }
-    get context(): CanvasRenderingContext2D | undefined | null {
-        return this.canvas?.context
     }
     __refreshHeadBlock() {
         if (this.__hasParentBlock) this.parentNode?.__refreshHeadBlock()
@@ -1029,7 +1037,11 @@ export class BaseBlock extends Node {
         super.removeChild(child)
     }
     __invokeChange() {
-        this.canvas?.invokeChange()
+        if (this.__hasParentBlock) {
+            this.parentNode?.__invokeChange()
+            return
+        }
+        this.canvas?.__demandInvoke(this)
     }
     __generatePayload(): BlockPayload {
         const childs: BlockPayload[] = []
@@ -1107,18 +1119,18 @@ export class BaseBlock extends Node {
         // for correct array length need to extract additonall blocks
         const extraBlocksLength = this.childNodes.filter(
             (block: BaseBlock) =>
-                block.getOptionCurrent('name') ===
-                    OVERFLOW_SCROLL_BAR_BLOCK_NAME ||
-                block.getOptionCurrent('name') === HOT_LINE_BLOCK_NAME
+                block.getOptionCurrent('name') !==
+                    OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
+                block.getOptionCurrent('name') !== HOT_LINE_BLOCK_NAME
         ).length
-        const listingFunc = (node: B, currIdx: number, arrLen: number) => {
+        const listingFunc = (node: B, currIdx: number) => {
             if (
                 (node as BaseBlock).getOptionCurrent('name') !==
                     OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
                 (node as BaseBlock).getOptionCurrent('name') !==
                     HOT_LINE_BLOCK_NAME
             ) {
-                _func(node, currIdx, arrLen - extraBlocksLength)
+                _func(node, currIdx, extraBlocksLength)
             }
         }
         super.listOnlyChilds(listingFunc)

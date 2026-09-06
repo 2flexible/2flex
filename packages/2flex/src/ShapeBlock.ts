@@ -165,7 +165,7 @@ interface Pattern {
     repetition: 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat'
 }
 
-export type DrawFunc = (context: CanvasRenderingContext2D) => void
+export type DrawFunc = (context: OffscreenCanvasRenderingContext2D) => void
 
 export type DropShadow = [RelativeType, RelativeType, RelativeType, FillStyle][]
 

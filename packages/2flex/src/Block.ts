@@ -83,7 +83,6 @@ export class Block extends OverflowBlock(
             const blockPosition = b.position()
             if (blockPosition === 'absolute' || blockPosition === 'fixed')
                 return
-
             let blockW = Math.abs(b.width())
             let blockH = Math.abs(b.height())
 
@@ -221,7 +220,12 @@ export class Block extends OverflowBlock(
                     b.context?.translate(-centerX, -centerY)
                 }
             }
+            b.canvas?.__demandInvoke(b)
         })
+        this.__hotLineBlock?.canvas?.__demandInvoke(this.__hotLineBlock)
+        this.__overflowXscrollBarBlock?.canvas?.__demandInvoke(this.__overflowXscrollBarBlock)
+        this.__overflowYscrollBarBlock?.canvas?.__demandInvoke(this.__overflowYscrollBarBlock)
+        
         this.__childsContainer = {
             width: blocksContainerWidth,
             height: blocksContainerHeight,
