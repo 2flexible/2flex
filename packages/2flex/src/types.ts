@@ -1,5 +1,3 @@
-import type { IBlockOptions } from './Block'
-
 export type RelativeType = number | string
 
 export type ShortHandRelativeType =
@@ -21,18 +19,14 @@ export interface HotCornerArea {
 export type ICssProperties = {
     [key in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[key]
 }
+export type SnapshotData = { [key: number]: Object }
+export type NodeId = number | undefined
 
 export type XY = { x: number; y: number }
 
 export type RGBA = [number, number, number, number]
 
 export type Timestamp = number
-
-export interface SnapshotObject {
-    [key: string]: IBlockOptions
-}
-
-export type SnapshotSize = number
 
 export type LinearEasing = (t: number) => number
 export type CubicBezier = (t: number, duration: number) => number
@@ -41,6 +35,19 @@ export type StepsEasing = (t: number) => number
 export type JumpPosition = 'jump-start' | 'jump-end' | 'jump-none' | 'jump-both'
 export type CustomEvent<E = Event> = (event: E & Event) => void
 
-export type inOut = { in?: number; out?: number }
-
+export type AnimationId = string
 export type Animator = (timestamp: number) => void
+
+export type Easing =
+    | 'linear'
+    | 'ease'
+    | 'ease-in'
+    | 'ease-out'
+    | 'ease-in-out'
+    | 'step-start'
+    | 'step-end'
+    | LinearEasing
+    | CubicBezier
+    | StepsEasing
+export type Direction = 'normal' | 'reverse' | 'alternate' | 'alternate-reverse'
+export type Composite = 'replace' | 'add' | 'accumulate'

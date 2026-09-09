@@ -1,5 +1,3 @@
-type BlobCallFunc = (blob: Blob) => void
-
 export class DummyCanvas {
     width: number
     height: number

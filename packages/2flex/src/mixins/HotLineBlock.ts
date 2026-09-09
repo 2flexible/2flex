@@ -1,10 +1,10 @@
-import { BaseBlock, IBaseBlockOptions } from './BaseBlock'
+import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
 import {
     HOT_LINE_BLOCK_NAME,
     initialCorners,
     SELECTABLE_RUNNING_EVENT,
-} from './const'
-import { BlockConstructor, HotCornerArea } from './types'
+} from '../const'
+import { BlockConstructor, HotCornerArea } from '../types'
 
 export interface IHotLineOptions extends IBaseBlockOptions {
     hotCornerSize?: number

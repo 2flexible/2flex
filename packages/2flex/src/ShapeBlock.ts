@@ -631,6 +631,11 @@ export class ShapeBlock extends Block {
 
         // need to clip child before restore if its exist
         this.__childClipping?.(this)
+
+        this.context?.translate(
+            -this.boundingBox.topLeft.x,
+            -this.boundingBox.topLeft.y
+        )
         this.context?.translate(this.rotationCenterX(), this.rotationCenterY())
         this.context?.rotate(this.rotate())
         // @TODO: add features for vertical or horizantal flipping

@@ -1,4 +1,4 @@
-import { BaseBlock, IBaseBlockOptions } from './BaseBlock'
+import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     initialCorners,
@@ -7,9 +7,9 @@ import {
     RESIZABLE_RUNNING_EVENT,
     ROTATABLE_RUNNING_EVENT,
     SELECTABLE_RUNNING_EVENT,
-} from './const'
-import { BlockConstructor, HotCornerArea, XY } from './types'
-import { checkInBound } from './Utils'
+} from '../const'
+import { BlockConstructor, HotCornerArea, XY } from '../types'
+import { checkInBound } from '../Utils'
 
 export interface IRotatableOptions extends IBaseBlockOptions {
     rotatable?: boolean
@@ -339,12 +339,12 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             let inBound = false
 
             block.#mouseDownEvent = (event: MouseEvent) => {
-                if (inBound) {
+                if (inBound && block.isMouseEventAllowed) {
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, true)
                     beforeValues[block.nodeId!] = {
                         rotate: block.rotate(),
                     }
-                    block.__registerZIndex({ in: block.zIndex() })
+                    block.__registerZIndex(block.zIndex())
                 }
             }
 
@@ -357,7 +357,8 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     ) ||
                     block.__isRunningEventActive(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT
-                    )
+                    ) ||
+                    !block.isMouseEventAllowed
                 )
                     return
 
@@ -475,10 +476,13 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             }
 
             block.#mouseUpEvent = () => {
-                if (block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT)) {
+                if (
+                    block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT) &&
+                    block.isMouseEventAllowed
+                ) {
                     block.canvas?.changeCursor('auto')
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
-                    block.__registerZIndex({ out: block.zIndex() })
+                    block.__unregisterZIndex(block.zIndex())
                     inBound = false
                     const dummy: any = {}
                     dummy[block.nodeId!] = { rotate: block.rotate() }

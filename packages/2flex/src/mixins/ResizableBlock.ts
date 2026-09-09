@@ -1,13 +1,13 @@
-import { BaseBlock, IBaseBlockOptions } from './BaseBlock'
+import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
 import {
     initialCorners,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
     OVERFLOW_Y_SCROLL_RUNNING_EVENT,
     RESIZABLE_RUNNING_EVENT,
     SELECTABLE_RUNNING_EVENT,
-} from './const'
-import { BlockConstructor, HotCornerArea, XY } from './types'
-import { checkInBound } from './Utils'
+} from '../const'
+import { BlockConstructor, HotCornerArea, XY } from '../types'
+import { checkInBound } from '../Utils'
 
 export interface IResizableOptions extends IBaseBlockOptions {
     resizable?: boolean
@@ -554,7 +554,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             let inBound = false
             block.#mouseDownEvent = (event: MouseEvent) => {
                 beforeCords = { x: 0, y: 0 }
-                if (inBound) {
+                if (inBound && block.isMouseEventAllowed) {
                     initCords = block.canvas?.getCursorPosition(event)!
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, true)
                     beforeValues[block.nodeId!] = {
@@ -563,7 +563,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         width: block.width(),
                         height: block.height(),
                     }
-                    block.__registerZIndex({ in: block.zIndex() })
+                    block.__registerZIndex(block.zIndex())
                 }
             }
             block.#mouseMoveEvent = (event: MouseEvent) => {
@@ -574,7 +574,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     ) ||
                     block.__isRunningEventActive(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT
-                    )
+                    ) ||
+                    !block.isMouseEventAllowed
                 )
                     return
                 if (
@@ -806,10 +807,13 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 }
             }
             block.#mouseUpEvent = () => {
-                if (block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT)) {
+                if (
+                    block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) &&
+                    block.isMouseEventAllowed
+                ) {
                     block.canvas?.changeCursor('auto')
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
-                    block.__registerZIndex({ out: block.zIndex() })
+                    block.__unregisterZIndex(block.zIndex())
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
                         const after: any = {}
                         after[block.nodeId!] = {

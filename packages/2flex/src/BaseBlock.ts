@@ -1,8 +1,7 @@
 import type { Canvas } from './Canvas'
-import { Node, NodeId } from './Node'
+import { Node } from './Node'
 import {
     HOT_LINE_BLOCK_NAME,
-    initalXY,
     initialCorners,
     OVERFLOW_SCROLL_BAR_BLOCK_NAME,
 } from './const'
@@ -11,9 +10,10 @@ import {
     ShortHandRelativeType,
     XY,
     CustomEvent,
-    inOut,
     Animator,
     HotCornerArea,
+    NodeId,
+    AnimationId,
 } from './types'
 import {
     checkInBound,
@@ -35,8 +35,11 @@ import {
     namedColors,
     hslToRgba,
     shortHandParser,
+    xIntersect,
+    yIntersect,
 } from './Utils'
 import { Block, IBlockOptions } from './Block'
+import { DummyCanvas } from './DummyCanvas'
 
 export type AlignSelf =
     | 'normal'
@@ -135,7 +138,7 @@ export interface BindOptions {
 }
 
 type BlockEvent = {
-    [key: string]: { funcs: CustomEvent<any>[]; identified: string[] }
+    [key: string]: CustomEvent<Event>[]
 }
 
 export interface BlockPayload {
@@ -148,6 +151,15 @@ export interface BlockPayload {
 }
 
 type RunningEvents = { [key: string]: boolean }
+
+export interface Pending {
+    'events:add': BlockEvent
+    'events:remove': BlockEvent
+    'animations:add': { [animationId: AnimationId]: Animator }
+    'animations:remove': AnimationId[]
+    addedChilds: BaseBlock[]
+    removedChilds: BaseBlock[]
+}
 
 export interface ChildsContainer {
     width: number
@@ -164,31 +176,23 @@ export class BaseBlock extends Node {
     options: OptionsMap
     cacheOptions: OptionsMap
 
-    __hidden = false
-    __bindOptions: BindOptions[]
-
-    __events: BlockEvent
-    __childAdjustment?: (b: BaseBlock) => void
-
-    __animations: Animator[]
-
-    boundingBox: HotCornerArea
-
-    __childsContainer: ChildsContainer
-
     realWidth: number
     realHeight: number
     realCenterX: number
     realCenterY: number
     realRotateRadian: number
-
+    boundingBox: HotCornerArea
     higherZIndex?: number
 
+    __childAdjustment?: (b: BaseBlock) => void
+    __childsContainer: ChildsContainer
+
     #isZIndexPredefined: boolean
-
-    #runningEvents: RunningEvents
-
     #zIndex?: number
+    #pending: Pending
+    #runningEvents: RunningEvents
+    #cachedBitmap?: ImageBitmap
+    #bindOptions: BindOptions[]
 
     constructor(options: IBaseBlockOptions) {
         super()
@@ -206,23 +210,22 @@ export class BaseBlock extends Node {
         this.boundingBox = initialCorners
         this.__childsContainer = { width: 0, height: 0 }
 
-        this.__bindOptions = []
+        this.#bindOptions = []
 
-        this.__events = {}
         this.#runningEvents = {}
-        this.__animations = []
+
+        this.#pending = {
+            'events:add': {},
+            'events:remove': {},
+            'animations:add': {},
+            'animations:remove': [],
+            addedChilds: [],
+            removedChilds: [],
+        }
 
         this.#isZIndexPredefined = false
     }
     render() {
-        if (this.__isHidden) {
-            this.#updateOptionsCache()
-            return
-        }
-        this.onRender()?.(this)
-        this.#updateOptionsCache()
-    }
-    updateBlockCords() {
         const currentRotate = this.getOptionCurrent('rotate') || 0
         const cacheRotate = this.getOptionCache('rotate') || 0
         const diffR = currentRotate - cacheRotate
@@ -242,6 +245,22 @@ export class BaseBlock extends Node {
         this.#calculateRealHeight()
         this.#calculateRealCenterX()
         this.#calculateRealCenterY()
+
+        if (this.__isHidden) {
+            this.#updateOptionsCache()
+            this.#handleBindOptions()
+            return
+        }
+        this.#cacheRender()
+        this.context?.save()
+        this.context?.translate(
+            -this.boundingBox.topLeft.x,
+            -this.boundingBox.topLeft.y
+        )
+        this.onRender()?.(this)
+        this.context?.restore()
+        this.#updateOptionsCache()
+        this.#handleBindOptions()
     }
     init() {
         this.#initializeCordinates()
@@ -250,6 +269,24 @@ export class BaseBlock extends Node {
         this.rotateCordinates(this.rotate())
         // need to again take cache after updating cordiantes
         this.#updateOptionsCache()
+        this.#collectQueueAddEvents()
+        this.#collectQueueRemoveEvents()
+        this.#collectQueueAddAnimations()
+        this.#collectQueueRemoveAnimations()
+        this.#collectQueueAddedChilds()
+        this.#collectQueueRemovedChilds()
+        this.#clearPendings()
+        this.__refreshHeadBlock()
+    }
+    #cacheRender() {
+        this.#cachedBitmap?.close()
+        this.#cachedBitmap = undefined
+        const w = Math.abs(this.realWidth)
+        const h = Math.abs(this.realHeight)
+        const dummyCanvas = new DummyCanvas(w, h)
+
+        this.context = dummyCanvas.context
+        this.#cachedBitmap = dummyCanvas.transferToImageBitmap()
     }
     #buildOptions(options: IBaseBlockOptions) {
         const ownOptions = this.options
@@ -388,6 +425,101 @@ export class BaseBlock extends Node {
 
         this.#calculateRealRotateRadian()
     }
+    #collectQueueAddEvents() {
+        const events = this.#pending['events:add']
+        if (events) {
+            for (const [event, eventFuncts] of Object.entries(events)) {
+                for (const func of eventFuncts) {
+                    this.canvas?.demandAddEvent(
+                        event,
+                        func,
+                        this.getOptionCurrent('zIndex')
+                    )
+                }
+            }
+        }
+    }
+    #collectQueueRemoveEvents() {
+        const events = this.#pending['events:remove']
+        if (events) {
+            for (const [event, eventFuncts] of Object.entries(events)) {
+                for (const func of eventFuncts) {
+                    this.canvas?.demandRemoveEvent(event, func)
+                }
+            }
+        }
+    }
+    #collectQueueAddAnimations() {
+        const animations = this.#pending['animations:add']
+        if (animations) {
+            for (const [animationId, func] of Object.entries(animations)) {
+                this.canvas?.demandAddAnimation(animationId, func)
+            }
+        }
+    }
+    #collectQueueRemoveAnimations() {
+        const animations = this.#pending['animations:remove']
+        if (animations) {
+            for (const animationId of animations) {
+                this.canvas?.demandRemoveAnimation(animationId)
+            }
+        }
+    }
+    #collectQueueAddedChilds() {
+        const childs = this.#pending['addedChilds']
+        if (childs) {
+            for (const child of childs) {
+                this.canvas?.demandAddBlock(child)
+            }
+        }
+    }
+    #collectQueueRemovedChilds() {
+        const childs = this.#pending['removedChilds']
+        if (childs) {
+            for (const child of childs) {
+                this.canvas?.demandRemoveBlock(child)
+            }
+        }
+    }
+    #clearPendings() {
+        this.#pending = {
+            'events:add': {},
+            'events:remove': {},
+            'animations:add': {},
+            'animations:remove': [],
+            addedChilds: [],
+            removedChilds: [],
+        }
+    }
+    #handleBindOptions() {
+        for (const opt of this.#bindOptions) {
+            for (const key of opt.options) {
+                getPrototype(this, key as any)?.value.call(
+                    this,
+                    opt.block.getOptionCurrent(key)
+                )
+            }
+        }
+    }
+    get #inBoundBlock() {
+        if (!this.canvas) return false
+        const x = xIntersect(
+            { left: 0, right: this.canvas?.boundingClientRect.width },
+            {
+                left: this.boundingBox.topLeft.x,
+                right: this.boundingBox.topRight.x,
+            }
+        )
+        const y = yIntersect(
+            { top: 0, bottom: this.canvas?.boundingClientRect.height },
+            {
+                top: this.boundingBox.topLeft.y,
+                bottom: this.boundingBox.bottomLeft.y,
+            }
+        )
+        if (x * y <= 0) return false
+        return true
+    }
     #findHighestChildZIndex() {
         if (this.higherZIndex === undefined) {
             this.higherZIndex = this.zIndex() ?? 0
@@ -502,7 +634,7 @@ export class BaseBlock extends Node {
     //     this.gridColumnEnd(gridArea[3] || 'auto')
     // }
     #hasZIndexChanged(block: BaseBlock, zIndex: number) {
-        if (block.#zIndex !== zIndex) this.canvas?.refreshHead()
+        if (block.#zIndex !== zIndex) this.canvas?.demandRefreshHead()
         block.#zIndex = zIndex
     }
     updateCordinates() {
@@ -780,7 +912,7 @@ export class BaseBlock extends Node {
                 b.width(blockW)
                 b.height(blockH)
             }
-            b.canvas?.__demandInvoke(b)
+            b.canvas?.demandInvoke(b)
         })
         this.__childsContainer = {
             width: blocksContainerWidth,
@@ -845,8 +977,14 @@ export class BaseBlock extends Node {
         if (this.__hasParentBlock) this.parentNode?.__refreshHeadBlock()
         this.higherZIndex = undefined
     }
+    get cachedBitmap() {
+        return this.#cachedBitmap
+    }
+    get isMouseEventAllowed() {
+        return this.canvas?.isMouseEventAllowed || false
+    }
     get __isHidden() {
-        return this.hidden() || this.__hidden
+        return this.hidden() || this.#inBoundBlock
     }
     get __hasParentBlock() {
         if (
@@ -1001,31 +1139,38 @@ export class BaseBlock extends Node {
         this.height(this.height() * scale)
     }
     __addEvent<E extends Event>(type: string, func: CustomEvent<E>) {
-        if (!this.__events[type])
-            this.__events[type] = { funcs: [], identified: [] }
         if (this.canvas)
-            this.canvas.registerEvent(
+            this.canvas.demandAddEvent(
                 type,
                 func as CustomEvent<Event>,
                 this.zIndex() || this.nodeId || 1
             )
-        else this.__events[type]['funcs'].push(func)
+        else
+            (this.#pending['events:add'][type] ??= []).push(
+                func as CustomEvent<Event>
+            )
     }
     __removeEvent<E extends Event>(type: string, func: CustomEvent<E>) {
-        this.canvas?.removeEvent(type, func as CustomEvent<Event>)
-        this.__events[type]['funcs'] = this.__events[type]['funcs'].filter(
-            (i) => i !== func
-        )
+        if (this.canvas) {
+            this.canvas.demandRemoveEvent(type, func as CustomEvent<Event>)
+        } else
+            (this.#pending['events:remove'][type] ??= []).push(
+                func as CustomEvent<Event>
+            )
     }
-    __addAnimation(animator: Animator) {
-        if (!this.canvas) this.__animations.push(animator)
-        else if (this.nodeId !== undefined)
-            this.canvas.registerAnimation(this.nodeId, animator)
+    __addAnimation(animationId: AnimationId, animator: Animator) {
+        if (this.canvas) this.canvas.demandAddAnimation(animationId, animator)
+        else this.#pending['animations:add'][animationId] = animator
     }
-    // @Todo: need to impliment it
-    __removeAnimation(animator: Animator) {}
-    __registerZIndex(inOut: inOut) {
-        this.canvas?.registerZIndex(inOut)
+    __removeAnimation(animationId: AnimationId) {
+        if (this.canvas) this.canvas.demandRemoveAnimation(animationId)
+        else this.#pending['animations:remove'].push(animationId)
+    }
+    __registerZIndex(zIndex: number) {
+        this.canvas?.registerZIndex(zIndex)
+    }
+    __unregisterZIndex(zIndex: number) {
+        this.canvas?.unregisterZIndex(zIndex)
     }
     __ImFirst() {
         return this.canvas?.whoIsTheFirst(this.zIndex())
@@ -1041,7 +1186,10 @@ export class BaseBlock extends Node {
             this.parentNode?.__invokeChange()
             return
         }
-        this.canvas?.__demandInvoke(this)
+        this.canvas?.demandInvoke(this)
+    }
+    __invokeHistory(before: any, after: any) {
+        if (this.nodeId) this.canvas?.demandHistory(this.nodeId, before, after)
     }
     __generatePayload(): BlockPayload {
         const childs: BlockPayload[] = []
@@ -1096,7 +1244,7 @@ export class BaseBlock extends Node {
                 bottomRight = this.cornerBottomLeft()
             }
         }
-        let inBound = checkInBound(
+        return checkInBound(
             x,
             y,
             topLeft.x,
@@ -1108,9 +1256,6 @@ export class BaseBlock extends Node {
             bottomRight.x,
             bottomRight.y
         )
-        if (inBound) this.__registerZIndex({ in: this.zIndex() })
-        else this.__registerZIndex({ out: this.zIndex() })
-        return inBound
     }
     // Overrided default listing methods for filter out unwanted child classes
     listOnlyChilds<B>(
@@ -1165,12 +1310,12 @@ export class BaseBlock extends Node {
             after[this.nodeId!][key] = value
         }
         if (Object.keys(before).length !== 0) {
-            this.canvas?.takeSnapshot(before, after)
+            // this.canvas?.takeSnapshot(before, after)
             this.__invokeChange()
         }
     }
     bindTo(block: BaseBlock, options: BlockOptionKeys[]) {
-        this.__bindOptions.push({ block: block, options: options })
+        block.#bindOptions.push({ block: block, options: options })
     }
     findChilds(queries: IBlockOptions) {
         let blocks: Block[] = []
@@ -1204,9 +1349,10 @@ export class BaseBlock extends Node {
         }
         super.addChild(block)
         this.#handleChildZIndex()
-        this.canvas?.__demandAddBlock()
-        this.canvas?.__takeInitSnaphshot(before)
-        this.canvas?.__takeBlockSnapshot(this, before)
+        if (this.canvas) this.canvas.demandAddBlock(block)
+        else this.#pending['addedChilds'].push(block)
+        // this.canvas?.__takeInitSnaphshot(before)
+        // this.canvas?.__takeBlockSnapshot(this, before)
     }
     removeChild(child: BaseBlock): void {
         if (!this.childNodes.includes(child)) return
@@ -1216,89 +1362,117 @@ export class BaseBlock extends Node {
         }
         super.removeChild(child)
         child.__childAdjustment = undefined
-        this.canvas?.__demandRemoveBlock(child)
-        this.canvas?.__takeBlockSnapshot(this, before)
+        if (this.canvas) this.canvas.demandRemoveBlock(child)
+        else this.#pending['removedChilds'].push(child)
+        // this.canvas?.__takeBlockSnapshot(this, before)
     }
     name(opt?: string) {
         return this.__cacheOption(opt, 'name', undefined)
     }
     contextMenu(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event) && this.__ImFirst()) {
-                _func(event)
-                this.__invokeChange()
-            }
+            if (this.checkInBound(event) && this.isMouseEventAllowed) {
+                this.__registerZIndex(this.zIndex())
+                if (this.__ImFirst()) {
+                    _func(event)
+                    this.__invokeChange()
+                }
+            } else this.__unregisterZIndex(this.zIndex())
         }
         this.__addEvent<MouseEvent>('contextmenu', out)
     }
     click(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event) && this.__ImFirst()) {
-                _func(event)
-                this.__invokeChange()
-            }
+            if (this.checkInBound(event) && this.isMouseEventAllowed) {
+                this.__registerZIndex(this.zIndex())
+                if (this.__ImFirst()) {
+                    _func(event)
+                    this.__invokeChange()
+                }
+            } else this.__unregisterZIndex(this.zIndex())
         }
         this.__addEvent<MouseEvent>('click', out)
     }
     dblclick(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event) && this.__ImFirst()) {
-                _func(event)
-                this.__invokeChange()
-            }
+            if (this.checkInBound(event) && this.isMouseEventAllowed) {
+                this.__registerZIndex(this.zIndex())
+                if (this.__ImFirst()) {
+                    _func(event)
+                    this.__invokeChange()
+                }
+            } else this.__unregisterZIndex(this.zIndex())
         }
         this.__addEvent<MouseEvent>('dblclick', out)
     }
     mousedown(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event) && this.__ImFirst()) {
-                _func(event)
-                this.__invokeChange()
-            }
+            if (this.checkInBound(event) && this.isMouseEventAllowed) {
+                this.__registerZIndex(this.zIndex())
+                if (this.__ImFirst()) {
+                    _func(event)
+                    this.__invokeChange()
+                }
+            } else this.__unregisterZIndex(this.zIndex())
         }
         this.__addEvent<MouseEvent>('mousedown', out)
     }
     mouseup(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event) && this.__ImFirst()) {
-                _func(event)
-                this.__invokeChange()
-            }
+            if (this.checkInBound(event) && this.isMouseEventAllowed) {
+                this.__registerZIndex(this.zIndex())
+                if (this.__ImFirst()) {
+                    _func(event)
+                    this.__invokeChange()
+                }
+            } else this.__unregisterZIndex(this.zIndex())
         }
         this.__addEvent<MouseEvent>('mouseup', out)
     }
     mousemove(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
-            if (this.checkInBound(event) && this.__ImFirst()) {
-                _func(event)
-                this.__invokeChange()
-            }
+            if (this.checkInBound(event) && this.isMouseEventAllowed) {
+                this.__registerZIndex(this.zIndex())
+                if (this.__ImFirst()) {
+                    _func(event)
+                    this.__invokeChange()
+                }
+            } else this.__unregisterZIndex(this.zIndex())
         }
         this.__addEvent<MouseEvent>('mousemove', out)
     }
     mouseenter(_func: (event: MouseEvent) => void) {
         let isMouseEnter = false
         const enter = (event: MouseEvent) => {
-            if (this.checkInBound(event)) {
+            if (this.checkInBound(event) && this.isMouseEventAllowed) {
+                this.__registerZIndex(this.zIndex())
                 if (this.__ImFirst() && !isMouseEnter) {
                     _func(event)
                     this.__invokeChange()
                     isMouseEnter = true
                 }
-            } else isMouseEnter = false
+            } else {
+                isMouseEnter = false
+                this.__unregisterZIndex(this.zIndex())
+            }
         }
         this.__addEvent<MouseEvent>('mousemove', enter)
     }
     mouseleave(_func: (event: MouseEvent) => void) {
         let isMouseLeave = false
         const leave = (event: MouseEvent) => {
-            if (!this.checkInBound(event)) {
+            if (!this.checkInBound(event) && this.isMouseEventAllowed) {
+                this.__registerZIndex(this.zIndex())
+
                 if (!this.__ImFirst() && !isMouseLeave) {
                     _func(event)
                     this.__invokeChange()
                     isMouseLeave = true
                 }
-            } else isMouseLeave = false
+            } else {
+                isMouseLeave = false
+                this.__unregisterZIndex(this.zIndex())
+            }
         }
         this.__addEvent<MouseEvent>('mousemove', leave)
     }

@@ -1,11 +1,11 @@
-import { AnimationBlock, IAnimationBlock } from './AnimationBlock'
+import { HotLineBlock, IHotLineOptions } from './mixins/HotLineBlock'
 import { BaseBlock, IBaseBlockOptions, onRender } from './BaseBlock'
-import { DraggableBlock, IDraggableOptions } from './DraggableBlock'
-import { HotLineBlock, IHotLineOptions } from './HotLineBlock'
-import { IOverflowOptions, OverflowBlock } from './OverflowBlock'
-import { IResizableOptions, ResizableBlock } from './ResizableBlock'
-import { IRotatableOptions, RotatableBlock } from './RotatableBlock'
-import { SelectableBlock, ISelectableOptions } from './SelectableBlock'
+import { AnimationBlock, IAnimationBlock } from './mixins/AnimationBlock'
+import { DraggableBlock, IDraggableOptions } from './mixins/DraggableBlock'
+import { IOverflowOptions, OverflowBlock } from './mixins/OverflowBlock'
+import { IResizableOptions, ResizableBlock } from './mixins/ResizableBlock'
+import { IRotatableOptions, RotatableBlock } from './mixins/RotatableBlock'
+import { SelectableBlock, ISelectableOptions } from './mixins/SelectableBlock'
 
 export interface IBlockOptions
     extends
@@ -220,12 +220,16 @@ export class Block extends OverflowBlock(
                     b.context?.translate(-centerX, -centerY)
                 }
             }
-            b.canvas?.__demandInvoke(b)
+            b.canvas?.demandInvoke(b)
         })
-        this.__hotLineBlock?.canvas?.__demandInvoke(this.__hotLineBlock)
-        this.__overflowXscrollBarBlock?.canvas?.__demandInvoke(this.__overflowXscrollBarBlock)
-        this.__overflowYscrollBarBlock?.canvas?.__demandInvoke(this.__overflowYscrollBarBlock)
-        
+        this.__hotLineBlock?.canvas?.demandInvoke(this.__hotLineBlock)
+        this.__overflowXscrollBarBlock?.canvas?.demandInvoke(
+            this.__overflowXscrollBarBlock
+        )
+        this.__overflowYscrollBarBlock?.canvas?.demandInvoke(
+            this.__overflowYscrollBarBlock
+        )
+
         this.__childsContainer = {
             width: blocksContainerWidth,
             height: blocksContainerHeight,

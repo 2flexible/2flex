@@ -1,12 +1,12 @@
-import { BaseBlock, IBaseBlockOptions } from './BaseBlock'
+import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
     OVERFLOW_Y_SCROLL_RUNNING_EVENT,
     RESIZABLE_RUNNING_EVENT,
     ROTATABLE_RUNNING_EVENT,
-} from './const'
-import { BlockConstructor } from './types'
+} from '../const'
+import { BlockConstructor } from '../types'
 
 export interface IDraggableOptions extends IBaseBlockOptions {
     draggable?: boolean
@@ -53,15 +53,15 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
-            let beforeValues: any = {}
+            let beforeValues = {}
             block.#mouseDownEvent = (event: MouseEvent) => {
                 if (!block.selectable()) return
-                if (block.checkInBound(event)) {
-                    block.__registerZIndex({ in: block.zIndex() })
+                if (block.checkInBound(event) && block.isMouseEventAllowed) {
+                    block.__registerZIndex(block.zIndex())
                     if (block.__ImFirst()) {
                         initCords = block.canvas?.getCursorPosition(event)!
                         beforeCords = { x: 0, y: 0 }
-                        beforeValues[block.nodeId!] = {
+                        beforeValues = {
                             x: block.x(),
                             y: block.y(),
                         }
@@ -87,7 +87,8 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
                 if (
                     block.__isRunningEventActive(DRAGGABLE_RUNNING_EVENT) &&
-                    block.__ImFirst()
+                    block.__ImFirst() &&
+                    block.isMouseEventAllowed
                 ) {
                     const { x, y } = block.canvas?.getCursorPosition(event)!
                     let diffX = x - initCords.x
@@ -107,16 +108,18 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 }
             }
             block.#mouseUpEvent = () => {
-                if (block.__isRunningEventActive(DRAGGABLE_RUNNING_EVENT)) {
-                    block.__registerZIndex({ out: block.zIndex() })
+                if (
+                    block.__isRunningEventActive(DRAGGABLE_RUNNING_EVENT) &&
+                    block.isMouseEventAllowed
+                ) {
+                    block.__unregisterZIndex(block.zIndex())
                     block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                        const after: any = {}
-                        after[block.nodeId!] = {
+                        const after: any = {
                             x: block.x(),
                             y: block.y(),
                         }
-                        block.canvas?.takeSnapshot(beforeValues, after)
+                        block.__invokeHistory(beforeValues, after)
                         block.__invokeChange()
                     }
                 }

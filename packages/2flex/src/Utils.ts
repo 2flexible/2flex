@@ -1,5 +1,6 @@
 import {
     CubicBezier,
+    Easing,
     JumpPosition,
     LinearEasing,
     RelativeType,
@@ -8,7 +9,6 @@ import {
     StepsEasing,
 } from './types'
 import { Node } from './Node'
-import { Easing } from './AnimationBlock'
 
 export function fromPercentage(from: number, parentSize: number) {
     return (from * parentSize) / 100

@@ -1,4 +1,4 @@
-export type NodeId = number | undefined
+import { NodeId } from './types'
 
 export class Node {
     childNodes: Node[]

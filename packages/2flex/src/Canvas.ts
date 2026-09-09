@@ -1,21 +1,18 @@
-import { Node, NodeId } from './Node'
-import { CanvasTree } from './CanvasTree'
-import { CanvasDOMManager } from './DOMManager'
-import { getPrototype, xIntersect, yIntersect } from './Utils'
-import { Block } from './Block'
-import type { IBlockOptions } from './Block'
-import type {
-    ICssProperties,
-    SnapshotObject,
-    CustomEvent,
-    SnapshotSize,
-    inOut,
-    Animator,
-} from './types'
-import { defaultBlocks } from './defaultBlocks'
 import { BaseBlock, BlockPayload } from './BaseBlock'
-import { HOT_LINE_BLOCK_NAME, OVERFLOW_SCROLL_BAR_BLOCK_NAME } from './const'
-import { DummyCanvas } from './DummyCanvas'
+import { CanvasScene } from './CanvasScene'
+import { defaultBlocks } from './defaultBlocks'
+import { CanvasDOMManager } from './DOMManager'
+import { History } from './History'
+import { RenderScheduler } from './Scheduler'
+import {
+    Animator,
+    ICssProperties,
+    Timestamp,
+    CustomEvent,
+    SnapshotData,
+    AnimationId,
+} from './types'
+import { getPrototype } from './Utils'
 
 // Canvas options shouldn't be style properties
 interface CanvasOptions {
@@ -26,7 +23,7 @@ interface CanvasOptions {
     keyboardMovement?: boolean
     mouseMovement?: boolean
     history?: boolean
-    historySize?: SnapshotSize
+    historySize?: number
     positionX?: number
     positionY?: number
     positionZ?: number
@@ -36,6 +33,12 @@ interface CanvasOptions {
 interface DefaultCanvasOptions extends Required<{
     [K in keyof CanvasOptions]-?: CanvasOptions[K]
 }> {}
+
+interface CanvasCurrentPosition {
+    x: number
+    y: number
+    z: number
+}
 
 interface CanvasEventsFunc {
     func: CustomEvent<Event>
@@ -61,16 +64,21 @@ interface Payload {
     blocks: BlockPayload[]
 }
 
-interface BlockAnimation {
-    animations: Animator[]
-    func?: Animator
-}
-
-interface CanvasAnimations {
-    [key: string]: BlockAnimation
-}
-type BlockCanvasCache = {
-    [key: number]: ImageBitmap
+export type QueuePayloadMap = {
+    'canvas:refresh:head': boolean
+    'block:add': Set<BaseBlock>
+    'block:remove': Set<BaseBlock>
+    'block:cache': Set<BaseBlock>
+    'block:history': {
+        [nodeId: number]: {
+            before: any
+            after: any
+        }
+    }
+    'animation:add': { [animationId: AnimationId]: Animator }
+    'animation:remove': AnimationId[]
+    'domEvent:add': { [event: string]: CanvasEventsFunc[] }
+    'domEvent:remove': { [event: string]: CustomEvent<Event>[] }
 }
 
 export class Canvas {
@@ -78,32 +86,29 @@ export class Canvas {
     width: number
     height: number
     options?: CanvasOptions & ICssProperties
-
-    #context: CanvasRenderingContext2D | null
-    #htmlCanvas?: HTMLCanvasElement
-    #boundingClient?: DOMRect
+    #defaultOptions: DefaultCanvasOptions
 
     #domCanvas: CanvasDOMManager
-    #tree: CanvasTree
+    #scene: CanvasScene
+    #queue: { [K in keyof QueuePayloadMap]?: QueuePayloadMap[K] }
+    #history: History
+    #scheduler: RenderScheduler
+
+    #htmlCanvas?: HTMLCanvasElement
+    #context?: CanvasRenderingContext2D | null
+    #boundingClient?: DOMRect
+
+    #currentPosition: CanvasCurrentPosition
+
     #canvasEvents: CanvasEvents
-    #defaultOptions: DefaultCanvasOptions
-    currentCursor: string
-    #higherBlockZIndex?: number
-    #handledNodes: { [key: number]: boolean }
-    #initTime?: number
-    isFocused = false
-    #animations: CanvasAnimations
-    #reservedAnimation?: number
-    #registeredBlocks: any[]
+    #canvasAnimations: { [animationId: AnimationId]: Animator }
+
+    isFocused: boolean
+    isMouseEventAllowed: boolean
     #latestZIndex: number
-
-    #sortedBy?: string
-
-    currentPosition: { x: number; y: number; z: number }
-
-    #invokedBlocks: Set<BaseBlock>
-
-    #blocksCanvasCache: BlockCanvasCache
+    #invokedHigherZIndex?: number
+    #currentCursor: string
+    #registeredBlocks: (typeof BaseBlock)[]
 
     constructor(
         canvasId: string,
@@ -115,13 +120,7 @@ export class Canvas {
         this.options = options
         this.width = width
         this.height = height
-        this.#context = null
 
-        this.#blocksCanvasCache = []
-
-        this.currentCursor = 'auto'
-        this.#handledNodes = {}
-        this.#canvasEvents = {}
         this.#defaultOptions = {
             history: true,
             historySize: 100,
@@ -134,721 +133,159 @@ export class Canvas {
             positionX: 0,
             positionY: 0,
             positionZ: 1,
-            fps: 0,
+            fps: 60,
         }
-        this.#animations = {}
-        this.#invokedBlocks = new Set()
 
-        this.currentPosition = { x: 0, y: 0, z: 1 }
+        this.#currentPosition = { x: 0, y: 0, z: 1 }
 
-        if (this.options) this.#setOptions()
-        this.#tree = new CanvasTree(this.#defaultOptions.historySize)
+        this.#canvasEvents = {}
+        this.#canvasAnimations = {}
+        this.#latestZIndex = 0
+        this.isFocused = false
+        this.isMouseEventAllowed = false
+        this.#currentCursor = 'auto'
+        this.#registeredBlocks = defaultBlocks
 
+        if (this.options) this.#setOptions(this.options)
         this.#domCanvas = new CanvasDOMManager(
             this.canvasId,
             this.width,
             this.height
         )
-        this.#initTime = new Date().getTime()
-        this.#registeredBlocks = defaultBlocks
-        this.#latestZIndex = 1
-        this.#initCanvas()
-        this.#checkMousePositionInCanvas()
-        this.#render()
+        this.#queue = {}
+        this.#scene = new CanvasScene()
+        this.#history = new History(this.#defaultOptions.historySize)
+        this.#scheduler = new RenderScheduler(this.options?.fps, (timestmap) =>
+            this.#render(timestmap)
+        )
+        this.#scheduler.start()
     }
 
-    get context(): CanvasRenderingContext2D | null {
-        if (!this.#context) this.#context = this.#domCanvas.context
-        return this.#context
-    }
+    #setOptions(options: CanvasOptions) {
+        if (options.history !== undefined)
+            this.#defaultOptions.history = options.history
+        if (options.zoomType !== undefined)
+            this.#defaultOptions.zoomType = options.zoomType
+        if (options.zoomSpeed !== undefined)
+            this.#defaultOptions.zoomSpeed = options.zoomSpeed
+        if (options.zoomInvSpeed !== undefined)
+            this.#defaultOptions.zoomInvSpeed = options.zoomInvSpeed
+        if (options.moveSpeed !== undefined)
+            this.#defaultOptions.moveSpeed = options.moveSpeed
+        if (options.keyboardMovement !== undefined)
+            this.#defaultOptions.keyboardMovement = options.keyboardMovement
+        if (options.mouseMovement !== undefined)
+            this.#defaultOptions.mouseMovement = options.mouseMovement
+        if (options.positionX !== undefined)
+            this.#defaultOptions.positionX = options.positionX
+        if (options.positionY !== undefined)
+            this.#defaultOptions.positionY = options.positionY
+        if (options.positionZ !== undefined)
+            this.#defaultOptions.positionZ = options.positionZ
+        if (options.fps !== undefined) this.#defaultOptions.fps = options.fps
+        if (options.historySize !== undefined)
+            this.#defaultOptions.historySize = options.historySize
 
-    get canvas(): HTMLCanvasElement {
-        if (!this.#htmlCanvas) this.#htmlCanvas = this.#domCanvas.canvas
-        return this.#htmlCanvas
-    }
-
-    #setOptions() {
-        if (this.options?.history)
-            this.#defaultOptions.history = this.options.history
-        if (this.options?.zoomType)
-            this.#defaultOptions.zoomType = this.options.zoomType
-        if (this.options?.zoomSpeed)
-            this.#defaultOptions.zoomSpeed = this.options.zoomSpeed
-
-        if (this.options?.zoomInvSpeed)
-            this.#defaultOptions.zoomInvSpeed = this.options.zoomInvSpeed
-        if (this.options?.moveSpeed)
-            this.#defaultOptions.moveSpeed = this.options.moveSpeed
-        if (this.options?.keyboardMovement)
-            this.#defaultOptions.keyboardMovement =
-                this.options.keyboardMovement
-        if (this.options?.mouseMovement)
-            this.#defaultOptions.mouseMovement = this.options.mouseMovement
-        if (this.options?.positionX)
-            this.#defaultOptions.positionX = this.options.positionX
-        if (this.options?.positionY)
-            this.#defaultOptions.positionY = this.options.positionY
-        if (this.options?.positionZ)
-            this.#defaultOptions.positionZ = this.options.positionZ
-        if (this.options?.fps) this.#defaultOptions.fps = this.options.fps
-        if (this.options?.historySize)
-            this.#defaultOptions.historySize = this.options.historySize
-
-        this.currentPosition = {
+        this.#currentPosition = {
             x: this.#defaultOptions.positionX,
             y: this.#defaultOptions.positionY,
             z: this.#defaultOptions.positionZ,
         }
     }
 
-    #initCanvas() {
+    #init() {
         this.#domCanvas.resetCanvas()
+        this.#domCanvas.clearAllEvents()
         this.canvas
         this.context
         this.context?.save()
 
-        window.onload = () => {
-            if (this.options) {
-                let styleOptions: { [key: string]: string | number } = {}
-                for (let [key, value] of Object.entries(this.options)) {
-                    if (!Object.hasOwn(this.#defaultOptions, key))
-                        styleOptions[key] = value
-                }
-                this.#domCanvas.changeStyle(this.options)
-            }
-            if (this.#defaultOptions.history) this.#snapshotHandler()
-            if (this.#defaultOptions.mouseMovement) this.#handMove()
-            if (this.#defaultOptions.keyboardMovement) this.#keyboardMove()
-            if (this.#defaultOptions.zoomType == 'point') this.#pointZoom()
-            else if (this.#defaultOptions.zoomType == 'center')
-                this.#centerZoom()
-            this.canvas.addEventListener('focusin', () => {
-                this.isFocused = true
-            })
-            this.canvas.addEventListener('focusout', () => {
-                this.isFocused = false
-            })
-            this.#setCanvasPosition()
-            this.#setCanvasZoom()
-        }
+        if (this.options) this.#domCanvas.changeStyle(this.options)
+        this.#canvasFocusHandler()
+        this.#checkMousePositionInCanvas()
+        this.#setCanvasPosition()
+        this.#setCanvasZoom()
+        if (this.#defaultOptions.history) this.#snapshotHandler()
+        if (this.#defaultOptions.mouseMovement) this.#handMove()
+        if (this.#defaultOptions.keyboardMovement) this.#keyboardMove()
+        if (this.#defaultOptions.zoomType == 'point') this.#pointZoom()
+        else if (this.#defaultOptions.zoomType == 'center') this.#centerZoom()
     }
-    add(...blocks: Block[]) {
-        for (let i = 0, len = blocks.length; i < len; i++) {
-            this.#tree.addNode(blocks[len - i - 1])
-        }
-        this.__demandAddBlock()
-        this.#initCacheBlocks()
-    }
-    __demandAddBlock() {
-        this.#initTime = new Date().getTime()
-        this.#tree.preOrderTraversal<Block>((b: Block) => {
-            if (b.nodeId && !this.#handledNodes[b.nodeId]) {
-                this.__handleOptions(b)
-                this.__collectEvents(b)
-                this.__collectAnimations(b)
-                this.__takeInitSnaphshot(b)
-                b.init()
-                if (b.parentNode) b.__refreshHeadBlock()
-                b.updateBlockCords()
-                b.__hidden = !this.inBoundBlock(b)
-                b.render()
-            }
-        })
-        this.invokeNodeListing()
-    }
-    remove(block: Block) {
-        this.#tree.head.removeChild(block)
-        this.__demandRemoveBlock(block)
-        // @Todo: take snapshot for this
-    }
-    __demandRemoveBlock(block: BaseBlock) {
-        this.__clearEvents(block)
-        this.__clearAnimations(block)
-        this.invokeNodeListing()
-    }
-    export(): string {
-        const payload: Payload = {
-            canvas: {
-                canvasId: this.canvasId,
-                width: this.width,
-                height: this.height,
-                options: this.options,
-            },
-            blocks: [],
-        }
-        this.#tree.head.listOnlyChilds((block: Block) => {
-            payload.blocks.push(block.__generatePayload())
-        })
-        return JSON.stringify(payload)
-    }
-
-    load(payload: string) {
-        const parsedPayload = JSON.parse(payload) as Payload
-        const canvasOpt = parsedPayload.canvas
-        this.canvasId = canvasOpt.canvasId
-        this.options = canvasOpt.options
-        this.width = canvasOpt.width
-        this.height = canvasOpt.height
-        if (this.options) this.#setOptions()
-        this.#initCanvas()
-
-        const blocks = parsedPayload.blocks
-        const constructedBlocks: Block[] = []
-
-        const checkBlock = (block: BlockPayload) => {
-            const exists = this.find({ nodeId: block.nodeId })
-            const childs: Block[] = []
-            let foundBlock
-            if (exists && exists[0]) {
-                foundBlock = exists[0]
-            } else {
-                const found = this.#registeredBlocks.filter(
-                    (b) => b.name === block.name
-                )
-                let invokeClass = found[0]
-                if (invokeClass)
-                    if (block.additionalParams.length !== 0)
-                        foundBlock = new invokeClass(
-                            ...block.additionalParams,
-                            block.options || {}
-                        )
-                    else {
-                        foundBlock = new invokeClass(block.options || {})
-                    }
-            }
-            foundBlock.options = block.options || block.options
-            if (block.childs?.length !== 0)
-                for (let i = 0, len = block.childs!.length; i < len; i++) {
-                    const childBlock = checkBlock(block.childs![i])
-                    if (childBlock) childs.push(childBlock)
-                }
-            foundBlock.addChild(...childs)
-            return foundBlock
-        }
-
-        for (let i = 0, len = blocks.length; i < len; i++) {
-            const b = checkBlock(blocks[i])
-            if (b) constructedBlocks.push(b)
-        }
-        this.add(...constructedBlocks)
-    }
-
-    registerBlocks(...blocks: Block[]) {
-        this.#registeredBlocks.push(blocks)
-    }
-
-    find(queries: IBlockOptions): Block[] {
-        let blocks: Block[] = []
-        this.#tree.head.listAllChilds((block: Block) => {
-            for (const [k, v] of Object.entries(queries)) {
-                if (
-                    block.getOptionCurrent(k)?.currentValue === v ||
-                    (k === 'nodeId' && block.nodeId === v)
-                )
-                    blocks.push(block)
-            }
-        })
-        return blocks
-    }
-
-    get canvasBounding() {
-        if (!this.#boundingClient)
-            this.#boundingClient = this.canvas.getBoundingClientRect()
-        return this.#boundingClient
-    }
-
-    getCursorPosition(event: MouseEvent) {
-        return {
-            x: event.pageX - this.canvasBounding.left,
-            y: event.pageY - this.canvasBounding.top,
-        }
-    }
-
-    whoIsTheFirst(zIndex?: number) {
-        return this.#higherBlockZIndex === zIndex
-    }
-
-    registerZIndex(inOutZ: inOut) {
-        let inBlock = inOutZ['in']
-        let outBlock = inOutZ['out']
-        if (
-            inBlock &&
-            ((this.#higherBlockZIndex && inBlock > this.#higherBlockZIndex) ||
-                !this.#higherBlockZIndex)
-        ) {
-            this.#higherBlockZIndex = inBlock
-        } else if (outBlock && outBlock === this.#higherBlockZIndex) {
-            this.#higherBlockZIndex = undefined
-        }
-    }
-
-    __handleOptions(block: BaseBlock): void {
-        if (
-            !block.nodeId ||
-            !block.options ||
-            (block.nodeId && this.#handledNodes[block.nodeId])
-        )
-            return
-        block.canvas = this
-        this.#handledNodes[block.nodeId] = true
-        this.#handleBindOptions(block)
-        for (const [key, value] of block.options) {
-            getPrototype(block, key as string)?.value.call(
-                block,
-                value?.currentValue
-            )
-        }
-        if (block.zIndex() === undefined) {
-            block.setOptionCurrent('zIndex', this.#latestZIndex)
-            this.#latestZIndex += 1
-        }
-    }
-
-    #handleBindOptions(block: BaseBlock) {
-        if (block.__bindOptions.length !== 0) {
-            for (const opt of block.__bindOptions) {
-                for (const key of opt.options) {
-                    getPrototype(block, key as any)?.value.call(
-                        block,
-                        opt.block.getOptionCurrent(key)
-                    )
-                }
-            }
-        }
-    }
-
-    __takeInitSnaphshot(block: BaseBlock) {
-        const dummy: any = {}
-        dummy[block.nodeId!] = { ...block.options }
-        this.#tree.takeSanpshot(this.#initTime!, null, dummy)
-    }
-
-    __takeBlockSnapshot<T>(parentBlock: BaseBlock, before: any) {
-        const after: any = {}
-        after[parentBlock.nodeId!] = {
-            childNodes: [...parentBlock.childNodes],
-        }
-        this.#tree.takeSanpshot(this.#initTime!, before, after)
-    }
-
-    __collectAnimations(block: BaseBlock) {
-        for (const func of block.__animations) {
-            if (block.nodeId) this.registerAnimation(block.nodeId, func)
-        }
-    }
-
-    __clearAnimations(block: BaseBlock) {
-        if (block.nodeId) this.removeAnimation(block.nodeId)
-    }
-
-    registerAnimation(nodeId: number, func: Animator) {
-        if (!this.#animations[nodeId])
-            this.#animations[nodeId] = { animations: [] }
-        this.#animations[nodeId].animations.push(func)
-        this.#buildAnimatonFunc(nodeId, this.#animations[nodeId].animations)
-    }
-
-    #buildAnimatonFunc(nodeId: number, animations: Animator[]) {
-        this.#animations[nodeId].func = (timestamp: number) => {
-            for (const func of animations) func(timestamp)
-        }
-    }
-
-    removeAnimation(nodeId: number) {
-        delete this.#animations[nodeId]
-    }
-
-    __collectEvents(block: BaseBlock) {
-        for (const key in block.__events) {
-            for (const event of block.__events[key]['funcs'])
-                this.registerEvent(
-                    key,
-                    event,
-                    block.zIndex() || block.nodeId || 1
-                )
-        }
-    }
-
-    __clearEvents<T>(block: BaseBlock) {
-        for (const key in block.__events) {
-            for (const event of block.__events[key]['funcs'])
-                this.removeEvent(key, event)
-        }
-    }
-
-    #sortRegisteredDomEvents() {
-        for (const key in this.#canvasEvents) {
-            const events = this.#canvasEvents[key].events.sort(
-                (a, b) => Math.abs(a.zIndex) - Math.abs(b.zIndex)
-            )
-            this.#buildEventFunc(key, events)
-        }
-        this.#registerDomEvent()
-    }
-
-    // need to fix type: CustomEvent<Event> in register event usage
-    registerEvent(event: string, callFunc: CustomEvent<Event>, zIndex: number) {
-        if (!this.#canvasEvents[event])
-            this.#canvasEvents[event] = { func: undefined, events: [] }
-
-        const funcIncludes = this.#canvasEvents[event].events.filter(
-            (i) => i.func == callFunc
-        )
-        if (funcIncludes.length !== 0 || typeof callFunc !== 'function') return
-        this.#canvasEvents[event].events.push({
-            func: callFunc,
-            zIndex: zIndex,
-        })
-        const events = this.#canvasEvents[event].events.sort(
-            (a, b) => Math.abs(a.zIndex) - Math.abs(b.zIndex)
-        )
-        this.#buildEventFunc(event, events)
-        this.#registerDomEvent()
-    }
-    removeEvent(event: string, callFunc: CustomEvent<Event>) {
-        if (!this.#canvasEvents[event]) return
-        const funcIncludes = this.#canvasEvents[event].events.filter(
-            (i) => i.func == callFunc
-        )
-        if (
-            (this.#canvasEvents[event] && funcIncludes.length === 0) ||
-            typeof callFunc !== 'function'
-        )
-            return
-        this.#canvasEvents[event].events = this.#canvasEvents[
-            event
-        ].events.filter((i) => i.func !== callFunc)
-        const events = this.#canvasEvents[event].events
-        this.#buildEventFunc(event, events)
-        this.#registerDomEvent()
-    }
-
-    #buildEventFunc(eventName: string, events: CanvasEventsFunc[]) {
-        this.#canvasEvents[eventName].func = (e: Event) => {
-            for (const event of events) event.func(e)
-        }
-    }
-    #registerDomEvent() {
-        for (const key in this.#canvasEvents) {
-            const func = this.#canvasEvents[key].func as CustomEvent<Event>
-            if (func !== undefined) {
-                const eventFunc = this.#domCanvas.getListener(key)
-                if (eventFunc && !eventFunc.includes(func)) {
-                    for (let i = 0, len = eventFunc.length; i < len; i++) {
-                        this.#domCanvas.removeEventListener(key, eventFunc[i])
-                    }
-                }
-                this.#domCanvas.addEventListener(key, func)
-                this.#canvasEvents[key].func = undefined
-            }
-        }
-    }
-    #checkMousePositionInCanvas() {
-        this.canvas.addEventListener('mouseleave', (event) => {
-            this.invokeChange((b) => {
-                b.__disableRunningEvents()
-            })
+    #setCanvasPosition() {
+        this.#invokeChanges((block: BaseBlock) => {
+            block.__translateX(this.#currentPosition.x)
+            block.__translateY(this.#currentPosition.y)
         })
     }
 
-    invokeChange(_func?: (block: Block) => void) {}
-    #renderFromCache() {
-        if (this.#invokedBlocks.size === 0) return
-        this.#cacheInvokedBlocks()
-        const ctx = this.context
-        if (!ctx) return
-        this.clearRect()
-
-        const nodes = this.#tree.nodes
-        for (let i = 0, len = nodes.length; i < len; i++) {
-            const node = nodes[i]
-            if (node.nodeId === undefined) continue
-            const bitmap = this.#blocksCanvasCache[node.nodeId]
-            if (!bitmap) continue
-            const b = node as Block
-            ctx.drawImage(
-                bitmap,
-                b.boundingBox.topLeft.x,
-                b.boundingBox.topLeft.y
-            )
-        }
+    #setCanvasZoom() {
+        this.#invokeChanges((block: BaseBlock) => {
+            block.__scale(this.#currentPosition.z)
+        })
     }
-
-    #initCacheBlocks() {
-        const nodes = this.#tree.nodes
-        for (let i = 0, len = nodes.length; i < len; i++) {
-            const n = nodes[i] as Block
-            if (n.nodeId !== undefined && !this.#blocksCanvasCache[n.nodeId]) {
-                this.#createBlocksCache(n)
-            }
-        }
-    }
-
-    #cacheInvokedBlocks() {
-        for (const block of this.#invokedBlocks) {
-            this.#createBlocksCache(block)
-        }
-    }
-
-    #createBlocksCache(block: BaseBlock) {
-        if (
-            block.nodeId === undefined ||
-            (block.nodeId && !this.#handledNodes[block.nodeId])
-        )
-            return
-
-        if (block.__isHidden) {
-            const old = this.#blocksCanvasCache[block.nodeId]
-            if (old) {
-                old.close()
-                delete this.#blocksCanvasCache[block.nodeId]
-            }
-            return
-        }
-
-        const old = this.#blocksCanvasCache[block.nodeId]
-        if (old) old.close()
-
-        const w = Math.abs(block.realWidth)
-        const h = Math.abs(block.realHeight)
-        const dummyCanvas = new DummyCanvas(w, h)
-
-        const ctx = dummyCanvas.context
-        if (!ctx) return
-
-        block.context = ctx
-
-        ctx.save()
-        block.updateBlockCords()
-        this.#handleBindOptions(block)
-        ctx.translate(
-            -block.boundingBox.topLeft.x,
-            -block.boundingBox.topLeft.y
-        )
-        block.render()
-
-        ctx.restore()
-
-        const snapshot = dummyCanvas.transferToImageBitmap()
-        if (snapshot) this.#blocksCanvasCache[block.nodeId] = snapshot
-    }
-
-    __demandInvoke(block: BaseBlock) {
-        this.#invokedBlocks.add(block)
-    }
-
-    #render() {
-        let lastFrame = 0
-        const framer = (timestamp: number) => {
-            requestAnimationFrame(framer)
-            if (lastFrame === 0) lastFrame = timestamp
-            // getting true frame per second
-            const delta = timestamp - lastFrame
-            const frameDuration = 1000 / this.#defaultOptions.fps
-            if (this.#defaultOptions.fps && delta < frameDuration) return
-            const obj = Object.entries(this.#animations)
-            for (let [nodeId, anime] of obj) {
-                const b = this.find({ nodeId: Number(nodeId) })
-                anime.func?.(timestamp)
-                b[0]?.__invokeChange()
-            }
-            this.#renderFromCache()
-            // cache and render
-            const execTime = delta % frameDuration
-            lastFrame = timestamp - execTime
-            this.#invokedBlocks.clear()
-        }
-        requestAnimationFrame(framer)
-    }
-
-    #sortNodesByZIndex() {
-        const sortedNodes = this.#tree.nodes
-        if (this.#sortedBy === undefined) {
-            this.#tree.nodes = sortedNodes.sort(
-                (a: any, b: any) =>
-                    a.options.get('zIndex') - b.options.get('zIndex')
-            )
-            this.#sortedBy = 'zIndex'
-        }
-    }
-
-    invokeNodeListing() {
-        this.#initTime = new Date().getTime()
-        this.#tree.preOrderTraversal()
-        this.refreshHead()
-    }
-
-    refreshHead() {
-        this.#sortedBy = undefined
-        this.#sortRegisteredDomEvents()
-        this.#sortNodesByZIndex()
-    }
-
-    takeSnapshot(before: SnapshotObject, after: SnapshotObject) {
-        if (this.#defaultOptions.history)
-            this.#tree.takeSanpshot(new Date().getTime(), before, after)
-    }
-
-    inBoundBlock(block: Block) {
-        const x = xIntersect(
-            { left: 0, right: this.canvasBounding.width },
-            {
-                left: Math.min(
-                    block.getOptionCurrent('cornerTopLeft')?.x || 0,
-                    block.getOptionCurrent('cornerTopRight')?.x || 0,
-                    block.getOptionCurrent('cornerBottomLeft')?.x || 0,
-                    block.getOptionCurrent('cornerBottomRight')?.x || 0
-                ),
-                right: Math.max(
-                    block.getOptionCurrent('cornerTopLeft')?.x || 0,
-                    block.getOptionCurrent('cornerTopRight')?.x || 0,
-                    block.getOptionCurrent('cornerBottomLeft')?.x || 0,
-                    block.getOptionCurrent('cornerBottomRight')?.x || 0
-                ),
-            }
-        )
-        const y = yIntersect(
-            { top: 0, bottom: this.canvasBounding.height },
-            {
-                top: Math.min(
-                    block.getOptionCurrent('cornerTopLeft')?.y || 0,
-                    block.getOptionCurrent('cornerTopRight')?.y || 0,
-                    block.getOptionCurrent('cornerBottomLeft')?.y || 0,
-                    block.getOptionCurrent('cornerBottomRight')?.y || 0
-                ),
-                bottom: Math.max(
-                    block.getOptionCurrent('cornerTopLeft')?.y || 0,
-                    block.getOptionCurrent('cornerTopRight')?.y || 0,
-                    block.getOptionCurrent('cornerBottomLeft')?.y || 0,
-                    block.getOptionCurrent('cornerBottomRight')?.y || 0
-                ),
-            }
-        )
-        if (x * y <= 0) return false
-        return true
-    }
-
-    #pointZoom() {
+    #keyboardMove() {
+        const moveSpeed = this.#defaultOptions.moveSpeed
         window.addEventListener(
             'wheel',
             (event: WheelEvent) => {
-                if (
-                    this.#defaultOptions.zoomType !== 'point' ||
-                    !this.isFocused
-                )
+                if (!this.#defaultOptions.keyboardMovement || !this.isFocused)
                     return
-                if (event.ctrlKey) {
-                    event.preventDefault()
-                    const { x, y } = this.getCursorPosition(event)
-
-                    let scale = this.#defaultOptions.zoomSpeed
-                    let invScale = this.#defaultOptions.zoomInvSpeed
-
-                    let beforeX = this.currentPosition.x
-                    let beforeY = this.currentPosition.y
-
-                    if (event.deltaY < 0) {
-                        const scaleFactor =
-                            (this.currentPosition.z * scale) /
-                            this.currentPosition.z
-                        this.currentPosition.x += (x - beforeX) * scaleFactor
-                        this.currentPosition.y -= (y - beforeY) * scaleFactor
-
-                        this.invokeChange((block) => {
-                            block.__translateX(this.currentPosition.x - beforeX)
-                            block.__scale(scale)
-                        })
-                        this.currentPosition.z *= scale
-                    } else {
-                        const scaleFactor =
-                            (this.currentPosition.z * invScale) /
-                            (this.currentPosition.z - 1)
-                        this.currentPosition.x -= (x - beforeX) * scaleFactor
-                        this.currentPosition.y -= (y - beforeY) * scaleFactor
-                        this.invokeChange((block) => {
-                            block.__translateX(this.currentPosition.x - beforeX)
-                            block.__translateY(this.currentPosition.y - beforeY)
-                            block.__scale(invScale)
-                        })
-
-                        this.currentPosition.z *= invScale
-                    }
-                }
-            },
-            { passive: false }
-        )
-    }
-
-    #centerZoom() {
-        window.addEventListener(
-            'wheel',
-            (event: WheelEvent) => {
-                if (
-                    this.#defaultOptions.zoomType !== 'center' ||
-                    !this.isFocused
-                )
-                    return
+                if (event.ctrlKey) return
                 event.preventDefault()
-                if (event.ctrlKey) {
-                    let scale = this.#defaultOptions.zoomSpeed
-                    let invScale = this.#defaultOptions.zoomInvSpeed
-
-                    let beforeX = this.currentPosition.x
-                    let beforeY = this.currentPosition.y
-                    const x = this.canvasBounding.right / 2
-                    const y = this.canvasBounding.bottom / 2
-                    this.invokeChange((block: Block) => {
-                        if (event.deltaY < 0) {
-                            this.currentPosition.x +=
-                                (x - beforeX) *
-                                ((this.currentPosition.z * scale) /
-                                    this.currentPosition.z -
-                                    1)
-
-                            // this.currentPosition.y +=
-                            //     y / (this.currentPosition.z * scale) -
-                            //     y / this.currentPosition.z;
-                            block.__translateX(beforeX - this.currentPosition.x)
-                            block.__scale(scale)
-                            this.currentPosition.z *= scale
-                        } else {
-                            this.currentPosition.x +=
-                                x / (this.currentPosition.z * invScale) -
-                                x / this.currentPosition.z
-
-                            this.currentPosition.y +=
-                                y / (this.currentPosition.z * invScale) -
-                                y / this.currentPosition.z
-
-                            block.__translateX(this.currentPosition.x - beforeX)
-                            block.__translateY(this.currentPosition.y - beforeY)
-
-                            block.__scale(invScale)
-                            this.currentPosition.z *= invScale
-                        }
-                    })
+                let inBound = false
+                if (event.shiftKey) {
+                    if (event.deltaY < 0) {
+                        this.#invokeChanges((block: BaseBlock) => {
+                            if (
+                                block.checkInBound(event) &&
+                                block.__isOverflowXScrollable
+                            ) {
+                                block.__overflowTranslateX(moveSpeed)
+                                inBound = true
+                            } else block.__translateX(moveSpeed)
+                        })
+                        if (!inBound) this.#currentPosition.x += moveSpeed
+                    } else {
+                        this.#invokeChanges((block: BaseBlock) => {
+                            if (
+                                block.checkInBound(event) &&
+                                block.__isOverflowXScrollable
+                            ) {
+                                block.__overflowTranslateX(-moveSpeed)
+                                inBound = true
+                            } else block.__translateX(-moveSpeed)
+                        })
+                        if (!inBound) this.#currentPosition.x -= moveSpeed
+                    }
+                } else {
+                    if (event.deltaY < 0) {
+                        this.#invokeChanges((block: BaseBlock) => {
+                            if (
+                                block.checkInBound(event) &&
+                                block.__isOverflowYScrollable
+                            ) {
+                                block.__overflowTranslateY(moveSpeed)
+                                inBound = true
+                            } else block.__translateY(moveSpeed)
+                        })
+                        if (!inBound) this.#currentPosition.y += moveSpeed
+                    } else {
+                        this.#invokeChanges((block: BaseBlock) => {
+                            if (
+                                block.checkInBound(event) &&
+                                block.__isOverflowYScrollable
+                            ) {
+                                block.__overflowTranslateY(-moveSpeed)
+                                inBound = true
+                            } else block.__translateY(-moveSpeed)
+                        })
+                        if (!inBound) this.#currentPosition.y -= moveSpeed
+                    }
                 }
             },
             { passive: false }
         )
     }
-    clearRect() {
-        this.context?.clearRect(
-            0,
-            0,
-            this.canvasBounding.width,
-            this.canvasBounding.height
-        )
-    }
-
-    changeCursor(cur?: string) {
-        cur = cur || 'auto'
-        this.currentCursor = cur
-        return this.#domCanvas.changeStyle({
-            cursor: cur,
-        } as any)
-    }
-
     #handMove() {
         let initX = 0
         let initY = 0
@@ -897,17 +334,17 @@ export class Canvas {
                         let diffX = event.clientX - initX
                         let diffY = event.clientY - initY
                         if (diffX !== 0) {
-                            this.invokeChange((block: Block) => {
+                            this.#invokeChanges((block: BaseBlock) => {
                                 block.__translateX(diffX - beforeX)
                             })
-                            this.currentPosition.x += diffX
+                            this.#currentPosition.x += diffX
                             beforeX = diffX
                         }
                         if (diffY !== 0) {
-                            this.invokeChange((block: Block) => {
+                            this.#invokeChanges((block: BaseBlock) => {
                                 block.__translateY(diffY - beforeY)
                             })
-                            this.currentPosition.y += diffY
+                            this.#currentPosition.y += diffY
                             beforeY = diffY
                         }
                     }
@@ -923,140 +360,544 @@ export class Canvas {
         })
     }
 
-    #setCanvasPosition() {
-        this.invokeChange((block: Block) => {
-            block.__translateX(this.currentPosition.x)
-            block.__translateY(this.currentPosition.y)
-        })
-    }
-
-    #setCanvasZoom() {
-        this.invokeChange((block) => {
-            block.__scale(this.currentPosition.z)
-        })
-    }
-
-    #keyboardMove() {
-        const moveSpeed = this.#defaultOptions.moveSpeed
+    #centerZoom() {
         window.addEventListener(
             'wheel',
             (event: WheelEvent) => {
-                if (!this.#defaultOptions.keyboardMovement || !this.isFocused)
+                if (
+                    this.#defaultOptions.zoomType !== 'center' ||
+                    !this.isFocused
+                )
                     return
-                if (event.ctrlKey) return
                 event.preventDefault()
-                let inBound = false
-                if (event.shiftKey) {
-                    if (event.deltaY < 0) {
-                        this.invokeChange((block: Block) => {
-                            if (
-                                block.checkInBound(event) &&
-                                block.__isOverflowXScrollable
-                            ) {
-                                block.__overflowTranslateX(moveSpeed)
-                                inBound = true
-                            } else block.__translateX(moveSpeed)
-                        })
-                        if (!inBound) this.currentPosition.x += moveSpeed
-                    } else {
-                        this.invokeChange((block: Block) => {
-                            if (
-                                block.checkInBound(event) &&
-                                block.__isOverflowXScrollable
-                            ) {
-                                block.__overflowTranslateX(-moveSpeed)
-                                inBound = true
-                            } else block.__translateX(-moveSpeed)
-                        })
-                        if (!inBound) this.currentPosition.x -= moveSpeed
-                    }
-                } else {
-                    if (event.deltaY < 0) {
-                        this.invokeChange((block: Block) => {
-                            if (
-                                block.checkInBound(event) &&
-                                block.__isOverflowYScrollable
-                            ) {
-                                block.__overflowTranslateY(moveSpeed)
-                                inBound = true
-                            } else block.__translateY(moveSpeed)
-                        })
-                        if (!inBound) this.currentPosition.y += moveSpeed
-                    } else {
-                        this.invokeChange((block: Block) => {
-                            if (
-                                block.checkInBound(event) &&
-                                block.__isOverflowYScrollable
-                            ) {
-                                block.__overflowTranslateY(-moveSpeed)
-                                inBound = true
-                            } else block.__translateY(-moveSpeed)
-                        })
-                        if (!inBound) this.currentPosition.y -= moveSpeed
-                    }
+                if (event.ctrlKey) {
+                    let scale = this.#defaultOptions.zoomSpeed
+                    let invScale = this.#defaultOptions.zoomInvSpeed
+
+                    let beforeX = this.#currentPosition.x
+                    let beforeY = this.#currentPosition.y
+                    const x = this.boundingClientRect.right / 2
+                    const y = this.boundingClientRect.bottom / 2
+                    this.#invokeChanges((block: BaseBlock) => {
+                        if (event.deltaY < 0) {
+                            this.#currentPosition.x +=
+                                (x - beforeX) *
+                                ((this.#currentPosition.z * scale) /
+                                    this.#currentPosition.z -
+                                    1)
+
+                            // this.#currentPosition.y +=
+                            //     y / (this.#currentPosition.z * scale) -
+                            //     y / this.#currentPosition.z;
+                            block.__translateX(
+                                beforeX - this.#currentPosition.x
+                            )
+                            block.__scale(scale)
+                            this.#currentPosition.z *= scale
+                        } else {
+                            this.#currentPosition.x +=
+                                x / (this.#currentPosition.z * invScale) -
+                                x / this.#currentPosition.z
+
+                            this.#currentPosition.y +=
+                                y / (this.#currentPosition.z * invScale) -
+                                y / this.#currentPosition.z
+
+                            block.__translateX(
+                                this.#currentPosition.x - beforeX
+                            )
+                            block.__translateY(
+                                this.#currentPosition.y - beforeY
+                            )
+
+                            block.__scale(invScale)
+                            this.#currentPosition.z *= invScale
+                        }
+                    })
                 }
             },
             { passive: false }
         )
     }
 
-    undo() {
-        const obj = this.#tree.snapshotInBack()
-        this.#invokeHistory(obj)
-    }
+    #pointZoom() {
+        window.addEventListener(
+            'wheel',
+            (event: WheelEvent) => {
+                if (
+                    this.#defaultOptions.zoomType !== 'point' ||
+                    !this.isFocused
+                )
+                    return
+                if (event.ctrlKey) {
+                    event.preventDefault()
+                    const { x, y } = this.getCursorPosition(event)
 
-    redo() {
-        const obj = this.#tree.snapshotInFuture()
-        this.#invokeHistory(obj)
-    }
+                    let scale = this.#defaultOptions.zoomSpeed
+                    let invScale = this.#defaultOptions.zoomInvSpeed
 
-    #invokeHistory(obj: SnapshotObject) {
-        this.invokeChange((b: Block) => {
-            if (Object.keys(obj).includes(String(b.nodeId))) {
-                for (let [key, value] of Object.entries(obj[b.nodeId!])) {
-                    if (key === 'childNodes') {
-                        if (b.childNodes.length !== (value as []).length) {
-                            if ((value as []).length > b.childNodes.length) {
-                                for (let i = 0; i < (value as []).length; i++) {
-                                    if (
-                                        !(value as Node[]).includes(
-                                            b.childNodes[i]
-                                        )
-                                    ) {
-                                        b.__addChildInternal((value as [])[i])
-                                        this.#tree.assignNodeId(
-                                            (value as [])[i]
-                                        )
-                                        this.__handleOptions((value as [])[i])
-                                    }
-                                }
-                            } else {
-                                for (let i = 0; i < b.childNodes.length; i++) {
-                                    if (
-                                        !b.childNodes.includes((value as [])[i])
-                                    ) {
-                                        b.childNodes[i].nodeId = undefined
-                                        b.__removeChildInternal(b.childNodes[i])
-                                    }
-                                }
-                            }
-                            this.invokeNodeListing()
+                    let beforeX = this.#currentPosition.x
+                    let beforeY = this.#currentPosition.y
 
-                            this.invokeChange()
-                            return
-                        }
-                    } else getPrototype(b, key)?.value.call(b, value)
+                    if (event.deltaY < 0) {
+                        const scaleFactor =
+                            (this.#currentPosition.z * scale) /
+                            this.#currentPosition.z
+                        this.#currentPosition.x += (x - beforeX) * scaleFactor
+                        this.#currentPosition.y -= (y - beforeY) * scaleFactor
+
+                        this.#invokeChanges((block) => {
+                            block.__translateX(
+                                this.#currentPosition.x - beforeX
+                            )
+                            block.__scale(scale)
+                        })
+                        this.#currentPosition.z *= scale
+                    } else {
+                        const scaleFactor =
+                            (this.#currentPosition.z * invScale) /
+                            (this.#currentPosition.z - 1)
+                        this.#currentPosition.x -= (x - beforeX) * scaleFactor
+                        this.#currentPosition.y -= (y - beforeY) * scaleFactor
+                        this.#invokeChanges((block) => {
+                            block.__translateX(
+                                this.#currentPosition.x - beforeX
+                            )
+                            block.__translateY(
+                                this.#currentPosition.y - beforeY
+                            )
+                            block.__scale(invScale)
+                        })
+
+                        this.#currentPosition.z *= invScale
+                    }
                 }
-            }
-        })
-        this.invokeChange()
+            },
+            { passive: false }
+        )
     }
-
+    #invokeChanges(func?: (block: BaseBlock) => void) {
+        const sortedBlocks = this.#scene.getSortedNodesByZIndex()
+        for (const block of sortedBlocks) {
+            func?.(block)
+            this.demandInvoke(block)
+        }
+    }
+    #canvasFocusHandler() {
+        this.canvas.addEventListener('focusin', () => {
+            this.isFocused = true
+        })
+        this.canvas.addEventListener('focusout', () => {
+            this.isFocused = false
+        })
+    }
     #snapshotHandler() {
         window.addEventListener('keydown', (e: KeyboardEvent) => {
             if (!this.#defaultOptions.history || !this.isFocused) return
             if (e.key === 'Z' && e.ctrlKey) this.redo()
             else if (e.key === 'z' && e.ctrlKey) this.undo()
         })
+    }
+    #checkMousePositionInCanvas() {
+        this.canvas.addEventListener('mouseenter', () => {
+            this.isMouseEventAllowed = true
+        })
+        this.canvas.addEventListener('mouseleave', () => {
+            this.isMouseEventAllowed = false
+        })
+    }
+
+    #render(timestamp: Timestamp) {
+        this.#addedBlocks()
+        this.#removedBlocks()
+        this.#buildAddedDomEvents()
+        this.#buildRemovedDomEvents()
+        this.#registerDomEvents()
+        this.#buildAddedAnimations()
+        this.#buildRemovedAnimations()
+        this.#refreshHead()
+        this.#invokeAnimations(timestamp)
+        this.#buildDemandedHistory()
+        this.#renderCachedBlocks()
+        this.#drawCachedBlocks()
+        this.#clearQueue()
+    }
+    #clearQueue() {
+        this.#queue = {}
+    }
+    #refreshHead() {
+        const isRefresh = this.#queue['canvas:refresh:head']
+        if (isRefresh) {
+            this.#scene.sortNodesByZIndex()
+            this.#sortAllDomEventsByZIndex()
+        }
+    }
+    #renderCachedBlocks() {
+        const invokedBlocks = this.#queue['block:cache']
+        if (invokedBlocks) {
+            for (const block of invokedBlocks) {
+                block.render()
+            }
+        }
+    }
+    #drawCachedBlocks() {
+        const blocks = this.#scene.getSortedNodesByZIndex()
+        if (blocks) {
+            const context = this.context
+            if (!context) return
+            this.clearRect()
+            for (const block of blocks) {
+                if (block.cachedBitmap)
+                    context.drawImage(
+                        block.cachedBitmap,
+                        block.boundingBox.topLeft.x,
+                        block.boundingBox.topLeft.y
+                    )
+            }
+        }
+    }
+    #invokeAnimations(timestamp: Timestamp) {
+        for (const animeFunc of Object.values(this.#canvasAnimations)) {
+            animeFunc?.(timestamp)
+        }
+    }
+    #invokeHistory() {
+        const tailData = this.#history.tailData()
+        if (!tailData) return
+        for (const [key, options] of Object.entries(tailData)) {
+            const foundNode = this.#scene.find({ nodeId: Number(key) })?.[0]
+            if (foundNode) {
+                for (const [key, option] of Object.entries(options)) {
+                    if (key === 'addChild') {
+                    } else if (key === 'removeChild') {
+                    } else {
+                        getPrototype(foundNode, key)?.value.call(
+                            foundNode,
+                            option
+                        )
+                    }
+                }
+                this.demandInvoke(foundNode)
+            }
+        }
+    }
+    #sortAllDomEventsByZIndex() {
+        for (const event of Object.keys(this.#canvasEvents)) {
+            this.#sortDomEventsByZIndex(event)
+        }
+    }
+    // IMPORTANT: if any of the zindex has changed in any block we need to trigger this with building event func
+    #sortDomEventsByZIndex(eventName: string) {
+        this.#canvasEvents[eventName].events = this.#canvasEvents[
+            eventName
+        ].events.sort((a, b) => Math.abs(a.zIndex) - Math.abs(b.zIndex))
+    }
+    #buildDomEventFunc(eventName: string) {
+        this.#canvasEvents[eventName].func = (e: Event) => {
+            for (const event of this.#canvasEvents[eventName].events)
+                event.func(e)
+        }
+    }
+    #buildAddedDomEvents() {
+        const addedEvents = this.#queue['domEvent:add']
+        if (addedEvents) {
+            for (const [eventName, events] of Object.entries(addedEvents)) {
+                const canvasEvents = this.#canvasEvents[eventName].events
+                this.#canvasEvents[eventName].events = [
+                    ...canvasEvents,
+                    ...events,
+                ]
+                this.#sortDomEventsByZIndex(eventName)
+                this.#buildDomEventFunc(eventName)
+            }
+        }
+    }
+    #buildRemovedDomEvents() {
+        const removedEvents = this.#queue['domEvent:remove']
+        if (removedEvents) {
+            for (const [eventName, events] of Object.entries(removedEvents)) {
+                this.#canvasEvents[eventName].events = this.#canvasEvents[
+                    eventName
+                ].events.filter((i) => !events.includes(i.func))
+                this.#sortDomEventsByZIndex(eventName)
+                this.#buildDomEventFunc(eventName)
+            }
+        }
+    }
+    #registerDomEvents() {
+        for (const key in this.#canvasEvents) {
+            const func = this.#canvasEvents[key].func as CustomEvent<Event>
+            if (func !== undefined) {
+                const eventFunc = this.#domCanvas.getListener(key)
+                if (eventFunc && !eventFunc.includes(func)) {
+                    for (let i = 0, len = eventFunc.length; i < len; i++) {
+                        this.#domCanvas.removeEventListener(key, eventFunc[i])
+                    }
+                }
+                this.#domCanvas.addEventListener(key, func)
+                this.#canvasEvents[key].func = undefined
+            }
+        }
+    }
+    #buildAddedAnimations() {
+        const addedAnimations = this.#queue['animation:add']
+        if (addedAnimations) {
+            for (const [animationId, func] of Object.entries(addedAnimations)) {
+                this.#canvasAnimations[Number(animationId)] = func
+            }
+        }
+    }
+    #buildRemovedAnimations() {
+        const removedAnimations = this.#queue['animation:remove']
+        if (removedAnimations) {
+            for (const animationId of removedAnimations) {
+                delete this.#canvasAnimations[animationId]
+            }
+        }
+    }
+    #addedBlocks() {
+        const addedBlocks = this.#queue['block:add']
+        if (addedBlocks) {
+            for (const block of addedBlocks) {
+                // we can write another safety for already handled blocks??
+                block.canvas = this
+                this.#handleBlockOptions(block)
+                this.#handleBlockZIndex(block)
+                block.init()
+            }
+            this.#scene.buildSceneGraph()
+            this.demandRefreshHead()
+        }
+    }
+    #removedBlocks() {
+        const removedBlocks = this.#queue['block:remove']
+        if (removedBlocks) {
+            this.#scene.buildSceneGraph()
+            this.demandRefreshHead()
+        }
+    }
+    #buildDemandedHistory() {
+        if (!this.#defaultOptions.history) return
+        const demandedHistory = this.#queue['block:history']
+        if (demandedHistory) {
+            const tailData = this.#history.tailData()
+            const nextData: SnapshotData = {}
+
+            for (const [key, { before, after }] of Object.entries(
+                demandedHistory
+            )) {
+                const nodeId = Number(key)
+                if (tailData) {
+                    const existedData = tailData[nodeId]
+                    if (existedData)
+                        tailData[nodeId] = { ...existedData, ...before }
+                }
+                nextData[nodeId] = after
+            }
+            if (tailData) this.#history.updateTail(tailData)
+            this.#history.add(nextData)
+        }
+    }
+    #handleBlockOptions(block: BaseBlock) {
+        // this.#handleBindOptions(block)
+        for (const [key, value] of block.options) {
+            getPrototype(block, key as string)?.value.call(
+                block,
+                value?.currentValue
+            )
+        }
+    }
+    #handleBlockZIndex(block: BaseBlock) {
+        if (block.zIndex() === undefined) {
+            block.setOptionCurrent('zIndex', this.#latestZIndex)
+            this.#latestZIndex += 1
+        }
+    }
+    add(...blocks: BaseBlock[]) {
+        for (let i = 0, len = blocks.length; i < len; i++) {
+            const block = blocks[len - i - 1]
+            this.#scene.addBlock(block)
+            this.demandAddBlock(block)
+        }
+    }
+    remove(...blocks: BaseBlock[]) {
+        for (let i = 0, len = blocks.length; i < len; i++) {
+            const block = blocks[i]
+            this.#scene.removeBlock(block)
+            this.demandRemoveBlock(block)
+        }
+    }
+    export(): string {
+        const payload: Payload = {
+            canvas: {
+                canvasId: this.canvasId,
+                width: this.width,
+                height: this.height,
+                options: this.options,
+            },
+            blocks: [],
+        }
+        this.#scene.head.listOnlyChilds((block: BaseBlock) => {
+            payload.blocks.push(block.__generatePayload())
+        })
+        return JSON.stringify(payload)
+    }
+    load(payload: string) {
+        const parsedPayload = JSON.parse(payload) as Payload
+        const canvasOpt = parsedPayload.canvas
+        const blocksPayload = parsedPayload.blocks
+
+        this.canvasId = canvasOpt.canvasId
+        this.options = canvasOpt.options
+        this.width = canvasOpt.width
+        this.height = canvasOpt.height
+
+        if (this.options) this.#setOptions(this.options)
+        this.#init()
+
+        this.#scheduler.stop()
+        this.#scheduler.start()
+
+        const constructedBlocks: BaseBlock[] = []
+
+        const checkBlock = (blockPaylaod: BlockPayload) => {
+            const exists = this.#scene.find({
+                nodeId: blockPaylaod.nodeId,
+            })?.[0]
+            let foundBlock: BaseBlock | undefined
+            // first need to check if this block already in our tree
+            // otherwise construct new block
+            if (exists) {
+                foundBlock = exists
+            } else {
+                const foundClass = this.#registeredBlocks.filter(
+                    (b) => b.name === blockPaylaod.name
+                )?.[0]
+
+                if (foundClass) {
+                    // @TODO: fix any issue
+                    foundBlock =
+                        blockPaylaod.additionalParams.length !== 0
+                            ? new (foundClass as any)(
+                                  ...blockPaylaod.additionalParams,
+                                  blockPaylaod.options || {}
+                              )
+                            : new foundClass(blockPaylaod.options || {})
+                }
+            }
+            if (foundBlock) {
+                foundBlock.options = blockPaylaod.options
+                for (
+                    let i = 0, len = blockPaylaod.childs.length;
+                    i < len;
+                    i++
+                ) {
+                    const childBlock = checkBlock(blockPaylaod.childs[i])
+                    if (childBlock) foundBlock.addChild(childBlock)
+                }
+            }
+            return foundBlock
+        }
+
+        for (let i = 0, len = blocksPayload.length; i < len; i++) {
+            const b = checkBlock(blocksPayload[i])
+            if (b) constructedBlocks.push(b)
+        }
+
+        this.add(...constructedBlocks)
+    }
+    registerBlocks(...blocks: (typeof BaseBlock)[]) {
+        this.#registeredBlocks.push(...blocks)
+    }
+
+    undo() {
+        if (!this.#defaultOptions.history) return
+        this.#history.toBack()
+        this.#invokeHistory()
+    }
+    redo() {
+        if (!this.#defaultOptions.history) return
+        this.#history.toFuture()
+        this.#invokeHistory()
+    }
+    get context(): CanvasRenderingContext2D | null {
+        if (!this.#context) this.#context = this.#domCanvas.context
+        return this.#context
+    }
+    get canvas(): HTMLCanvasElement {
+        if (!this.#htmlCanvas) this.#htmlCanvas = this.#domCanvas.canvas
+        return this.#htmlCanvas
+    }
+    get boundingClientRect() {
+        if (!this.#boundingClient)
+            this.#boundingClient = this.canvas.getBoundingClientRect()
+        return this.#boundingClient
+    }
+    getCursorPosition(event: MouseEvent) {
+        return {
+            x: event.pageX - this.boundingClientRect.left,
+            y: event.pageY - this.boundingClientRect.top,
+        }
+    }
+    clearRect() {
+        const clientRect = this.boundingClientRect
+        this.context?.clearRect(0, 0, clientRect.width, clientRect.height)
+    }
+    changeCursor(cur?: string) {
+        this.#currentCursor = cur || 'auto'
+        return this.#domCanvas.changeStyle({
+            cursor: cur,
+        })
+    }
+    whoIsTheFirst(zIndex?: number) {
+        return this.#invokedHigherZIndex === zIndex
+    }
+    registerZIndex(zIndex: number) {
+        if (
+            (this.#invokedHigherZIndex && zIndex > this.#invokedHigherZIndex) ||
+            !this.#invokedHigherZIndex
+        ) {
+            this.#invokedHigherZIndex = zIndex
+        }
+    }
+    unregisterZIndex(zIndex: number) {
+        if (zIndex === this.#invokedHigherZIndex) {
+            this.#invokedHigherZIndex = undefined
+        }
+    }
+    demandInvoke(block: BaseBlock) {
+        const set = (this.#queue['block:cache'] ??= new Set())
+        set.add(block)
+    }
+    demandAddBlock(block: BaseBlock) {
+        const set = (this.#queue['block:add'] ??= new Set())
+        set.add(block)
+    }
+    demandRemoveBlock(block: BaseBlock) {
+        const set = (this.#queue['block:remove'] ??= new Set())
+        set.add(block)
+    }
+    demandHistory(nodeId: number, before: any, after: any) {
+        const historyObj = (this.#queue['block:history'] ??= {})
+        historyObj[nodeId] = { before: before, after: after }
+    }
+    demandAddEvent(event: string, func: CustomEvent<Event>, zIndex: number) {
+        const events = (this.#queue['domEvent:add'] ??= {})
+        ;(events[event] ??= []).push({ func: func, zIndex: zIndex })
+    }
+    demandRemoveEvent(event: string, func: CustomEvent<Event>) {
+        const events = (this.#queue['domEvent:remove'] ??= {})
+        ;(events[event] ??= []).push(func)
+    }
+    demandAddAnimation(animationId: AnimationId, animation: Animator) {
+        const animations = (this.#queue['animation:add'] ??= {})
+        animations[animationId] = animation
+    }
+    demandRemoveAnimation(animationId: AnimationId) {
+        const animations = (this.#queue['animation:remove'] ??= [])
+        animations.push(animationId)
+    }
+    demandRefreshHead() {
+        this.#queue['canvas:refresh:head'] = true
     }
 }

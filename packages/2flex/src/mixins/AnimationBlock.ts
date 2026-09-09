@@ -1,12 +1,13 @@
-import { BaseBlock, IBaseBlockOptions } from './BaseBlock'
+import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
 import type {
+    AnimationId,
     Animator,
     BlockConstructor,
-    CubicBezier,
-    LinearEasing,
+    Composite,
+    Direction,
+    Easing,
     RGBA,
-    StepsEasing,
-} from './types'
+} from '../types'
 import {
     clamp,
     easingParser,
@@ -14,21 +15,8 @@ import {
     lerp,
     rgbaRepresenter,
     rgbaToArray,
-} from './Utils'
+} from '../Utils'
 
-export type Easing =
-    | 'linear'
-    | 'ease'
-    | 'ease-in'
-    | 'ease-out'
-    | 'ease-in-out'
-    | 'step-start'
-    | 'step-end'
-    | LinearEasing
-    | CubicBezier
-    | StepsEasing
-export type Direction = 'normal' | 'reverse' | 'alternate' | 'alternate-reverse'
-export type Composite = 'replace' | 'add' | 'accumulate'
 export type Delay = number
 export type Iterations = number
 export type Duration = number
@@ -74,8 +62,6 @@ interface KeyframeIterationConfigs {
     // need to fix this any type KeyframesConfig
     keyframes?: {}
 }
-
-type AnimationId = string
 
 export interface KeyframeIterations {
     [key: AnimationId]: KeyframeIterationConfigs &
@@ -152,6 +138,9 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
         }
         animationAutoStart(animationId: AnimationId, value: AutoStart) {
             this.#keyframeIterations[animationId]['autoStart'] = value
+        }
+        removeAnimation(animationId: AnimationId) {
+            this.__removeAnimation(animationId)
         }
         animate(keyframes: AnimationKeyframe, callback?: CallbackAnimator) {
             const dumyFunc = () => {}
@@ -512,8 +501,9 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     )
                         anime.currentOptIdx = 0
                 }
+                this.__invokeChange()
             }
-            this.__addAnimation(animator)
+            this.__addAnimation(animationId, animator)
             return animationId
         }
     }

@@ -109,4 +109,9 @@ export class CanvasDOMManager {
     getListener(event: string) {
         return this.#domEvents[event]
     }
+    clearAllEvents() {
+        for (const [event, eventFuncs] of Object.entries(this.#domEvents)) {
+            for (const func of eventFuncs) this.removeEventListener(event, func)
+        }
+    }
 }

@@ -1,4 +1,4 @@
-import { BaseBlock, IBaseBlockOptions } from './BaseBlock'
+import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     OVERFLOW_SCROLL_BAR_BLOCK_NAME,
@@ -6,9 +6,9 @@ import {
     OVERFLOW_Y_SCROLL_RUNNING_EVENT,
     RESIZABLE_RUNNING_EVENT,
     ROTATABLE_RUNNING_EVENT,
-} from './const'
-import { BlockConstructor } from './types'
-import { clamp, checkInBound } from './Utils'
+} from '../const'
+import { BlockConstructor } from '../types'
+import { clamp, checkInBound } from '../Utils'
 
 export type Overflow = 'visible' | 'hidden' | 'scroll' | 'auto'
 
@@ -373,6 +373,11 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
             const mousedown = (event: MouseEvent) => {
+                if (
+                    !block.isMouseEventAllowed ||
+                    !block.__isOverflowXScrollable
+                )
+                    return
                 const cornerTopLeft =
                     block.__overflowXscrollBarBlock?.cornerTopLeft()!
                 const cornerTopRight =
@@ -401,59 +406,59 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     !(block.__isOverflowXAuto && block.#overflowWidth > 0)
                 ) {
                     beforeCords = { x: 0, y: 0 }
-                    block.__overflowXscrollBarBlock!.__registerZIndex({
-                        in: block.__overflowXscrollBarBlock.zIndex(),
-                    })
-                    console.log(block.__overflowXscrollBarBlock.zIndex())
+                    block.__overflowXscrollBarBlock!.__registerZIndex(
+                        block.__overflowXscrollBarBlock.zIndex()
+                    )
                     block.__updateRunningEvent(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT,
                         true
                     )
                 } else
-                    block.__overflowXscrollBarBlock!.__registerZIndex({
-                        out: block.__overflowXscrollBarBlock.zIndex(),
-                    })
+                    block.__overflowXscrollBarBlock!.__unregisterZIndex(
+                        block.__overflowXscrollBarBlock.zIndex()
+                    )
             }
             const mousemove = (event: MouseEvent) => {
                 if (
                     block.__isRunningEventActive(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT
                     ) &&
-                    block.__isOverflowXScrollable
+                    block.isMouseEventAllowed &&
+                    block.#overflowWidth > 0 &&
+                    block.__overflowXscrollBarBlock.__ImFirst()
                 ) {
-                    if (block.__overflowXscrollBarBlock.__ImFirst()) {
-                        const { x, y } =
-                            block.__overflowXscrollBarBlock!.canvas?.getCursorPosition(
-                                event
-                            )!
+                    const { x, y } =
+                        block.__overflowXscrollBarBlock!.canvas?.getCursorPosition(
+                            event
+                        )!
 
-                        let diffX = x - initCords.x
-                        let diffY = y - initCords.y
-                        if (diffX !== 0 || diffY !== 0) {
-                            const dxX = diffX - beforeCords.x
-                            const dxY = diffY - beforeCords.y
-                            const angle = block.rotate()
+                    let diffX = x - initCords.x
+                    let diffY = y - initCords.y
+                    if (diffX !== 0 || diffY !== 0) {
+                        const dxX = diffX - beforeCords.x
+                        const dxY = diffY - beforeCords.y
+                        const angle = block.rotate()
 
-                            const horizontalFlipped = block.horizontalFlip()
-                            const verticalFlipped = block.verticalFlip()
-                            let inverse = 1
-                            if (
-                                (horizontalFlipped || verticalFlipped) &&
-                                horizontalFlipped !== verticalFlipped
-                            )
-                                inverse = -1
-                            const scrollDeltaX =
-                                (Math.cos(angle) * inverse * dxX +
-                                    Math.sin(angle) * inverse * dxY) *
-                                inverse
-                            block.overflowPositionX(
-                                block.overflowPositionX() -
-                                    scrollDeltaX * block.#overflowXScrollPer
-                            )
-                            beforeCords.x = diffX
-                            beforeCords.y = diffY
-                            block.__invokeChange()
-                        }
+                        const horizontalFlipped = block.horizontalFlip()
+                        const verticalFlipped = block.verticalFlip()
+                        let inverse = 1
+                        if (
+                            (horizontalFlipped || verticalFlipped) &&
+                            horizontalFlipped !== verticalFlipped
+                        )
+                            inverse = -1
+                        const scrollDeltaX =
+                            (Math.cos(angle) * inverse * dxX +
+                                Math.sin(angle) * inverse * dxY) *
+                            inverse
+                        block.overflowPositionX(
+                            block.overflowPositionX() -
+                                scrollDeltaX * block.#overflowXScrollPer
+                        )
+                        beforeCords.x = diffX
+                        beforeCords.y = diffY
+                        block.__invokeChange()
+                        block.canvas?.changeCursor('auto')
                     }
                 }
             }
@@ -461,15 +466,16 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 if (
                     block.__isRunningEventActive(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT
-                    )
+                    ) &&
+                    block.isMouseEventAllowed
                 ) {
                     block.__updateRunningEvent(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT,
                         false
                     )
-                    block.__overflowXscrollBarBlock?.__registerZIndex({
-                        out: block.__overflowXscrollBarBlock?.zIndex(),
-                    })
+                    block.__overflowXscrollBarBlock?.__unregisterZIndex(
+                        block.__overflowXscrollBarBlock?.zIndex()
+                    )
                     block.__invokeChange()
                 }
             }
@@ -546,6 +552,11 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
             const mousedown = (event: MouseEvent) => {
+                if (
+                    !block.isMouseEventAllowed ||
+                    !block.__isOverflowYScrollable
+                )
+                    return
                 const cornerTopLeft =
                     block.__overflowYscrollBarBlock?.cornerTopLeft()!
                 const cornerTopRight =
@@ -570,14 +581,14 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         cornerBottomLeft.x,
                         cornerBottomLeft.y,
                         cornerBottomRight.x,
-                        cornerBottomRight.y
+                        cornerBottomRight.yupdateBlockCords
                     ) &&
                     !(block.__isOverflowYAuto && block.#overflowHeight > 0)
                 ) {
                     beforeCords = { x: 0, y: 0 }
-                    block.__overflowYscrollBarBlock.__registerZIndex({
-                        in: block.__overflowYscrollBarBlock.zIndex(),
-                    })
+                    block.__overflowYscrollBarBlock.__registerZIndex(
+                        block.__overflowYscrollBarBlock.zIndex()
+                    )
                     block.__updateRunningEvent(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT,
                         true
@@ -586,79 +597,51 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
                 } else
-                    block.__overflowYscrollBarBlock.__registerZIndex({
-                        out: block.__overflowYscrollBarBlock.zIndex(),
-                    })
+                    block.__overflowYscrollBarBlock.__unregisterZIndex(
+                        block.__overflowYscrollBarBlock.zIndex()
+                    )
             }
             const mousemove = (event: MouseEvent) => {
-                const { x, y } =
-                    block.__overflowYscrollBarBlock.canvas?.getCursorPosition(
-                        event
-                    )!
-                const cornerTopLeft =
-                    block.__overflowYscrollBarBlock?.cornerTopLeft()
-                const cornerTopRight =
-                    block.__overflowYscrollBarBlock?.cornerTopRight()
-                const cornerBottomLeft =
-                    block.__overflowYscrollBarBlock?.cornerBottomLeft()
-                const cornerBottomRight =
-                    block.__overflowYscrollBarBlock?.cornerBottomRight()
-                // checking cursor cause resize area overlaps with the overflow area
-                if (
-                    !block.__isRunningEventActive(
-                        OVERFLOW_Y_SCROLL_RUNNING_EVENT
-                    ) &&
-                    checkInBound(
-                        x,
-                        y,
-                        cornerTopLeft.x,
-                        cornerTopLeft.y,
-                        cornerTopRight.x,
-                        cornerTopRight.y,
-                        cornerBottomLeft.x,
-                        cornerBottomLeft.y,
-                        cornerBottomRight.x,
-                        cornerBottomRight.y
-                    ) &&
-                    !(block.__isOverflowYAuto && block.#overflowHeight > 0)
-                ) {
-                    block.canvas?.changeCursor('auto')
-                }
                 if (
                     block.__isRunningEventActive(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT
                     ) &&
-                    block.__isOverflowYScrollable
+                    block.isMouseEventAllowed &&
+                    block.#overflowHeight > 0 &&
+                    block.__overflowYscrollBarBlock!.__ImFirst()
                 ) {
-                    if (block.__overflowYscrollBarBlock!.__ImFirst()) {
-                        let diffX = x - initCords.x
-                        let diffY = y - initCords.y
+                    const { x, y } =
+                        block.__overflowYscrollBarBlock.canvas?.getCursorPosition(
+                            event
+                        )!
+                    let diffX = x - initCords.x
+                    let diffY = y - initCords.y
 
-                        if (diffY !== 0 || diffX !== 0) {
-                            const dxX = diffX - beforeCords.x
-                            const dxY = diffY - beforeCords.y
-                            const angle = block.rotate()
+                    if (diffY !== 0 || diffX !== 0) {
+                        const dxX = diffX - beforeCords.x
+                        const dxY = diffY - beforeCords.y
+                        const angle = block.rotate()
 
-                            const horizontalFlipped = block.horizontalFlip()
-                            const verticalFlipped = block.verticalFlip()
+                        const horizontalFlipped = block.horizontalFlip()
+                        const verticalFlipped = block.verticalFlip()
 
-                            let inverse = 1
-                            if (
-                                (horizontalFlipped || verticalFlipped) &&
-                                horizontalFlipped !== verticalFlipped
-                            )
-                                inverse = -1
-                            const scrollDeltaY =
-                                -Math.sin(angle) * inverse * dxX +
-                                Math.cos(angle) * inverse * dxY
-                            block.overflowPositionY(
-                                block.overflowPositionY() -
-                                    scrollDeltaY * block.#overflowYScrollPer
-                            )
-                            beforeCords.x = diffX
-                            beforeCords.y = diffY
-                            block.__invokeChange()
-                        }
+                        let inverse = 1
+                        if (
+                            (horizontalFlipped || verticalFlipped) &&
+                            horizontalFlipped !== verticalFlipped
+                        )
+                            inverse = -1
+                        const scrollDeltaY =
+                            -Math.sin(angle) * inverse * dxX +
+                            Math.cos(angle) * inverse * dxY
+                        block.overflowPositionY(
+                            block.overflowPositionY() -
+                                scrollDeltaY * block.#overflowYScrollPer
+                        )
+                        beforeCords.x = diffX
+                        beforeCords.y = diffY
+                        block.__invokeChange()
+                        block.canvas?.changeCursor('auto')
                     }
                 }
             }
@@ -672,9 +655,9 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT,
                         false
                     )
-                    block.__overflowYscrollBarBlock!.__registerZIndex({
-                        out: block.__overflowYscrollBarBlock!.zIndex(),
-                    })
+                    block.__overflowYscrollBarBlock!.__unregisterZIndex(
+                        block.__overflowYscrollBarBlock!.zIndex()
+                    )
                     block.__invokeChange()
                 }
             }
