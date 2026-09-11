@@ -43,21 +43,21 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     SELECTABLE_RUNNING_EVENT
                 )
                 if (block.checkInBound(event)) {
-                    block.__registerZIndex({ in: block.zIndex() })
+                    block.__registerZIndex(block.zIndex())
                     if (block.__ImFirst()) {
                         block.__updateRunningEvent(
                             SELECTABLE_RUNNING_EVENT,
                             true
                         )
                     } else {
-                        block.__registerZIndex({ out: block.zIndex() })
+                        block.__unregisterZIndex(block.zIndex())
                         block.__updateRunningEvent(
                             SELECTABLE_RUNNING_EVENT,
                             false
                         )
                     }
                 } else {
-                    block.__registerZIndex({ out: block.zIndex() })
+                    block.__unregisterZIndex(block.zIndex())
                     block.__updateRunningEvent(SELECTABLE_RUNNING_EVENT, false)
                 }
 
@@ -66,12 +66,12 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__isRunningEventActive(SELECTABLE_RUNNING_EVENT)
                 ) {
                     block.__invokeChange()
-                    block.canvas?.__demandInvoke(block)
+                    block.canvas?.demandInvoke(block)
                 }
             }
 
             block.#mouseUpEvent = (event: MouseEvent) => {
-                block.__registerZIndex({ out: block.zIndex() })
+                block.__unregisterZIndex(block.zIndex())
             }
 
             block.__addEvent('mousedown', block.#mouseDownEvent)

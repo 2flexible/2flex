@@ -81,14 +81,13 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     ) ||
                     block.__isRunningEventActive(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT
-                    )
+                    ) ||
+                    !block.isMouseEventAllowed
                 )
                     return
-
                 if (
                     block.__isRunningEventActive(DRAGGABLE_RUNNING_EVENT) &&
-                    block.__ImFirst() &&
-                    block.isMouseEventAllowed
+                    block.__ImFirst()
                 ) {
                     const { x, y } = block.canvas?.getCursorPosition(event)!
                     let diffX = x - initCords.x

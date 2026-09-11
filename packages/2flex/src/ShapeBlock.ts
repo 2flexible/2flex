@@ -677,6 +677,7 @@ export class ShapeBlock extends Block {
 
         this.onRender()?.(this)
         this.context?.restore()
+        this.generateImageBitmap()
     }
 
     draw(_func?: DrawFunc) {

@@ -557,7 +557,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 if (inBound && block.isMouseEventAllowed) {
                     initCords = block.canvas?.getCursorPosition(event)!
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, true)
-                    beforeValues[block.nodeId!] = {
+                    beforeValues = {
                         x: block.x(),
                         y: block.y(),
                         width: block.width(),
@@ -567,7 +567,6 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 }
             }
             block.#mouseMoveEvent = (event: MouseEvent) => {
-                const { x, y } = block.canvas?.getCursorPosition(event)!
                 if (
                     block.__isRunningEventActive(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT
@@ -578,10 +577,12 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     !block.isMouseEventAllowed
                 )
                     return
+
                 if (
                     !block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) &&
                     block.__isRunningEventActive(SELECTABLE_RUNNING_EVENT)
                 ) {
+                    const { x, y } = block.canvas?.getCursorPosition(event)!
                     let cursor: string | undefined = undefined
                     bottomResize = rightResize = topResize = leftResize = false
                     if (block.#isLeftResizable(x, y)) {
@@ -629,11 +630,11 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                             cursor,
                             block.rotate()
                         )
-                        block.canvas?.changeCursor(cursor)
+                        block.__selectCursor(cursor)
                     } else {
                         inBound = false
                         if (block.canvas?.currentCursor !== 'cell') {
-                            block.canvas?.changeCursor(cursor)
+                            block.__selectCursor(cursor)
                         }
                     }
                 }
@@ -641,6 +642,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) &&
                     block.__ImFirst()
                 ) {
+                    const { x, y } = block.canvas?.getCursorPosition(event)!
+
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
                     if (diffX !== 0 || diffY !== 0) {
@@ -811,18 +814,18 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
                 ) {
-                    block.canvas?.changeCursor('auto')
+                    block.__resetCursor()
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
                     block.__unregisterZIndex(block.zIndex())
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                        const after: any = {}
-                        after[block.nodeId!] = {
+                        const after: any = {
                             x: block.x(),
                             y: block.y(),
                             width: block.width(),
                             height: block.height(),
                         }
-                        block.canvas?.takeSnapshot(beforeValues, after)
+
+                        block.__invokeHistory(beforeValues, after)
                     }
                 }
             }

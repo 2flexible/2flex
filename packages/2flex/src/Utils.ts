@@ -415,3 +415,36 @@ export function shortHandParser(shortHandValue: ShortHandRelativeType) {
     }
     return shortHandValue
 }
+
+export function preOrderTraversal<T extends Node>(
+    head: T,
+    func: (node: T) => void
+) {
+    if (!head) return
+    func(head)
+    for (const child of head.childNodes) {
+        preOrderTraversal(child as T, func)
+    }
+}
+export function postOrderTraversal<T extends Node>(
+    head: T,
+    func: (node: T) => void
+) {
+    if (!head) return
+    for (const child of head.childNodes) {
+        postOrderTraversal(child as T, func)
+    }
+    func(head)
+}
+
+export function reversePostOrderTraversal<T extends Node>(
+    head: T,
+    func: (node: T) => void
+) {
+    if (!head) return
+    func(head)
+
+    for (let i = head.childNodes.length - 1; i >= 0; i--) {
+        reversePostOrderTraversal(head.childNodes[i] as T, func)
+    }
+}

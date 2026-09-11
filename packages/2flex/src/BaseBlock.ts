@@ -37,8 +37,9 @@ import {
     shortHandParser,
     xIntersect,
     yIntersect,
+    clamp,
+    preOrderTraversal,
 } from './Utils'
-import { Block, IBlockOptions } from './Block'
 import { DummyCanvas } from './DummyCanvas'
 
 export type AlignSelf =
@@ -172,6 +173,7 @@ export class BaseBlock extends Node {
     declare childNodes: BaseBlock[]
 
     canvas?: Canvas
+    dummyCanvas?: DummyCanvas
     context?: OffscreenCanvasRenderingContext2D | null
     options: OptionsMap
     cacheOptions: OptionsMap
@@ -182,7 +184,7 @@ export class BaseBlock extends Node {
     realCenterY: number
     realRotateRadian: number
     boundingBox: HotCornerArea
-    higherZIndex?: number
+    #higestChildZIndex?: number
 
     __childAdjustment?: (b: BaseBlock) => void
     __childsContainer: ChildsContainer
@@ -238,7 +240,6 @@ export class BaseBlock extends Node {
         // after cordiantes calculated restore rotation
         if (currentRotate !== 0 || cacheRotate !== 0)
             this.rotateCordinates(cacheRotate + diffR)
-        this.#findHighestChildZIndex()
         this.#calculateRealRotateRadian()
         this.#calculateBoundingBox()
         this.#calculateRealWidth()
@@ -251,7 +252,7 @@ export class BaseBlock extends Node {
             this.#handleBindOptions()
             return
         }
-        this.#cacheRender()
+        this.#cacheContext()
         this.context?.save()
         this.context?.translate(
             -this.boundingBox.topLeft.x,
@@ -259,6 +260,7 @@ export class BaseBlock extends Node {
         )
         this.onRender()?.(this)
         this.context?.restore()
+        this.generateImageBitmap()
         this.#updateOptionsCache()
         this.#handleBindOptions()
     }
@@ -278,15 +280,15 @@ export class BaseBlock extends Node {
         this.#clearPendings()
         this.__refreshHeadBlock()
     }
-    #cacheRender() {
+    #cacheContext() {
         this.#cachedBitmap?.close()
-        this.#cachedBitmap = undefined
-        const w = Math.abs(this.realWidth)
-        const h = Math.abs(this.realHeight)
-        const dummyCanvas = new DummyCanvas(w, h)
-
-        this.context = dummyCanvas.context
-        this.#cachedBitmap = dummyCanvas.transferToImageBitmap()
+        const w = Math.max(1, Math.abs(this.realWidth))
+        const h = Math.max(1, Math.abs(this.realHeight))
+        this.dummyCanvas = new DummyCanvas(w, h)
+        this.context = this.dummyCanvas.context
+    }
+    generateImageBitmap() {
+        this.#cachedBitmap = this.dummyCanvas?.transferToImageBitmap()
     }
     #buildOptions(options: IBaseBlockOptions) {
         const ownOptions = this.options
@@ -301,8 +303,12 @@ export class BaseBlock extends Node {
         this.addProperty('cornerTopRight', undefined)
         this.addProperty('cornerBottomLeft', undefined)
         this.addProperty('cornerBottomRight', undefined)
-        this.addProperty('width', 0, true)
-        this.addProperty('height', 0, false)
+        this.addProperty('width', 0, true, (block: BaseBlock, opt: number) =>
+            this.#width(block, opt)
+        )
+        this.addProperty('height', 0, false, (block: BaseBlock, opt: number) =>
+            this.#height(block, opt)
+        )
         this.addProperty('minWidth', undefined, true)
         this.addProperty('minHeight', undefined, false)
         this.addProperty('maxWidth', undefined, true)
@@ -412,7 +418,6 @@ export class BaseBlock extends Node {
                 x: x + width,
                 y: y + height,
             })
-        this.#findHighestChildZIndex()
         this.#calculateBoundingBox()
         this.#calculateRealWidth()
         this.#calculateRealHeight()
@@ -430,11 +435,7 @@ export class BaseBlock extends Node {
         if (events) {
             for (const [event, eventFuncts] of Object.entries(events)) {
                 for (const func of eventFuncts) {
-                    this.canvas?.demandAddEvent(
-                        event,
-                        func,
-                        this.getOptionCurrent('zIndex')
-                    )
+                    this.canvas?.demandAddEvent(this, event, func)
                 }
             }
         }
@@ -504,14 +505,14 @@ export class BaseBlock extends Node {
     get #inBoundBlock() {
         if (!this.canvas) return false
         const x = xIntersect(
-            { left: 0, right: this.canvas?.boundingClientRect.width },
+            { left: 0, right: this.canvas.boundingClientRect.width },
             {
                 left: this.boundingBox.topLeft.x,
                 right: this.boundingBox.topRight.x,
             }
         )
         const y = yIntersect(
-            { top: 0, bottom: this.canvas?.boundingClientRect.height },
+            { top: 0, bottom: this.canvas.boundingClientRect.height },
             {
                 top: this.boundingBox.topLeft.y,
                 bottom: this.boundingBox.bottomLeft.y,
@@ -520,16 +521,20 @@ export class BaseBlock extends Node {
         if (x * y <= 0) return false
         return true
     }
-    #findHighestChildZIndex() {
-        if (this.higherZIndex === undefined) {
-            this.higherZIndex = this.zIndex() ?? 0
-            this.listAllChilds((b: BaseBlock) => {
-                const bZIndex = b.zIndex()
-                if (bZIndex !== undefined && bZIndex > this.higherZIndex!) {
-                    this.higherZIndex = bZIndex
+    __getHighestChildZIndex() {
+        if (this.#higestChildZIndex === undefined) {
+            this.#higestChildZIndex = this.zIndex() ?? 0
+            this.listAllChilds((block: BaseBlock) => {
+                const bZIndex = block.zIndex()
+                if (
+                    bZIndex !== undefined &&
+                    bZIndex > this.#higestChildZIndex!
+                ) {
+                    this.#higestChildZIndex = bZIndex
                 }
             })
         }
+        return this.#higestChildZIndex
     }
     #calculateRealRotateRadian() {
         const topRight = this.cornerTopRight()
@@ -602,6 +607,18 @@ export class BaseBlock extends Node {
                 y: maxCordY,
             },
         }
+    }
+    #width(block: BaseBlock, value: number) {
+        block.setOptionCurrent(
+            'width',
+            value > 0 ? clamp(value, 1, 4096) : clamp(value, -4096, -1)
+        )
+    }
+    #height(block: BaseBlock, value: number) {
+        block.setOptionCurrent(
+            'height',
+            value > 0 ? clamp(value, 1, 4096) : clamp(value, -4096, -1)
+        )
     }
     #parseMargin(block: BaseBlock, margin: MarginType | undefined) {
         if (margin === undefined) return
@@ -897,14 +914,15 @@ export class BaseBlock extends Node {
             ) {
                 blockH += pHeightSpaces - blockH
             }
+            if (b.rotationCenter() === 'parent') {
+                b.setOptionCurrent('rotationCenterX', centerX)
+                b.setOptionCurrent('rotationCenterY', centerY)
+            }
             b.setOptionCurrent('rotate', pCurrentRotate)
             b.setOptionCache('rotate', pCacheRotate)
             b.__childAdjustment = (b: BaseBlock) => {
                 b.hidden(this.hidden())
-                if (b.rotationCenter() === 'parent') {
-                    b.rotationCenterX(centerX)
-                    b.rotationCenterY(centerY)
-                }
+
                 b.x(x)
                 b.y(y)
                 if (blockHorizontalFlip) blockW = -blockW
@@ -975,7 +993,7 @@ export class BaseBlock extends Node {
     }
     __refreshHeadBlock() {
         if (this.__hasParentBlock) this.parentNode?.__refreshHeadBlock()
-        this.higherZIndex = undefined
+        this.#higestChildZIndex = undefined
     }
     get cachedBitmap() {
         return this.#cachedBitmap
@@ -984,7 +1002,7 @@ export class BaseBlock extends Node {
         return this.canvas?.isMouseEventAllowed || false
     }
     get __isHidden() {
-        return this.hidden() || this.#inBoundBlock
+        return this.hidden() || !this.#inBoundBlock
     }
     get __hasParentBlock() {
         if (
@@ -1139,13 +1157,9 @@ export class BaseBlock extends Node {
         this.height(this.height() * scale)
     }
     __addEvent<E extends Event>(type: string, func: CustomEvent<E>) {
-        if (this.canvas)
-            this.canvas.demandAddEvent(
-                type,
-                func as CustomEvent<Event>,
-                this.zIndex() || this.nodeId || 1
-            )
-        else
+        if (this.canvas) {
+            this.canvas.demandAddEvent(this, type, func as CustomEvent<Event>)
+        } else
             (this.#pending['events:add'][type] ??= []).push(
                 func as CustomEvent<Event>
             )
@@ -1187,6 +1201,12 @@ export class BaseBlock extends Node {
             return
         }
         this.canvas?.demandInvoke(this)
+    }
+    __selectCursor(cursor: string) {
+        this.canvas?.changeCursor(cursor)
+    }
+    __resetCursor() {
+        this.canvas?.resetCursor()
     }
     __invokeHistory(before: any, after: any) {
         if (this.nodeId) this.canvas?.demandHistory(this.nodeId, before, after)
@@ -1257,41 +1277,39 @@ export class BaseBlock extends Node {
             bottomRight.y
         )
     }
-    // Overrided default listing methods for filter out unwanted child classes
-    listOnlyChilds<B>(
-        _func: (node: B, currIdx: number, arrLen: number) => void
+    listOnlyChilds<T extends BaseBlock>(
+        _func: (block: T, currIdx: number, arrLen: number) => void
     ): void {
-        // for correct array length need to extract additonall blocks
-        const extraBlocksLength = this.childNodes.filter(
+        const childNodes = this.childNodes
+        const extraBlocksLength = childNodes.filter(
             (block: BaseBlock) =>
                 block.getOptionCurrent('name') !==
                     OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
                 block.getOptionCurrent('name') !== HOT_LINE_BLOCK_NAME
         ).length
-        const listingFunc = (node: B, currIdx: number) => {
+        for (let i = 0, len = childNodes.length; i < len; i++) {
+            const block = childNodes[i] as T
             if (
-                (node as BaseBlock).getOptionCurrent('name') !==
+                block.getOptionCurrent('name') !==
                     OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
-                (node as BaseBlock).getOptionCurrent('name') !==
-                    HOT_LINE_BLOCK_NAME
+                block.getOptionCurrent('name') !== HOT_LINE_BLOCK_NAME
             ) {
-                _func(node, currIdx, extraBlocksLength)
+                _func(block, i, extraBlocksLength)
             }
         }
-        super.listOnlyChilds(listingFunc)
     }
-    listAllChilds<T>(_func: (node: T) => void): void {
-        const listingFunc = (node: T) => {
+    listAllChilds(_func: (block: BaseBlock) => void): void {
+        const listingFunc = (block: BaseBlock) => {
             if (
-                (node as BaseBlock).getOptionCurrent('name') !==
+                block.getOptionCurrent('name') !==
                     OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
-                (node as BaseBlock).getOptionCurrent('name') !==
-                    HOT_LINE_BLOCK_NAME
+                block.getOptionCurrent('name') !== HOT_LINE_BLOCK_NAME &&
+                this !== block
             ) {
-                _func(node)
+                _func(block)
             }
         }
-        super.listAllChilds(listingFunc)
+        preOrderTraversal(this, listingFunc)
     }
     set(options: IBaseBlockOptions): void {
         let before: any = {}
@@ -1317,30 +1335,17 @@ export class BaseBlock extends Node {
     bindTo(block: BaseBlock, options: BlockOptionKeys[]) {
         block.#bindOptions.push({ block: block, options: options })
     }
-    findChilds(queries: IBlockOptions) {
-        let blocks: Block[] = []
-        this.listAllChilds((block: Block) => {
+    unbind(block: BaseBlock){
+        block.#bindOptions = block.#bindOptions.filter((i)=>i.block !== block)
+    }
+    findChilds<T extends IBaseBlockOptions>(queries: T) {
+        let blocks: BaseBlock[] = []
+        this.listAllChilds((block: BaseBlock) => {
             for (const [k, v] of Object.entries(queries)) {
                 if (this.getOptionCurrent(k) === v) blocks.push(block)
             }
         })
         return blocks
-    }
-    #handleChildZIndex() {
-        let z = this.getOptionCurrent('zIndex') || 1
-        this.listOnlyChilds((b: BaseBlock) => {
-            const bZIndex = b.getOptionCurrent('zIndex')
-            if (bZIndex > z) z = bZIndex
-            z += 1
-            if (
-                b.getOptionCurrent('zIndex') == undefined &&
-                !b.#isZIndexPredefined
-            ) {
-                b.setOptionCurrent('zIndex', z)
-                b.#isZIndexPredefined = true
-                b.#handleChildZIndex()
-            }
-        })
     }
     addChild(block: BaseBlock): void {
         let before: any = {}
@@ -1348,7 +1353,6 @@ export class BaseBlock extends Node {
             childNodes: [...this.childNodes],
         }
         super.addChild(block)
-        this.#handleChildZIndex()
         if (this.canvas) this.canvas.demandAddBlock(block)
         else this.#pending['addedChilds'].push(block)
         // this.canvas?.__takeInitSnaphshot(before)

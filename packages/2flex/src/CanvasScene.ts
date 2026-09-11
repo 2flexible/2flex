@@ -1,6 +1,11 @@
 import { BaseBlock } from './BaseBlock'
 import { IBlockOptions } from './Block'
 import { Node } from './Node'
+import {
+    postOrderTraversal,
+    preOrderTraversal,
+    reversePostOrderTraversal,
+} from './Utils'
 
 export class CanvasScene {
     head: Node
@@ -24,7 +29,7 @@ export class CanvasScene {
     }
     find(queries: IBlockOptions): BaseBlock[] {
         let blocks: BaseBlock[] = []
-        this.head.listAllChilds((block: BaseBlock) => {
+        this.preOrderTraversal((block: BaseBlock) => {
             for (const [k, v] of Object.entries(queries)) {
                 if (
                     block.getOptionCurrent(k)?.currentValue === v ||
@@ -56,10 +61,25 @@ export class CanvasScene {
         }
     }
     preOrderTraversal(_func?: (block: BaseBlock) => void) {
-        this.head.listAllChilds((current: BaseBlock) => {
-            if (current === this.head) return
-            if (_func) _func(current)
-        })
+        const func = (block: BaseBlock) => {
+            if (block === this.head) return
+            if (_func) _func(block)
+        }
+        preOrderTraversal(this.head as BaseBlock, func)
+    }
+    postOrderTraversal(_func?: (block: BaseBlock) => void) {
+        const func = (block: BaseBlock) => {
+            if (block === this.head) return
+            if (_func) _func(block)
+        }
+        postOrderTraversal(this.head as BaseBlock, func)
+    }
+    reversePostOrderTraversal(_func?: (block: BaseBlock) => void) {
+        const func = (block: BaseBlock) => {
+            if (block === this.head) return
+            if (_func) _func(block)
+        }
+        reversePostOrderTraversal(this.head as BaseBlock, func)
     }
     buildSceneGraph() {
         this.#blocks = []

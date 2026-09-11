@@ -36,10 +36,8 @@ export class History {
         if (this.#currentSize > this.historySize) return
         const current = new Snapshot(object)
         current.prev = this.#tail
-        if (!this.#head) {
-            this.#head = this.#tail = current
-        }
-        this.#tail!.next = current
+        if (!this.#head) this.#head = current
+        if (this.#tail) this.#tail.next = current
         this.#tail = current
         this.#updateCurrentSize()
     }

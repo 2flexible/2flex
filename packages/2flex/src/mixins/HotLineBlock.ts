@@ -45,6 +45,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
         render() {
             this.#updateHotLineBlockParameters()
             super.render()
+            // this.__hotLineBlock?.canvas?.demandInvoke(this.__hotLineBlock)
         }
         updateCordinates(): void {
             super.updateCordinates()
@@ -62,7 +63,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 if (this.__isOverflowXExists) higherZindex += 1
                 if (this.__isOverflowYExists) higherZindex += 1
             }
-            return 1 + (this.higherZIndex ?? 0) + higherZindex
+            return 1 + (this.__getHighestChildZIndex() ?? 0) + higherZindex
         }
 
         #hotLines(block: any, opt?: boolean) {
@@ -81,8 +82,10 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.__hotLineBlock.rotationCenterX(this.rotationCenterX())
             this.__hotLineBlock.rotationCenterY(this.rotationCenterY())
             this.__hotLineBlock.rotate(this.rotate())
-            this.__hotLineBlock.x(this.x() - (size + strokeWidth) / 2)
-            this.__hotLineBlock.y(this.y() - (size + strokeWidth) / 2)
+            const x = this.horizontalFlip() ? Math.abs(this.x()+this.width()): this.x()
+            const y = this.verticalFlip() ? Math.abs(this.y()+this.height()): this.y()
+            this.__hotLineBlock.x(x - (size + strokeWidth) / 2)
+            this.__hotLineBlock.y(y - (size + strokeWidth) / 2)
             this.__hotLineBlock.width(
                 Math.abs(this.width()) + size + strokeWidth
             )

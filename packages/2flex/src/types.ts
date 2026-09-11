@@ -19,7 +19,7 @@ export interface HotCornerArea {
 export type ICssProperties = {
     [key in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[key]
 }
-export type SnapshotData = { [key: number]: Object }
+export type SnapshotData = { [key: string]: Object }
 export type NodeId = number | undefined
 
 export type XY = { x: number; y: number }

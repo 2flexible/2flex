@@ -335,13 +335,13 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
             let topMove = false
             let leftMove = false
-            const beforeValues: any = {}
+            let beforeValues: any = {}
             let inBound = false
 
             block.#mouseDownEvent = (event: MouseEvent) => {
                 if (inBound && block.isMouseEventAllowed) {
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, true)
-                    beforeValues[block.nodeId!] = {
+                    beforeValues = {
                         rotate: block.rotate(),
                     }
                     block.__registerZIndex(block.zIndex())
@@ -362,11 +362,11 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 )
                     return
 
-                let { x, y } = block.canvas?.getCursorPosition(event)!
                 if (
                     !block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT) &&
                     block.__isRunningEventActive(SELECTABLE_RUNNING_EVENT)
                 ) {
+                    const { x, y } = block.canvas?.getCursorPosition(event)!
                     let cursor: string | undefined = undefined
                     if (block.#isTopLeftRotatable(x, y)) {
                         cursor = 'cell'
@@ -387,91 +387,80 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     }
                     if (cursor) {
                         inBound = true
-                        block.canvas?.changeCursor(cursor)
+                        block.__selectCursor(cursor)
                     } else {
                         inBound = false
-                        if (
-                            block.canvas?.currentCursor &&
-                            ![
-                                'ew-resize',
-                                'ns-resize',
-                                'nwse-resize',
-                                'nesw-resize',
-                            ].includes(block.canvas?.currentCursor)
-                        ) {
-                            block.canvas?.changeCursor(cursor)
-                        }
+                        block.__resetCursor()
                     }
                 }
 
-                if (block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT)) {
-                    if (
-                        block.ImFirst ||
-                        block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT)
-                    ) {
-                        let radian = Math.atan2(
-                            y - block.rotationCenterY(),
-                            x - block.rotationCenterX()
+                if (
+                    block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT) &&
+                    block.__ImFirst()
+                ) {
+                    const { x, y } = block.canvas?.getCursorPosition(event)!
+
+                    let radian = Math.atan2(
+                        y - block.rotationCenterY(),
+                        x - block.rotationCenterX()
+                    )
+                    let currentRotate = block.getOptionCurrent('rotate')
+                    if (topMove && leftMove) {
+                        const topLeftCorner = block.cornerTopLeft()
+                        const topLeft = block.__rotateCordiantesByCenter(
+                            topLeftCorner.x,
+                            topLeftCorner.y,
+                            -currentRotate
                         )
-                        let currentRotate = block.getOptionCurrent('rotate')
-                        if (topMove && leftMove) {
-                            const topLeftCorner = block.cornerTopLeft()
-                            const topLeft = block.__rotateCordiantesByCenter(
-                                topLeftCorner.x,
-                                topLeftCorner.y,
-                                -currentRotate
+                        currentRotate =
+                            radian -
+                            Math.atan2(
+                                topLeft.y - block.realCenterY,
+                                topLeft.x - block.realCenterX
                             )
-                            currentRotate =
-                                radian -
-                                Math.atan2(
-                                    topLeft.y - block.realCenterY,
-                                    topLeft.x - block.realCenterX
-                                )
-                        } else if (topMove && !leftMove) {
-                            const topRightCorner = block.cornerTopRight()
-                            const topRight = block.__rotateCordiantesByCenter(
-                                topRightCorner.x,
-                                topRightCorner.y,
-                                -currentRotate
+                    } else if (topMove && !leftMove) {
+                        const topRightCorner = block.cornerTopRight()
+                        const topRight = block.__rotateCordiantesByCenter(
+                            topRightCorner.x,
+                            topRightCorner.y,
+                            -currentRotate
+                        )
+                        currentRotate =
+                            radian -
+                            Math.atan2(
+                                topRight.y - block.realCenterY,
+                                topRight.x - block.realCenterX
                             )
-                            currentRotate =
-                                radian -
-                                Math.atan2(
-                                    topRight.y - block.realCenterY,
-                                    topRight.x - block.realCenterX
-                                )
-                        } else if (!topMove && !leftMove) {
-                            const bottomRightCorner = block.cornerBottomRight()
-                            const bottomRight =
-                                block.__rotateCordiantesByCenter(
-                                    bottomRightCorner.x,
-                                    bottomRightCorner.y,
-                                    -currentRotate
-                                )
-                            currentRotate =
-                                radian -
-                                Math.atan2(
-                                    bottomRight.y - block.realCenterY,
-                                    bottomRight.x - block.realCenterX
-                                )
-                        } else if (!topMove && leftMove) {
-                            const bottomLeftCorner = block.cornerBottomLeft()
-                            const bottomLeft = block.__rotateCordiantesByCenter(
-                                bottomLeftCorner.x,
-                                bottomLeftCorner.y,
-                                -currentRotate
+                    } else if (!topMove && !leftMove) {
+                        const bottomRightCorner = block.cornerBottomRight()
+                        const bottomRight = block.__rotateCordiantesByCenter(
+                            bottomRightCorner.x,
+                            bottomRightCorner.y,
+                            -currentRotate
+                        )
+                        currentRotate =
+                            radian -
+                            Math.atan2(
+                                bottomRight.y - block.realCenterY,
+                                bottomRight.x - block.realCenterX
                             )
-                            currentRotate =
-                                radian -
-                                Math.atan2(
-                                    bottomLeft.y - block.realCenterY,
-                                    bottomLeft.x - block.realCenterX
-                                )
-                        }
-                        block.setOptionCurrent('rotate', currentRotate)
-                        block.onRotatable()?.(block)
-                        block.__invokeChange()
+                    } else if (!topMove && leftMove) {
+                        const bottomLeftCorner = block.cornerBottomLeft()
+                        const bottomLeft = block.__rotateCordiantesByCenter(
+                            bottomLeftCorner.x,
+                            bottomLeftCorner.y,
+                            -currentRotate
+                        )
+                        currentRotate =
+                            radian -
+                            Math.atan2(
+                                bottomLeft.y - block.realCenterY,
+                                bottomLeft.x - block.realCenterX
+                            )
                     }
+                    block.setOptionCurrent('rotate', currentRotate)
+                    block.onRotatable()?.(block)
+                    block.__invokeChange()
                 }
             }
 
@@ -480,13 +469,12 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
                 ) {
-                    block.canvas?.changeCursor('auto')
+                    block.__resetCursor()
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
                     block.__unregisterZIndex(block.zIndex())
                     inBound = false
-                    const dummy: any = {}
-                    dummy[block.nodeId!] = { rotate: block.rotate() }
-                    block.canvas?.takeSnapshot(beforeValues, dummy)
+                    const after: any = { rotate: block.rotate() }
+                    block.__invokeHistory(beforeValues, after)
                 }
             }
             block.__addEvent('mousedown', block.#mouseDownEvent)

@@ -113,7 +113,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             // Showing overflow scroll bar block on top of the child blocks
             this.__overflowXscrollBarBlock.zIndex(
                 1 +
-                    (this.higherZIndex ?? 0) +
+                    (this.__getHighestChildZIndex() ?? 0) +
                     (this.__overflowYscrollBarBlock ? 1 : 0)
             )
         }
@@ -135,7 +135,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 this.height() - this.#overflowScrollYHeightCut
             )
             // Showing overflow scroll bar block on top of the child blocks
-            this.__overflowYscrollBarBlock.zIndex(1 + (this.higherZIndex ?? 0))
+            this.__overflowYscrollBarBlock.zIndex(1 + (this.__getHighestChildZIndex() ?? 0))
         }
         #updateOverflowCordinates() {
             if (!this.__isOverflowVisible) {
@@ -458,7 +458,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         beforeCords.x = diffX
                         beforeCords.y = diffY
                         block.__invokeChange()
-                        block.canvas?.changeCursor('auto')
+                        block.__resetCursor()
                     }
                 }
             }
@@ -641,7 +641,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         beforeCords.x = diffX
                         beforeCords.y = diffY
                         block.__invokeChange()
-                        block.canvas?.changeCursor('auto')
+                        block.__resetCursor()
                     }
                 }
             }
