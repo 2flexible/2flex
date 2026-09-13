@@ -1,10 +1,6 @@
 import type { Canvas } from './Canvas'
 import { Node } from './Node'
-import {
-    HOT_LINE_BLOCK_NAME,
-    initialCorners,
-    OVERFLOW_SCROLL_BAR_BLOCK_NAME,
-} from './const'
+import { initialCorners } from './const'
 import {
     RelativeType,
     ShortHandRelativeType,
@@ -248,6 +244,8 @@ export class BaseBlock extends Node {
         this.#calculateRealCenterY()
 
         if (this.__isHidden) {
+            this.#cachedBitmap?.close()
+            this.#cachedBitmap = undefined
             this.#updateOptionsCache()
             this.#handleBindOptions()
             return
@@ -281,13 +279,13 @@ export class BaseBlock extends Node {
         this.__refreshHeadBlock()
     }
     #cacheContext() {
-        this.#cachedBitmap?.close()
         const w = Math.max(1, Math.abs(this.realWidth))
         const h = Math.max(1, Math.abs(this.realHeight))
         this.dummyCanvas = new DummyCanvas(w, h)
         this.context = this.dummyCanvas.context
     }
     generateImageBitmap() {
+        this.#cachedBitmap?.close()
         this.#cachedBitmap = this.dummyCanvas?.transferToImageBitmap()
     }
     #buildOptions(options: IBaseBlockOptions) {
@@ -1281,35 +1279,12 @@ export class BaseBlock extends Node {
         _func: (block: T, currIdx: number, arrLen: number) => void
     ): void {
         const childNodes = this.childNodes
-        const extraBlocksLength = childNodes.filter(
-            (block: BaseBlock) =>
-                block.getOptionCurrent('name') !==
-                    OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
-                block.getOptionCurrent('name') !== HOT_LINE_BLOCK_NAME
-        ).length
         for (let i = 0, len = childNodes.length; i < len; i++) {
-            const block = childNodes[i] as T
-            if (
-                block.getOptionCurrent('name') !==
-                    OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
-                block.getOptionCurrent('name') !== HOT_LINE_BLOCK_NAME
-            ) {
-                _func(block, i, extraBlocksLength)
-            }
+            _func(childNodes[i] as T, i, len)
         }
     }
     listAllChilds(_func: (block: BaseBlock) => void): void {
-        const listingFunc = (block: BaseBlock) => {
-            if (
-                block.getOptionCurrent('name') !==
-                    OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
-                block.getOptionCurrent('name') !== HOT_LINE_BLOCK_NAME &&
-                this !== block
-            ) {
-                _func(block)
-            }
-        }
-        preOrderTraversal(this, listingFunc)
+        preOrderTraversal(this, _func)
     }
     set(options: IBaseBlockOptions): void {
         let before: any = {}
@@ -1335,8 +1310,8 @@ export class BaseBlock extends Node {
     bindTo(block: BaseBlock, options: BlockOptionKeys[]) {
         block.#bindOptions.push({ block: block, options: options })
     }
-    unbind(block: BaseBlock){
-        block.#bindOptions = block.#bindOptions.filter((i)=>i.block !== block)
+    unbind(block: BaseBlock) {
+        block.#bindOptions = block.#bindOptions.filter((i) => i.block !== block)
     }
     findChilds<T extends IBaseBlockOptions>(queries: T) {
         let blocks: BaseBlock[] = []

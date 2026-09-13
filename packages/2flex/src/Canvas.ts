@@ -450,6 +450,8 @@ export class Canvas {
         if (blocks) {
             const context = this.context
             if (!context) return
+            this.context?.restore()
+            this.context?.save()
             this.clearRect()
             for (const block of blocks) {
                 if (block.cachedBitmap)

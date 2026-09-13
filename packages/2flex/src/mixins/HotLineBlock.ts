@@ -21,7 +21,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
 ) =>
     class extends Base {
-        __hotLineBlock?: BaseBlock
+        #hotLineBlock?: BaseBlock
         #hotCornerCords: HotCornerArea
 
         constructor(...args: any[]) {
@@ -45,7 +45,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
         render() {
             this.#updateHotLineBlockParameters()
             super.render()
-            // this.__hotLineBlock?.canvas?.demandInvoke(this.__hotLineBlock)
+            this.#hotLineBlock?.__invokeChange()
         }
         updateCordinates(): void {
             super.updateCordinates()
@@ -67,37 +67,41 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
         }
 
         #hotLines(block: any, opt?: boolean) {
-            if (!block.__hotLineBlock && opt) {
+            if (!block.#hotLineBlock && opt) {
                 const hotLineBlock = block.#buildHotLines(block)
-                block.addChild(hotLineBlock)
-            } else if (block.__hotLineBlock && !opt) {
-                block.removeChild(block.__hotLineBlock)
-                block.__hotLineBlock = undefined
+                block.canvas?.add(hotLineBlock)
+            } else if (block.#hotLineBlock && !opt) {
+                block.canvas?.remove(block.#hotLineBlock)
+                block.#hotLineBlock = undefined
             }
         }
         #updateHotLineBlockParameters() {
-            if (!this.__hotLineBlock) return
+            if (!this.#hotLineBlock) return
             const size = this.hotCornerSize()
             const strokeWidth = this.hotCornerStrokeWidth()
-            this.__hotLineBlock.rotationCenterX(this.rotationCenterX())
-            this.__hotLineBlock.rotationCenterY(this.rotationCenterY())
-            this.__hotLineBlock.rotate(this.rotate())
-            const x = this.horizontalFlip() ? Math.abs(this.x()+this.width()): this.x()
-            const y = this.verticalFlip() ? Math.abs(this.y()+this.height()): this.y()
-            this.__hotLineBlock.x(x - (size + strokeWidth) / 2)
-            this.__hotLineBlock.y(y - (size + strokeWidth) / 2)
-            this.__hotLineBlock.width(
+            this.#hotLineBlock.rotationCenterX(this.rotationCenterX())
+            this.#hotLineBlock.rotationCenterY(this.rotationCenterY())
+            this.#hotLineBlock.rotate(this.rotate())
+            const x = this.horizontalFlip()
+                ? Math.abs(this.x() + this.width())
+                : this.x()
+            const y = this.verticalFlip()
+                ? Math.abs(this.y() + this.height())
+                : this.y()
+            this.#hotLineBlock.x(x - (size + strokeWidth) / 2)
+            this.#hotLineBlock.y(y - (size + strokeWidth) / 2)
+            this.#hotLineBlock.width(
                 Math.abs(this.width()) + size + strokeWidth
             )
-            this.__hotLineBlock.height(
+            this.#hotLineBlock.height(
                 Math.abs(this.height()) + size + strokeWidth
             )
-            this.__hotLineBlock.zIndex(this.#getHigherZindex())
+            this.#hotLineBlock.zIndex(this.#getHigherZindex())
         }
 
         #buildHotLines(block: any) {
             const size = block.hotCornerSize() / 2
-            block.__hotLineBlock = new BaseBlock({
+            block.#hotLineBlock = new BaseBlock({
                 name: HOT_LINE_BLOCK_NAME,
                 x: block.x() - size,
                 y: block.y() - size,
@@ -108,7 +112,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 rotationCenterY: block.rotationCenterY(),
                 zIndex: block.#getHigherZindex(),
             })
-            block.__hotLineBlock.onRender((hotLineBlock: BaseBlock) => {
+            block.#hotLineBlock.onRender((hotLineBlock: BaseBlock) => {
                 if (!block.__isRunningEventActive(SELECTABLE_RUNNING_EVENT))
                     return
                 const size = block.hotCornerSize()
@@ -118,10 +122,12 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 const background = block.hotCornerBackgroundColor()
                 const lineWidth = block.hotLineStrokeWidth()
                 const lineColor = block.hotLineStrokeColor()
-
                 const context = hotLineBlock?.context
                 if (!context) return
                 context.save()
+                // need to clip hot line area too
+                block.__childClipping?.(hotLineBlock)
+
                 context.translate(
                     block.rotationCenterX(),
                     block.rotationCenterY()
@@ -132,9 +138,6 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     -block.rotationCenterY()
                 )
                 context.setLineDash([])
-
-                // need to clip hot line area too
-                block.__childClipping?.(hotLineBlock)
 
                 // Draw Lines first
                 context.beginPath()
@@ -197,6 +200,6 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 context.stroke()
                 context.restore()
             })
-            return block.__hotLineBlock
+            return block.#hotLineBlock
         }
     }

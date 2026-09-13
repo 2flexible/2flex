@@ -36,6 +36,16 @@ export class Block extends OverflowBlock(
             (block: BaseBlock, opt?: onRender) => this.#onRender(block, opt)
         )
     }
+    render() {
+        super.render()
+        this.context?.save()
+        this.context?.translate(
+            -this.boundingBox.topLeft.x,
+            -this.boundingBox.topLeft.y
+        )
+        this.__childClipping?.(this)
+        this.context?.restore()
+    }
     #onRender(thisBlock: BaseBlock, opt?: onRender) {
         const onRender = (block: any) => {
             thisBlock.context?.save()
@@ -204,32 +214,25 @@ export class Block extends OverflowBlock(
 
             if (this.__clipPath || this.parentNode?.__clipPath) {
                 b.__childClipping = (b: BaseBlock) => {
+                    const context = b.context
+                    if (!context) return
                     // in rotate of partent clipping also need to be rotated
-                    b.context?.translate(centerX, centerY)
-                    b.context?.rotate(pCurrentRotate)
-                    b.context?.translate(-centerX, -centerY)
+                    context.translate(centerX, centerY)
+                    context.rotate(pCurrentRotate)
+                    context.translate(-centerX, -centerY)
                     // if parent clipping exists need to add another clip for it too
                     if (this.__clipPath!)
-                        b.context?.clip(this.__clipPath!, 'nonzero')
+                        context.clip(this.__clipPath!, 'nonzero')
                     if (this.parentNode?.__clipPath)
-                        b.context?.clip(this.parentNode?.__clipPath, 'nonzero')
-
+                        context.clip(this.parentNode?.__clipPath, 'nonzero')
                     // after clip need to reset to its default rotation
-                    b.context?.translate(centerX, centerY)
-                    b.context?.rotate(-pCurrentRotate)
-                    b.context?.translate(-centerX, -centerY)
+                    context.translate(centerX, centerY)
+                    context.rotate(-pCurrentRotate)
+                    context.translate(-centerX, -centerY)
                 }
             }
             b.canvas?.demandInvoke(b)
         })
-        this.__hotLineBlock?.canvas?.demandInvoke(this.__hotLineBlock)
-        this.__overflowXscrollBarBlock?.canvas?.demandInvoke(
-            this.__overflowXscrollBarBlock
-        )
-        this.__overflowYscrollBarBlock?.canvas?.demandInvoke(
-            this.__overflowYscrollBarBlock
-        )
-
         this.__childsContainer = {
             width: blocksContainerWidth,
             height: blocksContainerHeight,

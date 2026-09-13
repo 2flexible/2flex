@@ -628,14 +628,14 @@ export class ShapeBlock extends Block {
         if (this.__isHidden) return
         this.beginPath()
         this.context?.save()
-
-        // need to clip child before restore if its exist
-        this.__childClipping?.(this)
-
         this.context?.translate(
             -this.boundingBox.topLeft.x,
             -this.boundingBox.topLeft.y
         )
+
+        this.context?.save()
+        // need to clip child before restore if its exist
+        this.__childClipping?.(this)
         this.context?.translate(this.rotationCenterX(), this.rotationCenterY())
         this.context?.rotate(this.rotate())
         // @TODO: add features for vertical or horizantal flipping
@@ -675,6 +675,7 @@ export class ShapeBlock extends Block {
         if (this.getOptionCurrent('fill')) this.fill()
         if (this.getOptionCurrent('stroke')) this.stroke()
 
+        this.context?.restore()
         this.onRender()?.(this)
         this.context?.restore()
         this.generateImageBitmap()
