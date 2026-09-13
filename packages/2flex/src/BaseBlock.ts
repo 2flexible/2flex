@@ -178,7 +178,6 @@ export class BaseBlock extends Node {
     realHeight: number
     realCenterX: number
     realCenterY: number
-    realRotateRadian: number
     boundingBox: HotCornerArea
     #higestChildZIndex?: number
 
@@ -203,7 +202,6 @@ export class BaseBlock extends Node {
         this.realHeight = 0
         this.realCenterX = 0
         this.realCenterY = 0
-        this.realRotateRadian = 0
 
         this.boundingBox = initialCorners
         this.__childsContainer = { width: 0, height: 0 }
@@ -236,7 +234,6 @@ export class BaseBlock extends Node {
         // after cordiantes calculated restore rotation
         if (currentRotate !== 0 || cacheRotate !== 0)
             this.rotateCordinates(cacheRotate + diffR)
-        this.#calculateRealRotateRadian()
         this.#calculateBoundingBox()
         this.#calculateRealWidth()
         this.#calculateRealHeight()
@@ -426,7 +423,6 @@ export class BaseBlock extends Node {
         if (this.getOptionCurrent('rotationCenterY') === undefined)
             this.setOptionCurrent('rotationCenterY', this.realCenterY)
 
-        this.#calculateRealRotateRadian()
     }
     #collectQueueAddEvents() {
         const events = this.#pending['events:add']
@@ -533,16 +529,6 @@ export class BaseBlock extends Node {
             })
         }
         return this.#higestChildZIndex
-    }
-    #calculateRealRotateRadian() {
-        const topRight = this.cornerTopRight()
-        const bottomRight = this.cornerTopRight()
-        const rotationCornerX = topRight.x + (bottomRight.x - topRight.x) / 2
-        const rotationCornerY = topRight.y + (bottomRight.y - topRight.y) / 2
-        this.realRotateRadian = Math.atan2(
-            rotationCornerY - this.rotationCenterY(),
-            rotationCornerX - this.rotationCenterX()
-        )
     }
     #calculateRealWidth() {
         this.realWidth =
