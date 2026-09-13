@@ -476,7 +476,15 @@ export class Canvas {
             if (foundNode) {
                 for (const [key, option] of Object.entries(options)) {
                     if (key === 'addChild') {
+                        if (option.parentNode)
+                            option.parentNode.__addChildInternal(option)
+                        else foundNode.__addChildInternal(option)
+                        this.demandAddBlock(option)
                     } else if (key === 'removeChild') {
+                        if (option.parentNode)
+                            option.parentNode.__removeChildInternal(option)
+                        else foundNode.__removeChildInternal(option)
+                        this.demandRemoveBlock(option)
                     } else {
                         getPrototype(foundNode, key)?.value.call(
                             foundNode,
@@ -619,6 +627,7 @@ export class Canvas {
                 }
                 nextData[key] = after
             }
+            // console.log(nextData, initTail)
             if (tailData) this.#history.updateTail(tailData)
             else this.#history.add(initTail)
             this.#history.add(nextData)

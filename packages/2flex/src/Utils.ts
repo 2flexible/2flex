@@ -443,8 +443,8 @@ export function reversePostOrderTraversal<T extends Node>(
 ) {
     if (!head) return
     func(head)
-
-    for (let i = head.childNodes.length - 1; i >= 0; i--) {
-        reversePostOrderTraversal(head.childNodes[i] as T, func)
+    const childs = [...head.childNodes]
+    for (let i = childs.length - 1; i >= 0; i--) {
+        reversePostOrderTraversal(childs[i] as T, func)
     }
 }

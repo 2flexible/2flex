@@ -238,10 +238,6 @@ export class Block extends OverflowBlock(
             height: blocksContainerHeight,
         }
     }
-    removeChild(child: BaseBlock): void {
-        super.removeChild(child)
-        child.__childClipping = undefined
-    }
     __overflowTranslateX(x: number) {
         this.overflowPositionX(this.overflowPositionX() + x)
     }

@@ -1,34 +1,31 @@
 import { NodeId } from './types'
 
 export class Node {
-    childNodes: Node[]
+    childNodes: Set<Node>
     parentNode?: Node
     nodeId?: NodeId
 
     constructor() {
-        this.childNodes = []
+        this.childNodes = new Set()
     }
 
-    addChild(node: Node) {
-        if (!this.childNodes.includes(node)) {
+    addChild(node: this) {
+        if (!this.childNodes.has(node)) {
             node.parentNode = this
-            this.childNodes.push(node)
+            this.childNodes.add(node)
         }
     }
-    removeChild(child: Node) {
-        const getChild = (topNode: Node, child: Node) => {
-            for (let i = 0, len = this.childNodes.length; i < len; i++) {
-                const node = this.childNodes[i]
-                if (node.nodeId === (child as Node).nodeId) {
-                    ;(child as Node).parentNode = undefined
-                    topNode.childNodes = topNode.childNodes.filter(
-                        (n) => n.nodeId !== (child as Node).nodeId
-                    )
-                    return
-                }
-                getChild(node, child)
+    removeChild(child: this) {
+        const remove = (node: Node): boolean => {
+            if (node.childNodes.has(child)) {
+                node.childNodes.delete(child)
+                return true
             }
+            for (const child of node.childNodes) {
+                if (remove(child)) return true
+            }
+            return false
         }
-        getChild(this, child)
+        remove(this)
     }
 }

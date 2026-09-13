@@ -166,7 +166,7 @@ export class BaseBlock extends Node {
     [key: string]: any
 
     declare parentNode?: BaseBlock
-    declare childNodes: BaseBlock[]
+    declare childNodes: Set<BaseBlock>
 
     canvas?: Canvas
     dummyCanvas?: DummyCanvas
@@ -1187,11 +1187,12 @@ export class BaseBlock extends Node {
     __ImFirst() {
         return this.canvas?.whoIsTheFirst(this.zIndex())
     }
-    __addChildInternal(node: BaseBlock) {
-        super.addChild(node)
+    __addChildInternal(block: this) {
+        super.addChild(block)
     }
-    __removeChildInternal(child: BaseBlock): void {
-        super.removeChild(child)
+    __removeChildInternal(block: this): void {
+        super.removeChild(block)
+        block.__childAdjustment = undefined
     }
     __invokeChange() {
         if (this.__hasParentBlock) {
@@ -1278,7 +1279,7 @@ export class BaseBlock extends Node {
     listOnlyChilds<T extends BaseBlock>(
         _func: (block: T, currIdx: number, arrLen: number) => void
     ): void {
-        const childNodes = this.childNodes
+        const childNodes = [...this.childNodes]
         for (let i = 0, len = childNodes.length; i < len; i++) {
             _func(childNodes[i] as T, i, len)
         }
@@ -1322,28 +1323,18 @@ export class BaseBlock extends Node {
         })
         return blocks
     }
-    addChild(block: BaseBlock): void {
-        let before: any = {}
-        before[this.nodeId!] = {
-            childNodes: [...this.childNodes],
-        }
+    addChild(block: this): void {
         super.addChild(block)
         if (this.canvas) this.canvas.demandAddBlock(block)
         else this.#pending['addedChilds'].push(block)
-        // this.canvas?.__takeInitSnaphshot(before)
-        // this.canvas?.__takeBlockSnapshot(this, before)
+        this.__invokeHistory({ removeChild: block }, { addChild: block })
     }
-    removeChild(child: BaseBlock): void {
-        if (!this.childNodes.includes(child)) return
-        let before: any = {}
-        before[this.nodeId!] = {
-            childNodes: [...this.childNodes],
-        }
-        super.removeChild(child)
-        child.__childAdjustment = undefined
-        if (this.canvas) this.canvas.demandRemoveBlock(child)
-        else this.#pending['removedChilds'].push(child)
-        // this.canvas?.__takeBlockSnapshot(this, before)
+    removeChild(block: this): void {
+        super.removeChild(block)
+        block.__childAdjustment = undefined
+        if (this.canvas) this.canvas.demandRemoveBlock(block)
+        else this.#pending['removedChilds'].push(block)
+        this.__invokeHistory({ addChild: block }, { removeChild: block })
     }
     name(opt?: string) {
         return this.__cacheOption(opt, 'name', undefined)
