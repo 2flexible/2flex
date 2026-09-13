@@ -212,24 +212,26 @@ export class Block extends OverflowBlock(
                 b.height(blockH)
             }
 
-            if (this.__clipPath || this.parentNode?.__clipPath) {
-                b.__childClipping = (b: BaseBlock) => {
-                    const context = b.context
-                    if (!context) return
-                    // in rotate of partent clipping also need to be rotated
-                    context.translate(centerX, centerY)
-                    context.rotate(pCurrentRotate)
-                    context.translate(-centerX, -centerY)
-                    // if parent clipping exists need to add another clip for it too
-                    if (this.__clipPath!)
-                        context.clip(this.__clipPath!, 'nonzero')
-                    if (this.parentNode?.__clipPath)
-                        context.clip(this.parentNode?.__clipPath, 'nonzero')
-                    // after clip need to reset to its default rotation
-                    context.translate(centerX, centerY)
-                    context.rotate(-pCurrentRotate)
-                    context.translate(-centerX, -centerY)
+            b.__childClipping = (b: BaseBlock) => {
+                const context = b.context
+                if (!context) return
+                // in rotate of partent clipping also need to be rotated
+                context.translate(centerX, centerY)
+                context.rotate(pCurrentRotate)
+                context.translate(-centerX, -centerY)
+                if (this.__clipPath) context.clip(this.__clipPath, 'nonzero')
+                // if any other upper parent has clipping need to add another clip for it too
+                const getParentClip = (parent: BaseBlock) => {
+                    if (parent.__clipPath)
+                        context.clip(parent.__clipPath, 'nonzero')
+                    if (parent.__hasParentBlock && parent.parentNode)
+                        getParentClip(parent.parentNode)
                 }
+                getParentClip(this)
+                // after clip need to reset to its default rotation
+                context.translate(centerX, centerY)
+                context.rotate(-pCurrentRotate)
+                context.translate(-centerX, -centerY)
             }
             b.canvas?.demandInvoke(b)
         })
