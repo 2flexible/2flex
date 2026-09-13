@@ -418,10 +418,10 @@ export class Canvas {
         this.#buildRemovedDomEvents()
         this.#buildAddedAnimations()
         this.#buildRemovedAnimations()
+        this.#renderCachedBlocks()
         this.#refreshHead()
         this.#invokeAnimations(timestamp)
         this.#buildDemandedHistory()
-        this.#renderCachedBlocks()
         this.#drawCachedBlocks()
         this.#clearQueue()
     }
@@ -433,6 +433,7 @@ export class Canvas {
         if (isRefresh) {
             this.#buildBlocksZIndex()
             this.#scene.sortNodesByZIndex()
+            // console.log(this.#scene.getSortedNodesByZIndex())
             this.#sortAllDomEventsByZIndex()
             this.#registerDomEvents()
         }
@@ -499,12 +500,17 @@ export class Canvas {
     #sortAllDomEventsByZIndex() {
         for (const event of Object.keys(this.#canvasEvents)) {
             this.#sortDomEventsByZIndex(event)
+            this.#buildDomEventFunc(event)
         }
     }
     #sortDomEventsByZIndex(eventName: string) {
         this.#canvasEvents[eventName].events = this.#canvasEvents[
             eventName
-        ].events.sort((a, b) => b.block.zIndex() - a.block.zIndex())
+        ].events.sort(
+            (a, b) =>
+                b.block.getOptionCurrent('zIndex') -
+                a.block.getOptionCurrent('zIndex')
+        )
     }
     #buildDomEventFunc(eventName: string) {
         this.#canvasEvents[eventName].func = (e: Event) => {
@@ -581,6 +587,7 @@ export class Canvas {
                 this.demandInvoke(block)
             }
             this.#scene.buildSceneGraph()
+            this.#buildBlocksZIndex()
             this.demandRefreshHead()
         }
     }
@@ -596,6 +603,7 @@ export class Canvas {
                 this.#scene.removeBlock(block)
             }
             this.#scene.buildSceneGraph()
+            this.#buildBlocksZIndex()
             this.demandRefreshHead()
         }
     }
@@ -603,7 +611,7 @@ export class Canvas {
         this.#scene.reversePostOrderTraversal((block: BaseBlock) => {
             const zIndex = block.getOptionCurrent('zIndex')
             if (zIndex === undefined) {
-                block.setOptionCurrent('zIndex', this.#latestBlockZIndex)
+                block.zIndex(this.#latestBlockZIndex)
             }
             this.#latestBlockZIndex += 1
         })
@@ -627,7 +635,6 @@ export class Canvas {
                 }
                 nextData[key] = after
             }
-            // console.log(nextData, initTail)
             if (tailData) this.#history.updateTail(tailData)
             else this.#history.add(initTail)
             this.#history.add(nextData)

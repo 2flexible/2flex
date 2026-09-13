@@ -11,14 +11,15 @@ export class CanvasScene {
     head: Node
     snapshotSize: number
     #latestNodeId
-    #cacheLatesNodeId?: number
     #blocks: BaseBlock[]
+    #nodeIdIndex: Map<number, BaseBlock>
 
     constructor(snapshotSize?: number) {
         this.head = new Node()
         this.snapshotSize = snapshotSize || 0
         this.#latestNodeId = 1
         this.#blocks = []
+        this.#nodeIdIndex = new Map()
     }
 
     addBlock(block: BaseBlock) {
@@ -28,23 +29,21 @@ export class CanvasScene {
         this.head.removeChild(block)
     }
     find(queries: IBlockOptions): BaseBlock[] {
-        let blocks: BaseBlock[] = []
+        const keys = Object.keys(queries)
+        if (keys.length === 1 && keys[0] === 'nodeId') {
+            const block = this.#nodeIdIndex.get(queries.nodeId as number)
+            return block ? [block] : []
+        }
+        const blocks: BaseBlock[] = []
         this.preOrderTraversal((block: BaseBlock) => {
-            for (const [k, v] of Object.entries(queries)) {
-                if (
-                    block.getOptionCurrent(k)?.currentValue === v ||
-                    (k === 'nodeId' && block.nodeId === v)
-                )
-                    blocks.push(block)
+            for (const k of keys) {
+                if (block.getOptionCurrent(k) !== queries[k]) return
             }
+            blocks.push(block)
         })
         return blocks
     }
     getSortedNodesByZIndex() {
-        if (this.#cacheLatesNodeId !== this.#latestNodeId) {
-            this.sortNodesByZIndex()
-        }
-        this.#cacheLatesNodeId = this.#latestNodeId
         return this.#blocks
     }
     sortNodesByZIndex() {
@@ -54,11 +53,7 @@ export class CanvasScene {
         )
     }
     getByNodeId(nodeId: number) {
-        for (const block of this.#blocks) {
-            if (block.nodeId && block.nodeId == nodeId) {
-                return block
-            }
-        }
+        return this.#nodeIdIndex.get(nodeId)
     }
     preOrderTraversal(_func?: (block: BaseBlock) => void) {
         const func = (block: BaseBlock) => {
@@ -83,9 +78,13 @@ export class CanvasScene {
     }
     buildSceneGraph() {
         this.#blocks = []
+        this.#nodeIdIndex = new Map()
         this.preOrderTraversal((block: BaseBlock) => {
             this.#assignNodeId(block)
             this.#blocks.push(block)
+            if (block.nodeId !== undefined) {
+                this.#nodeIdIndex.set(block.nodeId, block)
+            }
         })
     }
     #assignNodeId(node: Node) {

@@ -422,7 +422,6 @@ export class BaseBlock extends Node {
             this.setOptionCurrent('rotationCenterX', this.realCenterX)
         if (this.getOptionCurrent('rotationCenterY') === undefined)
             this.setOptionCurrent('rotationCenterY', this.realCenterY)
-
     }
     #collectQueueAddEvents() {
         const events = this.#pending['events:add']
@@ -635,7 +634,10 @@ export class BaseBlock extends Node {
     //     this.gridColumnEnd(gridArea[3] || 'auto')
     // }
     #hasZIndexChanged(block: BaseBlock, zIndex: number) {
-        if (block.#zIndex !== zIndex) this.canvas?.demandRefreshHead()
+        if (block.#zIndex !== zIndex) {
+            block.canvas?.demandRefreshHead()
+            block.__refreshHeadBlock()
+        }
         block.#zIndex = zIndex
     }
     updateCordinates() {
@@ -1284,13 +1286,11 @@ export class BaseBlock extends Node {
                 key,
                 value === undefined ? undefined : handledVal
             )
-            before[this.nodeId!] = {}
-            after[this.nodeId!] = {}
-            before[this.nodeId!][key] = beforeValue
-            after[this.nodeId!][key] = value
+            before[key] = beforeValue
+            after[key] = value
         }
         if (Object.keys(before).length !== 0) {
-            // this.canvas?.takeSnapshot(before, after)
+            this.__invokeHistory(before, after)
             this.__invokeChange()
         }
     }
