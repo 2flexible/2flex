@@ -61,9 +61,9 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.addProperty('overflowPositionY', 0, false)
         }
         render() {
+            super.render()
             this.#updateOverflowXBlockParameters()
             this.#updateOverflowYBlockParameters()
-            super.render()
             this.#updateOverflowCordinates()
             this.#clippingPath()
             this.#overflowXscrollBarBlock?.__invokeChange()

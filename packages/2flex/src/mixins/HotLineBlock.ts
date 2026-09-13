@@ -43,8 +43,8 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.addProperty('hotLineStrokeColor', 'blue')
         }
         render() {
-            this.#updateHotLineBlockParameters()
             super.render()
+            this.#updateHotLineBlockParameters()
             this.#hotLineBlock?.__invokeChange()
         }
         updateCordinates(): void {
