@@ -433,7 +433,6 @@ export class Canvas {
         if (isRefresh) {
             this.#buildBlocksZIndex()
             this.#scene.sortNodesByZIndex()
-            // console.log(this.#scene.getSortedNodesByZIndex())
             this.#sortAllDomEventsByZIndex()
             this.#registerDomEvents()
         }
@@ -608,12 +607,13 @@ export class Canvas {
         }
     }
     #buildBlocksZIndex() {
+        this.#latestBlockZIndex = 0
         this.#scene.reversePostOrderTraversal((block: BaseBlock) => {
             const zIndex = block.getOptionCurrent('zIndex')
             if (zIndex === undefined) {
-                block.zIndex(this.#latestBlockZIndex)
+                block.setOptionCurrent('zIndex', this.#latestBlockZIndex)
+                this.#latestBlockZIndex += 1
             }
-            this.#latestBlockZIndex += 1
         })
     }
     #buildDemandedHistory() {
