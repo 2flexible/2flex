@@ -42,8 +42,8 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.addProperty('hotCornerStrokeColor', 'blue')
             this.addProperty('hotLineStrokeColor', 'blue')
         }
-        render() {
-            super.render()
+        updateCords(): void {
+            super.updateCords()
             this.#updateHotLineBlockParameters()
             this.#hotLineBlock?.__invokeChange()
         }

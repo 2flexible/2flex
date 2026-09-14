@@ -42,7 +42,7 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 const isSelected = block.__isRunningEventActive(
                     SELECTABLE_RUNNING_EVENT
                 )
-                if (block.checkInBound(event)) {
+                if (block.checkInBound(event) && block.isMouseEventAllowed) {
                     block.__registerZIndex(block.zIndex())
                     if (block.__ImFirst()) {
                         block.__updateRunningEvent(

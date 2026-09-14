@@ -2,6 +2,7 @@ import { BaseBlock, BlockPayload } from './BaseBlock'
 import { CanvasScene } from './CanvasScene'
 import { defaultBlocks } from './defaultBlocks'
 import { CanvasDOMManager } from './DOMManager'
+import { CanvasGrid } from './CanvasGrid'
 import { History } from './History'
 import { RenderScheduler } from './Scheduler'
 import {
@@ -28,6 +29,7 @@ interface CanvasOptions {
     positionY?: number
     positionZ?: number
     fps?: number
+    tileSize?: number
 }
 
 interface DefaultCanvasOptions extends Required<{
@@ -93,6 +95,7 @@ export class Canvas {
     #queue: { [K in keyof QueuePayloadMap]?: QueuePayloadMap[K] }
     #history: History
     #scheduler: RenderScheduler
+    #grid: CanvasGrid
 
     #htmlCanvas?: HTMLCanvasElement
     #context?: CanvasRenderingContext2D | null
@@ -108,7 +111,6 @@ export class Canvas {
     #isMousOutOfCanvas: boolean
     #latestBlockZIndex: number
     #invokedHigherZIndex?: number
-    #currentCursor: string
     #registeredBlocks: (typeof BaseBlock)[]
 
     constructor(
@@ -135,6 +137,7 @@ export class Canvas {
             positionY: 0,
             positionZ: 1,
             fps: 60,
+            tileSize: 256,
         }
 
         this.#currentPosition = { x: 0, y: 0, z: 1 }
@@ -145,7 +148,6 @@ export class Canvas {
         this.isFocused = false
         this.isMouseEventAllowed = false
         this.#isMousOutOfCanvas = false
-        this.#currentCursor = 'auto'
         this.#registeredBlocks = defaultBlocks
 
         if (this.options) this.#setOptions(this.options)
@@ -153,6 +155,11 @@ export class Canvas {
             this.canvasId,
             this.width,
             this.height
+        )
+        this.#grid = new CanvasGrid(
+            this.width,
+            this.height,
+            this.#defaultOptions.tileSize
         )
         this.#queue = {}
         this.#scene = new CanvasScene()
@@ -188,6 +195,10 @@ export class Canvas {
         if (options.fps !== undefined) this.#defaultOptions.fps = options.fps
         if (options.historySize !== undefined)
             this.#defaultOptions.historySize = options.historySize
+        if (options.tileSize !== undefined) {
+            this.#defaultOptions.tileSize = options.tileSize
+            this.#grid?.resize(this.width, this.height)
+        }
 
         this.#currentPosition = {
             x: this.#defaultOptions.positionX,
@@ -380,8 +391,8 @@ export class Canvas {
         )
     }
     #invokeChanges(func?: (block: BaseBlock) => void) {
-        const sortedBlocks = this.#scene.getSortedNodesByZIndex()
-        for (const block of sortedBlocks) {
+        const targets = this.#scene.getSortedNodesByZIndex()
+        for (const block of targets) {
             func?.(block)
             this.demandInvoke(block)
         }
@@ -439,29 +450,38 @@ export class Canvas {
     }
     #renderCachedBlocks() {
         const invokedBlocks = this.#queue['block:cache']
-        if (invokedBlocks) {
-            for (const block of invokedBlocks) {
-                block.render()
-            }
+        if (!invokedBlocks) return
+        for (const block of invokedBlocks) {
+            block.updateCords()
+            this.#grid.updateBlock(block)
         }
     }
     #drawCachedBlocks() {
-        const blocks = this.#scene.getSortedNodesByZIndex()
-        if (blocks) {
-            const context = this.context
-            if (!context) return
-            this.context?.restore()
-            this.context?.save()
-            this.clearRect()
-            for (const block of blocks) {
-                if (block.cachedBitmap)
-                    context.drawImage(
-                        block.cachedBitmap,
-                        block.boundingBox.topLeft.x,
-                        block.boundingBox.topLeft.y
-                    )
-            }
+        const context = this.context
+        if (!context) return
+        const tiles = this.#grid.getDirtyTiles()
+        if (tiles.length === 0) return
+        const sortedBlocks = this.#scene.getSortedNodesByZIndex()
+        for (const tile of tiles) {
+            tile.paint(sortedBlocks)
         }
+        context.save()
+        context.setTransform(1, 0, 0, 1, 0, 0)
+        const tileSize = this.#grid.tileSize
+        for (const tile of tiles) {
+            if (!tile.bitmap) continue
+            const x = tile.col * tileSize
+            const y = tile.row * tileSize
+            context.clearRect(x, y, tileSize, tileSize)
+            context.drawImage(
+                tile.bitmap,
+                tile.col * tileSize,
+                tile.row * tileSize,
+                tileSize,
+                tileSize
+            )
+        }
+        context.restore()
     }
     #invokeAnimations(timestamp: Timestamp) {
         for (const animeFunc of Object.values(this.#canvasAnimations)) {
@@ -586,6 +606,7 @@ export class Canvas {
                 this.demandInvoke(block)
             }
             this.#scene.buildSceneGraph()
+            for (const block of addedBlocks) this.#grid.addBlock(block)
             this.#buildBlocksZIndex()
             this.demandRefreshHead()
         }
@@ -599,6 +620,7 @@ export class Canvas {
                 )
             }
             for (const block of removedBlocks) {
+                this.#grid.removeBlock(block)
                 this.#scene.removeBlock(block)
             }
             this.#scene.buildSceneGraph()
@@ -768,6 +790,9 @@ export class Canvas {
             this.#boundingClient = this.canvas.getBoundingClientRect()
         return this.#boundingClient
     }
+    get grid() {
+        return this.#grid
+    }
     getCursorPosition(event: MouseEvent) {
         return {
             x: event.pageX - this.boundingClientRect.left,
@@ -779,7 +804,6 @@ export class Canvas {
         this.context?.clearRect(0, 0, clientRect.width, clientRect.height)
     }
     changeCursor(cur?: string) {
-        this.#currentCursor = cur || 'auto'
         return this.#domCanvas.changeStyle({
             cursor: cur,
         })

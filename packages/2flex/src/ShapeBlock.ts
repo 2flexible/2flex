@@ -628,12 +628,6 @@ export class ShapeBlock extends Block {
         if (this.__isHidden) return
         this.beginPath()
         this.context?.save()
-        this.context?.translate(
-            -this.boundingBox.topLeft.x,
-            -this.boundingBox.topLeft.y
-        )
-
-        this.context?.save()
         // need to clip child before restore if its exist
         this.__childClipping?.(this)
         this.context?.translate(this.rotationCenterX(), this.rotationCenterY())
@@ -647,7 +641,6 @@ export class ShapeBlock extends Block {
         //     !this.horizontalFlip() ? this.rotationCenterX() : 0,
         //     !this.verticalFlip() ? this.rotationCenterY() : 0
         // );
-
         this.context?.translate(
             -this.rotationCenterX(),
             -this.rotationCenterY()
@@ -676,9 +669,6 @@ export class ShapeBlock extends Block {
         if (this.getOptionCurrent('stroke')) this.stroke()
 
         this.context?.restore()
-        this.onRender()?.(this)
-        this.context?.restore()
-        this.generateImageBitmap()
     }
 
     draw(_func?: DrawFunc) {

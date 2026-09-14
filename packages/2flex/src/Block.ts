@@ -38,13 +38,7 @@ export class Block extends OverflowBlock(
     }
     render() {
         super.render()
-        this.context?.save()
-        this.context?.translate(
-            -this.boundingBox.topLeft.x,
-            -this.boundingBox.topLeft.y
-        )
         this.__childClipping?.(this)
-        this.context?.restore()
     }
     #onRender(thisBlock: BaseBlock, opt?: onRender) {
         const onRender = (block: any) => {

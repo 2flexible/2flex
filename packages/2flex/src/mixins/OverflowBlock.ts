@@ -60,8 +60,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.addProperty('overflowPositionX', 0, true)
             this.addProperty('overflowPositionY', 0, false)
         }
-        render() {
-            super.render()
+        updateCords(): void {
+            super.updateCords()
             this.#updateOverflowXBlockParameters()
             this.#updateOverflowYBlockParameters()
             this.#updateOverflowCordinates()

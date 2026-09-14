@@ -36,7 +36,6 @@ import {
     clamp,
     preOrderTraversal,
 } from './Utils'
-import { DummyCanvas } from './DummyCanvas'
 
 export type AlignSelf =
     | 'normal'
@@ -169,7 +168,6 @@ export class BaseBlock extends Node {
     declare childNodes: Set<BaseBlock>
 
     canvas?: Canvas
-    dummyCanvas?: DummyCanvas
     context?: OffscreenCanvasRenderingContext2D | null
     options: OptionsMap
     cacheOptions: OptionsMap
@@ -184,11 +182,9 @@ export class BaseBlock extends Node {
     __childAdjustment?: (b: BaseBlock) => void
     __childsContainer: ChildsContainer
 
-    #isZIndexPredefined: boolean
     #zIndex?: number
     #pending: Pending
     #runningEvents: RunningEvents
-    #cachedBitmap?: ImageBitmap
     #bindOptions: BindOptions[]
 
     constructor(options: IBaseBlockOptions) {
@@ -218,10 +214,18 @@ export class BaseBlock extends Node {
             addedChilds: [],
             removedChilds: [],
         }
-
-        this.#isZIndexPredefined = false
     }
     render() {
+        if (this.__isHidden) {
+            this.#updateOptionsCache()
+            this.#handleBindOptions()
+            return
+        }
+        this.onRender()?.(this)
+        this.#updateOptionsCache()
+        this.#handleBindOptions()
+    }
+    updateCords() {
         const currentRotate = this.getOptionCurrent('rotate') || 0
         const cacheRotate = this.getOptionCache('rotate') || 0
         const diffR = currentRotate - cacheRotate
@@ -239,25 +243,6 @@ export class BaseBlock extends Node {
         this.#calculateRealHeight()
         this.#calculateRealCenterX()
         this.#calculateRealCenterY()
-
-        if (this.__isHidden) {
-            this.#cachedBitmap?.close()
-            this.#cachedBitmap = undefined
-            this.#updateOptionsCache()
-            this.#handleBindOptions()
-            return
-        }
-        this.#cacheContext()
-        this.context?.save()
-        this.context?.translate(
-            -this.boundingBox.topLeft.x,
-            -this.boundingBox.topLeft.y
-        )
-        this.onRender()?.(this)
-        this.context?.restore()
-        this.generateImageBitmap()
-        this.#updateOptionsCache()
-        this.#handleBindOptions()
     }
     init() {
         this.#initializeCordinates()
@@ -266,6 +251,11 @@ export class BaseBlock extends Node {
         this.rotateCordinates(this.rotate())
         // need to again take cache after updating cordiantes
         this.#updateOptionsCache()
+        this.#calculateBoundingBox()
+        this.#calculateRealWidth()
+        this.#calculateRealHeight()
+        this.#calculateRealCenterX()
+        this.#calculateRealCenterY()
         this.#collectQueueAddEvents()
         this.#collectQueueRemoveEvents()
         this.#collectQueueAddAnimations()
@@ -274,16 +264,6 @@ export class BaseBlock extends Node {
         this.#collectQueueRemovedChilds()
         this.#clearPendings()
         this.__refreshHeadBlock()
-    }
-    #cacheContext() {
-        const w = Math.max(1, Math.abs(this.realWidth))
-        const h = Math.max(1, Math.abs(this.realHeight))
-        this.dummyCanvas = new DummyCanvas(w, h)
-        this.context = this.dummyCanvas.context
-    }
-    generateImageBitmap() {
-        this.#cachedBitmap?.close()
-        this.#cachedBitmap = this.dummyCanvas?.transferToImageBitmap()
     }
     #buildOptions(options: IBaseBlockOptions) {
         const ownOptions = this.options
@@ -980,9 +960,6 @@ export class BaseBlock extends Node {
     __refreshHeadBlock() {
         if (this.__hasParentBlock) this.parentNode?.__refreshHeadBlock()
         this.#higestChildZIndex = undefined
-    }
-    get cachedBitmap() {
-        return this.#cachedBitmap
     }
     get isMouseEventAllowed() {
         return this.canvas?.isMouseEventAllowed || false
