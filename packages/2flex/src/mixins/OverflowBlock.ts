@@ -108,7 +108,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#overflowXscrollBarBlock.rotate(this.rotate())
             this.#overflowXscrollBarBlock.left(this.x())
             this.#overflowXscrollBarBlock.top(
-                this.y() + this.height() - OVERFLOW_AREA_GAP
+                Math.max(this.y(), this.y() + this.height() - OVERFLOW_AREA_GAP)
             )
             this.#overflowXscrollBarBlock.width(this.width())
             this.#overflowXscrollBarBlock.height(OVERFLOW_AREA_GAP)
@@ -129,12 +129,15 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             )
             this.#overflowYscrollBarBlock.rotate(this.rotate())
             this.#overflowYscrollBarBlock.left(
-                this.x() + this.width() - OVERFLOW_AREA_GAP
+                Math.max(this.x(), this.x() + this.width() - OVERFLOW_AREA_GAP)
             )
             this.#overflowYscrollBarBlock.top(this.y())
             this.#overflowYscrollBarBlock.width(OVERFLOW_AREA_GAP)
             this.#overflowYscrollBarBlock.height(
-                this.height() - this.#overflowScrollYHeightCut
+                Math.max(
+                    OVERFLOW_AREA_GAP,
+                    this.height() - this.#overflowScrollYHeightCut
+                )
             )
             // Showing overflow scroll bar block on top of the child blocks
             this.#overflowYscrollBarBlock.zIndex(
@@ -142,36 +145,38 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             )
         }
         #updateOverflowCordinates() {
-            if (!this.__isOverflowVisible) {
-                const beforeWidth = this.#overflowWidth
-                const beforeHeight =
-                    this.#overflowHeight || this.#overflowScrollYHeightCut
+            if (this.__isOverflowVisible) return
+            const beforeWidth = this.#overflowWidth
+            const beforeHeight =
+                this.#overflowHeight || this.#overflowScrollYHeightCut
+            const reverseX = this.horizontalFlip() ? -1 : 1
+            const reverseY = this.verticalFlip() ? -1 : 1
+            const visibleWidth =
+                reverseX * this.width() -
+                this.paddingLeft() -
+                this.paddingRight()
+            const visibleHeight =
+                reverseY * this.height() -
+                this.paddingTop() -
+                this.paddingBottom() -
+                this.#overflowScrollYHeightCut
 
-                const reverseX = this.horizontalFlip() ? -1 : 1
-                this.#overflowWidth =
-                    reverseX * this.width() - this.__childsContainer.width
-                const reverseY = this.verticalFlip() ? -1 : 1
-                this.#overflowHeight =
-                    reverseY * this.height() -
-                    this.#overflowScrollYHeightCut -
-                    this.__childsContainer.height
+            this.#overflowWidth = visibleWidth - this.__childsContainer.width
+            this.#overflowHeight = visibleHeight - this.__childsContainer.height
 
-                // If overflow area cursor on the right need to adjust it to left for correcting overflow cordinate
-                const diffW = this.#overflowWidth - beforeWidth
-                if (diffW > 0) {
-                    if (this.overflowPositionX() < 0)
-                        this.overflowPositionX(this.overflowPositionX() + diffW)
-                    else this.overflowPositionX(0)
-                }
+            // If overflow area cursor on the right need to adjust it to left for correcting overflow cordinate
+            const diffW = this.#overflowWidth - beforeWidth
+            if (this.overflowPositionX() < 0) {
+                if (diffW !== 0)
+                    this.overflowPositionX(this.overflowPositionX() + diffW)
+            } else if (diffW < 0) this.overflowPositionX(0)
 
-                // If overflow area cursor on the bottom need to adjust it to top for correcting overflow cordinate
-                const diffH = this.#overflowHeight - beforeHeight
-                if (diffH > 0) {
-                    if (this.overflowPositionY() < 0)
-                        this.overflowPositionY(this.overflowPositionY() + diffH)
-                    else this.overflowPositionY(0)
-                }
-            }
+            // If overflow area cursor on the bottom need to adjust it to top for correcting overflow cordinate
+            const diffH = this.#overflowHeight - beforeHeight
+            if (this.overflowPositionY() < 0) {
+                if (diffH !== 0)
+                    this.overflowPositionY(this.overflowPositionY() + diffH)
+            } else if (diffH < 0) this.overflowPositionY(0)
         }
         #clampOverflowX() {
             const pos = this.overflowPositionX()
@@ -282,8 +287,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 OVERFLOW_SCROLL_BAR_MIN_SIZE,
                 width
             )
-            const currentWidth = width + this.#overflowWidth
-            if (currentWidth < 0)
+            if (this.#overflowWidth < 0)
                 return this.#overflowWidth / -(width - areaWidth)
             return 1
         }
@@ -295,10 +299,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 OVERFLOW_SCROLL_BAR_MIN_SIZE,
                 height - this.#overflowScrollYHeightCut
             )
-            const currentHeight =
-                height + (this.#overflowHeight - this.#overflowScrollYHeightCut)
 
-            if (currentHeight < 0)
+            if (this.#overflowHeight < 0)
                 return (
                     this.#overflowHeight /
                     -(height - areaHeight - this.#overflowScrollYHeightCut)
@@ -615,6 +617,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT,
                         true
                     )
+
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
                     block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
@@ -630,7 +633,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     ) &&
                     block.isMouseEventAllowed &&
                     block.#overflowHeight < 0 &&
-                    block.#overflowYscrollBarBlock!.__ImFirst()
+                    block.#overflowYscrollBarBlock.__ImFirst()
                 ) {
                     const { x, y } =
                         block.#overflowYscrollBarBlock.canvas?.getCursorPosition(
