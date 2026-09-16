@@ -216,14 +216,8 @@ export class BaseBlock extends Node {
         }
     }
     render() {
-        if (this.__isHidden) {
-            this.#updateOptionsCache()
-            this.#handleBindOptions()
-            return
-        }
+        if (this.hidden()) return
         this.onRender()?.(this)
-        this.#updateOptionsCache()
-        this.#handleBindOptions()
     }
     updateCords() {
         const currentRotate = this.getOptionCurrent('rotate') || 0
@@ -243,6 +237,8 @@ export class BaseBlock extends Node {
         this.#calculateRealHeight()
         this.#calculateRealCenterX()
         this.#calculateRealCenterY()
+        this.#updateOptionsCache()
+        this.#handleBindOptions()
     }
     init() {
         this.#initializeCordinates()
@@ -474,25 +470,6 @@ export class BaseBlock extends Node {
                 )
             }
         }
-    }
-    get #inBoundBlock() {
-        if (!this.canvas) return false
-        const x = xIntersect(
-            { left: 0, right: this.canvas.boundingClientRect.width },
-            {
-                left: this.boundingBox.topLeft.x,
-                right: this.boundingBox.topRight.x,
-            }
-        )
-        const y = yIntersect(
-            { top: 0, bottom: this.canvas.boundingClientRect.height },
-            {
-                top: this.boundingBox.topLeft.y,
-                bottom: this.boundingBox.bottomLeft.y,
-            }
-        )
-        if (x * y <= 0) return false
-        return true
     }
     __getHighestChildZIndex() {
         if (this.#higestChildZIndex === undefined) {
@@ -963,9 +940,6 @@ export class BaseBlock extends Node {
     }
     get isMouseEventAllowed() {
         return this.canvas?.isMouseEventAllowed || false
-    }
-    get __isHidden() {
-        return this.hidden() || !this.#inBoundBlock
     }
     get __hasParentBlock() {
         if (
