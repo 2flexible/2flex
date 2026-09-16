@@ -246,14 +246,18 @@ export class Canvas {
                 const move = event.deltaY < 0 ? moveSpeed : -moveSpeed
                 if (event.shiftKey) {
                     const overflow = this.#overflowUnder(event, 'x')
-                    if (overflow) overflow.__overflowTranslateX(move)
-                    else {
+                    if (overflow) {
+                        overflow.__overflowTranslateX(move/5)
+                        this.demandInvoke(overflow)
+                    } else {
                         this.#view.tx += move
                     }
                 } else {
                     const overflow = this.#overflowUnder(event, 'y')
-                    if (overflow) overflow.__overflowTranslateY(move)
-                    else {
+                    if (overflow) {
+                        overflow.__overflowTranslateY(move/5)
+                        this.demandInvoke(overflow)
+                    } else {
                         this.#view.ty += move
                     }
                 }
