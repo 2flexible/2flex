@@ -1118,13 +1118,14 @@ export class BaseBlock extends Node {
         else this.#pending['animations:remove'].push(animationId)
     }
     __registerZIndex(zIndex: number) {
-        this.canvas?.registerZIndex(zIndex)
+        if (this.nodeId) this.canvas?.registerZIndex(this.nodeId, zIndex)
     }
     __unregisterZIndex(zIndex: number) {
-        this.canvas?.unregisterZIndex(zIndex)
+        if (this.nodeId) this.canvas?.unregisterZIndex(this.nodeId, zIndex)
     }
     __ImFirst() {
-        return this.canvas?.whoIsTheFirst(this.zIndex())
+        if (this.nodeId) return this.canvas?.whoIsTheFirst(this.nodeId)
+        return false
     }
     __addChildInternal(block: this) {
         super.addChild(block)

@@ -43,10 +43,10 @@ export class CanvasScene {
         })
         return blocks
     }
-    getSortedNodesByZIndex() {
+    getSortedBlocksByZIndex() {
         return this.#blocks
     }
-    sortNodesByZIndex() {
+    sortBlocksByZIndex() {
         this.#blocks = this.#blocks.sort(
             (a: any, b: any) =>
                 a.options.get('zIndex') - b.options.get('zIndex')

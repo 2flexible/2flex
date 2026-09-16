@@ -115,7 +115,8 @@ export class Canvas {
     isFocused: boolean
     isMouseEventAllowed: boolean
     #latestBlockZIndex: number
-    #invokedHigherZIndex?: number
+    #highestZIndex?: number
+    #registeredZIndexes: Map<number, number>
     #registeredBlocks: (typeof BaseBlock)[]
 
     constructor(
@@ -150,6 +151,7 @@ export class Canvas {
         this.#canvasEvents = {}
         this.#canvasAnimations = {}
         this.#latestBlockZIndex = 0
+        this.#registeredZIndexes = new Map()
         this.isFocused = false
         this.isMouseEventAllowed = false
         this.#registeredBlocks = defaultBlocks
@@ -247,7 +249,7 @@ export class Canvas {
                 if (event.shiftKey) {
                     const overflow = this.#overflowUnder(event, 'x')
                     if (overflow) {
-                        overflow.__overflowTranslateX(move/5)
+                        overflow.__overflowTranslateX(move / 5)
                         this.demandInvoke(overflow)
                     } else {
                         this.#view.tx += move
@@ -255,7 +257,7 @@ export class Canvas {
                 } else {
                     const overflow = this.#overflowUnder(event, 'y')
                     if (overflow) {
-                        overflow.__overflowTranslateY(move/5)
+                        overflow.__overflowTranslateY(move / 5)
                         this.demandInvoke(overflow)
                     } else {
                         this.#view.ty += move
@@ -272,7 +274,7 @@ export class Canvas {
             clientX: event.clientX,
             clientY: event.clientY,
         } as MouseEvent
-        const targets = this.#scene.getSortedNodesByZIndex()
+        const targets = this.#scene.getSortedBlocksByZIndex()
         for (let i = targets.length - 1; i >= 0; i--) {
             const block = targets[i]
             if (block.checkInBound(pointerEvent)) {
@@ -416,7 +418,7 @@ export class Canvas {
         const isRefresh = this.#queue['canvas:refresh:head']
         if (isRefresh) {
             this.#buildBlocksZIndex()
-            this.#scene.sortNodesByZIndex()
+            this.#scene.sortBlocksByZIndex()
             this.#sortAllDomEventsByZIndex()
             this.#registerDomEvents()
         }
@@ -448,7 +450,7 @@ export class Canvas {
         const wMaxY = wMinY + vh
 
         context.setTransform(v.scale, 0, 0, v.scale, v.tx, v.ty)
-        const sortedBlocks = this.#scene.getSortedNodesByZIndex()
+        const sortedBlocks = this.#scene.getSortedBlocksByZIndex()
         const tileSize = this.#grid.tileSize
         for (const tile of tiles) {
             if (tile.dirty) tile.paint(sortedBlocks)
@@ -804,21 +806,29 @@ export class Canvas {
     resetCursor() {
         this.changeCursor('auto')
     }
-    whoIsTheFirst(zIndex?: number) {
-        return this.#invokedHigherZIndex === zIndex
+    whoIsTheFirst(nodeId: number) {
+        const zIndex = this.#registeredZIndexes.get(nodeId)
+        return zIndex !== undefined && zIndex === this.#highestZIndex
     }
-    registerZIndex(zIndex: number) {
+    registerZIndex(nodeId: number, zIndex: number) {
+        this.#registeredZIndexes.set(nodeId, zIndex)
         if (
-            (this.#invokedHigherZIndex !== undefined &&
-                zIndex > this.#invokedHigherZIndex) ||
-            this.#invokedHigherZIndex === undefined
+            this.#highestZIndex === undefined ||
+            zIndex > this.#highestZIndex
         ) {
-            this.#invokedHigherZIndex = zIndex
+            this.#highestZIndex = zIndex
         }
     }
-    unregisterZIndex(zIndex: number) {
-        if (zIndex === this.#invokedHigherZIndex) {
-            this.#invokedHigherZIndex = undefined
+    unregisterZIndex(nodeId: number, zIndex: number) {
+        const current = this.#registeredZIndexes.get(nodeId)
+        if (current === undefined) return
+        this.#registeredZIndexes.delete(nodeId)
+        if (this.#highestZIndex !== undefined && current === this.#highestZIndex) {
+            let max: number | undefined = undefined
+            for (const z of this.#registeredZIndexes.values()) {
+                if (max === undefined || z > max) max = z
+            }
+            this.#highestZIndex = max
         }
     }
     demandInvoke(block: BaseBlock) {
