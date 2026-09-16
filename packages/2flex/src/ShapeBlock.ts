@@ -625,7 +625,7 @@ export class ShapeBlock extends Block {
     }
     render(): void {
         super.render()
-        if (this.__isHidden) return
+        if (this.hidden()) return
         this.beginPath()
         this.context?.save()
         // need to clip child before restore if its exist

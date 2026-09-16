@@ -448,3 +448,6 @@ export function reversePostOrderTraversal<T extends Node>(
         reversePostOrderTraversal(childs[i] as T, func)
     }
 }
+export function worldTileKey(worldCol: number, worldRow: number): string {
+    return `${worldCol},${worldRow}`
+}

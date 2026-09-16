@@ -42,6 +42,12 @@ interface CanvasCurrentPosition {
     z: number
 }
 
+interface CanvasView {
+    tx: number
+    ty: number
+    scale: number
+}
+
 interface CanvasEventsFunc {
     func: CustomEvent<Event>
     block: BaseBlock
@@ -68,6 +74,7 @@ interface Payload {
 
 export type QueuePayloadMap = {
     'canvas:refresh:head': boolean
+    'canvas:refresh:view': boolean
     'block:add': Set<BaseBlock>
     'block:remove': Set<BaseBlock>
     'block:cache': Set<BaseBlock>
@@ -101,7 +108,7 @@ export class Canvas {
     #context?: CanvasRenderingContext2D | null
     #boundingClient?: DOMRect
 
-    #currentPosition: CanvasCurrentPosition
+    #view: CanvasView
 
     #canvasEvents: CanvasEvents
     #canvasAnimations: { [animationId: AnimationId]: Animator }
@@ -109,6 +116,7 @@ export class Canvas {
     isFocused: boolean
     isMouseEventAllowed: boolean
     #isMousOutOfCanvas: boolean
+    #isSpaceDown: boolean
     #latestBlockZIndex: number
     #invokedHigherZIndex?: number
     #registeredBlocks: (typeof BaseBlock)[]
@@ -140,7 +148,7 @@ export class Canvas {
             tileSize: 256,
         }
 
-        this.#currentPosition = { x: 0, y: 0, z: 1 }
+        this.#view = { tx: 0, ty: 0, scale: 1 }
 
         this.#canvasEvents = {}
         this.#canvasAnimations = {}
@@ -148,6 +156,7 @@ export class Canvas {
         this.isFocused = false
         this.isMouseEventAllowed = false
         this.#isMousOutOfCanvas = false
+        this.#isSpaceDown = false
         this.#registeredBlocks = defaultBlocks
 
         if (this.options) this.#setOptions(this.options)
@@ -200,10 +209,10 @@ export class Canvas {
             this.#grid?.resize(this.width, this.height)
         }
 
-        this.#currentPosition = {
-            x: this.#defaultOptions.positionX,
-            y: this.#defaultOptions.positionY,
-            z: this.#defaultOptions.positionZ,
+        this.#view = {
+            tx: this.#defaultOptions.positionX,
+            ty: this.#defaultOptions.positionY,
+            scale: this.#defaultOptions.positionZ,
         }
     }
     #init() {
@@ -213,189 +222,155 @@ export class Canvas {
         this.context
         this.context?.save()
         if (this.options) this.#domCanvas.changeStyle(this.options)
+        this.#primeGrid()
         this.#canvasFocusHandler()
         this.#checkMousePositionInCanvas()
-        this.#setCanvasPosition()
-        this.#setCanvasZoom()
         if (this.#defaultOptions.history) this.#snapshotHandler()
         if (this.#defaultOptions.mouseMovement) this.#handMove()
         if (this.#defaultOptions.keyboardMovement) this.#keyboardMove()
         if (this.#defaultOptions.zoomType == 'point') this.#pointZoom()
         else if (this.#defaultOptions.zoomType == 'center') this.#centerZoom()
     }
-    #setCanvasPosition() {
-        this.#invokeChanges((block: BaseBlock) => {
-            block.__translateX(this.#currentPosition.x)
-            block.__translateY(this.#currentPosition.y)
-        })
-    }
-    #setCanvasZoom() {
-        this.#invokeChanges((block: BaseBlock) => {
-            block.__scale(this.#currentPosition.z)
-        })
+    #primeGrid() {
+        const v = this.#view
+        const vw = this.width / v.scale
+        const vh = this.height / v.scale
+        const wMinX = -v.tx / v.scale
+        const wMinY = -v.ty / v.scale
+        const wMaxX = wMinX + vw
+        const wMaxY = wMinY + vh
+        this.#grid.expandByViewport(wMinX, wMinY, wMaxX, wMaxY)
     }
     #keyboardMove() {
         const moveSpeed = this.#defaultOptions.moveSpeed
-        window.addEventListener(
+        this.canvas.addEventListener(
             'wheel',
             (event: WheelEvent) => {
                 if (!this.isFocused || event.ctrlKey) return
                 event.preventDefault()
-                let inBound = false
                 const move = event.deltaY < 0 ? moveSpeed : -moveSpeed
                 if (event.shiftKey) {
-                    this.#invokeChanges((block: BaseBlock) => {
-                        if (
-                            block.checkInBound(event) &&
-                            block.__isOverflowXScrollable
-                        ) {
-                            block.__overflowTranslateX(move)
-                            inBound = true
-                        } else block.__translateX(move)
-                    })
-                    if (!inBound) this.#currentPosition.x += move
+                    const overflow = this.#overflowUnder(event, 'x')
+                    if (overflow) overflow.__overflowTranslateX(move)
+                    else {
+                        this.#view.tx += move
+                    }
                 } else {
-                    this.#invokeChanges((block: BaseBlock) => {
-                        if (
-                            block.checkInBound(event) &&
-                            block.__isOverflowYScrollable
-                        ) {
-                            block.__overflowTranslateY(move)
-                            inBound = true
-                        } else block.__translateY(move)
-                    })
-                    if (!inBound) this.#currentPosition.y += move
+                    const overflow = this.#overflowUnder(event, 'y')
+                    if (overflow) overflow.__overflowTranslateY(move)
+                    else {
+                        this.#view.ty += move
+                    }
                 }
             },
             { passive: false }
         )
     }
+    #overflowUnder(event: WheelEvent, axis: 'x' | 'y') {
+        const pointerEvent = {
+            pageX: event.pageX,
+            pageY: event.pageY,
+            clientX: event.clientX,
+            clientY: event.clientY,
+        } as MouseEvent
+        const targets = this.#scene.getSortedNodesByZIndex()
+        for (let i = targets.length - 1; i >= 0; i--) {
+            const block = targets[i]
+            if (block.checkInBound(pointerEvent)) {
+                if (axis === 'x' && block.__isOverflowXScrollable) return block
+                if (axis === 'y' && block.__isOverflowYScrollable) return block
+            }
+        }
+        return undefined
+    }
     #handMove() {
-        let initX = 0
-        let initY = 0
-        let beforeX = 0
-        let beforeY = 0
-        let isMouseDown = false
-        let isKeyDown = false
+        let isDragging = false
+        let lastX = 0
+        let lastY = 0
         window.addEventListener('keydown', (event) => {
+            if (!this.isFocused) return
             if (event.code == 'Space') {
-                if (!isKeyDown) this.changeCursor('grab')
-                isKeyDown = true
+                if (!this.#isSpaceDown) this.changeCursor('grab')
+                this.#isSpaceDown = true
             }
         })
-        window.addEventListener(
-            'mousemove',
-            (event: MouseEvent) => {
-                if (!this.isFocused || this.#isMousOutOfCanvas) return
-                event.preventDefault()
-                if (event.buttons === 0) {
-                    isMouseDown = false
-                    if (isKeyDown) this.changeCursor('grab')
-                }
-
-                if (event.buttons == 1 && isKeyDown) {
-                    if (!isMouseDown) {
-                        initX = event.clientX
-                        initY = event.clientY
-                        beforeX = 0
-                        beforeY = 0
-                        isMouseDown = true
-                    }
-                    if (isMouseDown) {
-                        this.changeCursor('grabbing')
-                        this.isMouseEventAllowed = false
-                        let diffX = event.clientX - initX
-                        let diffY = event.clientY - initY
-                        if (diffX !== 0) {
-                            this.#invokeChanges((block: BaseBlock) => {
-                                block.__translateX(diffX - beforeX)
-                            })
-                            this.#currentPosition.x += diffX
-                            beforeX = diffX
-                        }
-                        if (diffY !== 0) {
-                            this.#invokeChanges((block: BaseBlock) => {
-                                block.__translateY(diffY - beforeY)
-                            })
-                            this.#currentPosition.y += diffY
-                            beforeY = diffY
-                        }
-                    }
-                }
-            },
-            { passive: false }
-        )
         window.addEventListener('keyup', () => {
-            this.resetCursor()
-            isKeyDown = false
+            if (!this.isFocused) return
+            if (this.#isSpaceDown) {
+                this.#isSpaceDown = false
+                isDragging = false
+                this.resetCursor()
+                this.isMouseEventAllowed = true
+            }
+        })
+        this.canvas.addEventListener('mousedown', (event: MouseEvent) => {
+            if (!this.isFocused) return
+            if (!this.#isSpaceDown || event.button !== 0) return
+            isDragging = true
+            lastX = event.clientX
+            lastY = event.clientY
+            this.changeCursor('grabbing')
+            this.isMouseEventAllowed = false
+            event.preventDefault()
+        })
+        this.canvas.addEventListener('mousemove', (event: MouseEvent) => {
+            if (!this.isFocused) return
+            if (event.buttons === 0 && this.#isSpaceDown) {
+                this.changeCursor('grab')
+            }
+            if (!isDragging || !this.#isSpaceDown) return
+            event.preventDefault()
+            const dx = event.clientX - lastX
+            const dy = event.clientY - lastY
+            if (dx === 0 && dy === 0) return
+            this.#view.tx += dx
+            this.#view.ty += dy
+            lastX = event.clientX
+            lastY = event.clientY
+        })
+        this.canvas.addEventListener('mouseup', () => {
+            if (!isDragging) return
+            isDragging = false
+            this.changeCursor(this.#isSpaceDown ? 'grab' : 'auto')
             this.isMouseEventAllowed = true
         })
     }
     #centerZoom() {
-        window.addEventListener(
+        this.canvas.addEventListener(
             'wheel',
             (event: WheelEvent) => {
-                if (!this.isFocused) return
+                if (!this.isFocused || !event.ctrlKey) return
                 event.preventDefault()
-                if (event.ctrlKey) {
-                    const scale =
-                        event.deltaY < 0
-                            ? this.#defaultOptions.zoomSpeed
-                            : this.#defaultOptions.zoomInvSpeed
-
-                    this.#invokeChanges((block: BaseBlock) => {
-                        const beforeW = block.width()
-                        const beforeH = block.height()
-                        block.__scale(scale)
-                        block.__translateX(
-                            -(Math.abs(block.width()) - Math.abs(beforeW)) / 2
-                        )
-                        block.__translateY(
-                            -(Math.abs(block.height()) - Math.abs(beforeH)) / 2
-                        )
-                    })
-                    this.#currentPosition.z *= scale
-                }
+                const k =
+                    event.deltaY < 0
+                        ? this.#defaultOptions.zoomSpeed
+                        : this.#defaultOptions.zoomInvSpeed
+                const cx = this.width / 2
+                const cy = this.height / 2
+                this.#view.tx = cx - (cx - this.#view.tx) * k
+                this.#view.ty = cy - (cy - this.#view.ty) * k
+                this.#view.scale *= k
             },
             { passive: false }
         )
     }
     #pointZoom() {
-        window.addEventListener(
+        this.canvas.addEventListener(
             'wheel',
             (event: WheelEvent) => {
-                if (!this.isFocused) return
-                if (event.ctrlKey) {
-                    event.preventDefault()
-                    const { x, y } = this.getCursorPosition(event)
-                    const scale =
-                        event.deltaY < 0
-                            ? this.#defaultOptions.zoomSpeed
-                            : this.#defaultOptions.zoomInvSpeed
-                    const positionX = x - (x - this.#currentPosition.x) * scale
-                    const positionY = y - (y - this.#currentPosition.y) * scale
-                    this.#invokeChanges((block) => {
-                        block.__scale(scale)
-                        block.__translateX(
-                            (Math.abs(block.x()) - x) * (scale - 1)
-                        )
-                        block.__translateY(
-                            (Math.abs(block.y()) - y) * (scale - 1)
-                        )
-                    })
-                    this.#currentPosition.x = positionX
-                    this.#currentPosition.y = positionY
-                }
+                if (!this.isFocused || !event.ctrlKey) return
+                event.preventDefault()
+                const { x, y } = this.getCursorPosition(event)
+                const k =
+                    event.deltaY < 0
+                        ? this.#defaultOptions.zoomSpeed
+                        : this.#defaultOptions.zoomInvSpeed
+                this.#view.tx = x - (x - this.#view.tx) * k
+                this.#view.ty = y - (y - this.#view.ty) * k
+                this.#view.scale *= k
             },
             { passive: false }
         )
-    }
-    #invokeChanges(func?: (block: BaseBlock) => void) {
-        const targets = this.#scene.getSortedNodesByZIndex()
-        for (const block of targets) {
-            func?.(block)
-            this.demandInvoke(block)
-        }
     }
     #canvasFocusHandler() {
         this.canvas.addEventListener('focusin', () => {
@@ -431,9 +406,9 @@ export class Canvas {
         this.#buildRemovedAnimations()
         this.#renderCachedBlocks()
         this.#refreshHead()
+        this.#drawCachedBlocks()
         this.#invokeAnimations(timestamp)
         this.#buildDemandedHistory()
-        this.#drawCachedBlocks()
         this.#clearQueue()
     }
     #clearQueue() {
@@ -459,28 +434,39 @@ export class Canvas {
     #drawCachedBlocks() {
         const context = this.context
         if (!context) return
-        const tiles = this.#grid.getDirtyTiles()
+        const tiles = this.#grid.allTiles
         if (tiles.length === 0) return
-        const sortedBlocks = this.#scene.getSortedNodesByZIndex()
-        for (const tile of tiles) {
-            tile.paint(sortedBlocks)
-        }
+        const v = this.#view
+
         context.save()
         context.setTransform(1, 0, 0, 1, 0, 0)
+        context.clearRect(0, 0, this.width, this.height)
+
+        const vw = this.width / v.scale
+        const vh = this.height / v.scale
+        const wMinX = -v.tx / v.scale
+        const wMinY = -v.ty / v.scale
+        const wMaxX = wMinX + vw
+        const wMaxY = wMinY + vh
+
+        context.setTransform(v.scale, 0, 0, v.scale, v.tx, v.ty)
+        const sortedBlocks = this.#scene.getSortedNodesByZIndex()
         const tileSize = this.#grid.tileSize
         for (const tile of tiles) {
+            if (tile.dirty) tile.paint(sortedBlocks)
             if (!tile.bitmap) continue
-            const x = tile.col * tileSize
-            const y = tile.row * tileSize
-            context.clearRect(x, y, tileSize, tileSize)
-            context.drawImage(
-                tile.bitmap,
-                tile.col * tileSize,
-                tile.row * tileSize,
-                tileSize,
-                tileSize
+            const tx = tile.col * tileSize
+            const ty = tile.row * tileSize
+            if (
+                tx + tileSize < wMinX ||
+                tx > wMaxX ||
+                ty + tileSize < wMinY ||
+                ty > wMaxY
             )
+                continue
+            context.drawImage(tile.bitmap, tx, ty, tileSize, tileSize)
         }
+        context.setTransform(1, 0, 0, 1, 0, 0)
         context.restore()
     }
     #invokeAnimations(timestamp: Timestamp) {
@@ -793,10 +779,19 @@ export class Canvas {
     get grid() {
         return this.#grid
     }
-    getCursorPosition(event: MouseEvent) {
+    get view(): CanvasView {
+        return { tx: this.#view.tx, ty: this.#view.ty, scale: this.#view.scale }
+    }
+    get currentPosition(): CanvasCurrentPosition {
+        return { x: this.#view.tx, y: this.#view.ty, z: this.#view.scale }
+    }
+    getCursorPosition(event: MouseEvent | WheelEvent) {
+        const r = this.boundingClientRect
+        const px = (event as MouseEvent).pageX - r.left
+        const py = (event as MouseEvent).pageY - r.top
         return {
-            x: event.pageX - this.boundingClientRect.left,
-            y: event.pageY - this.boundingClientRect.top,
+            x: (px - this.#view.tx) / this.#view.scale,
+            y: (py - this.#view.ty) / this.#view.scale,
         }
     }
     clearRect() {
@@ -827,6 +822,9 @@ export class Canvas {
         if (zIndex === this.#invokedHigherZIndex) {
             this.#invokedHigherZIndex = undefined
         }
+    }
+    demandRefreshView() {
+        this.#queue['canvas:refresh:view'] = true
     }
     demandInvoke(block: BaseBlock) {
         const set = (this.#queue['block:cache'] ??= new Set())
