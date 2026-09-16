@@ -1089,10 +1089,6 @@ export class BaseBlock extends Node {
                 this.bottom(this.bottom()! - y)
         }
     }
-    __scale(scale: number) {
-        this.width(this.width() * scale)
-        this.height(this.height() * scale)
-    }
     __addEvent<E extends Event>(type: string, func: CustomEvent<E>) {
         if (this.canvas) {
             this.canvas.demandAddEvent(this, type, func as CustomEvent<Event>)

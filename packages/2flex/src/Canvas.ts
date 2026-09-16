@@ -74,7 +74,6 @@ interface Payload {
 
 export type QueuePayloadMap = {
     'canvas:refresh:head': boolean
-    'canvas:refresh:view': boolean
     'block:add': Set<BaseBlock>
     'block:remove': Set<BaseBlock>
     'block:cache': Set<BaseBlock>
@@ -115,8 +114,6 @@ export class Canvas {
 
     isFocused: boolean
     isMouseEventAllowed: boolean
-    #isMousOutOfCanvas: boolean
-    #isSpaceDown: boolean
     #latestBlockZIndex: number
     #invokedHigherZIndex?: number
     #registeredBlocks: (typeof BaseBlock)[]
@@ -155,8 +152,6 @@ export class Canvas {
         this.#latestBlockZIndex = 0
         this.isFocused = false
         this.isMouseEventAllowed = false
-        this.#isMousOutOfCanvas = false
-        this.#isSpaceDown = false
         this.#registeredBlocks = defaultBlocks
 
         if (this.options) this.#setOptions(this.options)
@@ -287,17 +282,18 @@ export class Canvas {
         let isDragging = false
         let lastX = 0
         let lastY = 0
+        let isSpaceDown = false
         window.addEventListener('keydown', (event) => {
             if (!this.isFocused) return
             if (event.code == 'Space') {
-                if (!this.#isSpaceDown) this.changeCursor('grab')
-                this.#isSpaceDown = true
+                if (!isSpaceDown) this.changeCursor('grab')
+                isSpaceDown = true
             }
         })
         window.addEventListener('keyup', () => {
             if (!this.isFocused) return
-            if (this.#isSpaceDown) {
-                this.#isSpaceDown = false
+            if (isSpaceDown) {
+                isSpaceDown = false
                 isDragging = false
                 this.resetCursor()
                 this.isMouseEventAllowed = true
@@ -305,7 +301,7 @@ export class Canvas {
         })
         this.canvas.addEventListener('mousedown', (event: MouseEvent) => {
             if (!this.isFocused) return
-            if (!this.#isSpaceDown || event.button !== 0) return
+            if (!isSpaceDown || event.button !== 0) return
             isDragging = true
             lastX = event.clientX
             lastY = event.clientY
@@ -315,10 +311,10 @@ export class Canvas {
         })
         this.canvas.addEventListener('mousemove', (event: MouseEvent) => {
             if (!this.isFocused) return
-            if (event.buttons === 0 && this.#isSpaceDown) {
+            if (event.buttons === 0 && isSpaceDown) {
                 this.changeCursor('grab')
             }
-            if (!isDragging || !this.#isSpaceDown) return
+            if (!isDragging || !isSpaceDown) return
             event.preventDefault()
             const dx = event.clientX - lastX
             const dy = event.clientY - lastY
@@ -331,7 +327,7 @@ export class Canvas {
         this.canvas.addEventListener('mouseup', () => {
             if (!isDragging) return
             isDragging = false
-            this.changeCursor(this.#isSpaceDown ? 'grab' : 'auto')
+            this.changeCursor(isSpaceDown ? 'grab' : 'auto')
             this.isMouseEventAllowed = true
         })
     }
@@ -390,11 +386,9 @@ export class Canvas {
     #checkMousePositionInCanvas() {
         this.canvas.addEventListener('mouseenter', () => {
             this.isMouseEventAllowed = true
-            this.#isMousOutOfCanvas = false
         })
         this.canvas.addEventListener('mouseleave', () => {
             this.isMouseEventAllowed = false
-            this.#isMousOutOfCanvas = true
         })
     }
     #render(timestamp: Timestamp) {
@@ -822,9 +816,6 @@ export class Canvas {
         if (zIndex === this.#invokedHigherZIndex) {
             this.#invokedHigherZIndex = undefined
         }
-    }
-    demandRefreshView() {
-        this.#queue['canvas:refresh:view'] = true
     }
     demandInvoke(block: BaseBlock) {
         const set = (this.#queue['block:cache'] ??= new Set())
