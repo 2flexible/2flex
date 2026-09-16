@@ -736,14 +736,18 @@ export class BaseBlock extends Node {
             this.verticalFlip(true)
         else this.verticalFlip(false)
 
-        this.setOptionCurrent(
-            'rotationCenterX',
-            rotationCenterX + diffX + diffW / 2
-        )
-        this.setOptionCurrent(
-            'rotationCenterY',
-            rotationCenterY + diffY + diffH / 2
-        )
+        const shouldTrackOwnCenter =
+            this.rotationCenter() !== 'parent' || !this.__hasParentBlock
+        if (shouldTrackOwnCenter) {
+            this.setOptionCurrent(
+                'rotationCenterX',
+                rotationCenterX + diffX + diffW / 2
+            )
+            this.setOptionCurrent(
+                'rotationCenterY',
+                rotationCenterY + diffY + diffH / 2
+            )
+        }
         this.setOptionCurrent('x', currentX)
         this.setOptionCurrent('y', currentY)
         this.setOptionCurrent('width', currentWidth)
