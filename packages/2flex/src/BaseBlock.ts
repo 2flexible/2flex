@@ -664,34 +664,50 @@ export class BaseBlock extends Node {
             currentHeight = maxHeight
 
         if (position === 'fixed' || position === 'absolute') {
-            if (top !== undefined) currentY = top
+            const tx = this.canvas?.view.tx ?? 0
+            const ty = this.canvas?.view.ty ?? 0
+            const scale = this.canvas?.view.scale ?? 1
+            const invScale = 1 / scale
+            if (top !== undefined) currentY = (top - ty) * invScale
             else if (bottom !== undefined)
                 currentY =
-                    Math.abs((this.canvas?.height || 1) - currentHeight) -
-                    bottom
-            if (left !== undefined) currentX = left
+                    ((Math.abs((this.canvas?.height || 1) - currentHeight) -
+                        bottom -
+                        ty) *
+                        invScale) /
+                    1
+            if (left !== undefined) currentX = (left - tx) * invScale
             else if (right !== undefined)
                 currentX =
-                    Math.abs((this.canvas?.width || 1) - currentWidth) - right
+                    ((Math.abs((this.canvas?.width || 1) - currentWidth) -
+                        right -
+                        tx) *
+                        invScale) /
+                    1
         } else if (position === 'sticky' && !this.__hasParentBlock) {
-            if (top !== undefined && currentY < top) {
-                currentY = top
+            const tx = this.canvas?.view.tx ?? 0
+            const ty = this.canvas?.view.ty ?? 0
+            const scale = this.canvas?.view.scale ?? 1
+            const invScale = 1 / scale
+            const canvasH = this.canvas?.height || 1
+            const canvasW = this.canvas?.width || 1
+            if (top !== undefined && currentY * scale + ty < top) {
+                currentY = (top - ty) * invScale
             } else if (
                 bottom !== undefined &&
-                currentY + currentHeight > (this.canvas?.height || 1) - bottom
+                (currentY + currentHeight) * scale + ty > canvasH - bottom
             ) {
                 currentY =
-                    Math.abs((this.canvas?.height || 1) - currentHeight) -
-                    bottom
+                    ((canvasH - currentHeight - bottom - ty) * invScale) / 1
             }
-            if (left !== undefined && currentX < left) {
-                currentX = left
+            if (left !== undefined && currentX * scale + tx < left) {
+                currentX = (left - tx) * invScale
             } else if (
                 right !== undefined &&
-                currentX + currentWidth > (this.canvas?.width || 1) - right
+                (currentX + currentWidth) * scale + tx > canvasW - right
             ) {
                 currentX =
-                    Math.abs((this.canvas?.width || 1) - currentWidth) - right
+                    ((canvasW - currentWidth - right - tx) * invScale) / 1
             }
         } else if (position === 'relative' && !this.__hasParentBlock) {
             if (left !== undefined) currentX = left

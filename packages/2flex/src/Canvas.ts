@@ -107,7 +107,7 @@ export class Canvas {
     #context?: CanvasRenderingContext2D | null
     #boundingClient?: DOMRect
 
-    #view: CanvasView
+    view: CanvasView
 
     #canvasEvents: CanvasEvents
     #canvasAnimations: { [animationId: AnimationId]: Animator }
@@ -146,7 +146,7 @@ export class Canvas {
             tileSize: 256,
         }
 
-        this.#view = { tx: 0, ty: 0, scale: 1 }
+        this.view = { tx: 0, ty: 0, scale: 1 }
 
         this.#canvasEvents = {}
         this.#canvasAnimations = {}
@@ -206,7 +206,7 @@ export class Canvas {
             this.#grid?.resize(this.width, this.height)
         }
 
-        this.#view = {
+        this.view = {
             tx: this.#defaultOptions.positionX,
             ty: this.#defaultOptions.positionY,
             scale: this.#defaultOptions.positionZ,
@@ -229,7 +229,7 @@ export class Canvas {
         else if (this.#defaultOptions.zoomType == 'center') this.#centerZoom()
     }
     #primeGrid() {
-        const v = this.#view
+        const v = this.view
         const vw = this.width / v.scale
         const vh = this.height / v.scale
         const wMinX = -v.tx / v.scale
@@ -252,7 +252,8 @@ export class Canvas {
                         overflow.__overflowTranslateX(move / 5)
                         this.demandInvoke(overflow)
                     } else {
-                        this.#view.tx += move
+                        this.view.tx += move
+                        this.#demandInvokeExplicitBlocks()
                     }
                 } else {
                     const overflow = this.#overflowUnder(event, 'y')
@@ -260,7 +261,8 @@ export class Canvas {
                         overflow.__overflowTranslateY(move / 5)
                         this.demandInvoke(overflow)
                     } else {
-                        this.#view.ty += move
+                        this.view.ty += move
+                        this.#demandInvokeExplicitBlocks()
                     }
                 }
             },
@@ -282,7 +284,6 @@ export class Canvas {
                 if (axis === 'y' && block.__isOverflowYScrollable) return block
             }
         }
-        return undefined
     }
     #handMove() {
         let isDragging = false
@@ -290,15 +291,13 @@ export class Canvas {
         let lastY = 0
         let isSpaceDown = false
         window.addEventListener('keydown', (event) => {
-            if (!this.isFocused) return
-            if (event.code == 'Space') {
+            if (event.code == 'Space' && this.isFocused) {
                 if (!isSpaceDown) this.changeCursor('grab')
                 isSpaceDown = true
             }
         })
         window.addEventListener('keyup', () => {
-            if (!this.isFocused) return
-            if (isSpaceDown) {
+            if (isSpaceDown && this.isFocused) {
                 isSpaceDown = false
                 isDragging = false
                 this.resetCursor()
@@ -306,8 +305,7 @@ export class Canvas {
             }
         })
         this.canvas.addEventListener('mousedown', (event: MouseEvent) => {
-            if (!this.isFocused) return
-            if (!isSpaceDown || event.button !== 0) return
+            if (!this.isFocused || !isSpaceDown || event.button !== 0) return
             isDragging = true
             lastX = event.clientX
             lastY = event.clientY
@@ -316,25 +314,26 @@ export class Canvas {
             event.preventDefault()
         })
         this.canvas.addEventListener('mousemove', (event: MouseEvent) => {
-            if (!this.isFocused) return
-            if (event.buttons === 0 && isSpaceDown) {
-                this.changeCursor('grab')
+            if (isDragging && isSpaceDown && this.isFocused) {
+                if (event.buttons === 0) this.changeCursor('grab')
+                event.preventDefault()
+                const dx = event.clientX - lastX
+                const dy = event.clientY - lastY
+                if (dx !== 0 || dy !== 0) {
+                    this.view.tx += dx
+                    this.view.ty += dy
+                    lastX = event.clientX
+                    lastY = event.clientY
+                    this.#demandInvokeExplicitBlocks()
+                }
             }
-            if (!isDragging || !isSpaceDown) return
-            event.preventDefault()
-            const dx = event.clientX - lastX
-            const dy = event.clientY - lastY
-            if (dx === 0 && dy === 0) return
-            this.#view.tx += dx
-            this.#view.ty += dy
-            lastX = event.clientX
-            lastY = event.clientY
         })
         this.canvas.addEventListener('mouseup', () => {
-            if (!isDragging) return
-            isDragging = false
-            this.changeCursor(isSpaceDown ? 'grab' : 'auto')
-            this.isMouseEventAllowed = true
+            if (isDragging) {
+                isDragging = false
+                this.changeCursor(isSpaceDown ? 'grab' : 'auto')
+                this.isMouseEventAllowed = true
+            }
         })
     }
     #centerZoom() {
@@ -349,9 +348,10 @@ export class Canvas {
                         : this.#defaultOptions.zoomInvSpeed
                 const cx = this.width / 2
                 const cy = this.height / 2
-                this.#view.tx = cx - (cx - this.#view.tx) * k
-                this.#view.ty = cy - (cy - this.#view.ty) * k
-                this.#view.scale *= k
+                this.view.tx = cx - (cx - this.view.tx) * k
+                this.view.ty = cy - (cy - this.view.ty) * k
+                this.view.scale *= k
+                this.#demandInvokeExplicitBlocks()
             },
             { passive: false }
         )
@@ -367,9 +367,10 @@ export class Canvas {
                     event.deltaY < 0
                         ? this.#defaultOptions.zoomSpeed
                         : this.#defaultOptions.zoomInvSpeed
-                this.#view.tx = x - (x - this.#view.tx) * k
-                this.#view.ty = y - (y - this.#view.ty) * k
-                this.#view.scale *= k
+                this.view.tx = x - (x - this.view.tx) * k
+                this.view.ty = y - (y - this.view.ty) * k
+                this.view.scale *= k
+                this.#demandInvokeExplicitBlocks()
             },
             { passive: false }
         )
@@ -436,7 +437,7 @@ export class Canvas {
         if (!context) return
         const tiles = this.#grid.allTiles
         if (tiles.length === 0) return
-        const v = this.#view
+        const v = this.view
 
         context.save()
         context.setTransform(1, 0, 0, 1, 0, 0)
@@ -468,6 +469,14 @@ export class Canvas {
         }
         context.setTransform(1, 0, 0, 1, 0, 0)
         context.restore()
+    }
+    #demandInvokeExplicitBlocks() {
+        const sortedBlocks = this.#scene.getSortedBlocksByZIndex()
+        const explicitBlocks = sortedBlocks.filter((block) => {
+            const position = block.getOptionCurrent('position')
+            return position === 'fixed' || position === 'sticky'
+        })
+        for (const block of explicitBlocks) this.demandInvoke(block)
     }
     #invokeAnimations(timestamp: Timestamp) {
         for (const animeFunc of Object.values(this.#canvasAnimations)) {
@@ -776,22 +785,16 @@ export class Canvas {
             this.#boundingClient = this.canvas.getBoundingClientRect()
         return this.#boundingClient
     }
-    get grid() {
-        return this.#grid
-    }
-    get view(): CanvasView {
-        return { tx: this.#view.tx, ty: this.#view.ty, scale: this.#view.scale }
-    }
     get currentPosition(): CanvasCurrentPosition {
-        return { x: this.#view.tx, y: this.#view.ty, z: this.#view.scale }
+        return { x: this.view.tx, y: this.view.ty, z: this.view.scale }
     }
     getCursorPosition(event: MouseEvent | WheelEvent) {
         const r = this.boundingClientRect
         const px = (event as MouseEvent).pageX - r.left
         const py = (event as MouseEvent).pageY - r.top
         return {
-            x: (px - this.#view.tx) / this.#view.scale,
-            y: (py - this.#view.ty) / this.#view.scale,
+            x: (px - this.view.tx) / this.view.scale,
+            y: (py - this.view.ty) / this.view.scale,
         }
     }
     clearRect() {
@@ -812,10 +815,7 @@ export class Canvas {
     }
     registerZIndex(nodeId: number, zIndex: number) {
         this.#registeredZIndexes.set(nodeId, zIndex)
-        if (
-            this.#highestZIndex === undefined ||
-            zIndex > this.#highestZIndex
-        ) {
+        if (this.#highestZIndex === undefined || zIndex > this.#highestZIndex) {
             this.#highestZIndex = zIndex
         }
     }
@@ -823,7 +823,10 @@ export class Canvas {
         const current = this.#registeredZIndexes.get(nodeId)
         if (current === undefined) return
         this.#registeredZIndexes.delete(nodeId)
-        if (this.#highestZIndex !== undefined && current === this.#highestZIndex) {
+        if (
+            this.#highestZIndex !== undefined &&
+            current === this.#highestZIndex
+        ) {
             let max: number | undefined = undefined
             for (const z of this.#registeredZIndexes.values()) {
                 if (max === undefined || z > max) max = z
