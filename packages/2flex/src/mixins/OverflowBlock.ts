@@ -113,6 +113,13 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             if (!this.#overflowXscrollBarBlock) return
             const { minX, maxX, minY, maxY } = this.#visualBounds()
             const coverTop = Math.max(maxY - OVERFLOW_AREA_GAP, minY)
+            const scale = this.canvas?.view.scale ?? 1
+            const tx = this.canvas?.view.tx ?? 0
+            const ty = this.canvas?.view.ty ?? 0
+            const position = this.getOptionCurrent('position')
+            let isExpilict = position === 'fixed' || position === 'sticky'
+            const left = !isExpilict ? minX : minX * scale + tx
+            const top = !isExpilict ? coverTop : coverTop * scale + ty
             this.#overflowXscrollBarBlock.rotationCenterX(
                 this.rotationCenterX()
             )
@@ -120,8 +127,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 this.rotationCenterY()
             )
             this.#overflowXscrollBarBlock.rotate(this.rotate())
-            this.#overflowXscrollBarBlock.left(minX)
-            this.#overflowXscrollBarBlock.top(coverTop)
+            this.#overflowXscrollBarBlock.left(left)
+            this.#overflowXscrollBarBlock.top(top)
             this.#overflowXscrollBarBlock.width(maxX - minX)
             this.#overflowXscrollBarBlock.height(OVERFLOW_AREA_GAP)
             // Showing overflow scroll bar block on top of the child blocks
@@ -138,6 +145,15 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 OVERFLOW_AREA_GAP,
                 maxY - minY - this.#overflowScrollYHeightCut
             )
+            const scale = this.canvas?.view.scale ?? 1
+            const tx = this.canvas?.view.tx ?? 0
+            const ty = this.canvas?.view.ty ?? 0
+            const position = this.getOptionCurrent('position')
+            let isExpilict = position === 'fixed' || position === 'sticky'
+            const left = !isExpilict
+                ? maxX - OVERFLOW_AREA_GAP
+                : (maxX - OVERFLOW_AREA_GAP) * scale + tx
+            const top = !isExpilict ? minY : minY * scale + ty
             this.#overflowYscrollBarBlock.rotationCenterX(
                 this.rotationCenterX()
             )
@@ -145,8 +161,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 this.rotationCenterY()
             )
             this.#overflowYscrollBarBlock.rotate(this.rotate())
-            this.#overflowYscrollBarBlock.left(maxX - OVERFLOW_AREA_GAP)
-            this.#overflowYscrollBarBlock.top(minY)
+            this.#overflowYscrollBarBlock.left(left)
+            this.#overflowYscrollBarBlock.top(top)
             this.#overflowYscrollBarBlock.width(OVERFLOW_AREA_GAP)
             this.#overflowYscrollBarBlock.height(coverHeight)
             // Showing overflow scroll bar block on top of the child blocks
@@ -367,32 +383,11 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
         #overflowXScrollBar(block: any) {
             if (block.#overflowXscrollBarBlock)
                 return block.#overflowXscrollBarBlock
-            // Intilizating overflow block and its realted cordinates
-            const x0 = block.x()
-            const x1 = x0 + block.width()
-            const y0 = block.y()
-            const y1 = y0 + block.height()
-            const minX = Math.min(x0, x1)
-            const maxX = Math.max(x0, x1)
-            const minY = Math.min(y0, y1)
-            const maxY = Math.max(y0, y1)
-            const coverTop = Math.max(maxY - OVERFLOW_AREA_GAP, minY)
             block.#overflowXscrollBarBlock = new BaseBlock({
                 name: OVERFLOW_SCROLL_BAR_BLOCK_NAME,
-                width: maxX - minX,
-                height: OVERFLOW_AREA_GAP,
                 position: 'fixed',
-                left: minX,
-                top: coverTop,
-                // Showing overflow scroll bar block on top of the child blocks
-                zIndex:
-                    1 +
-                    (block.__getHighestChildZIndex() ?? 0) +
-                    (block.#overflowYscrollBarBlock ? 1 : 0),
-                rotationCenterX: block.rotationCenterX(),
-                rotationCenterY: block.rotationCenterY(),
-                rotate: block.rotate(),
             })
+            block.#updateOverflowXBlockParameters()
             // moving overflow scrollbar
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
@@ -471,8 +466,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
                         const signX = block.horizontalFlip() ? -1 : 1
                         const scrollDeltaX =
-                            (Math.cos(angle) * dxX +
-                                Math.sin(angle) * dxY) *
+                            (Math.cos(angle) * dxX + Math.sin(angle) * dxY) *
                             signX
                         block.overflowPositionX(
                             block.overflowPositionX() -
@@ -558,33 +552,12 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
         #overflowYScrollBar(block: any) {
             if (block.#overflowYscrollBarBlock)
                 return block.#overflowYscrollBarBlock
-            const x0 = block.x()
-            const x1 = x0 + block.width()
-            const y0 = block.y()
-            const y1 = y0 + block.height()
-            const minX = Math.min(x0, x1)
-            const maxX = Math.max(x0, x1)
-            const minY = Math.min(y0, y1)
-            const maxY = Math.max(y0, y1)
-            const coverHeight = Math.max(
-                OVERFLOW_AREA_GAP,
-                maxY - minY - block.#overflowScrollYHeightCut
-            )
-            const coverTop = Math.max(minY, maxY - coverHeight)
+
             block.#overflowYscrollBarBlock = new BaseBlock({
                 name: OVERFLOW_SCROLL_BAR_BLOCK_NAME,
-                width: OVERFLOW_AREA_GAP,
-                height: coverHeight,
                 position: 'fixed',
-                left: maxX - OVERFLOW_AREA_GAP,
-                top: coverTop,
-                // Showing overflow scroll bar block on top of the child blocks
-                zIndex: 1 + (block.__getHighestChildZIndex() ?? 0),
-                rotationCenterX: block.rotationCenterX(),
-                rotationCenterY: block.rotationCenterY(),
-                rotate: block.rotate(),
             })
-
+            block.#updateOverflowYBlockParameters()
             // moving overflow scrollbar
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
@@ -667,8 +640,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
                         const signY = block.verticalFlip() ? -1 : 1
                         const scrollDeltaY =
-                            (-Math.sin(angle) * dxX +
-                                Math.cos(angle) * dxY) *
+                            (-Math.sin(angle) * dxX + Math.cos(angle) * dxY) *
                             signY
                         block.overflowPositionY(
                             block.overflowPositionY() -
@@ -725,7 +697,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     )
                     //  while inner scroll bar in minimum width need to calculate correct cordiantes
                     const verticalFlipped = block.verticalFlip()
-                    const innerCordX = overflowYScrollBar.x() + OVERFLOW_INNER_AREA_GAP
+                    const innerCordX =
+                        overflowYScrollBar.x() + OVERFLOW_INNER_AREA_GAP
                     const innerCordY = verticalFlipped
                         ? overflowYScrollBar.y() +
                           overflowYScrollBar.height() -

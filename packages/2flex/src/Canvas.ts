@@ -14,6 +14,7 @@ import {
     AnimationId,
 } from './types'
 import { getPrototype } from './Utils'
+import { HOT_LINE_BLOCK_NAME, OVERFLOW_SCROLL_BAR_BLOCK_NAME } from './const'
 
 // Canvas options shouldn't be style properties
 interface CanvasOptions {
@@ -474,7 +475,12 @@ export class Canvas {
         const sortedBlocks = this.#scene.getSortedBlocksByZIndex()
         const explicitBlocks = sortedBlocks.filter((block) => {
             const position = block.getOptionCurrent('position')
-            return position === 'fixed' || position === 'sticky'
+            const name = block.getOptionCurrent('name')
+            return (
+                (position === 'fixed' || position === 'sticky') &&
+                name !== OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
+                name !== HOT_LINE_BLOCK_NAME
+            )
         })
         for (const block of explicitBlocks) this.demandInvoke(block)
     }
