@@ -53,6 +53,8 @@ export class Block extends OverflowBlock(
     updateChildsCordinate(): void {
         const blockHorizontalFlip = this.horizontalFlip()
         const blockVerticalFlip = this.verticalFlip()
+        const overflowXSign = blockHorizontalFlip ? -1 : 1
+        const overflowYSign = blockVerticalFlip ? -1 : 1
 
         const pWidth = Math.abs(this.width())
         const pHeight = Math.abs(this.height())
@@ -118,8 +120,14 @@ export class Block extends OverflowBlock(
             const blockXStart = startX + pPaddingLeft + blockMarginLeft
             const blockYStart = startY + pPaddingTop + blockMarginTop
 
-            let x = blockXStart + cornerLeftX + this.overflowPositionX()
-            let y = blockYStart + cornerTopY + this.overflowPositionY()
+            let x =
+                blockXStart +
+                cornerLeftX +
+                this.overflowPositionX() * overflowXSign
+            let y =
+                blockYStart +
+                cornerTopY +
+                this.overflowPositionY() * overflowYSign
 
             if (blockPosition === 'relative') {
                 if (b.left() !== undefined) x += b.left()!
@@ -134,7 +142,7 @@ export class Block extends OverflowBlock(
                         Math.abs(this.overflowPositionY()) >=
                             blockYStart - b.top()!
                     ) {
-                        y += b.top()! - (this.overflowPositionY() + startY)
+                        y += b.top()! - (this.overflowPositionY() * overflowYSign + startY)
                     } else if (
                         b.bottom() !== undefined &&
                         Math.abs(this.overflowPositionY()) <=
@@ -144,7 +152,7 @@ export class Block extends OverflowBlock(
                     ) {
                         y +=
                             -b.bottom()! -
-                            (this.overflowPositionY() + startY) +
+                            (this.overflowPositionY() * overflowYSign + startY) +
                             Math.abs(pHeight - blockH)
                     }
                 }
@@ -154,7 +162,7 @@ export class Block extends OverflowBlock(
                         Math.abs(this.overflowPositionX()) >=
                             blockXStart - b.left()!
                     ) {
-                        x += b.left()! - (this.overflowPositionX() + startX)
+                        x += b.left()! - (this.overflowPositionX() * overflowXSign + startX)
                     } else if (
                         b.right() !== undefined &&
                         Math.abs(this.overflowPositionX()) <=
@@ -162,7 +170,7 @@ export class Block extends OverflowBlock(
                     ) {
                         x +=
                             b.right()! -
-                            (this.overflowPositionX() + startX) +
+                            (this.overflowPositionX() * overflowXSign + startX) +
                             Math.abs(pWidth - blockW)
                     }
                 }
