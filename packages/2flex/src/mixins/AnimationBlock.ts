@@ -60,6 +60,7 @@ export interface KeyframeIterationConfig {
     iter: number
     currentOptIdx: number
     maxKeyframeLen: number
+    pauseStartedAt: number
 }
 
 export type CallbackAnimator = (timestamp: number, easing: number) => void
@@ -93,11 +94,13 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
             const config = this.#keyframeIterationConfig[animationId]
             config['isFinished'] = false
             config['isRunning'] = true
-            config.iter = 0
-            config.startTime = 0
+            const pauseDuration = performance.now() - config.pauseStartedAt
+            config.startTime += pauseDuration
         }
         animationStop(animationId: AnimationId) {
-            this.#keyframeIterationConfig[animationId]['isRunning'] = false
+            const config = this.#keyframeIterationConfig[animationId]
+            config['isRunning'] = false
+            config['pauseStartedAt'] = performance.now()
         }
         animationFinish(animationId: AnimationId) {
             this.#keyframeIterationConfig[animationId]['isFinished'] = true
@@ -256,6 +259,7 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 startTime: 0,
                 currentOptIdx: 0,
                 maxKeyframeLen: 0,
+                pauseStartedAt: 0,
             }
         }
         #buildAnimator(
