@@ -289,7 +289,6 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     return
 
                 if (!config.startTime) {
-                    config.iter -= 1
                     config.startTime = timestamp + settings.delay
                 }
                 if (
@@ -299,22 +298,15 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     config.isFinished = true
                     config.isRunning = false
                     settings.onFinish()
+                    return
                 }
 
+                const rawProgress =
+                    (timestamp - config.startTime) / settings.duration
                 const parsedEasing = easingParser(settings.easing)(
-                    clamp(
-                        (timestamp - config.startTime) / settings.duration,
-                        0,
-                        1
-                    )
+                    clamp(rawProgress, 0, 1)
                 )
-                if (
-                    parsedEasing === 1 &&
-                    (settings.direction == 'alternate' ||
-                        settings.direction == 'alternate-reverse')
-                ) {
-                    config.startTime = timestamp
-                }
+                const segmentComplete = rawProgress >= 1
                 if (callback) callback(timestamp, parsedEasing)
 
                 const keyframes = this.#keyframes[animationId]
@@ -366,8 +358,6 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     let endVal = valueT.breakPoints[nextIdx]
                     let currentVal = valueT.currentVal
 
-                    let statement = null
-
                     if (valueT.category === 'color') {
                         const cancelOutR =
                             startVal[0] < endVal[0] ? startVal[0] : endVal[0]
@@ -409,23 +399,6 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                                 currentVal[3] + off[3],
                             ])
                         )
-                        statement =
-                            ((startVal[0] <= endVal[0] &&
-                                currentVal[0] >= endVal[0]) ||
-                                (startVal[0] >= endVal[0] &&
-                                    currentVal[0] <= endVal[0])) &&
-                            ((startVal[1] <= endVal[1] &&
-                                currentVal[1] >= endVal[1]) ||
-                                (startVal[1] >= endVal[1] &&
-                                    currentVal[1] <= endVal[1])) &&
-                            ((startVal[2] <= endVal[2] &&
-                                currentVal[2] >= endVal[2]) ||
-                                (startVal[2] >= endVal[2] &&
-                                    currentVal[2] <= endVal[2])) &&
-                            ((startVal[3] <= endVal[3] &&
-                                currentVal[3] >= endVal[3]) ||
-                                (startVal[3] >= endVal[3] &&
-                                    currentVal[3] <= endVal[3]))
                     } else {
                         const cancelOut = startVal < endVal ? startVal : endVal
                         const lerped =
@@ -435,11 +408,8 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         currentVal = lerped
                         off = off ?? 0
                         valueT.invoker?.value.call(this, currentVal + off)
-                        statement =
-                            (startVal <= endVal && currentVal >= endVal) ||
-                            (startVal >= endVal && currentVal <= endVal)
                     }
-                    if (statement) {
+                    if (segmentComplete) {
                         currentIdx += iterDirection
                         const lastIdx = valueT.breakPoints.length - 1
                         if (
@@ -485,11 +455,17 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     valueT.currentVal = currentVal
                 }
 
-                if (
-                    config.startTime &&
-                    config.startTime === timestamp + settings.delay
-                ) {
+                if (segmentComplete) {
                     config.iter += 1
+                    if (
+                        settings.iterations !== Infinity &&
+                        config.iter === settings.iterations
+                    ) {
+                        config.isFinished = true
+                        config.isRunning = false
+                        settings.onFinish()
+                        return
+                    }
                 }
 
                 this.__invokeChange()
