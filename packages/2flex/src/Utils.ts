@@ -116,64 +116,63 @@ export function rotateCordinatesByRadian(
     }
 }
 
-// This is based on `WebCore/platform/graphics/UnitBezier.h` in WebKit.
+/**
+ * Cubic Bezier solver adapted from https://github.com/gre/bezier-easing
+ * (c) 2014 Gaëtan Renaudeau
+ */
+const { cbrt, sqrt, PI } = Math
+
 export function bezierEasing(
-    p1x: number,
-    p1y: number,
-    p2x: number,
-    p2y: number
+    mX1: number,
+    mY1: number,
+    mX2: number,
+    mY2: number
 ): CubicBezier {
-    const cx = 3 * p1x,
-        bx = 3 * (p2x - p1x) - cx,
-        ax = 1 - cx - bx,
-        cy = 3 * p1y,
-        by = 3 * (p2y - p1y) - cy,
-        ay = 1 - cy - by
-    function sampleCurveX(t: number) {
-        return ((ax * t + bx) * t + cx) * t
+    if (mX1 === mY1 && mX2 === mY2) {
+        return ((x: number) => x) as CubicBezier
     }
 
-    function solveCurveX(x: number, epsilon: number) {
-        let t0, t1, t2, x2, d2, i
-        for (t2 = x, i = 0; i < 8; i++) {
-            x2 = sampleCurveX(t2) - x
-            if (Math.abs(x2) < epsilon) {
-                return t2
-            }
-            d2 = (3 * ax * t2 + 2 * bx) * t2 + cx
-            if (Math.abs(d2) < 1e-6) {
-                break
-            }
-            t2 = t2 - x2 / d2
-        }
-        t0 = 0
-        t1 = 1
-        t2 = x
-        if (t2 < t0) {
-            return t0
-        }
-        if (t2 > t1) {
-            return t1
-        }
-        while (t0 < t1) {
-            x2 = sampleCurveX(t2)
-            if (Math.abs(x2 - x) < epsilon) {
-                return t2
-            }
-            if (x > x2) {
-                t0 = t2
+    const a = 6 * (3 * mX1 - 3 * mX2 + 1)
+    const b = 6 * (mX2 - 2 * mX1)
+    const c = 3 * mX1
+    const a2 = a * a
+    const b2 = b * b
+    const d = b / a
+    const e = (3 * b * c) / a2 - (b2 * b) / (a2 * a)
+    const w1 = (2 * c) / a - b2 / a2
+    const w = w1 * w1 * w1
+    const o = 3 / a
+    const ay = 3 * mY1 - 3 * mY2 + 1
+    const by = mY2 - 2 * mY1
+    const cy = 3 * mY1
+
+    return ((x: number) => {
+        if (x === 0 || x === 1) return x
+        let t: number
+        if (a) {
+            const q = e + o * x
+            const s = q * q + w
+            if (s > 0) {
+                const root = sqrt(s)
+                t = cbrt(q + root) + cbrt(q - root) - d
             } else {
-                t1 = t2
+                const l = cbrt(sqrt(-w))
+                const angle = q ? Math.atan(sqrt(-s) / q) : -PI / 2
+                let phi: number
+                if (o < 0) {
+                    phi = (q > 0 ? 2 * PI : PI) - angle
+                } else if (d < 0) {
+                    phi = (q > 0 ? 2 * PI : -3 * PI) + angle
+                } else {
+                    phi = (q > 0 ? 0 : PI) + angle
+                }
+                t = 2 * l * Math.cos(phi / 3) - d
             }
-            t2 = (t1 - t0) / 2 + t0
+        } else {
+            t = x
         }
-        return t2
-    }
-
-    return (x: number, duration: number) => {
-        let t = solveCurveX(x, duration)
-        return ((ay * t + by) * t + cy) * t
-    }
+        return ((ay * t + 3 * by) * t + cy) * t
+    }) as CubicBezier
 }
 
 export function cubicBezier(
