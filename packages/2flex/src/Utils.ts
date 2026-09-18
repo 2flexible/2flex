@@ -198,39 +198,33 @@ export function lerp(start: number, end: number, t: number) {
 export function linear(...args: number[]): LinearEasing {
     const nTimes = 1 / (args.length - 1)
     return (t: number) => {
-        const step = Math.ceil(t / nTimes)
-        const stepB = Math.floor(t / nTimes)
-
-        let x0 = stepB * nTimes
-        let x1 = step * nTimes
-        let y0 = args[stepB]
-        let y1 = args[stepB + 1]
-
-        if (typeof args[stepB] == 'string') {
-            const indicator = (args[stepB] as any).split(' ')
-            y0 = Number(indicator[0])
-            x0 = Number(indicator[1].split('%')[0]) / 100
-            if (indicator[2]) x0 = Number(indicator[2].split('%')[0]) / 100
-        }
-
-        if (typeof args[stepB + 1] == 'string') {
-            const indicator = (args[stepB + 1] as any).split(' ')
-            y1 = Number(indicator[0])
-            x1 = Number(indicator[1].split('%')[0]) / 100
-            if (indicator[3]) x1 = Number(indicator[3].split('%')[0]) / 100
-        }
-
-        const x = x0 + t * (x1 - x0)
-        const y = y0 + x * (y1 - y0)
-        return y
+        const stepB = Math.min(
+            args.length - 1,
+            Math.max(0, Math.floor(t / nTimes))
+        )
+        const x0 = stepB * nTimes
+        const x1 = Math.min(1, (stepB + 1) * nTimes)
+        const y0 = args[stepB]
+        const y1 = args[Math.min(stepB + 1, args.length - 1)]
+        const localT = x1 === x0 ? 0 : (t - x0) / (x1 - x0)
+        return y0 + localT * (y1 - y0)
     }
 }
 
 export function steps(step: number, position: JumpPosition): StepsEasing {
-    const x = 1 / step
     return (t: number) => {
-        const stepness = Math.ceil(t / x)
-        return x * t + x * stepness
+        const c = Math.min(1, Math.max(0, t))
+        switch (position) {
+            case 'jump-start':
+                return Math.min(1, (Math.floor(c * step) + 1) / step)
+            case 'jump-end':
+                return Math.floor(c * step) / step
+            case 'jump-none':
+                if (step <= 1) return c >= 1 ? 1 : 0
+                return Math.min(1, Math.floor(c * step) / (step - 1))
+            case 'jump-both':
+                return (Math.floor(c * step) + 1) / (step + 1)
+        }
     }
 }
 
@@ -371,17 +365,27 @@ export function inRange(value: number, great: number, less: number) {
     return value >= great && value <= less
 }
 
-export function easingParser(
-    easing: Easing
-): (t: number, duration: number) => number {
+export function easingParser(easing: Easing): (t: number) => number {
     if (easing === 'linear') return linear(0, 1)
-    else if (easing == 'step-start') return steps(1, 'jump-start')
-    else if (easing == 'step-end') return steps(1, 'jump-end')
-    else if (easing == 'ease') return bezierEasing(0.25, 0.1, 0.25, 1)
-    else if (easing == 'ease-in') return bezierEasing(0.42, 0, 1, 1)
-    else if (easing == 'ease-out') return bezierEasing(0, 0, 0.58, 1)
-    else if (easing == 'ease-in-out') return bezierEasing(0.42, 0, 0.58, 1)
-    else return easing
+    if (easing === 'step-start') return steps(1, 'jump-start')
+    if (easing === 'step-end') return steps(1, 'jump-end')
+    if (easing === 'ease') {
+        const b = bezierEasing(0.25, 0.1, 0.25, 1)
+        return (t: number) => b(t, 1e-6)
+    }
+    if (easing === 'ease-in') {
+        const b = bezierEasing(0.42, 0, 1, 1)
+        return (t: number) => b(t, 1e-6)
+    }
+    if (easing === 'ease-out') {
+        const b = bezierEasing(0, 0, 0.58, 1)
+        return (t: number) => b(t, 1e-6)
+    }
+    if (easing === 'ease-in-out') {
+        const b = bezierEasing(0.42, 0, 0.58, 1)
+        return (t: number) => b(t, 1e-6)
+    }
+    return easing as (t: number) => number
 }
 
 export function shortHandParser(shortHandValue: ShortHandRelativeType) {

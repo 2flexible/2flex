@@ -306,8 +306,7 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         (timestamp - config.startTime) / settings.duration,
                         0,
                         1
-                    ),
-                    1 / settings.duration
+                    )
                 )
                 if (
                     parsedEasing === 1 &&
