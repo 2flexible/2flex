@@ -406,10 +406,10 @@ export class Canvas {
         this.#buildRemovedDomEvents()
         this.#buildAddedAnimations()
         this.#buildRemovedAnimations()
+        this.#invokeAnimations(timestamp)
         this.#renderCachedBlocks()
         this.#refreshHead()
         this.#drawCachedBlocks()
-        this.#invokeAnimations(timestamp)
         this.#buildDemandedHistory()
         this.#clearQueue()
     }
@@ -585,7 +585,7 @@ export class Canvas {
         const addedAnimations = this.#queue['animation:add']
         if (addedAnimations) {
             for (const [animationId, func] of Object.entries(addedAnimations)) {
-                this.#canvasAnimations[Number(animationId)] = func
+                this.#canvasAnimations[animationId] = func
             }
         }
     }
