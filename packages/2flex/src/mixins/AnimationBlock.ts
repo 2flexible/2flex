@@ -50,6 +50,8 @@ export interface KeyframesConfig {
     iterDirection: number
     invoker: any
     category: any
+    underlyingValue: RGBA | number
+    accumulator: RGBA | number
 }
 
 export interface KeyframeIterationConfig {
@@ -58,7 +60,6 @@ export interface KeyframeIterationConfig {
     isReverse: boolean
     startTime: number
     iter: number
-    currentOptIdx: number
     maxKeyframeLen: number
     pauseStartedAt: number
 }
@@ -122,6 +123,8 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 this.#keyframes[animationId]
             )) {
                 value.breakPoints.reverse()
+                if (value.category === 'color') value.accumulator = [0, 0, 0, 0]
+                else value.accumulator = 0
             }
         }
         animationDelay(animationId: AnimationId, value: Delay) {
@@ -223,6 +226,12 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
                 if (validKeyframe.length > maxBreakPointLen)
                     maxBreakPointLen = validKeyframe.length as number
+                const zeroAcc: RGBA | number =
+                    category === 'color' ? [0, 0, 0, 0] : 0
+                const underlyingValue: RGBA | number =
+                    category === 'color'
+                        ? rgbaToArray(currentObjValue as string)
+                        : (currentObjValue as number)
                 ;(this.#keyframes[animationId] ??= {})[key] = {
                     currentIdx: idx,
                     currentVal: currentVal,
@@ -230,6 +239,8 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     iterDirection: iterDirection,
                     category: category,
                     invoker: obj,
+                    underlyingValue: underlyingValue,
+                    accumulator: zeroAcc,
                 }
             }
             config['maxKeyframeLen'] = maxBreakPointLen
@@ -257,7 +268,6 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 isReverse: false,
                 iter: 0,
                 startTime: 0,
-                currentOptIdx: 0,
                 maxKeyframeLen: 0,
                 pauseStartedAt: 0,
             }
@@ -310,28 +320,43 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
                 const keyframes = this.#keyframes[animationId]
 
-                for (let [idx, [key, value]] of Object.entries(
+                for (let [, [, valueT]] of Object.entries(
                     Object.entries(keyframes)
                 )) {
-                    if (
-                        settings.composite == 'replace' &&
-                        config.currentOptIdx !== Number(idx)
-                    )
-                        continue
-                    let valueT = value
+                    const underlyingValue = valueT.underlyingValue
+                    const accumulator = valueT.accumulator
+
+                    let off =
+                        settings.composite === 'add'
+                            ? underlyingValue
+                            : settings.composite === 'accumulate'
+                              ? accumulator
+                              : undefined
 
                     if (config.isFinished) {
                         let lastIdx = valueT.breakPoints.length - 1
+                        const finalBreak = valueT.breakPoints[lastIdx]
                         if (
                             settings.direction === 'reverse' ||
                             settings.direction === 'alternate-reverse'
                         )
                             lastIdx = 0
 
-                        valueT.invoker?.value.call(
-                            this,
-                            valueT.breakPoints[lastIdx]
-                        )
+                        if (valueT.category === 'color') {
+                            off = (off ?? [0, 0, 0, 0]) as RGBA
+                            valueT.invoker?.value.call(
+                                this,
+                                rgbaRepresenter([
+                                    finalBreak[0] + off[0],
+                                    finalBreak[1] + off[1],
+                                    finalBreak[2] + off[2],
+                                    finalBreak[3] + off[3],
+                                ])
+                            )
+                        } else {
+                            off = off ?? 0
+                            valueT.invoker?.value.call(this, finalBreak + off)
+                        }
                         continue
                     }
                     let currentIdx = valueT.currentIdx
@@ -345,10 +370,6 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     let statement = null
 
                     if (valueT.category === 'color') {
-                        valueT.invoker?.value.call(
-                            this,
-                            rgbaRepresenter(currentVal)
-                        )
                         const cancelOutR =
                             startVal[0] < endVal[0] ? startVal[0] : endVal[0]
                         const cancelOutG =
@@ -379,6 +400,16 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                             cancelOutA
 
                         currentVal = [R, G, B, A]
+                        off = (off ?? [0, 0, 0, 0]) as RGBA
+                        valueT.invoker?.value.call(
+                            this,
+                            rgbaRepresenter([
+                                currentVal[0] + off[0],
+                                currentVal[1] + off[1],
+                                currentVal[2] + off[2],
+                                currentVal[3] + off[3],
+                            ])
+                        )
                         statement =
                             ((startVal[0] <= endVal[0] &&
                                 currentVal[0] >= endVal[0]) ||
@@ -397,12 +428,14 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                                 (startVal[3] >= endVal[3] &&
                                     currentVal[3] <= endVal[3]))
                     } else {
-                        valueT.invoker?.value.call(this, currentVal)
                         const cancelOut = startVal < endVal ? startVal : endVal
-                        currentVal =
+                        const lerped =
                             (lerp(startVal, endVal, parsedEasing) - cancelOut) *
                                 settings.playbackRate +
                             cancelOut
+                        currentVal = lerped
+                        off = off ?? 0
+                        valueT.invoker?.value.call(this, currentVal + off)
                         statement =
                             (startVal <= endVal && currentVal >= endVal) ||
                             (startVal >= endVal && currentVal <= endVal)
@@ -410,30 +443,23 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     if (statement) {
                         currentIdx += iterDirection
                         const lastIdx = valueT.breakPoints.length - 1
-                        if (currentIdx === lastIdx) {
-                            config.currentOptIdx += 1
-                            if (settings.composite === 'accumulate') {
-                                for (const [idx, val] of Object.entries(
-                                    valueT.breakPoints
-                                )) {
-                                    if (valueT.category === 'color') {
-                                        valueT.breakPoints[idx][0] =
-                                            (val as RGBA)[0] +
-                                            valueT.breakPoints[lastIdx][0]
-                                        valueT.breakPoints[idx][1] =
-                                            (val as RGBA)[1] +
-                                            valueT.breakPoints[lastIdx][1]
-                                        valueT.breakPoints[idx][2] =
-                                            (val as RGBA)[2] +
-                                            valueT.breakPoints[lastIdx][2]
-                                        valueT.breakPoints[idx][3] =
-                                            (val as RGBA)[3] +
-                                            valueT.breakPoints[lastIdx][3]
-                                    } else {
-                                        valueT.breakPoints[idx] =
-                                            val + valueT.breakPoints[lastIdx]
-                                    }
-                                }
+                        if (
+                            currentIdx === lastIdx &&
+                            settings.composite === 'accumulate'
+                        ) {
+                            const endBp = valueT.breakPoints[
+                                iterDirection > 0 ? lastIdx : 0
+                            ] as RGBA | number
+                            if (valueT.category === 'color') {
+                                const eb = endBp as RGBA
+                                const acc = valueT.accumulator as RGBA
+                                acc[0] += eb[0]
+                                acc[1] += eb[1]
+                                acc[2] += eb[2]
+                                acc[3] += eb[3]
+                            } else {
+                                const acc = valueT.accumulator as number
+                                valueT.accumulator = acc + (endBp as number)
                             }
                         }
                         if (
@@ -466,9 +492,6 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 ) {
                     config.iter += 1
                 }
-
-                if (config.currentOptIdx >= Object.entries(keyframes).length)
-                    config.currentOptIdx = 0
 
                 this.__invokeChange()
             }
