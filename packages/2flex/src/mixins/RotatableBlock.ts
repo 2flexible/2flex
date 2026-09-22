@@ -337,6 +337,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             let leftMove = false
             let beforeValues: any = {}
             let inBound = false
+            let beforeCursor: string | undefined
 
             block.#mouseDownEvent = (event: MouseEvent) => {
                 if (inBound && block.isMouseEventAllowed) {
@@ -387,10 +388,18 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     }
                     if (cursor) {
                         inBound = true
+                        block.__registerZIndex(block.zIndex())
                         block.__selectCursor(cursor)
+                        if (
+                            beforeCursor !== undefined &&
+                            cursor !== beforeCursor
+                        ) {
+                            block.__resetCursor(beforeCursor)
+                        }
+                        beforeCursor = cursor
                     } else {
                         inBound = false
-                        block.__resetCursor()
+                        if (beforeCursor) block.__resetCursor(beforeCursor)
                     }
                 }
 
@@ -469,9 +478,9 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
                 ) {
-                    block.__resetCursor()
+                    if (beforeCursor) block.__resetCursor(beforeCursor)
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
-                    block.__unregisterZIndex(block.zIndex())
+                    block.__unregisterZIndex()
                     inBound = false
                     const after: any = { rotate: block.rotate() }
                     block.__invokeHistory(beforeValues, after)

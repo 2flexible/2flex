@@ -50,14 +50,14 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                             true
                         )
                     } else {
-                        block.__unregisterZIndex(block.zIndex())
+                        block.__unregisterZIndex()
                         block.__updateRunningEvent(
                             SELECTABLE_RUNNING_EVENT,
                             false
                         )
                     }
                 } else {
-                    block.__unregisterZIndex(block.zIndex())
+                    block.__unregisterZIndex()
                     block.__updateRunningEvent(SELECTABLE_RUNNING_EVENT, false)
                 }
 
@@ -71,7 +71,7 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             }
 
             block.#mouseUpEvent = (event: MouseEvent) => {
-                block.__unregisterZIndex(block.zIndex())
+                block.__unregisterZIndex()
             }
 
             block.__addEvent('mousedown', block.#mouseDownEvent)

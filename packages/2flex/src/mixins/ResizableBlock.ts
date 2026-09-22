@@ -552,6 +552,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             let bottomResize = false
             let rightResize = false
             let inBound = false
+            let beforeCursor: string | undefined
+
             block.#mouseDownEvent = (event: MouseEvent) => {
                 beforeCords = { x: 0, y: 0 }
                 if (inBound && block.isMouseEventAllowed) {
@@ -630,12 +632,18 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                             cursor,
                             block.rotate()
                         )
+                        block.__registerZIndex(block.zIndex())
                         block.__selectCursor(cursor)
+                        if (
+                            beforeCursor !== undefined &&
+                            cursor !== beforeCursor
+                        ) {
+                            block.__resetCursor(beforeCursor)
+                        }
+                        beforeCursor = cursor
                     } else {
                         inBound = false
-                        if (block.canvas?.currentCursor !== 'cell') {
-                            block.__selectCursor(cursor)
-                        }
+                        if (beforeCursor) block.__resetCursor(beforeCursor)
                     }
                 }
                 if (
@@ -814,9 +822,9 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
                 ) {
-                    block.__resetCursor()
+                     if (beforeCursor) block.__resetCursor(beforeCursor)
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
-                    block.__unregisterZIndex(block.zIndex())
+                    block.__unregisterZIndex()
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
                         const after: any = {
                             x: block.x(),

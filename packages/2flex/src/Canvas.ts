@@ -118,6 +118,7 @@ export class Canvas {
     #latestBlockZIndex: number
     #highestZIndex?: number
     #registeredZIndexes: Map<number, number>
+    #registeredCursors: Map<number, string[]>
     #registeredBlocks: (typeof BaseBlock)[]
 
     constructor(
@@ -151,8 +152,9 @@ export class Canvas {
 
         this.#canvasEvents = {}
         this.#canvasAnimations = {}
-        this.#latestBlockZIndex = 0
+        this.#latestBlockZIndex = 1
         this.#registeredZIndexes = new Map()
+        this.#registeredCursors = new Map()
         this.isFocused = false
         this.isMouseEventAllowed = false
         this.#registeredBlocks = defaultBlocks
@@ -303,6 +305,7 @@ export class Canvas {
                 isDragging = false
                 this.resetCursor()
                 this.isMouseEventAllowed = true
+                this.__releaseCanvasCursor()
             }
         })
         this.canvas.addEventListener('mousedown', (event: MouseEvent) => {
@@ -334,6 +337,7 @@ export class Canvas {
                 isDragging = false
                 this.changeCursor(isSpaceDown ? 'grab' : 'auto')
                 this.isMouseEventAllowed = true
+                this.__releaseCanvasCursor()
             }
         })
     }
@@ -665,10 +669,7 @@ export class Canvas {
     }
     #handleBlockOptions(block: BaseBlock) {
         for (const [key, value] of block.options) {
-            getPrototype(block, key as string)?.value.call(
-                block,
-                value?.currentValue
-            )
+            getPrototype(block, key as string)?.value.call(block, value)
         }
     }
     add(...blocks: BaseBlock[]) {
@@ -791,6 +792,9 @@ export class Canvas {
             this.#boundingClient = this.canvas.getBoundingClientRect()
         return this.#boundingClient
     }
+    get currentCursor(): string {
+        return (this.canvas.style.cursor as string) || 'auto'
+    }
     get currentPosition(): CanvasCurrentPosition {
         return { x: this.view.tx, y: this.view.ty, z: this.view.scale }
     }
@@ -815,6 +819,43 @@ export class Canvas {
     resetCursor() {
         this.changeCursor('auto')
     }
+    registerCursor(nodeId: number, cursor: string) {
+        let currentCursor = this.#registeredCursors.get(nodeId)
+        currentCursor ??= []
+        if (currentCursor && !currentCursor.includes(cursor))
+            currentCursor.push(cursor)
+        this.#registeredCursors.set(nodeId, currentCursor)
+        this.#resolveCursor()
+    }
+    unregisterCursor(nodeId: number, cursor: string) {
+        let currentCursor = this.#registeredCursors.get(nodeId)
+        if (currentCursor) {
+            currentCursor = currentCursor.filter((i) => i !== cursor)
+            this.#registeredCursors.set(nodeId, currentCursor)
+        }
+        if (!currentCursor || (currentCursor  && (currentCursor as []).length === 0)) {
+            this.resetCursor()
+            this.#registeredCursors.delete(nodeId)
+        }
+        this.#resolveCursor()
+    }
+    __releaseCanvasCursor() {
+        if (this.#registeredCursors.size === 0)
+            this.#domCanvas.changeStyle({ cursor: 'auto' })
+        else this.#resolveCursor()
+    }
+    #resolveCursor() {
+        let cursor: string | undefined
+        let highZIndex = -Infinity
+        for (const [id, cur] of this.#registeredCursors) {
+            const zIndex = this.#registeredZIndexes.get(id)
+            if (zIndex !== undefined && zIndex > highZIndex) {
+                highZIndex = zIndex
+                cursor = cur[0]
+            }
+        }
+        this.#domCanvas.changeStyle({ cursor: cursor })
+    }
     whoIsTheFirst(nodeId: number) {
         const zIndex = this.#registeredZIndexes.get(nodeId)
         return zIndex !== undefined && zIndex === this.#highestZIndex
@@ -825,7 +866,7 @@ export class Canvas {
             this.#highestZIndex = zIndex
         }
     }
-    unregisterZIndex(nodeId: number, zIndex: number) {
+    unregisterZIndex(nodeId: number) {
         const current = this.#registeredZIndexes.get(nodeId)
         if (current === undefined) return
         this.#registeredZIndexes.delete(nodeId)

@@ -1142,8 +1142,8 @@ export class BaseBlock extends Node {
     __registerZIndex(zIndex: number) {
         if (this.nodeId) this.canvas?.registerZIndex(this.nodeId, zIndex)
     }
-    __unregisterZIndex(zIndex: number) {
-        if (this.nodeId) this.canvas?.unregisterZIndex(this.nodeId, zIndex)
+    __unregisterZIndex() {
+        if (this.nodeId) this.canvas?.unregisterZIndex(this.nodeId)
     }
     __ImFirst() {
         if (this.nodeId) return this.canvas?.whoIsTheFirst(this.nodeId)
@@ -1164,10 +1164,12 @@ export class BaseBlock extends Node {
         this.canvas?.demandInvoke(this)
     }
     __selectCursor(cursor: string) {
-        this.canvas?.changeCursor(cursor)
+        if (this.nodeId !== undefined)
+            this.canvas?.registerCursor(this.nodeId, cursor)
     }
-    __resetCursor() {
-        this.canvas?.resetCursor()
+    __resetCursor(cursor: string) {
+        if (this.nodeId !== undefined)
+            this.canvas?.unregisterCursor(this.nodeId, cursor)
     }
     __invokeHistory(before: any, after: any) {
         if (this.nodeId) this.canvas?.demandHistory(this.nodeId, before, after)
