@@ -172,6 +172,8 @@ export class BaseBlock extends Node {
     options: OptionsMap
     cacheOptions: OptionsMap
 
+    initWidth?: RelativeType
+    initHeight?: RelativeType
     realWidth: number
     realHeight: number
     realCenterX: number
@@ -1305,7 +1307,7 @@ export class BaseBlock extends Node {
                     _func(event)
                     this.__invokeChange()
                 }
-            } else this.__unregisterZIndex(this.zIndex())
+            } else this.__unregisterZIndex()
         }
         this.__addEvent<MouseEvent>('contextmenu', out)
     }
@@ -1317,7 +1319,7 @@ export class BaseBlock extends Node {
                     _func(event)
                     this.__invokeChange()
                 }
-            } else this.__unregisterZIndex(this.zIndex())
+            } else this.__unregisterZIndex()
         }
         this.__addEvent<MouseEvent>('click', out)
     }
@@ -1329,7 +1331,7 @@ export class BaseBlock extends Node {
                     _func(event)
                     this.__invokeChange()
                 }
-            } else this.__unregisterZIndex(this.zIndex())
+            } else this.__unregisterZIndex()
         }
         this.__addEvent<MouseEvent>('dblclick', out)
     }
@@ -1341,7 +1343,7 @@ export class BaseBlock extends Node {
                     _func(event)
                     this.__invokeChange()
                 }
-            } else this.__unregisterZIndex(this.zIndex())
+            } else this.__unregisterZIndex()
         }
         this.__addEvent<MouseEvent>('mousedown', out)
     }
@@ -1353,7 +1355,7 @@ export class BaseBlock extends Node {
                     _func(event)
                     this.__invokeChange()
                 }
-            } else this.__unregisterZIndex(this.zIndex())
+            } else this.__unregisterZIndex()
         }
         this.__addEvent<MouseEvent>('mouseup', out)
     }
@@ -1365,7 +1367,7 @@ export class BaseBlock extends Node {
                     _func(event)
                     this.__invokeChange()
                 }
-            } else this.__unregisterZIndex(this.zIndex())
+            } else this.__unregisterZIndex()
         }
         this.__addEvent<MouseEvent>('mousemove', out)
     }
@@ -1381,7 +1383,7 @@ export class BaseBlock extends Node {
                 }
             } else {
                 isMouseEnter = false
-                this.__unregisterZIndex(this.zIndex())
+                this.__unregisterZIndex()
             }
         }
         this.__addEvent<MouseEvent>('mousemove', enter)
@@ -1399,7 +1401,7 @@ export class BaseBlock extends Node {
                 }
             } else {
                 isMouseLeave = false
-                this.__unregisterZIndex(this.zIndex())
+                this.__unregisterZIndex()
             }
         }
         this.__addEvent<MouseEvent>('mousemove', leave)
