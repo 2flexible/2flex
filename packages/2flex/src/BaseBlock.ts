@@ -180,11 +180,13 @@ export class BaseBlock extends Node {
     realCenterY: number
     boundingBox: HotCornerArea
     #higestChildZIndex?: number
+    #higestChildOrder?: number
 
     __childAdjustment?: (b: BaseBlock) => void
     __childsContainer: ChildsContainer
 
     #zIndex?: number
+    #order?: number
     #pending: Pending
     #runningEvents: RunningEvents
     #bindOptions: BindOptions[]
@@ -329,7 +331,13 @@ export class BaseBlock extends Node {
             (block: BaseBlock, zIndex: number) =>
                 this.#hasZIndexChanged(block, zIndex)
         )
-        this.addProperty('order', undefined)
+        this.addProperty(
+            'order',
+            undefined,
+            false,
+            (block: BaseBlock, order: number) =>
+                this.#hasOrderChanged(block, order)
+        )
         this.addProperty('hidden', false)
         this.addProperty('important', {})
         // this.addProperty('flex', [])
@@ -490,6 +498,18 @@ export class BaseBlock extends Node {
         }
         return this.#higestChildZIndex
     }
+    __getdHighestChildOrder() {
+        if (this.#higestChildOrder === undefined) {
+            this.#higestChildOrder ??= 0
+            this.listAllChilds((block: BaseBlock) => {
+                const bOrder = block.order()
+                if (bOrder !== undefined && bOrder > this.#higestChildOrder!) {
+                    this.#higestChildOrder = bOrder
+                }
+            })
+        }
+        return this.#higestChildOrder
+    }
     #calculateRealWidth() {
         this.realWidth =
             this.boundingBox.topRight.x - this.boundingBox.topLeft.x
@@ -600,6 +620,12 @@ export class BaseBlock extends Node {
             block.__refreshHeadBlock()
         }
         block.#zIndex = zIndex
+    }
+    #hasOrderChanged(block: BaseBlock, order: number) {
+        if (block.#order !== order) {
+            block.__refreshHeadBlock()
+        }
+        block.#order = order
     }
     updateCordinates() {
         let currentX = this.getOptionCurrent('x')
@@ -963,6 +989,7 @@ export class BaseBlock extends Node {
     __refreshHeadBlock() {
         if (this.__hasParentBlock) this.parentNode?.__refreshHeadBlock()
         this.#higestChildZIndex = undefined
+        this.#higestChildOrder = undefined
     }
     get isMouseEventAllowed() {
         return this.canvas?.isMouseEventAllowed || false
