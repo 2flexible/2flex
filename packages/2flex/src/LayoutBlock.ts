@@ -1,5 +1,6 @@
-import { Block, RelativeType } from './Block'
-import type { IBlock } from './types'
+import { BaseBlock } from './BaseBlock'
+import { Block } from './Block'
+import { RelativeType } from './types'
 
 type JustifyContent =
     | 'normal'
@@ -102,7 +103,7 @@ interface LayoutOptions extends GridLayout, FlexLayout {
     gapRow?: RelativeType
 }
 
-export class LayoutBlock extends Block<LayoutOptions> {
+export class LayoutBlock extends Block {
     #containerX?: number
     #containerY?: number
 
@@ -118,15 +119,17 @@ export class LayoutBlock extends Block<LayoutOptions> {
     #layoutCols: number[]
     #layoutRows: number[]
 
+    #childs: BaseBlock[]
+    #latestOrder: number
+
     #invokerLayout?: () => void
     #justifyInvoker?: () => void
     #justifyItemsInvoker?: () => void
     #alignInvoker?: () => void
     #alignItemsInvoker?: () => void
 
-    constructor(options: IBlock<LayoutOptions>) {
+    constructor(options: LayoutOptions) {
         super(options)
-        this.options = options
 
         this.#startXPos = []
         this.#startYPos = []
@@ -136,19 +139,63 @@ export class LayoutBlock extends Block<LayoutOptions> {
         this.#blocksHeight = []
         this.#layoutCols = []
         this.#layoutRows = []
-
+        this.#childs = []
+        this.#latestOrder = 1
         this.layout()
     }
-    render(): void {
+    updateCords(): void {
+        this.#updateOrdering()
         this.#updateLayout()
-        super.render()
+        super.updateCords()
     }
 
-    __adjustChildBlocks(): void {
-        if (this.childNodes.length === 0) return
-        const cacheR = this.rotate()
-        this.rotate(0)
+    #updateOrdering() {
+        const latestOrder = this.__getdHighestChildOrder()
+        if (latestOrder !== this.#latestOrder) {
+            this.#assingOrdering()
+            this.#orderChilds()
+        }
+        this.#latestOrder = latestOrder ?? 0
+    }
 
+    #assingOrdering() {
+        for (const child of this.childNodes) {
+            const order = child.getOptionCurrent('order')
+            if (order === undefined) {
+                child.setOptionCurrent('order', this.#latestOrder)
+                this.#latestOrder += 1
+            }
+        }
+    }
+
+    #orderChilds() {
+        this.#childs = [...this.childNodes].sort(
+            (a, b) => a.order() - b.order()
+        )
+    }
+
+    addChild(block: this): void {
+        super.addChild(block)
+        this.#assingOrdering()
+        this.#orderChilds()
+    }
+
+    listOnlyChilds<T extends BaseBlock>(
+        _func: (block: T, currIdx: number, arrLen: number) => void
+    ): void {
+        const childNodes = this.#childs
+        for (let i = 0, len = childNodes.length; i < len; i++) {
+            _func(childNodes[i] as T, i, len)
+        }
+    }
+
+    removeChild(block: this): void {
+        super.removeChild(block)
+        this.#assingOrdering()
+        this.#orderChilds()
+    }
+
+    updateChildsCordinate(): void {
         this.#invokerLayout?.()
         this.#justifyInvoker?.()
         if (this.#isGrid) this.#justifyItemsInvoker?.()
@@ -156,24 +203,40 @@ export class LayoutBlock extends Block<LayoutOptions> {
         this.#alignItemsInvoker?.()
         this.#invokerLayout?.()
 
-        const centerX = this.rotationCenterX()
-        const centerY = this.rotationCenterY()
-        const containerW = this.#containerW
-        const containerH = this.#containerH
         const realW = this.width()
         const realH = this.height()
+
+        const pPaddingLeft = this.paddingLeft()
+        const pPaddingRight = this.paddingRight()
+        const pPaddingTop = this.paddingTop()
+        const pPaddingBottom = this.paddingBottom()
+
+        const centerX = this.rotationCenterX()
+        const centerY = this.rotationCenterY()
+
+        const pCurrentRotate = this.getOptionCurrent('rotate')
+        const pCacheRotate = this.getOptionCache('rotate')
+
+        const cornerLeftX = this.cornerTopLeft().x
+        const cornerTopY = this.cornerTopLeft().y
+
+        const blockHorizontalFlip = this.horizontalFlip()
+        const blockVerticalFlip = this.verticalFlip()
+
+        const overflowXSign = blockHorizontalFlip ? -1 : 1
+        const overflowYSign = blockVerticalFlip ? -1 : 1
+
+        const containerW = this.#containerW
+        const containerH = this.#containerH
+
         const widthSpaces = this.__widthSpaces
         const heightSpaces = this.__heightSpaces
 
-        let minX: number | undefined
-        let minY: number | undefined
-        let maxX: number = 0
-        let maxY: number = 0
+        const overflowPositionX = this.overflowPositionX()
+        const overflowPositionY = this.overflowPositionY()
 
         let adjustedW = 0
         let adjustedH = 0
-
-        let z = this.zIndex() || 0
 
         if (this.#isGrid) {
             adjustedW =
@@ -188,145 +251,237 @@ export class LayoutBlock extends Block<LayoutOptions> {
         } else {
             // @TODO: need to fix adjustW and adjustH for gaps
             adjustedW =
-                (realW - containerW) / this.childNodes.length -
+                (realW - containerW) / this.#childs.length -
                 (this.__widthSpaces +
-                    this.gapColumn() * (this.childNodes.length - 1)) /
-                    this.childNodes.length
+                    this.gapColumn() * (this.#childs.length - 1)) /
+                    this.#childs.length
             adjustedH =
-                (realH - containerH) / this.childNodes.length -
+                (realH - containerH) / this.#childs.length -
                 (this.__heightSpaces +
-                    this.gapRow() * (this.childNodes.length - 1)) /
-                    this.childNodes.length
+                    this.gapRow() * (this.#childs.length - 1)) /
+                    this.#childs.length
         }
-
-        this.listOnlyChilds((b: Block) => {
-            b.rotate(0)
-
+        this.listOnlyChilds((b: BaseBlock, currIdx, arrLen) => {
             b.__childAdjustment?.(b)
 
-            const blockW = b.width()
-            const blockH = b.height()
+            const blockPosition = b.position()
+            if (blockPosition === 'absolute' || blockPosition === 'fixed')
+                return
+
+            const blockX = b.x()
+            const blockY = b.y()
+
+            let blockW = Math.abs(b.width())
+            let blockH = Math.abs(b.height())
+
+            const blockInitW = b.__unitConverter({
+                val: b.initWidth,
+                widthRelated: true,
+            }) as number
+            const blockInitH = b.__unitConverter({
+                val: b.initHeight,
+                widthRelated: false,
+            }) as number
+
+            const blockMarginTop = b.marginTop()
+            const blockMarginBottom = b.marginBottom()
+            const blockMarginLeft = b.marginLeft()
+            const blockMarginRight = b.marginRight()
+
+            const blockPaddingTop = b.paddingTop()
+            const blockPaddingBottom = b.paddingBottom()
+            const blockPaddingLeft = b.paddingLeft()
+            const blockPaddingRight = b.paddingRight()
+
+            const blockWidthSpaces = blockMarginLeft + blockMarginRight
+            const blockHeightSpaces = blockMarginTop + blockMarginBottom
+
+            const blockWidthPaddings = blockPaddingLeft + blockPaddingRight
+            const blockHeightPaddings = blockPaddingTop + blockPaddingBottom
+
+            let blockXStart =
+                blockX +
+                pPaddingLeft +
+                blockMarginLeft * overflowXSign +
+                cornerLeftX +
+                overflowPositionX * overflowXSign
+
+            let blockYStart =
+                blockY +
+                pPaddingTop +
+                blockMarginTop * overflowYSign +
+                cornerTopY +
+                overflowPositionY * overflowYSign
+
+            if (blockPosition === 'relative') {
+                if (b.left() !== undefined) blockXStart += b.left()!
+                else if (b.right() !== undefined) blockXStart -= b.right()!
+
+                if (b.top() !== undefined) blockYStart += b.top()!
+                else if (b.bottom() !== undefined) blockYStart -= b.bottom()!
+            } else if (blockPosition === 'sticky') {
+                if (this.__isOverflowYScroll) {
+                    if (
+                        b.top() !== undefined &&
+                        Math.abs(overflowPositionY) >= blockYStart - b.top()!
+                    ) {
+                        blockYStart +=
+                            b.top()! -
+                            (overflowPositionY * overflowYSign + blockYStart)
+                    } else if (
+                        b.bottom() !== undefined &&
+                        Math.abs(overflowPositionY) <=
+                            blockYStart + b.bottom()! - Math.abs(realH - blockH)
+                    ) {
+                        blockYStart +=
+                            -b.bottom()! -
+                            (overflowPositionY * overflowYSign + blockYStart) +
+                            Math.abs(realH - blockH)
+                    }
+                }
+                if (this.__isOverflowXScroll) {
+                    if (
+                        b.left() !== undefined &&
+                        Math.abs(overflowPositionX) >= blockXStart - b.left()!
+                    ) {
+                        blockXStart +=
+                            b.left()! -
+                            (overflowPositionX * overflowXSign + blockXStart)
+                    } else if (
+                        b.right() !== undefined &&
+                        Math.abs(overflowPositionX) <=
+                            blockXStart - b.right()! - Math.abs(realW - blockW)
+                    ) {
+                        blockXStart +=
+                            b.right()! -
+                            (overflowPositionX * overflowXSign + blockXStart) +
+                            Math.abs(realW - blockW)
+                    }
+                }
+            }
 
             let bWidthResize = 0
             let bHeightResize = 0
 
             if (this.#isGrid) {
-                if (containerW > realW || blockW < b.maxWidth()) {
-                    bWidthResize = adjustedW
-                }
-                if (containerH > realH || blockH < b.maxHeight()) {
-                    bHeightResize = adjustedH
-                }
+                // @TODO: need to adjust width and height
             } else {
                 if (this.#isFlexCol) {
                     if (this.#isWrap) {
                         if (
-                            (blockH >= realH || blockH < b.maxHeight()) &&
-                            blockH >= b.minHeight()
-                        )
-                            bHeightResize = -(blockH - (realH - heightSpaces))
-
-                        if (
-                            (containerW >= realW || blockW < b.maxWidth()) &&
-                            blockW >= b.minWidth()
-                        )
-                            bWidthResize = adjustedW
+                            blockInitH +
+                                blockHeightSpaces +
+                                blockHeightPaddings >=
+                            realH
+                        ) {
+                            bHeightResize = -(
+                                blockInitH +
+                                blockHeightSpaces -
+                                (realH - heightSpaces) * overflowYSign
+                            )
+                            blockH = blockInitH
+                        }
+                        // @TODO: need to adjust width
                     } else {
                         if (
-                            (containerH >= realH || blockH < b.maxHeight()) &&
-                            blockH >= b.minHeight()
+                            blockInitW +
+                                blockWidthSpaces +
+                                blockWidthPaddings >=
+                            realW
                         ) {
-                            bHeightResize = adjustedH
-                        }
-                        if (
-                            (blockW >= realW || blockW < b.maxWidth()) &&
-                            blockW >= b.minWidth()
-                        )
                             bWidthResize = -(
-                                blockW -
-                                (realW - (widthSpaces + this.gapColumn()))
+                                blockInitW +
+                                blockWidthSpaces -
+                                (realW - widthSpaces) * overflowXSign
                             )
+                            blockW = blockInitW
+                        }
+                        // @TODO: need to adjust height
                     }
                 } else {
                     if (this.#isWrap) {
                         if (
-                            (blockW >= realW || blockW < b.maxWidth()) &&
-                            blockW >= b.minWidth()
-                        )
-                            bWidthResize = -(blockW - (realW - widthSpaces))
-                        if (
-                            (containerH >= realH || blockH < b.maxHeight()) &&
-                            blockH >= b.minHeight()
-                        )
-                            bHeightResize = adjustedH
-                    } else {
-                        if (
-                            (containerW >= realW || blockW < b.maxWidth()) &&
-                            blockW >= b.minWidth()
+                            blockInitW +
+                                blockWidthSpaces +
+                                blockWidthPaddings >=
+                            realW
                         ) {
-                            bWidthResize = adjustedW
+                            bWidthResize = -(
+                                blockInitW +
+                                blockWidthSpaces -
+                                (realW - widthSpaces) * overflowXSign
+                            )
+                            blockW = blockInitW
                         }
+                        // @TODO: need to adjust height
+                    } else {
+                        // @TODO: need to adjust width
+
                         if (
-                            (blockH >= realH || blockH < b.maxHeight()) &&
-                            blockH >= b.minHeight()
-                        )
-                            bHeightResize = -(blockH - (realH - heightSpaces))
+                            blockInitH +
+                                blockHeightSpaces +
+                                blockHeightPaddings >=
+                            realH
+                        ) {
+                            bHeightResize = -(
+                                blockInitH +
+                                blockHeightSpaces -
+                                (realH - heightSpaces) * overflowYSign
+                            )
+                            blockH = blockInitH
+                        }
                     }
                 }
             }
-            const width = b.width() + bWidthResize
-            const height = b.height() + bHeightResize
 
-            const x =
-                b.x() +
-                this.__overflowCords.x +
-                this.__getLeft.x +
-                this.marginLeft() +
-                this.paddingLeft() +
-                b.marginLeft()
-            const y =
-                b.y() +
-                this.__overflowCords.y +
-                this.__getTop.y +
-                this.marginTop() +
-                this.paddingTop() +
-                b.marginTop()
-            z += 1
+            blockW += bWidthResize
+            blockH += bHeightResize
+            if (blockH < 0 && !blockVerticalFlip) blockH = 0
+            if (blockW < 0 && !blockHorizontalFlip) blockW = 0
 
-            b.__childAdjustment = (b) => {
+            b.setOptionCurrent('rotate', pCurrentRotate)
+            b.setOptionCache('rotate', pCacheRotate)
+            b.__childAdjustment = (b: BaseBlock) => {
                 b.hidden(this.hidden())
-                b.x(x)
-                b.y(y)
                 if (b.rotationCenter() === 'parent') {
-                    b.rotationCenterX(centerX)
-                    b.rotationCenterY(centerY)
+                    b.setOptionCurrent('rotationCenterX', centerX)
+                    b.setOptionCurrent('rotationCenterY', centerY)
                 }
-                b.rotate(cacheR)
-                b.width(width)
-                b.height(height)
-                b.zIndex(z)
+                b.x(blockXStart)
+                b.y(blockYStart)
+                if (blockHorizontalFlip) blockW = -blockW
+                if (blockVerticalFlip) blockH = -blockH
+                b.width(blockW)
+                b.height(blockH)
             }
-            if (this.__clipPath) {
-                b.__childClipping = (b: Block) => {
-                    b.context?.clip(this.__clipPath!, 'nonzero')
+            b.__childClipping = (b: BaseBlock) => {
+                const context = b.context
+                if (!context) return
+                // in rotate of partent clipping also need to be rotated
+                context.translate(centerX, centerY)
+                context.rotate(pCurrentRotate)
+                context.translate(-centerX, -centerY)
+                if (this.__clipPath) context.clip(this.__clipPath, 'nonzero')
+                // if any other upper parent has clipping need to add another clip for it too
+                const getParentClip = (parent: BaseBlock) => {
+                    if (parent.__clipPath)
+                        context.clip(parent.__clipPath, 'nonzero')
+                    if (parent.__hasParentBlock && parent.parentNode)
+                        getParentClip(parent.parentNode)
                 }
+                getParentClip(this)
+                // after clip need to reset to its default rotation
+                context.translate(centerX, centerY)
+                context.rotate(-pCurrentRotate)
+                context.translate(-centerX, -centerY)
             }
+            b.canvas?.demandInvoke(b)
+        })
 
-            if (width !== undefined && width + x > maxX) {
-                maxX = width + x
-            } else if (blockW + x > maxX) {
-                maxX = blockW + x
-            }
-
-            if (height !== undefined && height + y > maxY) {
-                maxY = height + y
-            } else if (blockW + y > maxY) {
-                maxY = blockW + y
-            }
-
-            if (minX === undefined || x < minX) minX = x
-            if (minY === undefined || y < minY) minY = y
-        }, 'order')
+        this.__childsContainer = {
+            width: containerW,
+            height: containerH,
+        }
         this.#blocksWidth = []
         this.#blocksHeight = []
         this.#layoutCols = []
@@ -337,13 +492,6 @@ export class LayoutBlock extends Block<LayoutOptions> {
         this.#containerY = 0
         this.#columnsGap = []
         this.#rowsGap = []
-
-        this.__overflowCords.minX = minX || 0
-        this.__overflowCords.minY = minY || 0
-        this.__overflowCords.maxX = maxX
-        this.__overflowCords.maxY = maxY
-
-        this.rotate(cacheR)
     }
     layout(opt?: ILayout) {
         const layout = this.__valueHandler<ILayout, ILayout>(
@@ -354,18 +502,12 @@ export class LayoutBlock extends Block<LayoutOptions> {
         if (layout == 'inline-flex' || layout == 'inline-grid') {
             if (!this.width())
                 this.width(
-                    this.childNodes.reduce(
-                        (prev, curr) => prev + curr.width(),
-                        0
-                    )
+                    this.#childs.reduce((prev, curr) => prev + curr.width(), 0)
                 )
 
             if (!this.height())
                 this.height(
-                    this.childNodes.reduce(
-                        (prev, curr) => prev + curr.height(),
-                        0
-                    )
+                    this.#childs.reduce((prev, curr) => prev + curr.height(), 0)
                 )
         }
         return layout
@@ -661,13 +803,13 @@ export class LayoutBlock extends Block<LayoutOptions> {
             }
         }
         const _justify_func = () => {
-            for (let i = 0, len = this.childNodes.length; i < len; i++) {
+            for (let i = 0, len = this.#childs.length; i < len; i++) {
                 this.#startXPos.push(0)
             }
         }
         const _align_func = () => {
             if (this.#isGrid) {
-                for (let i = 0, len = this.childNodes.length; i < len; i++) {
+                for (let i = 0, len = this.#childs.length; i < len; i++) {
                     this.#startYPos.push(0)
                 }
             } else {
@@ -770,12 +912,12 @@ export class LayoutBlock extends Block<LayoutOptions> {
         }
         const _justify_func = () => {
             for (
-                let i = 0, col = 0, len = this.childNodes.length;
+                let i = 0, col = 0, len = this.#childs.length;
                 i < len;
                 i++, col++
             ) {
                 this.#startXPos.push(
-                    this.#blocksWidth[col] - this.childNodes[i].width()
+                    this.#blocksWidth[col] - this.#childs[i].width()
                 )
                 if (col === this.#blocksWidth.length) col = 0
             }
@@ -783,12 +925,12 @@ export class LayoutBlock extends Block<LayoutOptions> {
         const _align_func = () => {
             if (this.#isGrid) {
                 for (
-                    let i = 0, row = 0, len = this.childNodes.length;
+                    let i = 0, row = 0, len = this.#childs.length;
                     i < len;
                     i++
                 ) {
                     this.#startYPos.push(
-                        this.#blocksHeight[row] - this.childNodes[i].height()
+                        this.#blocksHeight[row] - this.#childs[i].height()
                     )
                     if (i === this.#blocksWidth.length - 1) row++
                 }
@@ -810,7 +952,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             this.#startXPos.push(
                                 colW +
                                     (this.#blocksWidth[i] -
-                                        this.childNodes[j + rows].width())
+                                        this.#childs[j + rows].width())
                             )
                         }
                     }
@@ -831,7 +973,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                             this.#startYPos.push(
                                 colH +
                                     (this.#blocksHeight[i] -
-                                        this.childNodes[l + cols].height())
+                                        this.#childs[l + cols].height())
                             )
                         }
                     }
@@ -902,12 +1044,12 @@ export class LayoutBlock extends Block<LayoutOptions> {
         }
         const _justify_func = () => {
             for (
-                let i = 0, col = 0, len = this.childNodes.length;
+                let i = 0, col = 0, len = this.#childs.length;
                 i < len;
                 i++, col++
             ) {
                 this.#startXPos.push(
-                    this.#blocksWidth[col] / 2 - this.childNodes[i].width() / 2
+                    this.#blocksWidth[col] / 2 - this.#childs[i].width() / 2
                 )
                 if (this.#blocksWidth.length === col) col = 0
             }
@@ -915,13 +1057,13 @@ export class LayoutBlock extends Block<LayoutOptions> {
         const _align_func = () => {
             if (this.#isGrid) {
                 for (
-                    let i = 0, row = 0, len = this.childNodes.length;
+                    let i = 0, row = 0, len = this.#childs.length;
                     i < len;
                     i++, row++
                 ) {
                     this.#startYPos.push(
                         this.#blocksHeight[row] / 2 -
-                            this.childNodes[i].height() / 2
+                            this.#childs[i].height() / 2
                     )
                     if (this.#blocksHeight.length - 1 === row) row = 0
                 }
@@ -938,7 +1080,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         for (let j = 0; j < this.#layoutRows[i]; j++) {
                             this.#startXPos.push(
                                 (this.#blocksWidth[i] -
-                                    this.childNodes[j + row].width()) /
+                                    this.#childs[j + row].width()) /
                                     2
                             )
                         }
@@ -956,7 +1098,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         for (let j = 0; j < this.#layoutCols[i]; j++) {
                             this.#startYPos.push(
                                 (this.#blocksHeight[i] -
-                                    this.childNodes[j + col].height()) /
+                                    this.#childs[j + col].height()) /
                                     2
                             )
                         }
@@ -997,10 +1139,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     } else {
                         let gap = this.height() - this.#containerH
-                        gap =
-                            gap > 0
-                                ? gap / (this.childNodes.length - 1 || 1)
-                                : 0
+                        gap = gap > 0 ? gap / (this.#childs.length - 1 || 1) : 0
                         this.gapRow(gap)
                     }
                 } else {
@@ -1021,9 +1160,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                     } else {
                         let gap = this.width() - this.#containerW
                         this.gapColumn(
-                            gap > 0
-                                ? gap / (this.childNodes.length - 1 || 1)
-                                : 0
+                            gap > 0 ? gap / (this.#childs.length - 1 || 1) : 0
                         )
                     }
                 }
@@ -1076,7 +1213,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     } else {
                         let gap = this.height() - this.#containerH
-                        gap = gap > 0 ? gap / this.childNodes.length : 0
+                        gap = gap > 0 ? gap / this.#childs.length : 0
                         this.gapRow(gap)
                         this.#containerY = gap / 2
                     }
@@ -1095,7 +1232,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     } else {
                         let gap = this.width() - this.#containerW
-                        gap = gap > 0 ? gap / this.childNodes.length : 0
+                        gap = gap > 0 ? gap / this.#childs.length : 0
                         this.gapColumn(gap)
                         this.#containerX = gap / 2
                     }
@@ -1149,7 +1286,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     } else {
                         let gap = this.height() - this.#containerH
-                        gap = gap > 0 ? gap / (this.childNodes.length + 1) : 0
+                        gap = gap > 0 ? gap / (this.#childs.length + 1) : 0
                         this.gapRow(gap)
                         this.#containerY = gap
                     }
@@ -1171,7 +1308,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                         }
                     } else {
                         let gap = this.width() - this.#containerW
-                        gap = gap > 0 ? gap / (this.childNodes.length + 1) : 0
+                        gap = gap > 0 ? gap / (this.#childs.length + 1) : 0
                         this.gapColumn(gap)
                         this.#containerX = gap
                     }
@@ -1233,15 +1370,17 @@ export class LayoutBlock extends Block<LayoutOptions> {
 
         const layoutWidth = this.width()
         this.listOnlyChilds((block: Block, idx: number) => {
-            if (block.rotationCenter() === 'parent') block.rotate(0)
+            const blockWidthSpaces = block.marginLeft() + block.marginRight()
+            const blockHeightSpaces = block.marginTop() + block.marginBottom()
 
             let blockW = block.width()
+            let blockH = block.height() + blockHeightSpaces
+
             if (block.flexBasis() !== 'auto')
                 blockW = block.flexBasis() as number
 
-            blockW += block.marginLeft() + block.marginRight()
             if (this.#isWrap) {
-                wrapWidth += blockW
+                wrapWidth += blockW + blockWidthSpaces
                 if (wrapWidth > layoutWidth) {
                     rowIdx += 1
                     startY += containerH + gapRow
@@ -1263,24 +1402,24 @@ export class LayoutBlock extends Block<LayoutOptions> {
                     containerH = 0
                     colIdx = 0
 
-                    wrapWidth = blockW
+                    wrapWidth = blockW + blockWidthSpaces
                 }
             }
             const x = startX
             const y = startY + (this.#startYPos[idx] || 0)
 
-            if (containerH < block.height()) containerH = block.height()
+            if (containerH < blockH) containerH = blockH
 
-            block.__childAdjustment = (b: Block) => {
+            block.__childAdjustment = (b: BaseBlock) => {
                 b.x(x)
                 b.y(y)
                 b.width(blockW)
             }
             wrapWidth += gapCol
-            startX += gapCol + blockW
-            containerW += blockW + block.marginRight()
+            startX += gapCol + blockW + blockWidthSpaces
+            containerW += blockW + blockWidthSpaces
             colIdx += 1
-        }, 'order')
+        })
         this.#blocksWidth.push(containerW)
         this.#blocksHeight.push(containerH)
         this.#layoutCols.push(colIdx)
@@ -1317,15 +1456,17 @@ export class LayoutBlock extends Block<LayoutOptions> {
 
         const layoutHeight = this.height()
         this.listOnlyChilds((block: Block, idx: number) => {
-            if (block.rotationCenter() === 'parent') block.rotate(0)
+            const blockWidthSpaces = block.marginLeft() + block.marginRight()
+            const blockHeightSpaces = block.marginTop() + block.marginBottom()
 
             let blockH = block.height()
+            let blockW = block.width() + blockWidthSpaces
+
             if (block.flexBasis() !== 'auto')
                 blockH = block.flexBasis() as number
 
-            blockH += block.marginBottom() + block.marginTop()
             if (this.#isWrap) {
-                wrapHeight += blockH
+                wrapHeight += blockH + blockHeightSpaces
                 if (wrapHeight > layoutHeight) {
                     colIdx += 1
                     startX += containerW + gapCol
@@ -1348,25 +1489,25 @@ export class LayoutBlock extends Block<LayoutOptions> {
                     containerH = 0
                     rowIdx = 0
 
-                    wrapHeight = blockH
+                    wrapHeight = blockH + blockHeightSpaces
                 }
             }
 
             const x = startX + (this.#startXPos[idx] || 0)
             const y = startY
 
-            if (containerW < block.width()) containerW = block.width()
+            if (containerW < blockW) containerW = blockW
 
-            block.__childAdjustment = (b: Block) => {
+            block.__childAdjustment = (b: BaseBlock) => {
                 b.x(x)
                 b.y(y)
                 b.height(blockH)
             }
             wrapHeight += gapRow
-            startY += gapRow + blockH
-            containerH += blockH + block.marginBottom()
+            startY += gapRow + blockH + blockHeightSpaces
+            containerH += blockH + blockHeightSpaces
             rowIdx += 1
-        }, 'order')
+        })
         this.#blocksWidth.push(containerW)
         this.#blocksHeight.push(containerH)
         this.#layoutCols.push(1)
@@ -1386,6 +1527,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
         this.#blocksHeight = []
         this.#layoutCols = []
         this.#layoutRows = []
+        const childNodes = this.#childs
 
         const cols = this.gridTemplateColumns()
         const rows = this.gridTemplateRows()
@@ -1404,7 +1546,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
         const autoHeights = this.gridTemplateRows().filter(
             (item: any) => item !== 'auto'
         )
-        const nRows = Math.ceil(this.childNodes.length / cols.length)
+        const nRows = Math.ceil(childNodes.length / cols.length)
 
         let rHeight = (autoHeights as number[]).reduce(
             (p: number, c: number) => p + c,
@@ -1437,9 +1579,8 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 const idx =
                     (this.#layoutCols[0] - 1) * rowCount + rowCount + colIdx
 
-                const block = this.childNodes[idx]
+                const block = childNodes[idx]
                 if (!block) continue
-                if (block.rotationCenter() === 'parent') block.rotate(0)
                 const blockW = block.width()
                 const blockH = block.height()
                 if (maxColWidths[colIdx]) {
@@ -1485,7 +1626,7 @@ export class LayoutBlock extends Block<LayoutOptions> {
                 const x = startX + (this.#startXPos[idx] || 0)
                 const y = startY + (this.#startYPos[idx] || 0)
 
-                block.__childAdjustment = (b: Block) => {
+                block.__childAdjustment = (b: BaseBlock) => {
                     b.width(endX)
                     b.height(endY)
                     b.x(x)
