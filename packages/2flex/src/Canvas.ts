@@ -401,6 +401,7 @@ export class Canvas {
         })
         this.canvas.addEventListener('mouseleave', () => {
             this.isMouseEventAllowed = false
+            this.#resetActiveRunningEventsBlocks()
         })
     }
     #render(timestamp: Timestamp) {
@@ -487,6 +488,13 @@ export class Canvas {
             )
         })
         for (const block of explicitBlocks) this.demandInvoke(block)
+    }
+    #resetActiveRunningEventsBlocks() {
+        const blocks = this.#scene.getSortedBlocksByZIndex()
+        for (const block of blocks) {
+            block.__disableRunningEvents()
+        }
+        this.#registeredCursors = new Map()
     }
     #invokeAnimations(timestamp: Timestamp) {
         for (const animeFunc of Object.values(this.#canvasAnimations)) {
@@ -833,7 +841,10 @@ export class Canvas {
             currentCursor = currentCursor.filter((i) => i !== cursor)
             this.#registeredCursors.set(nodeId, currentCursor)
         }
-        if (!currentCursor || (currentCursor  && (currentCursor as []).length === 0)) {
+        if (
+            !currentCursor ||
+            (currentCursor && (currentCursor as []).length === 0)
+        ) {
             this.resetCursor()
             this.#registeredCursors.delete(nodeId)
         }

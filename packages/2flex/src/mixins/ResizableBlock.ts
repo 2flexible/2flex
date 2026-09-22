@@ -565,6 +565,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         width: block.width(),
                         height: block.height(),
                     }
+                    inBound = false
                     block.__registerZIndex(block.zIndex())
                 }
             }
@@ -822,7 +823,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
                 ) {
-                     if (beforeCursor) block.__resetCursor(beforeCursor)
+                    inBound = false
+                    if (beforeCursor) block.__resetCursor(beforeCursor)
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
                     block.__unregisterZIndex()
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {

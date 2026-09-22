@@ -346,6 +346,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         rotate: block.rotate(),
                     }
                     block.__registerZIndex(block.zIndex())
+                    inBound = false
                 }
             }
 
