@@ -194,6 +194,8 @@ export class BaseBlock extends Node {
         this.#buildOptions(options)
         this.#defineProperties()
 
+        this.initWidth = options.width
+        this.initHeight = options.height
         this.realWidth = 0
         this.realHeight = 0
         this.realCenterX = 0
@@ -608,6 +610,15 @@ export class BaseBlock extends Node {
         const cacheWidth = this.getOptionCache('width')
         const cacheHeight = this.getOptionCache('height')
 
+        const blockInitW = this.__unitConverter({
+            val: this.initWidth,
+            widthRelated: true,
+        }) as number
+        const blockInitH = this.__unitConverter({
+            val: this.initHeight,
+            widthRelated: false,
+        }) as number
+
         const minWidth = this.getOptionCurrent('minWidth')
         const maxWidth = this.getOptionCurrent('maxWidth')
         const minHeight = this.getOptionCurrent('minHeight')
@@ -654,14 +665,15 @@ export class BaseBlock extends Node {
             currentWidth *= diffScale
             currentHeight *= diffScale
         }
-        if (minWidth !== undefined && currentWidth < minWidth)
-            currentWidth = minWidth
-        else if (maxWidth !== undefined && currentWidth > maxWidth)
-            currentWidth = maxWidth
-        if (minHeight !== undefined && currentHeight < minHeight)
-            currentHeight = minHeight
-        else if (maxHeight !== undefined && currentHeight > maxHeight)
-            currentHeight = maxHeight
+        if (maxWidth !== undefined)
+            currentWidth = Math.min(blockInitW, maxWidth)
+        if (minWidth !== undefined)
+            currentWidth = Math.max(minWidth, currentWidth)
+
+        if (maxHeight !== undefined)
+            currentHeight = Math.min(blockInitH, maxHeight)
+        if (minHeight !== undefined)
+            currentHeight = Math.max(minHeight, currentHeight)
 
         if (position === 'fixed' || position === 'absolute') {
             const tx = this.canvas?.view.tx ?? 0
@@ -794,6 +806,12 @@ export class BaseBlock extends Node {
         const cornerLeftX = this.cornerTopLeft().x
         const cornerTopY = this.cornerTopLeft().y
 
+        const blockHorizontalFlip = this.horizontalFlip()
+        const blockVerticalFlip = this.verticalFlip()
+
+        const horiztionalFlipSign = blockHorizontalFlip ? -1 : 1
+        const verticalFlipSign = blockVerticalFlip ? -1 : 1
+
         let startX = 0
         let startY = 0
         let containerW = 0
@@ -808,16 +826,22 @@ export class BaseBlock extends Node {
             if (blockPosition === 'absolute' || blockPosition === 'fixed')
                 return
 
-            const blockHorizontalFlip = this.horizontalFlip()
-            const blockVerticalFlip = this.verticalFlip()
+            const blockMarginTop = b.marginTop() * verticalFlipSign
+            const blockMarginBottom = b.marginBottom() * verticalFlipSign
+            const blockMarginLeft = b.marginLeft() * horiztionalFlipSign
+            const blockMarginRight = b.marginRight() * horiztionalFlipSign
+            
+            const blockInitW = b.__unitConverter({
+                val: b.initWidth,
+                widthRelated: true,
+            }) as number
+            const blockInitH = b.__unitConverter({
+                val: b.initHeight,
+                widthRelated: false,
+            }) as number
 
-            const blockMarginTop = b.marginTop()
-            const blockMarginBottom = b.marginBottom()
-            const blockMarginLeft = b.marginLeft()
-            const blockMarginRight = b.marginRight()
-
-            let blockW = b.width()
-            let blockH = b.height()
+            let blockW = Math.abs(b.width())
+            let blockH = Math.abs(b.height())
 
             const blockWidthSpaces = blockW + blockMarginLeft + blockMarginRight
             const blockHeightSpaces =
@@ -834,60 +858,40 @@ export class BaseBlock extends Node {
                 containerH = 0
             }
 
-            const blockXStart = startX + pPaddingLeft + blockMarginLeft
-            const blockYStart = startY + pPaddingTop + blockMarginTop
-
-            let x = blockXStart + cornerLeftX
-            let y = blockYStart + cornerTopY
+            let blockXStart =
+                startX + pPaddingLeft + blockMarginLeft + cornerLeftX
+            let blockYStart = startY + pPaddingTop + blockMarginTop + cornerTopY
 
             if (blockPosition === 'relative') {
-                if (b.left() !== undefined) x += b.left()!
-                else if (b.right() !== undefined) x -= b.right()!
+                if (b.left() !== undefined) blockXStart += b.left()!
+                else if (b.right() !== undefined) blockXStart -= b.right()!
 
-                if (b.top() !== undefined) y += b.top()!
-                else if (b.bottom() !== undefined) y -= b.bottom()!
+                if (b.top() !== undefined) blockYStart += b.top()!
+                else if (b.bottom() !== undefined) blockYStart -= b.bottom()!
             }
 
             startX += blockWidthSpaces
             containerW += blockWidthSpaces
 
             if (containerH < blockHeightSpaces) containerH = blockHeightSpaces
-
             if (containerW > blocksContainerWidth)
                 blocksContainerWidth = containerW
 
             if (currIdx == arrLen - 1) blocksContainerHeight += containerH
 
-            const blockMaxWidth =
-                b.maxWidth() !== Infinity ? b.maxWidth() : undefined
-            const blockMaxHeight =
-                b.maxHeight() !== Infinity ? b.maxHeight() : undefined
+            blockW = blockInitW
+            blockH = blockInitH
 
-            if (
-                blockMaxWidth !== undefined &&
-                ((pWidthSpaces < blockW && pWidth > b.minWidth()) ||
-                    blockW < blockMaxWidth)
-            )
-                blockW += pWidthSpaces - blockW
-
-            if (
-                blockMaxHeight !== undefined &&
-                ((pHeightSpaces < blockH && pHeight > b.minHeight()) ||
-                    blockH < blockMaxHeight)
-            ) {
-                blockH += pHeightSpaces - blockH
-            }
-            if (b.rotationCenter() === 'parent') {
-                b.setOptionCurrent('rotationCenterX', centerX)
-                b.setOptionCurrent('rotationCenterY', centerY)
-            }
             b.setOptionCurrent('rotate', pCurrentRotate)
             b.setOptionCache('rotate', pCacheRotate)
             b.__childAdjustment = (b: BaseBlock) => {
                 b.hidden(this.hidden())
-
-                b.x(x)
-                b.y(y)
+                if (b.rotationCenter() === 'parent') {
+                    b.setOptionCurrent('rotationCenterX', centerX)
+                    b.setOptionCurrent('rotationCenterY', centerY)
+                }
+                b.x(blockXStart)
+                b.y(blockYStart)
                 if (blockHorizontalFlip) blockW = -blockW
                 if (blockVerticalFlip) blockH = -blockH
                 b.width(blockW)

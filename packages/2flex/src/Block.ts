@@ -76,6 +76,9 @@ export class Block extends OverflowBlock(
         const cornerLeftX = this.cornerTopLeft().x
         const cornerTopY = this.cornerTopLeft().y
 
+        const overflowPositionX = this.overflowPositionX()
+        const overflowPositionY = this.overflowPositionY()
+
         let startX = 0
         let startY = 0
         let containerW = 0
@@ -92,15 +95,24 @@ export class Block extends OverflowBlock(
             let blockW = Math.abs(b.width())
             let blockH = Math.abs(b.height())
 
-            const blockMaxWidth = b.maxWidth()
-            const blockMaxHeight = b.maxHeight()
-            const blockMinWidth = b.minWidth() || 0
-            const blockMinHeight = b.minHeight() || 0
+            const blockInitW = b.__unitConverter({
+                val: b.initWidth,
+                widthRelated: true,
+            }) as number
+            const blockInitH = b.__unitConverter({
+                val: b.initHeight,
+                widthRelated: false,
+            }) as number
 
             const blockMarginTop = b.marginTop()
             const blockMarginBottom = b.marginBottom()
             const blockMarginLeft = b.marginLeft()
             const blockMarginRight = b.marginRight()
+
+            const top = b.top()
+            const bottom = b.bottom()
+            const left = b.left()
+            const right = b.right()
 
             const blockWidthSpaces = blockW + blockMarginLeft + blockMarginRight
             const blockHeightSpaces =
@@ -117,60 +129,52 @@ export class Block extends OverflowBlock(
                 containerH = 0
             }
 
-            const blockXStart = startX + pPaddingLeft + blockMarginLeft
-            const blockYStart = startY + pPaddingTop + blockMarginTop
+            const blockXStart =
+                startX + pPaddingLeft + blockMarginLeft * overflowXSign
+            const blockYStart =
+                startY + pPaddingTop + blockMarginTop * overflowYSign
 
             let x =
-                blockXStart +
-                cornerLeftX +
-                this.overflowPositionX() * overflowXSign
-            let y =
-                blockYStart +
-                cornerTopY +
-                this.overflowPositionY() * overflowYSign
+                blockXStart + cornerLeftX + overflowPositionX * overflowXSign
+            let y = blockYStart + cornerTopY + overflowPositionY * overflowYSign
 
             if (blockPosition === 'relative') {
-                if (b.left() !== undefined) x += b.left()!
-                else if (b.right() !== undefined) x -= b.right()!
-
-                if (b.top() !== undefined) y += b.top()!
-                else if (b.bottom() !== undefined) y -= b.bottom()!
+                if (left !== undefined) x += left
+                else if (right !== undefined) x -= right
+                if (top !== undefined) y += top
+                else if (bottom !== undefined) y -= bottom
             } else if (blockPosition === 'sticky') {
                 if (this.__isOverflowYScroll) {
                     if (
-                        b.top() !== undefined &&
-                        Math.abs(this.overflowPositionY()) >=
-                            blockYStart - b.top()!
+                        top !== undefined &&
+                        Math.abs(overflowPositionY) >= blockYStart - top
                     ) {
-                        y += b.top()! - (this.overflowPositionY() * overflowYSign + startY)
+                        y += top - (overflowPositionY * overflowYSign + startY)
                     } else if (
-                        b.bottom() !== undefined &&
-                        Math.abs(this.overflowPositionY()) <=
-                            blockYStart +
-                                b.bottom()! -
-                                Math.abs(pHeight - blockH)
+                        bottom !== undefined &&
+                        Math.abs(overflowPositionY) <=
+                            blockYStart + bottom - Math.abs(pHeight - blockH)
                     ) {
                         y +=
-                            -b.bottom()! -
-                            (this.overflowPositionY() * overflowYSign + startY) +
+                            -bottom -
+                            (overflowPositionY * overflowYSign + startY) +
                             Math.abs(pHeight - blockH)
                     }
                 }
                 if (this.__isOverflowXScroll) {
                     if (
-                        b.left() !== undefined &&
-                        Math.abs(this.overflowPositionX()) >=
-                            blockXStart - b.left()!
+                        left !== undefined &&
+                        Math.abs(overflowPositionX) >= blockXStart - left
                     ) {
-                        x += b.left()! - (this.overflowPositionX() * overflowXSign + startX)
+                        x += left - (overflowPositionX * overflowXSign + startX)
                     } else if (
-                        b.right() !== undefined &&
-                        Math.abs(this.overflowPositionX()) <=
-                            blockXStart - b.right()! - Math.abs(pWidth - blockW)
+                        right !== undefined &&
+                        Math.abs(overflowPositionX) <=
+                            blockXStart - right - Math.abs(pWidth - blockW)
                     ) {
                         x +=
-                            b.right()! -
-                            (this.overflowPositionX() * overflowXSign + startX) +
+                            right -
+                            (overflowPositionX * overflowXSign + startX) +
                             Math.abs(pWidth - blockW)
                     }
                 }
@@ -185,19 +189,9 @@ export class Block extends OverflowBlock(
 
             if (currIdx == arrLen - 1) blocksContainerHeight += containerH
 
-            if (
-                blockMaxWidth !== undefined &&
-                ((pWidthSpaces < blockW && pWidth > blockMinWidth) ||
-                    blockW < blockMaxWidth)
-            )
-                blockW += pWidthSpaces - blockW
-            if (
-                blockMaxHeight !== undefined &&
-                ((pHeightSpaces < blockH && pHeight > blockMinHeight) ||
-                    blockH < blockMaxHeight)
-            ) {
-                blockH += pHeightSpaces - blockH
-            }
+            blockW = blockInitW
+            blockH = blockInitH
+
             b.setOptionCurrent('rotate', pCurrentRotate)
             b.setOptionCache('rotate', pCacheRotate)
             b.__childAdjustment = (b: BaseBlock) => {
