@@ -430,9 +430,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     beforeValues = {
                         overflowPositionX: block.overflowPositionX(),
                     }
-                    block.#overflowXscrollBarBlock.__registerZIndex(
-                        block.#overflowXscrollBarBlock.zIndex()
-                    )
+                    block.#overflowXscrollBarBlock.__registerZIndex()
                     block.__updateRunningEvent(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT,
                         true
@@ -597,7 +595,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         overflowPositionY: block.overflowPositionY(),
                     }
                     block.#overflowYscrollBarBlock.__registerZIndex(
-                        block.#overflowYscrollBarBlock.zIndex()
                     )
                     block.__updateRunningEvent(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT,

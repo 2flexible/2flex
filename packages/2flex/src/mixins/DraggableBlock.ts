@@ -57,7 +57,7 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             block.#mouseDownEvent = (event: MouseEvent) => {
                 if (!block.selectable()) return
                 if (block.checkInBound(event) && block.isMouseEventAllowed) {
-                    block.__registerZIndex(block.zIndex())
+                    block.__registerZIndex()
                     if (block.__ImFirst()) {
                         initCords = block.canvas?.getCursorPosition(event)!
                         beforeCords = { x: 0, y: 0 }
@@ -111,7 +111,7 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__isRunningEventActive(DRAGGABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
                 ) {
-                    block.__unregisterZIndex(block.zIndex())
+                    block.__unregisterZIndex()
                     block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
                         const after: any = {

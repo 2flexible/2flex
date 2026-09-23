@@ -566,7 +566,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         height: block.height(),
                     }
                     inBound = false
-                    block.__registerZIndex(block.zIndex())
+                    block.__registerZIndex()
                 }
             }
             block.#mouseMoveEvent = (event: MouseEvent) => {
@@ -633,7 +633,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                             cursor,
                             block.rotate()
                         )
-                        block.__registerZIndex(block.zIndex())
+                        block.__registerZIndex()
                         block.__selectCursor(cursor)
                         if (
                             beforeCursor !== undefined &&

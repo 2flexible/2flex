@@ -1166,8 +1166,8 @@ export class BaseBlock extends Node {
         if (this.canvas) this.canvas.demandRemoveAnimation(animationId)
         else this.#pending['animations:remove'].push(animationId)
     }
-    __registerZIndex(zIndex: number) {
-        if (this.nodeId) this.canvas?.registerZIndex(this.nodeId, zIndex)
+    __registerZIndex() {
+        if (this.nodeId) this.canvas?.registerZIndex(this.nodeId, this.zIndex())
     }
     __unregisterZIndex() {
         if (this.nodeId) this.canvas?.unregisterZIndex(this.nodeId)
@@ -1331,7 +1331,7 @@ export class BaseBlock extends Node {
     contextMenu(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex(this.zIndex())
+                this.__registerZIndex()
                 if (this.__ImFirst()) {
                     _func(event)
                     this.__invokeChange()
@@ -1343,7 +1343,7 @@ export class BaseBlock extends Node {
     click(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex(this.zIndex())
+                this.__registerZIndex()
                 if (this.__ImFirst()) {
                     _func(event)
                     this.__invokeChange()
@@ -1355,7 +1355,7 @@ export class BaseBlock extends Node {
     dblclick(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex(this.zIndex())
+                this.__registerZIndex()
                 if (this.__ImFirst()) {
                     _func(event)
                     this.__invokeChange()
@@ -1367,7 +1367,7 @@ export class BaseBlock extends Node {
     mousedown(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex(this.zIndex())
+                this.__registerZIndex()
                 if (this.__ImFirst()) {
                     _func(event)
                     this.__invokeChange()
@@ -1379,7 +1379,7 @@ export class BaseBlock extends Node {
     mouseup(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex(this.zIndex())
+                this.__registerZIndex()
                 if (this.__ImFirst()) {
                     _func(event)
                     this.__invokeChange()
@@ -1391,7 +1391,7 @@ export class BaseBlock extends Node {
     mousemove(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex(this.zIndex())
+                this.__registerZIndex()
                 if (this.__ImFirst()) {
                     _func(event)
                     this.__invokeChange()
@@ -1404,7 +1404,7 @@ export class BaseBlock extends Node {
         let isMouseEnter = false
         const enter = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex(this.zIndex())
+                this.__registerZIndex()
                 if (this.__ImFirst() && !isMouseEnter) {
                     _func(event)
                     this.__invokeChange()
@@ -1421,7 +1421,7 @@ export class BaseBlock extends Node {
         let isMouseLeave = false
         const leave = (event: MouseEvent) => {
             if (!this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex(this.zIndex())
+                this.__registerZIndex()
 
                 if (!this.__ImFirst() && !isMouseLeave) {
                     _func(event)

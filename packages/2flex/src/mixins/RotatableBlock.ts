@@ -345,7 +345,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     beforeValues = {
                         rotate: block.rotate(),
                     }
-                    block.__registerZIndex(block.zIndex())
+                    block.__registerZIndex()
                     inBound = false
                 }
             }
@@ -389,7 +389,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     }
                     if (cursor) {
                         inBound = true
-                        block.__registerZIndex(block.zIndex())
+                        block.__registerZIndex()
                         block.__selectCursor(cursor)
                         if (
                             beforeCursor !== undefined &&
