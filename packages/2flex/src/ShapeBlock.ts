@@ -167,7 +167,7 @@ interface Pattern {
 
 export type DrawFunc = (context: OffscreenCanvasRenderingContext2D) => void
 
-export type DropShadow = [RelativeType, RelativeType, RelativeType, FillStyle][]
+export type DropShadow = [RelativeType, RelativeType, RelativeType, FillStyle]
 
 export interface IShapeOptions extends IBlockOptions {
     fill?: Fill
@@ -206,14 +206,14 @@ export interface IShapeOptions extends IBlockOptions {
     conicGradient?: ConicGradient
     colorStops?: GradientStops[]
 
-    blur?: RelativeType
-    brightness?: RelativeType
-    contrast?: RelativeType
-    dropShadow?: DropShadow
-    grayscale?: RelativeType
-    hueRotate?: RelativeType
-    saturate?: RelativeType
-    sepia?: RelativeType
+    blur?: RelativeType | RelativeType[]
+    brightness?: RelativeType | RelativeType[]
+    contrast?: RelativeType | RelativeType[]
+    dropShadow?: DropShadow | DropShadow[]
+    grayscale?: RelativeType | RelativeType[]
+    hueRotate?: RelativeType | RelativeType[]
+    saturate?: RelativeType | RelativeType[]
+    sepia?: RelativeType | RelativeType[]
 
     shadowBlur?: RelativeType
     shadowColor?: string
@@ -1002,10 +1002,9 @@ export class ShapeBlock extends Block {
     }
 
     #filterHandler(
-        filter?: keyof ShapeFilters,
-        value?: string | number | number[]
+        filter: keyof ShapeFilters,
+        value: string | number | number[]
     ) {
-        if (value === undefined || filter == undefined) return
         switch (filter) {
             case 'blur':
                 value = value + 'px'
@@ -1047,31 +1046,55 @@ export class ShapeBlock extends Block {
         this.#filterStr = undefined
     }
 
-    #blur(block: ShapeBlock, opt?: RelativeType) {
-        block.#filterHandler('blur', opt)
+    #blur(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('blur', val)
+        else block.#filterHandler('blur', opt)
     }
-    #brightness(block: ShapeBlock, opt?: RelativeType) {
-        block.#filterHandler('brightness', opt)
+    #brightness(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('brightness', val)
+        else block.#filterHandler('brightness', opt)
     }
-    #contrast(block: ShapeBlock, opt?: RelativeType) {
-        block.#filterHandler('contrast', opt)
+    #contrast(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('contrast', val)
+        else block.#filterHandler('contrast', opt)
     }
-    #dropShadow(block: ShapeBlock, opt?: DropShadow) {
-        block.#filterHandler('drop-shadow', opt as any)
+    #dropShadow(block: ShapeBlock, opt?: DropShadow | DropShadow[]) {
+        if (!opt) return
+        if (opt[0] instanceof Array)
+            for (const val of opt)
+                block.#filterHandler('drop-shadow', val as any)
+        else block.#filterHandler('drop-shadow', opt as any)
     }
-    #grayscale(block: ShapeBlock, opt?: RelativeType) {
-        block.#filterHandler('grayscale', opt)
+    #grayscale(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('grayscale', val)
+        else block.#filterHandler('grayscale', opt)
     }
-    #hueRotate(block: ShapeBlock, opt?: RelativeType) {
-        block.#filterHandler('hue-rotate', opt)
+    #hueRotate(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('hue-rotate', val)
+        else block.#filterHandler('hue-rotate', opt)
     }
-    #saturate(block: ShapeBlock, opt?: RelativeType) {
-        block.#filterHandler('saturate', opt)
+    #saturate(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('saturate', val)
+        else block.#filterHandler('saturate', opt)
     }
-    #sepia(block: ShapeBlock, opt?: RelativeType) {
-        block.#filterHandler('sepia', opt)
+    #sepia(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('sepia', val)
+        else block.#filterHandler('sepia', opt)
     }
-
     #drawImage(block: ShapeBlock, opt?: DrawImage) {
         if (opt && opt.source)
             block.context?.drawImage(
