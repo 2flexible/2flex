@@ -44,17 +44,16 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
         }
         updateCords(): void {
             super.updateCords()
-            this.#updateHotLineBlockParameters()
-            this.#hotLineBlock?.__invokeChange()
-        }
-        updateCordinates(): void {
-            super.updateCordinates()
+
             this.#hotCornerCords = {
                 topLeft: this.cornerTopLeft(),
                 topRight: this.cornerTopRight(),
                 bottomLeft: this.cornerBottomLeft(),
                 bottomRight: this.cornerBottomRight(),
             }
+
+            this.#updateHotLineBlockParameters()
+            this.#hotLineBlock?.__invokeChange()
         }
         #getHigherZindex() {
             let higherZindex = 0
@@ -70,10 +69,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             if (!block.#hotLineBlock && opt) {
                 const hotLineBlock = block.#buildHotLines(block)
                 block.canvas?.add(hotLineBlock)
-            } else if (block.#hotLineBlock && !opt) {
-                block.canvas?.remove(block.#hotLineBlock)
-                block.#hotLineBlock = undefined
-            }
+            } 
         }
         #updateHotLineBlockParameters() {
             if (!this.#hotLineBlock) return
@@ -96,6 +92,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#hotLineBlock.height(
                 Math.abs(this.height()) + size + strokeWidth
             )
+           
             this.#hotLineBlock.zIndex(this.#getHigherZindex())
         }
 
@@ -113,7 +110,11 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 zIndex: block.#getHigherZindex(),
             })
             block.#hotLineBlock.onRender((hotLineBlock: BaseBlock) => {
-                if (!block.__isRunningEventActive(SELECTABLE_RUNNING_EVENT))
+             
+                if (
+                    !block.__isRunningEventActive(SELECTABLE_RUNNING_EVENT) ||
+                    !block.hotLines()
+                )
                     return
                 const size = block.hotCornerSize()
                 const radius = block.hotCornerRadius()
