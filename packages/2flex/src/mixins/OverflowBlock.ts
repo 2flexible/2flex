@@ -76,9 +76,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             ) {
                 const scrollBar = block.#overflowXScrollBar(block)
                 block.canvas?.add(scrollBar)
-            } else if (block.#overflowXscrollBarBlock) {
-                block.canvas?.remove(block.#overflowXscrollBarBlock)
-                block.#overflowXscrollBarBlock = undefined
             }
         }
         #overflowY(block: any) {
@@ -88,9 +85,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             ) {
                 const scrollBar = block.#overflowYScrollBar(block)
                 block.canvas?.add(scrollBar)
-            } else if (block.#overflowYscrollBarBlock) {
-                block.canvas?.remove(block.#overflowYscrollBarBlock)
-                block.#overflowYscrollBarBlock = undefined
             }
         }
         #overflowXY(block: any) {
@@ -594,8 +588,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     beforeValues = {
                         overflowPositionY: block.overflowPositionY(),
                     }
-                    block.#overflowYscrollBarBlock.__registerZIndex(
-                    )
+                    block.#overflowYscrollBarBlock.__registerZIndex()
                     block.__updateRunningEvent(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT,
                         true
