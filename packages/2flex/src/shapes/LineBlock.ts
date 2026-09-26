@@ -1,7 +1,13 @@
-import { FillStyle, IShapeOptions, ShapeBlock } from '../ShapeBlock'
-import type { Block, RelativeType } from '../Block'
-import type { IBlock } from '../types'
-import { checkInBound, cubicBezier, getPrototype } from '../Utils'
+import { DrawFunc, FillStyle, IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import { cubicBezier } from '../Utils'
+import type { RelativeType } from '../types'
+import type { Block } from '../Block'
+import {
+    SELECTABLE_RUNNING_EVENT,
+    DRAGGABLE_RUNNING_EVENT,
+    RESIZABLE_RUNNING_EVENT,
+    ROTATABLE_RUNNING_EVENT,
+} from '../const'
 
 interface StickyLine {
     block: Block
@@ -11,7 +17,7 @@ interface StickyLine {
 
 type LineType = 'line' | 'cubicBezier'
 
-interface ILineOptions extends IShapeOptions {
+export interface ILineOptions extends IShapeOptions {
     lineType?: LineType
     startX?: RelativeType
     startY?: RelativeType
@@ -26,24 +32,58 @@ interface ILineOptions extends IShapeOptions {
     startControllable?: boolean
     endControllable?: boolean
     lineColor?: FillStyle
-    backgroundColor?: FillStyle
+    fillColor?: FillStyle
     closeLine?: boolean
-    joinTo?: LineBlock
     controlPointsSize?: RelativeType
     editable?: boolean
     stickStart?: StickyLine
     stickEnd?: StickyLine
 }
+type CustomPointEvents = {
+    mousedown?: CustomEvent<MouseEvent>
+    mousemove?: CustomEvent<MouseEvent>
+    mouseup?: CustomEvent<MouseEvent>
+}
+interface ControlPointEvents {
+    start: CustomPointEvents
+    end: CustomPointEvents
+    startControl: CustomPointEvents
+    endControl: CustomPointEvents
+}
 
-export class LineBlock extends ShapeBlock<ILineOptions> {
+const CONTROLS_POINT_SIZE = 5
+const CONTROLS_LINE_WIDTH = 2
+const CONTROLS_POINT_BACKGROUND_COLOR = 'white'
+const CONTROLS_POINT_STROKE_COLOR = 'blue'
+const EDITABLE_RUNNING_EVENT = 'editable'
+const POINT_DRAGGING_RUNNING_EVENT_MAP: Record<
+    keyof ControlPointEvents,
+    string
+> = {
+    start: 'startDragable',
+    end: 'endDragable',
+    startControl: 'startControlDragable',
+    endControl: 'endControlDragable',
+}
+
+export class LineBlock extends ShapeBlock {
     path?: Path2D
     pathLine?: Path2D
     pathC1?: Path2D
     pathC2?: Path2D
     pathC3?: Path2D
     pathC4?: Path2D
-    __joined = false
-    __editable = false
+
+    #editableDbClickEvent?: CustomEvent<MouseEvent>
+    #editableClickEvent?: CustomEvent<MouseEvent>
+
+    #controlPointEvents: ControlPointEvents
+
+    #cacheX?: number
+    #cacheY?: number
+    #cacheWidth?: number
+    #cacheHeight?: number
+
     __points: { x: number[]; y: number[] } = { x: [], y: [] }
     __stickyStartBlock: {
         x?: number
@@ -68,61 +108,368 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         height: undefined,
     }
 
-    #oldCords = {
-        x: this.ownOptions.x || 0,
-        y: this.ownOptions.y || 0,
-        width: this.ownOptions.width || 0,
-        height: this.ownOptions.height || 0,
-    }
-
-    constructor(options: IBlock<ILineOptions>) {
+    constructor(options: ILineOptions) {
         super(options)
-    }
-    render(): void {
-        this.#boundingBox()
-        this.#handleSticky()
-        super.render()
-        if (this.__runningEvents.selected || this.__editable) {
-            this.__hotLines()
-            if (this.joinTo() !== undefined) this.joinTo()!.__hotLines()
+        this.#controlPointEvents = {
+            start: {},
+            end: {},
+            startControl: {},
+            endControl: {},
         }
-        if (this.__editable) this.__runningEvents.selected = false
+        this.#defineOptions()
     }
 
-    __initCordinates(): void {
-        this.#boundingBox()
-        this.ownOptions.x = this.#oldCords.x
-        this.ownOptions.y = this.#oldCords.y
-        this.ownOptions.width = this.#oldCords.width
-        this.ownOptions.height = this.#oldCords.height
-        super.__initCordinates()
-    }
+    #defineOptions() {
+        this.addProperty('lineType', 'line')
+        this.addProperty('startX', undefined, true)
+        this.addProperty('startY', undefined)
+        this.addProperty('endX', undefined, true)
+        this.addProperty('endY', undefined)
 
-    joinTo(opt?: LineBlock) {
-        const join = this.__valueHandler<LineBlock, LineBlock | undefined>(
-            opt,
-            'joinTo',
-            undefined
+        this.addProperty('startControlX', undefined, true)
+        this.addProperty('startControlY', undefined)
+        this.addProperty('endControlX', undefined, true)
+        this.addProperty('endControlY', undefined)
+
+        this.addProperty('stickStart', undefined)
+        this.addProperty('stickEnd', undefined)
+
+        this.addProperty(
+            'startDraggable',
+            undefined,
+            false,
+            (block: LineBlock, opt: boolean) => this.#startDraggable(block, opt)
         )
-        if (join !== undefined) join.__joined = true
-        return join
+        this.addProperty(
+            'endDraggable',
+            undefined,
+            false,
+            (block: LineBlock, opt: boolean) => this.#endDraggable(block, opt)
+        )
+        this.addProperty(
+            'startControllable',
+            undefined,
+            false,
+            (block: LineBlock, opt: boolean) =>
+                this.#startControllable(block, opt)
+        )
+        this.addProperty(
+            'endControllable',
+            undefined,
+            false,
+            (block: LineBlock, opt: boolean) =>
+                this.#endControllable(block, opt)
+        )
+
+        this.addProperty('controlPointsSize', CONTROLS_POINT_SIZE)
+        this.addProperty('controlLineWidth', CONTROLS_LINE_WIDTH)
+        this.addProperty(
+            'controlPointBackgroundColor',
+            CONTROLS_POINT_BACKGROUND_COLOR
+        )
+        this.addProperty('controlPointStrokeColor', CONTROLS_POINT_STROKE_COLOR)
+
+        this.addProperty('closeLine', undefined)
+        this.addProperty(
+            'lineColor',
+            undefined,
+            false,
+            (block: LineBlock, opt: string) => this.#lineColor(block, opt)
+        )
+        this.addProperty(
+            'fillColor',
+            undefined,
+            false,
+            (block: LineBlock, opt: string) => this.#fillColor(block, opt)
+        )
+
+        this.addProperty(
+            'editable',
+            false,
+            false,
+            (block: LineBlock, opt: boolean) => this.#editable(block, opt)
+        )
     }
 
-    draw(_func?: (context: CanvasRenderingContext2D) => void): void {
-        if (this.joinTo() !== undefined) {
-            const joined = this.joinTo()
-            this.path = joined!.path || new Path2D()
-            this.startX(joined!.endX())
-            this.startY(joined!.endY())
-            this.zIndex(joined!.zIndex())
-            this.__editable = joined!.__editable
-        } else {
-            this.path = new Path2D()
-            this.path!.moveTo(this.startX(), this.startY())
+    render(): void {
+        super.render()
+        this.#resetDefaultRunningEvents()
+    }
+draw(_func?: DrawFunc) {
+        this.path = this.#buildPath()
+
+        const isEditable = this.__isRunningEventActive(EDITABLE_RUNNING_EVENT)
+        this.hotLines(!isEditable)
+        if (isEditable) this.__selectCursor('auto')
+
+        if (this.fill()) this.context?.fill(this.path)
+        if (this.stroke()) this.context?.stroke(this.path)
+
+        this.#buildInlineHotLines()
+    }
+
+    updateCordinates(): void {
+        super.updateCordinates()
+        this.#handleSticky()
+
+        const lineType = this.getOptionCurrent('lineType')
+
+        let startX = this.getOptionCurrent('startX')
+        let cacheStartX = this.getOptionCache('startX')
+        let startY = this.getOptionCurrent('startY')
+        let cacheStartY = this.getOptionCache('startY')
+        let endX = this.getOptionCurrent('endX')
+        let cacheEndX = this.getOptionCache('endX')
+        let endY = this.getOptionCurrent('endY')
+        let cacheEndY = this.getOptionCache('endY')
+
+        let startControlX = this.getOptionCurrent('startControlX')
+        let startControlY = this.getOptionCurrent('startControlY')
+        let endControlX = this.getOptionCurrent('endControlX')
+        let endControlY = this.getOptionCurrent('endControlY')
+        let cacheStartControlX = this.getOptionCache('startControlX')
+        let cacheStartControlY = this.getOptionCache('startControlY')
+        let cacheEndControlX = this.getOptionCache('endControlX')
+        let cacheEndControlY = this.getOptionCache('endControlY')
+
+        const currentX = this.getOptionCurrent('x')
+        const currentY = this.getOptionCurrent('y')
+        let cacheX = this.#cacheX
+        let cacheY = this.#cacheY
+        if (cacheX === undefined) cacheX = currentX
+        if (cacheY === undefined) cacheY = currentY
+
+        const currentWidth = this.getOptionCurrent('width')
+        const currentHeight = this.getOptionCurrent('height')
+
+        let cacheWidth = this.#cacheWidth
+        let cacheHeight = this.#cacheHeight
+        if (cacheWidth === undefined) cacheWidth = currentWidth
+        if (cacheHeight === undefined) cacheHeight = currentHeight
+
+        if (startX === undefined) {
+            startX = this.startX(currentX)
+            cacheStartX = startX
+        }
+        if (startY === undefined) {
+            startY = this.startY(currentY)
+            cacheStartY = startY
+        }
+        if (endX === undefined) {
+            endX = this.endX(currentWidth)
+            cacheEndX = endX
+        }
+        if (endY === undefined) {
+            endY = this.endY(currentHeight)
+            cacheEndY = endY
         }
 
+        if (startControlX === undefined) {
+            startControlX = this.startControlX(startX)
+            cacheStartControlX = startControlX
+        }
+        if (startControlY === undefined) {
+            startControlY = this.startControlY(startY)
+            cacheStartControlY = startControlY
+        }
+        if (endControlX === undefined) {
+            endControlX = this.endControlX(endX)
+            cacheEndControlX = endControlX
+        }
+        if (endControlY === undefined) {
+            endControlY = this.endControlY(endY)
+            cacheEndControlY = endControlY
+        }
+
+        const diffX = currentX - cacheX!
+        const diffY = currentY - cacheY!
+        const diffW = currentWidth - cacheWidth!
+        const diffH = currentHeight - cacheHeight!
+        const dX = diffX + diffW
+        const dY = diffY + diffH
+
+        if (endX > startX) {
+            startX += diffX
+            endX += dX
+        } else {
+            startX += dX
+            endX += diffX
+        }
+
+        if (endY > startY) {
+            startY += diffY
+            endY += dY
+        } else {
+            startY += dY
+            endY += diffY
+        }
+
+        const startXDiff = startX - cacheStartX
+        const startYDiff = startY - cacheStartY
+        const endXDiff = endX - cacheEndX
+        const endYDiff = endY - cacheEndY
+
+        if (lineType === 'cubicBezier') {
+            if (startXDiff !== 0)
+                this.setOptionCurrent(
+                    'startControlX',
+                    cacheStartControlX + startXDiff
+                )
+            if (startYDiff !== 0)
+                this.setOptionCurrent(
+                    'startControlY',
+                    cacheStartControlY + startYDiff
+                )
+        }
+        if (lineType === 'cubicBezier') {
+            if (endXDiff !== 0)
+                this.setOptionCurrent(
+                    'endControlX',
+                    cacheEndControlX + endXDiff
+                )
+            if (endYDiff !== 0)
+                this.setOptionCurrent(
+                    'endControlY',
+                    cacheEndControlY + endYDiff
+                )
+        }
+        this.setOptionCurrent('startX', startX)
+        this.setOptionCurrent('startY', startY)
+        this.setOptionCurrent('endX', endX)
+        this.setOptionCurrent('endY', endY)
+
+        this.#adjustBlockCordinates()
+
+        this.#cacheX = this.x()
+        this.#cacheY = this.y()
+        this.#cacheWidth = this.width()
+        this.#cacheHeight = this.height()
+    }
+
+    updateCords(): void {
+        super.updateCords()
+        this.#adjsutBoundingBox()
+    }
+    #adjsutBoundingBox() {
+        let c1: number[] = []
+        let c2: number[] = []
+        if (this.#isLineTypeCubicBezier) {
+            c1 = [this.startControlX(), this.endControlX()]
+            c2 = [this.startControlY(), this.endControlY()]
+        }
+        const xMinB = Math.min(...this.__points.x, ...c1)
+        const yMinB = Math.min(...this.__points.y, ...c2)
+        const xMaxB = Math.max(...this.__points.x, ...c1)
+        const yMaxB = Math.max(...this.__points.y, ...c2)
+        this.boundingBox = {
+            topLeft: {
+                x: xMinB,
+                y: yMinB,
+            },
+            topRight: {
+                x: xMaxB,
+                y: yMinB,
+            },
+            bottomLeft: {
+                x: xMinB,
+                y: yMaxB,
+            },
+            bottomRight: {
+                x: xMaxB,
+                y: yMaxB,
+            },
+        }
+    }
+
+    #adjustBlockCordinates() {
+        let c1: number[] = []
+        let c2: number[] = []
+        if (this.#isLineTypeCubicBezier) {
+            c1 = this.#findMinMax(
+                this.startX(),
+                this.startControlX(),
+                this.endControlX(),
+                this.endX()
+            )
+            c2 = this.#findMinMax(
+                this.startY(),
+                this.startControlY(),
+                this.endControlY(),
+                this.endY()
+            )
+        }
+
+        this.__points.x = [this.startX(), this.endX(), ...c1]
+        this.__points.y = [this.startY(), this.endY(), ...c2]
+
+        const xMin = Math.min(...this.__points.x)
+        const yMin = Math.min(...this.__points.y)
+        const xMax = Math.max(...this.__points.x)
+        const yMax = Math.max(...this.__points.y)
+
+        const controlLineWidth = this.lineWidth() / 2
+        this.setOptionCurrent('x', xMin - controlLineWidth)
+        this.setOptionCurrent('y', yMin - controlLineWidth)
+        this.setOptionCurrent('width', xMax - xMin + controlLineWidth)
+        this.setOptionCurrent('height', yMax - yMin + controlLineWidth)
+        this.setOptionCurrent('cornerTopLeft', {
+            x: xMin - controlLineWidth,
+            y: yMin - controlLineWidth,
+        })
+        this.setOptionCurrent('cornerTopRight', {
+            x: xMax + controlLineWidth,
+            y: yMin - controlLineWidth,
+        })
+        this.setOptionCurrent('cornerBottomLeft', {
+            x: xMin - controlLineWidth,
+            y: yMax + controlLineWidth,
+        })
+        this.setOptionCurrent('cornerBottomRight', {
+            x: xMax + controlLineWidth,
+            y: yMax + controlLineWidth,
+        })
+    }
+
+    get #isLineTypeCubicBezier() {
+        return this.lineType() === 'cubicBezier'
+    }
+
+    #findMinMax(p0: number, p1: number, p2: number, p3: number) {
+        const a = 3 * (-p0 + 3 * p1 - 3 * p2 + p3)
+        const b = 6 * (p0 - 2 * p1 + p2)
+        const c = 3 * (p1 - p0)
+
+        const points = []
+        const D = Math.pow(b, 2) - 4 * a * c
+        if (D == 0) {
+            cubicBezier
+            const t = -b / (2 * a)
+            if (t >= 0 && t <= 1) points.push(t)
+        } else if (D > 0) {
+            const base = Math.sqrt(D)
+            const t1 = (-b + base) / (2 * a)
+            const t2 = (-b - base) / (2 * a)
+            if (t1 >= 0 && t1 <= 1) points.push(t1)
+            if (t2 >= 0 && t2 <= 1) points.push(t2)
+        }
+        return points.map((i) => {
+            return cubicBezier(p0, p1, p2, p3, i)
+        })
+    }
+
+    #resetDefaultRunningEvents() {
+        if (this.__isRunningEventActive(EDITABLE_RUNNING_EVENT)) {
+            this.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
+            this.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+            this.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
+        }
+    }
+
+    #buildPath(): Path2D {
+        const path = new Path2D()
+        path.moveTo(this.startX(), this.startY())
         if (this.lineType() === 'cubicBezier') {
-            this.path!.bezierCurveTo(
+            path.bezierCurveTo(
                 this.startControlX(),
                 this.startControlY(),
                 this.endControlX(),
@@ -131,515 +478,116 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
                 this.endY()
             )
         } else {
-            this.path!.lineTo(this.endX(), this.endY())
+            path.lineTo(this.endX(), this.endY())
         }
-        if (this.closeLine()) this.path!.closePath()
-        if (this.fill()) this.context?.fill(this.path!)
-        if (this.stroke()) this.context?.stroke(this.path!)
+        if (this.closeLine()) path.closePath()
+        return path
     }
 
-    __hotLines(): void {
-        if (!this.context) return
-        if (!this.__editable) {
-            if (!this.__joined) super.__hotLines()
+    #buildInlineHotLines(): void {
+        const context = this.context
+        if (!this.__isRunningEventActive(EDITABLE_RUNNING_EVENT) || !context) {
             return
         }
+        const lineType = this.lineType()
+        const startX = this.startX()
+        const startY = this.startY()
+        const endX = this.endX()
+        const endY = this.endY()
+        const startControlX = this.startControlX()
+        const startControlY = this.startControlY()
+        const endControlX = this.endControlX()
+        const endControlY = this.endControlY()
+        const controlPointSize = this.controlPointsSize()
+        const controlLineWidth = this.controlLineWidth()
+        const controlPointBackgroundColor = this.controlPointBackgroundColor()
+        const controlPointStrokeColor = this.controlPointStrokeColor()
 
-        this.context?.save()
-        this.context?.translate(this.rotationCenterX(), this.rotationCenterY())
-        this.context?.rotate(this.rotate())
-        this.context?.translate(
-            -this.rotationCenterX(),
-            -this.rotationCenterY()
-        )
-        this.context.setLineDash([])
+        context.save()
+        context.translate(this.rotationCenterX(), this.rotationCenterY())
+        context.rotate(this.rotate())
+        context.translate(-this.rotationCenterX(), -this.rotationCenterY())
+        context.setLineDash([])
 
         this.beginPath()
         this.pathLine = new Path2D()
-        this.pathLine.moveTo(this.startX(), this.startY())
-        this.pathLine.bezierCurveTo(
-            this.startControlX(),
-            this.startControlY(),
-            this.endControlX(),
-            this.endControlY(),
-            this.endX(),
-            this.endY()
-        )
-        this.context.lineWidth = 1
-        this.context.strokeStyle = 'blue'
-        this.context.stroke(this.pathLine)
+        this.pathLine.moveTo(startX, startY)
+        if (lineType === 'cubicBezier')
+            this.pathLine.bezierCurveTo(
+                startControlX,
+                startControlY,
+                endControlX,
+                endControlY,
+                endX,
+                endY
+            )
+        else this.pathLine.lineTo(endX, endY)
+        context.lineWidth = controlLineWidth
+        context.strokeStyle = controlPointStrokeColor
+        context.stroke(this.pathLine)
 
         this.beginPath()
         this.pathC1 = new Path2D()
-        this.pathC1.arc(
-            this.startX(),
-            this.startY(),
-            this.controlPointsSize(),
-            0,
-            Math.PI * 2
-        )
-        this.context.lineWidth = 2
-        this.context.strokeStyle = 'blue'
-        this.context.fillStyle = 'white'
-        this.context.stroke(this.pathC1)
-        this.context.fill(this.pathC1)
+        this.pathC1.arc(startX, startY, controlPointSize, 0, Math.PI * 2)
+        context.lineWidth = controlLineWidth
+        context.strokeStyle = controlPointStrokeColor
+        context.fillStyle = controlPointBackgroundColor
+        context.stroke(this.pathC1)
+        context.fill(this.pathC1)
+
         this.beginPath()
-
         this.pathC4 = new Path2D()
-        this.pathC4.arc(
-            this.endX(),
-            this.endY(),
-            this.controlPointsSize(),
-            0,
-            Math.PI * 2
-        )
-        this.context.lineWidth = 2
-        this.context.strokeStyle = 'blue'
-        this.context.fillStyle = 'white'
-        this.context.stroke(this.pathC4)
-        this.context.fill(this.pathC4)
-        if (this.startControllable() && this.lineType() === 'cubicBezier') {
+        this.pathC4.arc(endX, endY, controlPointSize, 0, Math.PI * 2)
+        context.lineWidth = controlLineWidth
+        context.strokeStyle = controlPointStrokeColor
+        context.fillStyle = controlPointBackgroundColor
+        context.stroke(this.pathC4)
+        context.fill(this.pathC4)
+
+        if (this.startControllable() && lineType === 'cubicBezier') {
             this.beginPath()
-            this.context.moveTo(this.startX(), this.startY())
-            this.context.lineTo(this.startControlX(), this.startControlY())
             this.pathC2 = new Path2D()
+            this.pathC2.moveTo(startX, startY)
+            this.pathC2.lineTo(startControlX, startControlY)
+            this.pathC2.moveTo(startControlX, startControlY)
             this.pathC2.arc(
-                this.startControlX(),
-                this.startControlY(),
-                this.controlPointsSize(),
+                startControlX,
+                startControlY,
+                controlPointSize,
                 0,
                 Math.PI * 2
             )
-            this.context.lineWidth = 1
-            this.context.strokeStyle = 'blue'
-            this.context.fillStyle = 'white'
-            this.context.stroke()
-            this.context.stroke(this.pathC2)
-            this.context.fill(this.pathC2)
+            context.lineWidth = controlLineWidth
+            context.strokeStyle = controlPointStrokeColor
+            context.fillStyle = controlPointBackgroundColor
+            context.stroke(this.pathC2)
+            context.fill(this.pathC2)
         }
-
-        if (this.endControllable() && this.lineType() === 'cubicBezier') {
+        if (this.endControllable() && lineType === 'cubicBezier') {
             this.beginPath()
-            this.context.moveTo(this.endX(), this.endY())
-            this.context.lineTo(this.endControlX(), this.endControlY())
             this.pathC3 = new Path2D()
+            this.pathC3.moveTo(endX, endY)
+            this.pathC3.lineTo(endControlX, endControlY)
+            this.pathC3.moveTo(endControlX, endControlY)
             this.pathC3.arc(
-                this.endControlX(),
-                this.endControlY(),
-                this.controlPointsSize(),
+                endControlX,
+                endControlY,
+                controlPointSize,
                 0,
                 Math.PI * 2
             )
-            this.context.lineWidth = 1
-            this.context.strokeStyle = 'blue'
-            this.context.fillStyle = 'white'
-            this.context.stroke()
-            this.context.stroke(this.pathC3)
-            this.context.fill(this.pathC3)
-        }
-        this.context?.restore()
-    }
-
-    checkInBound(event: MouseEvent): boolean {
-        const { x, y } = this.canvas?.getCursorPosition(event) || {
-            x: 0,
-            y: 0,
+            context.lineWidth = controlLineWidth
+            context.strokeStyle = controlPointStrokeColor
+            context.fillStyle = controlPointBackgroundColor
+            context.stroke(this.pathC3)
+            context.fill(this.pathC3)
         }
 
-        let inBound
-        this.lineWidth()
-        if (!this.__runningEvents.selected) {
-            inBound = this.#pathInBound(x, y, this.path!)
-        } else if (!this.__editable) {
-            inBound = checkInBound(
-                x,
-                y,
-                this.hotCornerTopLeft().x,
-                this.hotCornerTopLeft().y,
-                this.hotCornerTopRight().x,
-                this.hotCornerTopRight().y,
-                this.hotCornerBottomLeft().x,
-                this.hotCornerBottomLeft().y,
-                this.hotCornerBottomRight().x,
-                this.hotCornerBottomRight().y
-            )
-        }
-        if (inBound) this.canvas?.registerZIndex({ in: this.zIndex() })
-        else this.canvas?.registerZIndex({ out: this.zIndex() })
-        return inBound || false
+        context.restore()
     }
-
-    lineType(opt?: LineType) {
-        return this.__valueHandler(opt, 'type', 'line')
-    }
-
-    x(opt?: number | string): number {
-        let cacheX = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.x || 0,
-            widthRelated: false,
-        })
-        // this.ownOptions.x = this.#oldCords.x;
-        const x = super.x(opt)
-        const diffX = x - cacheX
-        if (diffX !== 0) {
-            this.startX(this.startX() + diffX)
-            this.endX(this.endX() + diffX)
-        }
-        return x
-    }
-    y(opt?: number | string): number {
-        let cacheY = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.y || 0,
-            widthRelated: false,
-        })
-        // this.ownOptions.y = this.#oldCords.y;
-        const y = super.y(opt)
-        const diffY = y - cacheY
-        if (diffY !== 0) {
-            this.startY(this.startY() + diffY)
-            this.endY(this.endY() + diffY)
-        }
-        return y
-    }
-    width(opt?: number | string): number {
-        let cacheW = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.width || 0,
-            widthRelated: false,
-        })
-        const w = super.width(opt)
-        if (w < this.minWidth() && !this.horizontalFlipResize())
-            return this.minWidth()
-        const diffW = w - cacheW
-        if (diffW !== 0) {
-            const cR = this.rotate()
-            this.rotate(0)
-            const joined = this.joinTo()
-            if (joined) {
-                if (this.endX() > joined.startX()) {
-                    this.endX(this.endX() + diffW)
-                    joined.endX(joined.endX() + diffW)
-                } else {
-                    joined.startX(joined.startX() + diffW)
-                    this.startX(this.startX() + diffW)
-                }
-            } else {
-                if (this.endX() > this.startX()) this.endX(this.endX() + diffW)
-                else this.startX(this.startX() + diffW)
-            }
-            // this.ownOptions.width = this.#oldCords.width;
-
-            this.rotate(cR)
-        }
-        return w
-    }
-    height(opt?: number | string): number {
-        const cacheH = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.height || 0,
-            widthRelated: false,
-        })
-        const h = super.height(opt)
-
-        if (h < this.minHeight() && !this.verticalFlipResize())
-            return this.minHeight()
-
-        const diffH = h - cacheH
-        if (diffH !== 0) {
-            const cR = this.rotate()
-            this.rotate(0)
-            const joined = this.joinTo()
-            if (joined) {
-                if (this.endY() > joined.startY()) {
-                    this.endY(this.endY() + diffH)
-                    joined.endY(joined.endY() + diffH)
-                } else {
-                    joined.startY(joined.startY() + diffH)
-                    this.startY(this.startY() + diffH)
-                }
-            } else {
-                if (this.endY() > this.startY()) this.endY(this.endY() + diffH)
-                else this.startY(this.startY() + diffH)
-            }
-            // this.ownOptions.height = this.#oldCords.height;
-            this.rotate(cR)
-        }
-        return h
-    }
-
-    startX(opt?: RelativeType) {
-        const cacheX = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.startX || 0,
-            widthRelated: false,
-        })
-        let x = this.__valueHandler<RelativeType, number | undefined>(
-            opt,
-            'startX',
-            undefined
-        )
-        if (x === undefined) x = this.x()
-        const diffX = x - cacheX
-        if (diffX !== 0 && this.lineType() == 'cubicBezier')
-            this.startControlX(this.startControlX() + diffX)
-        return x
-    }
-    startY(opt?: RelativeType) {
-        const cacheY = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.startY || 0,
-            widthRelated: false,
-        })
-        let y = this.__valueHandler<RelativeType, number | undefined>(
-            opt,
-            'startY',
-            undefined
-        )
-        if (y === undefined) y = this.y()
-        const diffY = y - cacheY
-        if (diffY !== 0 && this.lineType() == 'cubicBezier')
-            this.startControlY(this.startControlY() + diffY)
-        return y
-    }
-    endX(opt?: RelativeType) {
-        const cacheX = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.endX || 0,
-            widthRelated: false,
-        })
-        let x = this.__valueHandler<RelativeType, number | undefined>(
-            opt,
-            'endX',
-            undefined
-        )
-        if (x === undefined) x = this.x() + this.width()
-        const diffX = x - cacheX
-        if (diffX !== 0 && this.lineType() == 'cubicBezier')
-            this.endControlX(this.endControlX() + diffX)
-        return x
-    }
-    endY(opt?: RelativeType) {
-        const cacheY = this.__unitConverter<RelativeType, number>({
-            val: this.ownOptions.endY || 0,
-            widthRelated: false,
-        })
-        let y = this.__valueHandler<RelativeType, number | undefined>(
-            opt,
-            'endY',
-            undefined
-        )
-        if (y === undefined) y = this.y() + this.height()
-        const diffY = y - cacheY
-        if (diffY !== 0 && this.lineType() == 'cubicBezier')
-            this.endControlY(this.endControlY() + diffY)
-        return y
-    }
-    startControlX(opt?: RelativeType) {
-        const x = this.__valueHandler(opt, 'startControlX', undefined, true)
-        if (x === undefined) return this.startX()
-        return x
-    }
-    startControlY(opt?: RelativeType) {
-        const y = this.__valueHandler(opt, 'startControlY', undefined, false)
-        if (y === undefined) return this.startY()
-        return y
-    }
-    endControlX(opt?: RelativeType) {
-        const x = this.__valueHandler(opt, 'endControlX', undefined, true)
-        if (x === undefined) return this.endX()
-        return x
-    }
-    endControlY(opt?: RelativeType) {
-        const y = this.__valueHandler(opt, 'endControlY', undefined, false)
-        if (y === undefined) return this.endY()
-        return y
-    }
-    stickStart(opt?: StickyLine): StickyLine | undefined {
-        return this.__valueHandler(opt, 'stickStart', undefined)
-    }
-    stickEnd(opt?: StickyLine): StickyLine | undefined {
-        return this.__valueHandler(opt, 'stickEnd', undefined)
-    }
-    startDraggable(opt?: boolean) {
-        const draggable = this.__valueHandler(opt, 'startDraggable', false)
-        if (draggable)
-            this.#draggablePoints(
-                'startX',
-                'startY',
-                'pathC1',
-                'startDraggable'
-            )
-        return draggable
-    }
-    endDraggable(opt?: boolean) {
-        const draggable = this.__valueHandler(opt, 'endDraggable', false)
-        if (draggable)
-            this.#draggablePoints('endX', 'endY', 'pathC4', 'endDraggable')
-        return draggable
-    }
-
-    startControllable(opt?: boolean) {
-        const draggable = this.__valueHandler(opt, 'startControllable', false)
-        if (draggable && this.lineType() === 'cubicBezier')
-            this.#draggablePoints(
-                'startControlX',
-                'startControlY',
-                'pathC2',
-                'startControllable'
-            )
-        return draggable
-    }
-    endControllable(opt?: boolean) {
-        const draggable = this.__valueHandler(opt, 'endControllable', false)
-        if (draggable && this.lineType() === 'cubicBezier')
-            this.#draggablePoints(
-                'endControlX',
-                'endControlY',
-                'pathC3',
-                'endControllable'
-            )
-        return draggable
-    }
-
-    controlPointsSize(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'controlPointsSize', 5)
-    }
-
-    editable(opt?: boolean) {
-        const editable = this.__valueHandler(opt, 'editable', false)
-        if (!editable) return editable
-
-        const dblclick = (event: MouseEvent) => {
-            const { x, y } = this.canvas?.getCursorPosition(event) || {
-                x: 0,
-                y: 0,
-            }
-            if (this.#pathInBound(x, y, this.path!)) {
-                this.__editable = true
-                this.canvas?.invokeChange()
-            }
-        }
-        const click = (event: MouseEvent) => {
-            const { x, y } = this.canvas?.getCursorPosition(event) || {
-                x: 0,
-                y: 0,
-            }
-            let editable =
-                !this.#pathInBound(x, y, this.path!) &&
-                !this.#pathInBound(x, y, this.pathC1!) &&
-                !this.#pathInBound(x, y, this.pathC2!) &&
-                !this.#pathInBound(x, y, this.pathC3!) &&
-                !this.#pathInBound(x, y, this.pathC4!)
-
-            if (editable) {
-                this.__editable = false
-            }
-            const join = this.joinTo()
-            if (
-                join !== undefined &&
-                !this.#pathInBound(x, y, join!.pathC1!) &&
-                !this.#pathInBound(x, y, join!.pathC2!) &&
-                !this.#pathInBound(x, y, join!.pathC3!) &&
-                !this.#pathInBound(x, y, join!.pathC4!) &&
-                !this.#pathInBound(x, y, this.path!)
-            ) {
-                join.__editable = !editable
-            }
-            this.invokeChange()
-        }
-        this.eventHandler<MouseEvent>('click', click, 'editableClick')
-        this.eventHandler<MouseEvent>('dblclick', dblclick, 'editableDlclick')
-        return editable
-    }
-
-    #pathInBound(x: number, y: number, path: Path2D) {
-        return (
-            this.pointInStroke({ path: path, x: x, y: y }) ||
-            this.pointInPath({ path: path, x: x, y: y })
-        )
-    }
-
-    #draggablePoints(
-        xPoint: string,
-        yPoint: string,
-        path: string,
-        identify: string
-    ) {
-        let initCords = { x: 0, y: 0 }
-        let beforeCords = { x: 0, y: 0 }
-        let beforeValues: any = {}
-        let isRunning = false
-        const callX = getPrototype(this, xPoint)
-        const callY = getPrototype(this, yPoint)
-
-        const mousedown = (event: MouseEvent) => {
-            if (!this.__editable) return
-            isRunning = false
-            const pointPaths: { [key: string]: Path2D } = {
-                pathC1: this.pathC1!,
-                pathC2: this.pathC2!,
-                pathC3: this.pathC3!,
-                pathC4: this.pathC4!,
-            }
-            const { x, y } = this.canvas?.getCursorPosition(event) || {
-                x: 0,
-                y: 0,
-            }
-            const inBound = this.#pathInBound(x, y, pointPaths[path])
-
-            if (inBound) {
-                initCords = { x: x, y: y }
-                beforeCords = { x: 0, y: 0 }
-                beforeValues[this.nodeId!] = {}
-                beforeValues[this.nodeId!][xPoint] = callX?.value.call(this)
-                beforeValues[this.nodeId!][yPoint] = callY?.value.call(this)
-                isRunning = true
-                this.canvas?.registerZIndex({ in: this.zIndex() })
-            } else this.canvas?.registerZIndex({ out: this.zIndex() })
-        }
-
-        const mousemove = (event: MouseEvent) => {
-            if (isRunning) {
-                this.__runningEvents.drag = false
-                if (this.joinTo() !== undefined)
-                    this.joinTo()!.__runningEvents.drag = false
-                this.canvas?.registerZIndex({ in: this.zIndex() })
-                if (this.ImFirst) {
-                    const { x, y } = this.canvas?.getCursorPosition(event) || {
-                        x: 0,
-                        y: 0,
-                    }
-                    let diffX = x - initCords.x
-                    let diffY = y - initCords.y
-                    if (diffX !== 0) {
-                        const diff = diffX - beforeCords.x
-                        callX?.value.call(this, callX?.value.call(this) + diff)
-                        beforeCords.x = diffX
-                    }
-                    if (diffY !== 0) {
-                        const diff = diffY - beforeCords.y
-                        callY?.value.call(this, callY?.value.call(this) + diff)
-                        beforeCords.y = diffY
-                    }
-                    this.canvas?.invokeChange()
-                }
-            }
-        }
-        const mouseup = () => {
-            if (isRunning) {
-                isRunning = false
-                if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                    const after: any = {}
-                    after[this.nodeId!] = {}
-                    after[this.nodeId!][xPoint] = callX?.value.call(this)
-                    after[this.nodeId!][yPoint] = callY?.value.call(this)
-                    this.canvas?.takeSnapshot(beforeValues, after)
-                    this.canvas?.invokeChange()
-                }
-            }
-        }
-        this.eventHandler<MouseEvent>('mousedown', mousedown, `${identify}Down`)
-        this.eventHandler<MouseEvent>('mousemove', mousemove, `${identify}Move`)
-        this.eventHandler<MouseEvent>('mouseup', mouseup, `${identify}Up`)
-    }
-
     #handleSticky() {
         const stickyStart = this.stickStart()
+        const stickyEnd = this.stickEnd()
         if (stickyStart !== undefined) {
             if (this.__stickyStartBlock.x !== undefined) {
                 stickyStart.x +=
@@ -666,9 +614,6 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
             this.startX(stickyStart.x)
             this.startY(stickyStart.y)
         }
-
-        const stickyEnd = this.stickEnd()
-
         if (stickyEnd !== undefined) {
             if (this.__stickyEndBlock.x !== undefined) {
                 stickyEnd.x += stickyEnd.block.x() - this.__stickyEndBlock.x
@@ -694,105 +639,233 @@ export class LineBlock extends ShapeBlock<ILineOptions> {
         }
     }
 
-    #boundingBox() {
-        const c1 = this.#findMinMax(
-            this.startX(),
-            this.startControlX(),
-            this.endControlX(),
-            this.endX()
-        )
-        const c2 = this.#findMinMax(
-            this.startY(),
-            this.startControlY(),
-            this.endControlY(),
-            this.endY()
-        )
-        this.__points.x = [this.startX(), this.endX(), ...c1]
-        this.__points.y = [this.startY(), this.endY(), ...c2]
-        const joined = this.joinTo()
-        if (joined !== undefined) {
-            this.__points.x = [...this.__points.x, ...joined.__points.x]
-            this.__points.y = [...this.__points.y, ...joined.__points.y]
-        }
-        const xMin = Math.min(...this.__points.x)
-        const yMin = Math.min(...this.__points.y)
-        const xMax = Math.max(...this.__points.x)
-        const yMax = Math.max(...this.__points.y)
-
-        this.#oldCords.x = xMin
-        this.#oldCords.y = yMin
-
-        this.#oldCords.width = xMax - xMin
-        this.#oldCords.height = yMax - yMin
-
-        this.hotCornerTopLeft({
-            x: xMin,
-            y: yMin,
-        })
-        this.hotCornerTopRight({
-            x: xMax,
-            y: yMin,
-        })
-        this.hotCornerBottomLeft({
-            x: xMin,
-            y: yMax,
-        })
-        this.hotCornerBottomRight({
-            x: xMax,
-            y: yMax,
-        })
+    #pathInBound(x: number, y: number, path: Path2D) {
+        const context = this.context
+        if (!context || !path) return false
+        context.save()
+        context.translate(this.rotationCenterX(), this.rotationCenterY())
+        context.rotate(this.rotate())
+        context.translate(-this.rotationCenterX(), -this.rotationCenterY())
+        context.lineWidth = this.lineWidth()
+        const inStroke = context.isPointInStroke(path, x, y)
+        const inPath = context.isPointInPath(path, x, y)
+        context.restore()
+        return inStroke || inPath
     }
-
-    #findMinMax(p0: number, p1: number, p2: number, p3: number) {
-        const a = 3 * (-p0 + 3 * p1 - 3 * p2 + p3)
-        const b = 6 * (p0 - 2 * p1 + p2)
-        const c = 3 * (p1 - p0)
-
-        const points = []
-        const D = Math.pow(b, 2) - 4 * a * c
-        if (D == 0) {
-            cubicBezier
-            const t = -b / (2 * a)
-            if (t >= 0 && t <= 1) points.push(t)
-        } else if (D > 0) {
-            const base = Math.sqrt(D)
-            const t1 = (-b + base) / (2 * a)
-            const t2 = (-b - base) / (2 * a)
-            if (t1 >= 0 && t1 <= 1) points.push(t1)
-            if (t2 >= 0 && t2 <= 1) points.push(t2)
-        }
-        return points.map((i) => {
-            return cubicBezier(p0, p1, p2, p3, i)
-        })
-    }
-
-    closeLine(opt?: boolean): boolean {
-        return this.__valueHandler(opt, 'closeLine', false)
-    }
-    lineColor(opt?: FillStyle) {
-        const lineColor = this.__valueHandler(opt, 'lineColor', undefined)
-        if (lineColor) {
-            super.strokeStyle(lineColor)
-            this.stroke({ stroke: true })
+    #editable(block: LineBlock, opt?: boolean) {
+        if (opt === undefined) return
+        if (!opt) {
+            const dblclick = block.#editableDbClickEvent
+            const click = block.#editableClickEvent
+            // @TODO: fix any issues
+            if (dblclick) block.__removeEvent('dblclick', dblclick as any)
+            if (click) block.__removeEvent('click', click as any)
+            block.__updateRunningEvent(EDITABLE_RUNNING_EVENT, false)
+            block.#editableDbClickEvent = undefined
+            block.#editableClickEvent = undefined
+            return
         }
 
-        return lineColor
-    }
-    backgroundColor(opt?: FillStyle) {
-        const backgroundColor = this.__valueHandler(
-            opt,
-            'backgroundColor',
-            undefined
-        )
-        if (backgroundColor) {
-            super.fillStyle(backgroundColor)
-            this.fill({ fill: true })
+        if (
+            block.#editableDbClickEvent === undefined &&
+            block.#editableClickEvent === undefined
+        ) {
+            const dblclick = (event: MouseEvent) => {
+                if (!block.selectable()) return
+                const { x, y } = block.canvas?.getCursorPosition(event)!
+                if (
+                    block.#pathInBound(x, y, block.#buildPath()) &&
+                    block.isMouseEventAllowed
+                ) {
+                    block.__registerZIndex()
+                    if (block.__ImFirst()) {
+                        block.__updateRunningEvent(EDITABLE_RUNNING_EVENT, true)
+                    }
+                }
+            }
+            const click = (event: MouseEvent) => {
+                const { x, y } = block.canvas?.getCursorPosition(event)!
+                let editable =
+                    !block.#pathInBound(x, y, block.#buildPath()) &&
+                    !block.#pathInBound(x, y, block.pathC1!) &&
+                    !block.#pathInBound(x, y, block.pathC2!) &&
+                    !block.#pathInBound(x, y, block.pathC3!) &&
+                    !block.#pathInBound(x, y, block.pathC4!)
+                if (editable) {
+                    block.__updateRunningEvent(EDITABLE_RUNNING_EVENT, false)
+                    block.__resetCursor('auto')
+                }
+                block.__invokeChange()
+            }
+            // @TODO: fix any issues
+            block.__addEvent('dblclick', dblclick as any)
+            block.__addEvent('click', click as any)
         }
-        return backgroundColor
+    }
+    #startDraggable(block: LineBlock, opt: boolean) {
+        if (opt !== undefined) block.#draggablePoints(opt, 'start')
+    }
+    #endDraggable(block: LineBlock, opt: boolean) {
+        if (opt !== undefined) block.#draggablePoints(opt, 'end')
+    }
+    #startControllable(block: LineBlock, opt: boolean) {
+        if (opt !== undefined) block.#draggablePoints(opt, 'startControl')
+    }
+    #endControllable(block: LineBlock, opt: boolean) {
+        if (opt !== undefined) block.#draggablePoints(opt, 'endControl')
+    }
+    get #pointsMap() {
+        return {
+            start: {
+                x: this.getOptionCurrent('startX'),
+                y: this.getOptionCurrent('startY'),
+            },
+            end: {
+                x: this.getOptionCurrent('endX'),
+                y: this.getOptionCurrent('endY'),
+            },
+            startControl: {
+                x: this.getOptionCurrent('startControlX'),
+                y: this.getOptionCurrent('startControlY'),
+            },
+            endControl: {
+                x: this.getOptionCurrent('endControlX'),
+                y: this.getOptionCurrent('endControlY'),
+            },
+        }
     }
 
-    scale(opt?: number): void {
-        super.scale(opt)
-        this.lineWidth((this.lineWidth() || 1) * (opt || 1))
+    get #pointsPath() {
+        return {
+            start: this.pathC1,
+            end: this.pathC4,
+            startControl: this.pathC2,
+            endControl: this.pathC3,
+        }
+    }
+    #draggablePoints(opt: boolean, point: keyof ControlPointEvents) {
+        const mousedown = this.#controlPointEvents[point].mousedown
+        const mousemove = this.#controlPointEvents[point].mousemove
+        const mouseup = this.#controlPointEvents[point].mouseup
+        if (!opt) {
+            this.__updateRunningEvent(
+                POINT_DRAGGING_RUNNING_EVENT_MAP[point],
+                false
+            )
+            // @TODO: fix any issues
+            if (mousedown) this.__removeEvent('mousedown', mousedown as any)
+            if (mousemove) this.__removeEvent('mousemove', mousemove as any)
+            if (mouseup) this.__removeEvent('mouseup', mouseup as any)
+            this.#controlPointEvents[point].mousedown = undefined
+            this.#controlPointEvents[point].mousedown = undefined
+            this.#controlPointEvents[point].mousedown = undefined
+            return
+        }
+
+        if (
+            mousedown === undefined &&
+            mouseup === undefined &&
+            mousemove === undefined
+        ) {
+            let initCords = { x: 0, y: 0 }
+            let beforeCords = { x: 0, y: 0 }
+            let beforeValues: any = {}
+            const xPointName = `${point}X`
+            const yPointName = `${point}Y`
+
+            const mousedown = (event: MouseEvent) => {
+                if (!this.__isRunningEventActive(EDITABLE_RUNNING_EVENT)) return
+                const pointsMap = this.#pointsMap[point]
+                const { x, y } = this.canvas?.getCursorPosition(event)!
+                const path = this.#pointsPath[point]
+                const inBound = path ? this.#pathInBound(x, y, path) : false
+                if (inBound) {
+                    this.__registerZIndex()
+                    if (this.__ImFirst()) {
+                        initCords = { x: x, y: y }
+                        beforeCords = { x: 0, y: 0 }
+                        beforeValues[xPointName] = pointsMap.x
+                        beforeValues[yPointName] = pointsMap.y
+                        this.__updateRunningEvent(
+                            POINT_DRAGGING_RUNNING_EVENT_MAP[point],
+                            true
+                        )
+                    }
+                }
+            }
+
+            const mousemove = (event: MouseEvent) => {
+                if (
+                    this.__isRunningEventActive(
+                        POINT_DRAGGING_RUNNING_EVENT_MAP[point]
+                    ) &&
+                    this.__ImFirst()
+                ) {
+                    const pointsMap = this.#pointsMap[point]
+                    this.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                    const { x, y } = this.canvas?.getCursorPosition(event)!
+                    let diffX = x - initCords.x
+                    let diffY = y - initCords.y
+                    if (diffX !== 0) {
+                        const diff = diffX - beforeCords.x
+                        this.setOptionCurrent(xPointName, pointsMap.x + diff)
+                        beforeCords.x = diffX
+                    }
+                    if (diffY !== 0) {
+                        const diff = diffY - beforeCords.y
+                        this.setOptionCurrent(yPointName, pointsMap.y + diff)
+                        beforeCords.y = diffY
+                    }
+                    this.__invokeChange()
+                }
+            }
+            const mouseup = () => {
+                if (
+                    this.__isRunningEventActive(
+                        POINT_DRAGGING_RUNNING_EVENT_MAP[point]
+                    ) &&
+                    this.isMouseEventAllowed
+                ) {
+                    const pointsMap = this.#pointsMap[point]
+                    this.__unregisterZIndex()
+                    this.__updateRunningEvent(
+                        POINT_DRAGGING_RUNNING_EVENT_MAP[point],
+                        false
+                    )
+                    if (beforeCords.x !== 0 || beforeCords.y !== 0) {
+                        const after: any = {}
+                        after[xPointName] = pointsMap.x
+                        after[yPointName] = pointsMap.y
+                        this.__invokeHistory(beforeValues, after)
+                        this.__invokeChange()
+                    }
+                }
+            }
+            this.__addEvent('mousedown', mousedown as any)
+            this.__addEvent('mousemove', mousemove as any)
+            this.__addEvent('mouseup', mouseup as any)
+        }
+    }
+    #lineColor(block: LineBlock, opt: string) {
+        if (opt !== undefined) {
+            block.strokeStyle(opt)
+            block.stroke({ stroke: true })
+        }
+    }
+    #fillColor(block: LineBlock, opt: string) {
+        if (opt !== undefined) {
+            block.fillStyle(opt)
+            block.fill({ fill: true })
+        }
+    }
+
+    checkInBound(event: MouseEvent): boolean {
+        if (!this.__isRunningEventActive(SELECTABLE_RUNNING_EVENT)) {
+            const { x, y } = this.canvas?.getCursorPosition(event)!
+            return this.#pathInBound(x, y, this.#buildPath())
+        } else if (!this.__isRunningEventActive(EDITABLE_RUNNING_EVENT)) {
+            return super.checkInBound(event)
+        }
+        return false
     }
 }
