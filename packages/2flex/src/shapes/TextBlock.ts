@@ -1,13 +1,13 @@
-import { BlockPayload, RelativeType } from '../Block'
+import { SELECTABLE_RUNNING_EVENT } from '../const'
 import { ShapeBlock } from '../ShapeBlock'
 import type {
+    DrawFunc,
     FontStyle,
     FontVariant,
     FontWeight,
     IShapeOptions,
-    StrokeStyle,
 } from '../ShapeBlock'
-import type { IBlock } from '../types'
+import type { CustomEvent, RelativeType } from '../types'
 import { inRange } from '../Utils'
 
 type Wrap = 'letter' | 'word' | 'nowrap'
@@ -23,502 +23,448 @@ export interface ITextOptions extends IShapeOptions {
     fontStyle?: FontStyle
     fontVariant?: FontVariant
     editable?: boolean
-    resizeLineHeight?: boolean
     wrap?: Wrap
-    onEdit?: () => void
+    onEditable?: (block: TextBlock) => void
 }
+type WalkFunc = (letterNode: LetterNode) => void
 
-interface LetterNode {
-    nodeId?: number
+const TEXT_EDITING_RUNNING_EVENT = 'text-editing'
+const TEXT_HIGHLIGHT_COLOR = 'rgba(0, 13, 255, 0.47)'
+const CARET_LINE_HEIGHT_GAP = 10
+const CARET_LINE_COLOR = 'white'
+const CARET_LINE_WIDTH = 2
+
+class LetterNode {
     prev?: LetterNode
     next?: LetterNode
     letter?: string
-    width: number
-    wordWidth: number
-    height: number
     x: number
     y: number
-}
-
-type Text = {
-    words: string
     width: number
     height: number
+    constructor(letter: string) {
+        this.x = 0
+        this.y = 0
+        this.width = 0
+        this.height = 0
+        this.letter = letter
+    }
 }
 
-export class TextBlock extends ShapeBlock<ITextOptions> {
-    #letterNode: LetterNode = {
-        nodeId: 0,
-        prev: undefined,
-        next: undefined,
-        letter: '',
-        width: 0,
-        wordWidth: 0,
-        height: 0,
-        x: 0,
-        y: 0,
-    }
-    #updateText?: () => void
-    #stopTraverseSign = 0
-    #editable = false
-    #caretDrawer?: () => void
-    #highlightDrawer?: () => void
-    #words: Text[]
+export class TextBlock extends ShapeBlock {
+    #headLetterNode?: LetterNode
+    #tailLetterNode?: LetterNode
+    #currentLetterNode?: LetterNode
 
-    constructor(text: string, options: IBlock<ITextOptions>) {
+    #words?: {
+        [key: string]: { width: number; height: number }
+    }
+
+    #dbClickEvent?: CustomEvent<Event>
+    #mousedownEvent?: CustomEvent<Event>
+    #keydownEvent?: CustomEvent<Event>
+
+    #textHighlighted: boolean
+
+    constructor(options: ITextOptions) {
         super(options)
-        this.text(text)
-        this.#words = []
+        this.#defineProperties()
+        this.#textHighlighted = false
     }
 
-    draw(_func?: (context: CanvasRenderingContext2D) => void): void {
-        const cacheR = this.rotate()
-        this.rotate(0)
-        super.font(this.#formatFont)
-        this.#updateText?.()
-        this.#updateText = undefined
-
-        let words = this.#words
-        if (!this.useCacheText || this.#words.length === 0) {
-            words = this.#wrapText()
-        }
-        let sumOfHeights = 0
-
-        if (this.resizeLineHeight())
-            sumOfHeights =
-                (this.height() -
-                    words.reduce((p, n) => p + n.height - this.y(), 0)) /
-                (words.length - 1)
-
-        let heightP = 0
-        let heights = 0
-
-        if (this.#editable) this.#highlightDrawer?.()
-
-        for (let i = 0, len = words.length; i < len; i++) {
-            if (i !== 0) heightP = sumOfHeights
-            if (this.fill()) {
-                super.fillText({
-                    text: words[i].words,
-                    x: this.x(),
-                    y: words[i].height + heightP,
-                    maxWidth: words[i].width,
-                })
-            }
-
-            if (super.stroke()) {
-                super.strokeText({
-                    text: words[i].words,
-                    x: this.x(),
-                    y: words[i].height + heightP,
-                    maxWidth: words[i].width,
-                })
-            }
-            if (i === len - 1) heights = words[i].height - this.y()
-        }
-        if (!this.resizeLineHeight()) this.height(heights)
-        this.rotate(cacheR)
-    }
-
-    get useCacheText() {
-        if (
-            this.optionHasChanged('x') ||
-            this.optionHasChanged('y') ||
-            this.optionHasChanged('width') ||
-            this.optionHasChanged('height') ||
-            this.optionHasChanged('paddingLeft') ||
-            this.optionHasChanged('paddingRight') ||
-            this.optionHasChanged('paddingBottom') ||
-            this.optionHasChanged('paddingTop') ||
-            this.optionHasChanged('marginLeft') ||
-            this.optionHasChanged('marginRight') ||
-            this.optionHasChanged('marginBottom') ||
-            this.optionHasChanged('marginTop') ||
-            this.optionHasChanged('text') ||
-            this.optionHasChanged('rotationCenterX') ||
-            this.optionHasChanged('rotationCenterY') ||
-            this.optionHasChanged('rotate') ||
-            this.optionHasChanged('hidden')
+    #defineProperties() {
+        this.addProperty('fontFamily', 'sans-serif')
+        this.addProperty('fontSize', 0, true)
+        this.addProperty('fontWeight', 'normal')
+        this.addProperty('fontVariant', 'normal')
+        this.addProperty('fontStyle', 'normal')
+        this.addProperty(
+            'color',
+            undefined,
+            false,
+            (block: TextBlock, opt: string) => this.#color(block, opt)
         )
-            return false
-        return true
-    }
-    __hotLines(): void {
-        if (!this.#editable) {
-            super.__hotLines()
-            this.#caretDrawer = undefined
-        } else {
-            this.#caretDrawer?.()
-        }
+        this.addProperty(
+            'strokeColor',
+            undefined,
+            false,
+            (block: TextBlock, opt: string) => this.#strokeColor(block, opt)
+        )
+        this.addProperty(
+            'strokeWidth',
+            undefined,
+            false,
+            (block: TextBlock, opt: number) => this.#strokeWidth(block, opt)
+        )
+        this.addProperty('wrap', 'nowrap')
+        this.addProperty('onEditable', undefined)
+        this.addProperty(
+            'editable',
+            undefined,
+            false,
+            (block: TextBlock, opt: boolean) => this.#editable(block, opt)
+        )
+        this.addProperty('letterSpacing', 0)
+        this.addProperty('lineHeight', 'auto')
     }
 
-    get #formatFont() {
+    render(): void {
+        super.render()
+        this.#handleRunningEditable()
+    }
+
+    #handleRunningEditable() {
+        const isEditable = this.__isRunningEventActive(
+            TEXT_EDITING_RUNNING_EVENT
+        )
+        this.hotLines(!isEditable)
+        if (isEditable) this.__selectCursor('auto')
+    }
+
+    draw(_func?: DrawFunc): void {
+        super.font(this.#formatedFont)
+        this.#updateLetterNodeCordinates()
+        this.#drawCaret()
+        this.#drawTextHighlight()
+        const color = this.color()
+        const strokeColor = this.strokeColor()
+        this.#walkLetterNodes((letterNode: LetterNode) => {
+            if (color !== undefined) {
+                super.fillText({
+                    text: letterNode.letter,
+                    x: letterNode.x,
+                    y: letterNode.y,
+                    maxWidth: letterNode.width,
+                })
+            }
+            if (strokeColor !== undefined) {
+                super.strokeText({
+                    text: letterNode.letter,
+                    x: letterNode.x,
+                    y: letterNode.y,
+                    maxWidth: letterNode.width,
+                })
+            }
+        })
+    }
+    get #formatedFont() {
         return `${this.fontStyle()} ${this.fontVariant()} ${this.fontWeight()} ${this.fontSize()}px ${this.fontFamily()}`
     }
-    #wrapText(): Text[] {
-        const texts: { words: string; width: number; height: number }[] = []
-        let words = ''
+    updateCords(): void {
+        super.updateCords()
+        this.#updateBoundingBox()
+    }
+    #updateBoundingBox() {
+        const minXs: number[] = []
+        const minYs: number[] = []
+        const maxXs: number[] = []
+        const maxYs: number[] = []
+        this.#walkLetterNodes((node: LetterNode) => {
+            minXs.push(node.x)
+            minYs.push(node.y - node.height)
+            maxXs.push(node.x + node.width)
+            maxYs.push(node.y + node.height)
+        })
+        const minXPoint = Math.min(...minXs)
+        const maxXPoint = Math.max(...maxXs)
+        const minYPoint = Math.min(...minYs)
+        const maxYPoint = Math.max(...maxYs)
+        this.boundingBox = {
+            topLeft: { x: minXPoint, y: minYPoint },
+            topRight: { x: maxXPoint, y: minYPoint },
+            bottomLeft: { x: minXPoint, y: maxYPoint },
+            bottomRight: { x: maxXPoint, y: maxYPoint },
+        }
+    }
+    #color(block: TextBlock, opt: string) {
+        if (opt !== undefined) {
+            block.fillStyle(opt)
+            block.fill({ stroke: true })
+        }
+    }
+    #strokeColor(block: TextBlock, opt: string) {
+        if (opt !== undefined) {
+            block.strokeStyle(opt)
+            block.stroke({ stroke: true })
+        }
+    }
+    #strokeWidth(block: TextBlock, opt: number) {
+        if (opt !== undefined) {
+            block.lineWidth(opt)
+        }
+    }
+    text(opt: string) {
+        const text = this.__cacheOption(opt, 'text', undefined)
+        if (text === undefined) return
+        this.#words = undefined
+        const splitedText = text.split('')
+        for (let i = 0, len = splitedText.length; i < len; i++) {
+            this.#addLetter(splitedText[i], this.#tailLetterNode)
+        }
+    }
+    #addLetter(letter: string, tail?: LetterNode) {
+        const current = new LetterNode(letter)
+        const tailNode = tail ?? this.#tailLetterNode
+        if (tailNode) {
+            current.next = tailNode?.next
+            tailNode.next = current
+            current.prev = tailNode
+        }
+        if (!this.#headLetterNode) this.#headLetterNode = current
+        if (!this.#tailLetterNode) this.#tailLetterNode = current
+        if (this.#tailLetterNode === tail) {
+            if (this.#tailLetterNode) this.#tailLetterNode.next = current
+            this.#tailLetterNode = current
+        }
+    }
+    #removeLetter(letterNode: LetterNode) {
+        let head = this.#headLetterNode
+        if (!head) return
+        if (head === letterNode) {
+            this.#headLetterNode = this.#headLetterNode?.next
+            return
+        }
+        while (head.next && head !== letterNode) {
+            head = head.next
+        }
+        const next_letter = head.next
+        const previus_letter = head.prev
+        if (next_letter) next_letter.prev = previus_letter
+        if (previus_letter) previus_letter.next = next_letter
+    }
+    #buildWords() {
+        if (this.#words !== undefined) return
+        this.#words = {}
+        const words = this.#words
+        let word = ''
+        this.#walkLetterNodes((letterNode) => {
+            word += letterNode.letter
+            if (
+                (word !== ' ' && letterNode.letter === ' ') ||
+                letterNode.next === undefined
+            ) {
+                const measure = this.measureText(word)
+                words[word] = {
+                    width: measure?.width ?? 0,
+                    height: measure?.actualBoundingBoxAscent ?? 0,
+                }
+                word = ''
+            }
+        })
+    }
+    #walkLetterNodes(_func: WalkFunc) {
+        let letterNode: undefined | LetterNode = this.#headLetterNode
+        while (letterNode) {
+            _func(letterNode)
+            letterNode = letterNode.next
+        }
+    }
+    #findLetterNode(statementFunc: (letterNode: LetterNode) => boolean) {
+        let letterNode: undefined | LetterNode = this.#headLetterNode
+        while (letterNode) {
+            if (statementFunc(letterNode)) break
+            letterNode = letterNode.next
+        }
+    }
+    #updateLetterNodeCordinates() {
+        const wrap = this.wrap()
+        const width = this.width()
+        const x = this.x()
+        const y = this.y()
+        this.#buildWords()
+        const words = Object.entries(this.#words ?? {})
+        let wordIdx = 0
+        let currentWord = words[wordIdx]
+        let xPos = x
+        let yPos = y
         let wrapW = 0
         let wrapH = 0
-        let heights: number[] = []
-        let heightW = 0
-        let wrapX = 0
-        const isWrap = this.wrap() !== 'nowrap'
-        this.#traverseLetterNodes((node) => {
-            wrapW += isWrap
-                ? this.isWrapWord
-                    ? node.wordWidth
-                    : node.width
-                : 0
-            if (wrapW >= this.width() && this.wrap()) {
-                wrapW = this.isWrapWord ? node.wordWidth : node.width
-                wrapX = 0
-                wrapH += Math.max(...heights)
-                const wordM = super.measureText(words)
-                heightW += wordM?.actualBoundingBoxAscent || 0
-                texts.push({
-                    words: words,
-                    width: wordM?.width || 0,
-                    height: this.y() + heightW,
-                })
-                words = ''
-                heights = []
+        this.#walkLetterNodes((letter: LetterNode) => {
+            if (!letter.letter) return
+            const measure = this.measureText(letter.letter)
+            letter.width = measure?.width ?? 0
+            letter.height = measure?.actualBoundingBoxAscent ?? 0
+            wrapW += letter.width
+            if (wrapW >= width && (wrap === 'letter' || wrap === 'word')) {
+                yPos += wrapH
+                xPos = x
+                wrapW = letter.width
+            }
+            if (letter.letter === ' ' && wrap === 'word') {
+                wordIdx += 1
+                currentWord = words[wordIdx]
+                if (currentWord && wrapW + currentWord[1].width > width)
+                    wrapW += currentWord[1].width
             }
 
-            node.x = this.x() + wrapX
-            node.y = this.y() + wrapH
-            wrapX += node.width
-            words += node.letter
-            heights.push(node.height)
+            if (letter.height > wrapH) wrapH = letter.height
+            letter.x = xPos
+            letter.y = yPos + wrapH
+            xPos += letter.width
         })
-        const wordM = super.measureText(words)
-        texts.push({
-            words: words,
-            width: wordM?.width || 0,
-            height: this.y() + heightW + (wordM?.actualBoundingBoxAscent || 0),
-        })
-        this.#words = texts
-        return texts
     }
-
-    editable(opt?: boolean) {
-        const editable = this.__valueHandler(opt, 'editable', true)
-        if (!editable) return editable
-        const beforeValues: any = {}
-
-        let foundNode: LetterNode | undefined
-        let foundNodeId: number | undefined
-        const dummyLetter: LetterNode = {
-            nodeId: undefined,
-            prev: undefined,
-            next: undefined,
-            letter: '',
-            width: 0,
-            wordWidth: 0,
-            height: 0,
-            x: 0,
-            y: 0,
-        }
-
-        let dbClick = false
-
-        this.dblclick(() => {
-            if (!this.isEditbale) return
-            this.#editable = true
-            dbClick = true
-            foundNode = undefined
-            foundNodeId = undefined
-            this.#caretDrawer = undefined
-            this.#drawHighlight(this.x(), this.y(), this.width(), this.height())
+    #checkLetterInBound(event: MouseEvent) {
+        const { x, y } = this.canvas?.getCursorPosition(event)!
+        let currentNode
+        this.#findLetterNode((letterNode: LetterNode) => {
+            const yInBound = inRange(
+                y,
+                letterNode.y - letterNode.height,
+                letterNode.y
+            )
+            const inPrevNode =
+                inRange(x, letterNode.x, letterNode.x + letterNode.width / 2) &&
+                yInBound
+            const inCurrentNode =
+                inRange(
+                    x,
+                    letterNode.x + letterNode.width / 2,
+                    letterNode.x + letterNode.width
+                ) && yInBound
+            if (inPrevNode) currentNode = letterNode.prev
+            else if (inCurrentNode) currentNode = letterNode
+            return inPrevNode || inCurrentNode
         })
+        return currentNode
+    }
+    checkInBound(event: MouseEvent): boolean {
+        if (this.__isRunningEventActive(SELECTABLE_RUNNING_EVENT))
+            return super.checkInBound(event)
+        return !!this.#checkLetterInBound(event)
+    }
+    #drawCaret() {
+        const context = this.context
+        if (
+            !context ||
+            !this.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) ||
+            this.#textHighlighted ||
+            !this.#currentLetterNode
+        )
+            return
 
-        const mousedown = (event: MouseEvent) => {
-            if (!this.checkInBound(event)) this.#editable = false
-            if (!this.#editable || !this.isEditbale) return
-            this.#highlightDrawer = undefined
-            dbClick = false
-            const initCords = this.canvas?.getCursorPosition(event) || {
-                x: 0,
-                y: 0,
+        const node = this.#currentLetterNode.next
+        const y = (node?.y ?? 0) - (node?.height ?? 0) - CARET_LINE_HEIGHT_GAP
+        const x = node?.x ?? 0
+        // @TODO: if letter is ' ' it gives -0 for height
+        const height = y + (node?.height ?? 0) + CARET_LINE_HEIGHT_GAP*2
+        context.save()
+        context.beginPath()
+        context.moveTo(x, y)
+        context.lineTo(x, height)
+        context.strokeStyle = CARET_LINE_COLOR
+        context.lineWidth = CARET_LINE_WIDTH
+        context.stroke()
+        context.restore()
+    }
+    #drawTextHighlight() {
+        const context = this.context
+        if (
+            !context ||
+            !this.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) ||
+            !this.#textHighlighted ||
+            !this.#currentLetterNode
+        )
+            return
+        const boundingBox = this.boundingBox
+        const x = boundingBox.topLeft.x
+        const y = boundingBox.topLeft.y
+        const width = boundingBox.topRight.x - boundingBox.topLeft.x
+        const height = boundingBox.bottomRight.y - boundingBox.topRight.y
+        context.save()
+        context.beginPath()
+        context.fillStyle = TEXT_HIGHLIGHT_COLOR
+        context.fillRect(x, y, width, height)
+        context.restore()
+    }
+    #keyMappingBehaviors(key: string) {
+        switch (key) {
+            case 'Backspace':
+                if (this.#textHighlighted) {
+                    this.#headLetterNode = undefined
+                    this.#tailLetterNode = undefined
+                    return
+                }
+                if (this.#currentLetterNode)
+                    this.#removeLetter(this.#currentLetterNode)
+                this.#currentLetterNode = this.#currentLetterNode?.prev
+                break
+            case 'Tab':
+                if (this.#textHighlighted) {
+                    this.#addLetter('    ', this.#headLetterNode)
+                    return
+                }
+                this.#addLetter('    ', this.#currentLetterNode)
+                this.#currentLetterNode = this.#currentLetterNode?.next
+                break
+            default:
+                if (this.#textHighlighted) {
+                    this.#headLetterNode = undefined
+                    this.#tailLetterNode = undefined
+                    this.#addLetter(key)
+                    this.#currentLetterNode = this.#tailLetterNode
+                    this.#textHighlighted = false
+                    return
+                }
+                this.#addLetter(key, this.#currentLetterNode)
+                this.#currentLetterNode = this.#currentLetterNode?.next
+                break
+        }
+    }
+    #editable(block: TextBlock, opt: boolean) {
+        if (opt === undefined) return
+        if (!opt) {
+            if (block.#mousedownEvent)
+                block.__removeEvent('mousedown', block.#mousedownEvent)
+            if (block.#dbClickEvent)
+                block.__removeEvent('dblclick', block.#dbClickEvent)
+            if (block.#keydownEvent)
+                block.__removeEvent('keydown', block.#keydownEvent)
+            block.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, false)
+            block.#dbClickEvent = undefined
+            block.#mousedownEvent = undefined
+            block.#keydownEvent = undefined
+            return
+        }
+        if (
+            !block.#dbClickEvent &&
+            !block.#mousedownEvent &&
+            !block.#keydownEvent
+        ) {
+            const dbClick = (event: MouseEvent) => {
+                block.#currentLetterNode = block.#checkLetterInBound(event)
+                if (!block.#currentLetterNode) return
+                block.__registerZIndex()
+                if (block.__ImFirst()) {
+                    block.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, true)
+                    block.#textHighlighted = true
+                    block.__invokeChange()
+                }
             }
-            this.#traverseLetterNodes((node) => {
-                if (
-                    inRange(initCords.x, node.x, node.x + node.width) &&
-                    inRange(initCords.y, node.y, node.y + node.height)
-                ) {
-                    if (inRange(initCords.x, node.x, node.x + node.width / 2)) {
-                        foundNode = node.prev || node
-                    } else if (
-                        inRange(
-                            initCords.x,
-                            node.x + node.width / 2,
-                            node.x + node.width
+            const mousedown = (event: MouseEvent) => {
+                if (block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)) {
+                    block.#currentLetterNode = block.#checkLetterInBound(event)
+                    block.#textHighlighted = false
+                    if (!block.#currentLetterNode) {
+                        block.__updateRunningEvent(
+                            TEXT_EDITING_RUNNING_EVENT,
+                            false
                         )
-                    ) {
-                        foundNode = node
+                        block.__resetCursor('auto')
                     }
-                    this.#stopTraverse(true)
-                }
-            })
-            if (foundNode) {
-                foundNodeId = foundNode.nodeId
-                this.#drawCaret(
-                    foundNode.x + foundNode.width,
-                    foundNode.y + foundNode.height,
-                    foundNode.x + foundNode.width,
-                    foundNode.y
-                )
-            }
-        }
-        this.keydown((e: KeyboardEvent) => {
-            if (!this.#editable || !this.isEditbale) return
-            beforeValues[this.nodeId!] = {}
-            if (dbClick) {
-                foundNode = {
-                    nodeId: 0,
-                    prev: undefined,
-                    next: undefined,
-                    letter: '',
-                    width: 0,
-                    wordWidth: 0,
-                    height: 0,
-                    x: 0,
-                    y: 0,
-                }
-                this.#letterNode = foundNode
-                foundNodeId = 0
-                this.#highlightDrawer = undefined
-                dbClick = false
-            }
-            if (!foundNode || foundNodeId === undefined) return
-            if (e.key === 'Backspace') {
-                if (foundNodeId > 0) {
-                    this.#removeLetterNode(foundNode)
-                    foundNodeId -= 1
-                }
-            } else if (e.key === 'Tab') {
-                dummyLetter.letter = '    '
-                this.#addAfter(foundNode, dummyLetter)
-                foundNodeId += 4
-            } else {
-                dummyLetter.letter = e.key
-                this.#addAfter(foundNode, dummyLetter)
-                foundNodeId += 1
-            }
-            foundNode = this.#findNode(foundNodeId)
-            if (foundNode) {
-                this.#drawCaret(
-                    foundNode.x + foundNode.width,
-                    foundNode.y + foundNode.height,
-                    foundNode.x + foundNode.width,
-                    foundNode.y
-                )
-            }
-            this.onEdit()?.(e)
-            dummyLetter.letter = ''
-        })
-
-        this.eventHandler('mousedown', mousedown, 'editableClick')
-        return editable
-    }
-
-    get isEditbale() {
-        return this.ownOptions['editable'] ? this.ownOptions['editable'] : false
-    }
-
-    onEdit(opt?: (event: KeyboardEvent) => void) {
-        const editE = this.__valueHandler<
-            (event: KeyboardEvent) => void,
-            ((event: KeyboardEvent) => void) | undefined
-        >(opt, 'onEdit', undefined)
-        return editE
-    }
-
-    text(opt?: string): string {
-        const cacheT = this.ownOptions.text || ''
-        const text = this.__valueHandler(opt, 'text', '')
-        if (text !== cacheT) {
-            this.#updateText = () => {
-                const splitedText = text.split('')
-                let x = 0
-                let prevNode = this.#letterNode
-                let pendingNode = undefined
-                let wordWidth = 0
-                const measure = super.measureText('')
-                this.#letterNode.height = measure?.actualBoundingBoxAscent || 0
-                for (let i = 0, len = splitedText.length; i < len; i++) {
-                    const measure = super.measureText(splitedText[i])
-                    const node = {
-                        nodeId: i + 1,
-                        prev: prevNode,
-                        next: undefined,
-                        letter: splitedText[i],
-                        width: measure?.width || 0,
-                        wordWidth: 0,
-                        height: measure?.actualBoundingBoxAscent || 0,
-                        x: x,
-                        y: measure?.actualBoundingBoxAscent || 0 + this.y(),
-                    }
-                    prevNode.next = node
-                    prevNode = prevNode.next
-                    if (!pendingNode) pendingNode = prevNode
-                    wordWidth += measure?.width || 0
-                    if (splitedText[i] === ' ' || i === len - 1) {
-                        pendingNode.wordWidth = wordWidth
-                        pendingNode = undefined
-                        wordWidth = 0
-                    }
-                    x += measure?.width || 0
+                    block.__invokeChange()
                 }
             }
-        }
-        return text
-    }
-
-    #traverseLetterNodes(_func: (node: LetterNode) => void) {
-        let next: LetterNode | undefined = this.#letterNode
-        this.#stopTraverse(false)
-        while (next && this.#stopTraverseSign) {
-            _func(next)
-            next = next.next
-        }
-    }
-
-    #addAfter(targetNode: LetterNode, newNode: LetterNode) {
-        let letters = ''
-        this.#traverseLetterNodes((node) => {
-            if (targetNode.nodeId === node.nodeId) {
-                newNode.next = node.next
-                newNode.prev = node
-                node.next = newNode
+            const keydown = (event: KeyboardEvent) => {
+                if (block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)) {
+                    event.preventDefault()
+                    block.#keyMappingBehaviors(event.key)
+                    block.onEditable()?.(block)
+                    block.__invokeChange()
+                }
             }
-            letters += node.letter
-        })
-        this.text(letters)
-        this.canvas?.invokeChange()
-    }
-
-    #addBefore(targetNode: LetterNode, newNode: LetterNode) {
-        let prevNode = this.#letterNode
-        this.#traverseLetterNodes((node) => {
-            if (targetNode.nodeId === node.nodeId) {
-                prevNode.next = newNode
-                newNode.prev = prevNode
-                newNode.next = node
-                this.#stopTraverse(true)
-            }
-            prevNode = node
-        })
-    }
-
-    #findNode(nodeId: number): LetterNode | undefined {
-        let foundNode
-        this.#traverseLetterNodes((node) => {
-            if (nodeId === node.nodeId) {
-                foundNode = node
-                this.#stopTraverse(true)
-            }
-        })
-        return foundNode
-    }
-
-    #stopTraverse(stop: boolean) {
-        if (stop) this.#stopTraverseSign = 0
-        else this.#stopTraverseSign = 1
-    }
-    #removeLetterNode(targetNode: LetterNode) {
-        let prevNode = this.#letterNode
-        let letters = ''
-        this.#traverseLetterNodes((node) => {
-            if (targetNode.nodeId === node.nodeId) {
-                prevNode.next = node.next
-            } else letters += node.letter
-            prevNode = node
-        })
-        this.text(letters)
-        this.canvas?.invokeChange()
-    }
-
-    #drawCaret(x: number, y: number, width: number, height: number) {
-        this.#caretDrawer = () => {
-            if (!this.context) return
-            this.context.beginPath()
-            this.context.moveTo(x, y)
-            this.context.lineTo(width, height)
-            this.context.strokeStyle = 'red'
-            this.context.lineWidth = 2
-            this.context.stroke()
+            block.__addEvent('dblclick', dbClick)
+            block.__addEvent('mousedown', mousedown)
+            block.__addEvent('keydown', keydown)
         }
-        this.canvas?.invokeChange()
-    }
-
-    #drawHighlight(x: number, y: number, width: number, height: number) {
-        if (!this.context) return
-        this.#highlightDrawer = () => {
-            if (!this.context) return
-            this.context.beginPath()
-            this.context.fillStyle = 'rgba(0, 13, 255, 0.47)'
-            this.context.fillRect(x, y, width, height)
-        }
-        this.canvas?.invokeChange()
-    }
-
-    get isWrapWord() {
-        return this.wrap() === 'word'
-    }
-
-    fontFamily(opt?: string) {
-        return this.__valueHandler(opt, 'fontFamily', 'sans-serif')
-    }
-    fontSize(opt?: number | string) {
-        return this.__valueHandler(opt, 'fontSize', 0, true)
-    }
-    fontWeight(opt?: FontWeight) {
-        return this.__valueHandler(opt, 'fontWeight', 'normal')
-    }
-    fontVariant(opt?: FontVariant) {
-        return this.__valueHandler(opt, 'fontVariant', 'normal')
-    }
-    fontStyle(opt?: FontStyle) {
-        return this.__valueHandler(opt, 'fontStyle', 'normal')
-    }
-    color(opt?: string) {
-        const color = this.__valueHandler(opt, 'color', undefined)
-        if (color) {
-            super.fillStyle(color)
-            super.fill({ fill: true })
-        }
-        return color
-    }
-    strokeColor(opt?: StrokeStyle) {
-        const strokeColor = this.__valueHandler(opt, 'strokeColor', undefined)
-        if (strokeColor) {
-            super.strokeStyle(strokeColor)
-            this.stroke({ stroke: true })
-        }
-        return strokeColor
-    }
-    strokeWidth(opt?: number) {
-        const width = this.__valueHandler(opt, 'strokeWidth', 0)
-        super.lineWidth(width)
-        return width
-    }
-
-    resizeLineHeight(opt?: boolean) {
-        return this.__valueHandler(opt, 'resizeLineHeight', false)
-    }
-
-    wrap(opt?: Wrap) {
-        return this.__valueHandler(opt, 'wrap', 'nowrap')
-    }
-    scale(opt?: number): void {
-        super.scale(opt)
-        this.fontSize(this.fontSize() * (opt || 1))
-    }
-
-    __generatePayload(): BlockPayload {
-        const payload = super.__generatePayload()
-        payload.additionalParams = [this.text()]
-        return payload
     }
 }
