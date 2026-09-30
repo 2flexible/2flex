@@ -1,4 +1,5 @@
-import { SELECTABLE_RUNNING_EVENT } from '../const'
+import { initialCorners, SELECTABLE_RUNNING_EVENT } from '../const'
+import { DummyCanvas } from '../DummyCanvas'
 import { ShapeBlock } from '../ShapeBlock'
 import type {
     DrawFunc,
@@ -7,7 +8,7 @@ import type {
     FontWeight,
     IShapeOptions,
 } from '../ShapeBlock'
-import type { CustomEvent, RelativeType } from '../types'
+import type { CustomEvent, HotCornerArea, RelativeType } from '../types'
 import { inRange } from '../Utils'
 
 type Wrap = 'letter' | 'word' | 'nowrap'
@@ -66,10 +67,14 @@ export class TextBlock extends ShapeBlock {
 
     #textHighlighted: boolean
 
+    #dummyContext?: OffscreenCanvasRenderingContext2D | null
+
     constructor(options: ITextOptions) {
         super(options)
         this.#defineProperties()
         this.#textHighlighted = false
+        const dummyCanvas = new DummyCanvas(this.width(), this.height())
+        this.#dummyContext = dummyCanvas.context
     }
 
     #defineProperties() {
@@ -122,7 +127,7 @@ export class TextBlock extends ShapeBlock {
     }
 
     draw(_func?: DrawFunc): void {
-        super.font(this.#formatedFont)
+        this.#setFont()
         this.#updateLetterNodeCordinates()
         this.#drawCaret()
         this.#drawTextHighlight()
@@ -150,11 +155,29 @@ export class TextBlock extends ShapeBlock {
     get #formatedFont() {
         return `${this.fontStyle()} ${this.fontVariant()} ${this.fontWeight()} ${this.fontSize()}px ${this.fontFamily()}`
     }
+    get #activeContext() {
+        return this.context || this.#dummyContext
+    }
+    init(): void {
+        super.init()
+        this.#updateLetterNodeCordinates()
+        this.#updateBoundingCords()
+    }
+    measureText(text: string) {
+        const context = this.#activeContext
+        return context?.measureText(text)
+    }
     updateCords(): void {
         super.updateCords()
-        this.#updateBoundingBox()
+        this.#updateBoundingCords()
     }
-    #updateBoundingBox() {
+    #setFont() {
+        const context = this.#activeContext
+        if (!context) return
+        context.font = this.#formatedFont
+    }
+    #updateBoundingCords() {
+        this.#setFont()
         const minXs: number[] = []
         const minYs: number[] = []
         const maxXs: number[] = []
@@ -267,6 +290,7 @@ export class TextBlock extends ShapeBlock {
         }
     }
     #updateLetterNodeCordinates() {
+        this.#setFont()
         const wrap = this.wrap()
         const width = this.width()
         const x = this.x()
@@ -346,7 +370,7 @@ export class TextBlock extends ShapeBlock {
         const y = (node?.y ?? 0) - (node?.height ?? 0) - CARET_LINE_HEIGHT_GAP
         const x = node?.x ?? 0
         // @TODO: if letter is ' ' it gives -0 for height
-        const height = y + (node?.height ?? 0) + CARET_LINE_HEIGHT_GAP*2
+        const height = y + (node?.height ?? 0) + CARET_LINE_HEIGHT_GAP * 2
         context.save()
         context.beginPath()
         context.moveTo(x, y)
