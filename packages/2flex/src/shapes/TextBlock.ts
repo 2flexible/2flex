@@ -269,7 +269,10 @@ export class TextBlock extends ShapeBlock {
                 const measure = this.measureText(word)
                 words[word] = {
                     width: measure?.width ?? 0,
-                    height: measure?.actualBoundingBoxAscent ?? 0,
+                    height:
+                        (measure?.actualBoundingBoxAscent ||
+                            measure?.fontBoundingBoxAscent) ??
+                        0,
                 }
                 word = ''
             }
@@ -307,7 +310,10 @@ export class TextBlock extends ShapeBlock {
             if (!letter.letter) return
             const measure = this.measureText(letter.letter)
             letter.width = measure?.width ?? 0
-            letter.height = measure?.actualBoundingBoxAscent ?? 0
+            letter.height =
+                (measure?.actualBoundingBoxAscent ||
+                    measure?.fontBoundingBoxAscent) ??
+                0
             wrapW += letter.width
             if (wrapW >= width && (wrap === 'letter' || wrap === 'word')) {
                 yPos += wrapH
@@ -321,7 +327,8 @@ export class TextBlock extends ShapeBlock {
                     wrapW += currentWord[1].width
             }
 
-            if (letter.height > wrapH) wrapH = letter.height
+            if (letter.height > wrapH && letter.letter !== ' ')
+                wrapH = letter.height
             letter.x = xPos
             letter.y = yPos + wrapH
             xPos += letter.width
@@ -357,6 +364,7 @@ export class TextBlock extends ShapeBlock {
         return !!this.#checkLetterInBound(event)
     }
     #drawCaret() {
+        this.#setFont()
         const context = this.context
         if (
             !context ||
@@ -366,11 +374,17 @@ export class TextBlock extends ShapeBlock {
         )
             return
 
+        const text = this.getOptionCurrent('text')
+        const measure = this.measureText(text)
         const node = this.#currentLetterNode.next
-        const y = (node?.y ?? 0) - (node?.height ?? 0) - CARET_LINE_HEIGHT_GAP
+        const meauserHeight =
+            measure?.actualBoundingBoxAscent ||
+            measure?.fontBoundingBoxAscent ||
+            0
+        const y = (node?.y ?? 0) - meauserHeight - CARET_LINE_HEIGHT_GAP
         const x = node?.x ?? 0
         // @TODO: if letter is ' ' it gives -0 for height
-        const height = y + (node?.height ?? 0) + CARET_LINE_HEIGHT_GAP * 2
+        const height = y + meauserHeight + CARET_LINE_HEIGHT_GAP * 2
         context.save()
         context.beginPath()
         context.moveTo(x, y)
