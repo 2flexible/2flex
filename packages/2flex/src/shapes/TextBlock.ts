@@ -73,8 +73,6 @@ export class TextBlock extends ShapeBlock {
         super(options)
         this.#defineProperties()
         this.#textHighlighted = false
-        const dummyCanvas = new DummyCanvas(this.width(), this.height())
-        this.#dummyContext = dummyCanvas.context
     }
 
     #defineProperties() {
@@ -110,7 +108,7 @@ export class TextBlock extends ShapeBlock {
             (block: TextBlock, opt: boolean) => this.#editable(block, opt)
         )
         this.addProperty('letterSpacing', 0)
-        this.addProperty('lineHeight', 'auto')
+        this.addProperty('lineHeight', 1)
     }
 
     render(): void {
@@ -159,9 +157,14 @@ export class TextBlock extends ShapeBlock {
         return this.context || this.#dummyContext
     }
     init(): void {
+        this.#constructDummyContext()
         super.init()
         this.#updateLetterNodeCordinates()
         this.#updateBoundingCords()
+    }
+    #constructDummyContext() {
+        const dummyCanvas = new DummyCanvas(this.width(), this.height())
+        this.#dummyContext = dummyCanvas.context
     }
     measureText(text: string) {
         const context = this.#activeContext
@@ -257,6 +260,8 @@ export class TextBlock extends ShapeBlock {
     }
     #buildWords() {
         if (this.#words !== undefined) return
+        const letterSpacing = this.letterSpacing()
+        const lineHeight = this.lineHeight()
         this.#words = {}
         const words = this.#words
         let word = ''
@@ -267,12 +272,15 @@ export class TextBlock extends ShapeBlock {
                 letterNode.next === undefined
             ) {
                 const measure = this.measureText(word)
+                const wordWidth =
+                    (measure?.width ?? 0) + word.length * letterSpacing
+                const wordHeight =
+                    (measure?.actualBoundingBoxAscent ||
+                        measure?.fontBoundingBoxAscent ||
+                        0) + lineHeight
                 words[word] = {
-                    width: measure?.width ?? 0,
-                    height:
-                        (measure?.actualBoundingBoxAscent ||
-                            measure?.fontBoundingBoxAscent) ??
-                        0,
+                    width: wordWidth,
+                    height: wordHeight,
                 }
                 word = ''
             }
@@ -298,6 +306,8 @@ export class TextBlock extends ShapeBlock {
         const width = this.width()
         const x = this.x()
         const y = this.y()
+        const letterSpacing = this.letterSpacing()
+        const lineHeight = this.lineHeight()
         this.#buildWords()
         const words = Object.entries(this.#words ?? {})
         let wordIdx = 0
@@ -309,10 +319,10 @@ export class TextBlock extends ShapeBlock {
         this.#walkLetterNodes((letter: LetterNode) => {
             if (!letter.letter) return
             const measure = this.measureText(letter.letter)
-            letter.width = measure?.width ?? 0
+            letter.width = (measure?.width ?? 0) + letterSpacing
             letter.height =
-                (measure?.actualBoundingBoxAscent ||
-                    measure?.fontBoundingBoxAscent) ??
+                measure?.actualBoundingBoxAscent ||
+                measure?.fontBoundingBoxAscent ||
                 0
             wrapW += letter.width
             if (wrapW >= width && (wrap === 'letter' || wrap === 'word')) {
@@ -328,7 +338,7 @@ export class TextBlock extends ShapeBlock {
             }
 
             if (letter.height > wrapH && letter.letter !== ' ')
-                wrapH = letter.height
+                wrapH = letter.height + lineHeight
             letter.x = xPos
             letter.y = yPos + wrapH
             xPos += letter.width
@@ -383,7 +393,6 @@ export class TextBlock extends ShapeBlock {
             0
         const y = (node?.y ?? 0) - meauserHeight - CARET_LINE_HEIGHT_GAP
         const x = node?.x ?? 0
-        // @TODO: if letter is ' ' it gives -0 for height
         const height = y + meauserHeight + CARET_LINE_HEIGHT_GAP * 2
         context.save()
         context.beginPath()
