@@ -55,7 +55,8 @@ class LetterNode {
 export class TextBlock extends ShapeBlock {
     #headLetterNode?: LetterNode
     #tailLetterNode?: LetterNode
-    #currentLetterNode?: LetterNode
+    #selectionAnchor?: LetterNode
+    #selectionFocus?: LetterNode
 
     #words?: {
         [key: string]: { width: number; height: number }
@@ -65,15 +66,12 @@ export class TextBlock extends ShapeBlock {
     #mousedownEvent?: CustomEvent<Event>
     #keydownEvent?: CustomEvent<Event>
 
-    #textHighlighted: boolean
-
     #dummyContext?: OffscreenCanvasRenderingContext2D | null
     #localBoundingBox: HotCornerArea
 
     constructor(options: ITextOptions) {
         super(options)
         this.#defineProperties()
-        this.#textHighlighted = false
         this.#localBoundingBox = initialCorners
     }
 
@@ -287,6 +285,8 @@ export class TextBlock extends ShapeBlock {
         for (let i = 0, len = splitedText.length; i < len; i++) {
             this.#addLetter(splitedText[i], this.#tailLetterNode)
         }
+        this.#selectionFocus = this.#tailLetterNode
+        this.#selectionAnchor = this.#tailLetterNode
     }
     #addLetter(letter: string, tail?: LetterNode) {
         const current = new LetterNode(letter)
@@ -458,14 +458,14 @@ export class TextBlock extends ShapeBlock {
         if (
             !context ||
             !this.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) ||
-            this.#textHighlighted ||
-            !this.#currentLetterNode
+            this.#hasSelection() ||
+            !this.#selectionFocus
         )
             return
 
         const text = this.getOptionCurrent('text')
         const measure = this.measureText(text)
-        const node = this.#currentLetterNode.next
+        const node = this.#selectionFocus.next
         const meauserHeight =
             measure?.actualBoundingBoxAscent ||
             measure?.fontBoundingBoxAscent ||
@@ -487,54 +487,310 @@ export class TextBlock extends ShapeBlock {
         if (
             !context ||
             !this.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) ||
-            !this.#textHighlighted ||
-            !this.#currentLetterNode
+            !this.#hasSelection()
         )
             return
-        const bb = this.#localBoundingBox
-        const x = bb.topLeft.x
-        const y = bb.topLeft.y
-        const width = bb.topRight.x - bb.topLeft.x
-        const height = bb.bottomLeft.y - bb.topLeft.y
+        const range = this.#selectionRange()
+        if (!range) return
+        const minXs: number[] = []
+        const minYs: number[] = []
+        const maxXs: number[] = []
+        const maxYs: number[] = []
+        let node: LetterNode | undefined = range.start
+        while (node) {
+            minXs.push(node.x)
+            minYs.push(node.y - node.height)
+            maxXs.push(node.x + node.width)
+            maxYs.push(node.y + node.height)
+            if (node === range.end) break
+            node = node.next
+        }
+        if (minXs.length === 0) return
+        const x = Math.min(...minXs)
+        const y = Math.min(...minYs)
+        const width = Math.max(...maxXs) - x
+        const height = Math.max(...maxYs) - y
         context.save()
         context.beginPath()
         context.fillStyle = TEXT_HIGHLIGHT_COLOR
         context.fillRect(x, y, width, height)
         context.restore()
     }
-    #keyMappingBehaviors(key: string) {
-        switch (key) {
-            case 'Backspace':
-                if (this.#textHighlighted) {
-                    this.#headLetterNode = undefined
-                    this.#tailLetterNode = undefined
-                    return
-                }
-                if (this.#currentLetterNode)
-                    this.#removeLetter(this.#currentLetterNode)
-                this.#currentLetterNode = this.#currentLetterNode?.prev
+    #hasSelection(): boolean {
+        return (
+            this.#selectionAnchor !== undefined &&
+            this.#selectionFocus !== undefined &&
+            this.#selectionAnchor !== this.#selectionFocus
+        )
+    }
+    #selectionRange(): { start: LetterNode; end: LetterNode } | undefined {
+        if (!this.#selectionAnchor || !this.#selectionFocus) return undefined
+        if (this.#selectionAnchor === this.#selectionFocus) return undefined
+        const a = this.#selectionAnchor
+        const b = this.#selectionFocus
+        let start: LetterNode | undefined = a
+        let end: LetterNode | undefined = b
+        let cur: LetterNode | undefined = a
+        while (cur) {
+            if (cur === b) {
+                start = a
+                end = b
                 break
-            case 'Tab':
-                if (this.#textHighlighted) {
-                    this.#addLetter('    ', this.#headLetterNode)
-                    return
-                }
-                this.#addLetter('    ', this.#currentLetterNode)
-                this.#currentLetterNode = this.#currentLetterNode?.next
-                break
-            default:
-                if (this.#textHighlighted) {
-                    this.#headLetterNode = undefined
-                    this.#tailLetterNode = undefined
-                    this.#addLetter(key)
-                    this.#currentLetterNode = this.#tailLetterNode
-                    this.#textHighlighted = false
-                    return
-                }
-                this.#addLetter(key, this.#currentLetterNode)
-                this.#currentLetterNode = this.#currentLetterNode?.next
-                break
+            }
+            cur = cur.next
+            if (cur === a) break
         }
+        if (cur !== b) {
+            start = b
+            end = a
+        }
+        return { start, end }
+    }
+    #setCaret(node: LetterNode | undefined) {
+        this.#selectionFocus = node
+        this.#selectionAnchor = node
+    }
+    #moveCaret(direction: 'prev' | 'next') {
+        const focus = this.#selectionFocus
+        if (!focus) return
+        this.#setCaret(direction === 'prev' ? focus.prev : focus.next)
+    }
+    #extendSelection(direction: 'prev' | 'next') {
+        const focus = this.#selectionFocus
+        if (!focus) return
+        this.#selectionFocus =
+            direction === 'prev' ? focus.prev : focus.next
+    }
+    #currentY(): number | undefined {
+        return this.#selectionFocus?.y
+    }
+    #currentX(): number {
+        const focus = this.#selectionFocus
+        if (!focus) return 0
+        return focus.x + focus.width / 2
+    }
+    #moveCaretVertically(direction: 'up' | 'down') {
+        const focus = this.#selectionFocus
+        if (!focus) return
+        const currentY = focus.y
+        const currentX = this.#currentX()
+        let best: LetterNode | undefined
+        let bestDist = Infinity
+        let node: LetterNode | undefined = this.#headLetterNode
+        while (node) {
+            if (
+                node !== focus &&
+                (direction === 'down' ? node.y > currentY : node.y < currentY)
+            ) {
+                const dist = Math.abs(node.y - currentY) + Math.abs(node.x - currentX)
+                if (dist < bestDist) {
+                    bestDist = dist
+                    best = node
+                }
+            }
+            node = node.next
+        }
+        if (best) this.#setCaret(best)
+    }
+    #moveCaretToLineEdge(edge: 'start' | 'end') {
+        const focus = this.#selectionFocus
+        if (!focus) return
+        const y = focus.y
+        const target: 'prev' | 'next' = edge === 'start' ? 'prev' : 'next'
+        let node: LetterNode | undefined = focus
+        while (node && node[target] && node[target]?.y === y) {
+            node = node[target]
+        }
+        this.#setCaret(node)
+    }
+    #extendSelectionVertically(direction: 'up' | 'down') {
+        const focus = this.#selectionFocus
+        if (!focus) return
+        const currentY = focus.y
+        const currentX = this.#currentX()
+        let best: LetterNode | undefined
+        let bestDist = Infinity
+        let node: LetterNode | undefined = this.#headLetterNode
+        while (node) {
+            if (
+                node !== focus &&
+                (direction === 'down' ? node.y > currentY : node.y < currentY)
+            ) {
+                const dist = Math.abs(node.y - currentY) + Math.abs(node.x - currentX)
+                if (dist < bestDist) {
+                    bestDist = dist
+                    best = node
+                }
+            }
+            node = node.next
+        }
+        if (best) this.#selectionFocus = best
+    }
+    #extendSelectionToLineEdge(edge: 'start' | 'end') {
+        const focus = this.#selectionFocus
+        if (!focus) return
+        const y = focus.y
+        const target: 'prev' | 'next' = edge === 'start' ? 'prev' : 'next'
+        let node: LetterNode | undefined = focus
+        while (node && node[target] && node[target]?.y === y) {
+            node = node[target]
+        }
+        this.#selectionFocus = node
+    }
+    #selectAll() {
+        this.#selectionAnchor = this.#headLetterNode
+        this.#selectionFocus = this.#tailLetterNode
+    }
+    #deleteRange() {
+        const range = this.#selectionRange()
+        if (!range) return
+        let node: LetterNode | undefined = range.start
+        while (node) {
+            const next: LetterNode | undefined = node.next
+            const after: LetterNode | undefined =
+                node === range.end ? undefined : next
+            this.#removeLetter(node)
+            if (node === range.end) {
+                this.#selectionFocus = node.prev
+                break
+            }
+            node = after
+        }
+        this.#selectionAnchor = this.#selectionFocus
+    }
+    #selectionText(): string {
+        const range = this.#selectionRange()
+        if (!range) return ''
+        let out = ''
+        let node: LetterNode | undefined = range.start
+        while (node) {
+            out += node.letter ?? ''
+            if (node === range.end) break
+            node = node.next
+        }
+        return out
+    }
+    #insertText(text: string) {
+        if (this.#hasSelection()) this.#deleteRange()
+        if (text === '') return
+        const chars = text.split('')
+        let last: LetterNode | undefined = this.#selectionFocus
+        for (const ch of chars) {
+            this.#addLetter(ch, last)
+            last = last ? last.next : this.#headLetterNode
+        }
+        this.#selectionFocus = last
+        this.#selectionAnchor = last
+    }
+    #handleBackspace() {
+        if (this.#hasSelection()) {
+            this.#deleteRange()
+            return
+        }
+        const focus = this.#selectionFocus
+        if (!focus) return
+        this.#removeLetter(focus)
+        this.#setCaret(focus.prev)
+    }
+    #handleDelete() {
+        if (this.#hasSelection()) {
+            this.#deleteRange()
+            return
+        }
+        const focus = this.#selectionFocus
+        if (!focus) return
+        const target = focus.next
+        if (!target) return
+        this.#removeLetter(target)
+        this.#setCaret(focus)
+    }
+    #copySelection() {
+        const text = this.#selectionText()
+        if (text === '') return
+        navigator.clipboard?.writeText(text)
+    }
+    #cutSelection() {
+        const text = this.#selectionText()
+        if (text === '') return
+        navigator.clipboard?.writeText(text)
+        this.#deleteRange()
+    }
+    #pasteFromClipboard() {
+        navigator.clipboard?.readText().then((text) => {
+            this.#insertText(text)
+            this.onEditable()?.(this)
+            this.__invokeChange()
+        })
+    }
+    #keyMappingBehaviors(event: KeyboardEvent) {
+        const key = event.key
+        const mod = event.ctrlKey || event.metaKey
+        const shift = event.shiftKey
+
+        if (mod && (key === 'a' || key === 'A')) return this.#selectAll()
+        if (mod && (key === 'c' || key === 'C')) return this.#copySelection()
+        if (mod && (key === 'x' || key === 'X')) return this.#cutSelection()
+        if (mod && (key === 'v' || key === 'V'))
+            return this.#pasteFromClipboard()
+
+        if (key === 'Backspace') return this.#handleBackspace()
+        if (key === 'Delete') return this.#handleDelete()
+        if (key === 'Enter') return this.#insertText('\n')
+        if (key === 'Tab') return this.#insertText('    ')
+        if (key === 'Escape') {
+            this.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, false)
+            this.#selectionAnchor = undefined
+            this.#selectionFocus = undefined
+            this.__resetCursor('auto')
+            return
+        }
+
+        if (!shift) {
+            if (key === 'ArrowLeft') return this.#moveCaret('prev')
+            if (key === 'ArrowRight') return this.#moveCaret('next')
+            if (key === 'ArrowUp')
+                return this.#moveCaretVertically('up')
+            if (key === 'ArrowDown')
+                return this.#moveCaretVertically('down')
+            if (key === 'Home') return this.#setCaret(this.#headLetterNode)
+            if (key === 'End') return this.#setCaret(this.#tailLetterNode)
+            if (key === 'PageUp')
+                return this.#setCaret(this.#headLetterNode)
+            if (key === 'PageDown')
+                return this.#setCaret(this.#tailLetterNode)
+        } else {
+            if (key === 'ArrowLeft') return this.#extendSelection('prev')
+            if (key === 'ArrowRight') return this.#extendSelection('next')
+            if (key === 'ArrowUp')
+                return this.#extendSelectionVertically('up')
+            if (key === 'ArrowDown')
+                return this.#extendSelectionVertically('down')
+            if (key === 'Home') {
+                this.#selectionFocus = this.#headLetterNode
+                return
+            }
+            if (key === 'End') {
+                this.#selectionFocus = this.#tailLetterNode
+                return
+            }
+            if (key === 'PageUp') {
+                this.#selectionFocus = this.#headLetterNode
+                return
+            }
+            if (key === 'PageDown') {
+                this.#selectionFocus = this.#tailLetterNode
+                return
+            }
+        }
+
+        if (
+            key.length === 1 &&
+            !mod &&
+            key !== 'Tab' &&
+            key !== 'Enter' &&
+            key !== 'Escape'
+        )
+            return this.#insertText(key)
     }
     #editable(block: TextBlock, opt: boolean) {
         if (opt === undefined) return
@@ -557,25 +813,30 @@ export class TextBlock extends ShapeBlock {
             !block.#keydownEvent
         ) {
             const dbClick = (event: MouseEvent) => {
-                block.#currentLetterNode = block.#checkLetterInBound(event)
-                if (!block.#currentLetterNode) return
+                const clicked = block.#checkLetterInBound(event)
+                if (!clicked) return
                 block.__registerZIndex()
                 if (block.__ImFirst()) {
                     block.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, true)
-                    block.#textHighlighted = true
+                    block.#selectionAnchor = block.#headLetterNode
+                    block.#selectionFocus = block.#tailLetterNode
                     block.__invokeChange()
                 }
             }
             const mousedown = (event: MouseEvent) => {
                 if (block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)) {
-                    block.#currentLetterNode = block.#checkLetterInBound(event)
-                    block.#textHighlighted = false
-                    if (!block.#currentLetterNode) {
+                    const clicked = block.#checkLetterInBound(event)
+                    if (!clicked) {
                         block.__updateRunningEvent(
                             TEXT_EDITING_RUNNING_EVENT,
                             false
                         )
+                        block.#selectionAnchor = undefined
+                        block.#selectionFocus = undefined
                         block.__resetCursor('auto')
+                    } else {
+                        block.#selectionFocus = clicked
+                        block.#selectionAnchor = clicked
                     }
                     block.__invokeChange()
                 }
@@ -583,7 +844,7 @@ export class TextBlock extends ShapeBlock {
             const keydown = (event: KeyboardEvent) => {
                 if (block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)) {
                     event.preventDefault()
-                    block.#keyMappingBehaviors(event.key)
+                    block.#keyMappingBehaviors(event)
                     block.onEditable()?.(block)
                     block.__invokeChange()
                 }
