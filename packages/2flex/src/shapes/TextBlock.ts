@@ -1,4 +1,8 @@
-import { initialCorners, SELECTABLE_RUNNING_EVENT } from '../const'
+import {
+    initialCorners,
+    SELECTABLE_RUNNING_EVENT,
+    DRAGGABLE_RUNNING_EVENT,
+} from '../const'
 import { DummyCanvas } from '../DummyCanvas'
 import { ShapeBlock } from '../ShapeBlock'
 import type {
@@ -64,7 +68,11 @@ export class TextBlock extends ShapeBlock {
 
     #dbClickEvent?: CustomEvent<Event>
     #mousedownEvent?: CustomEvent<Event>
+    #mouseMoveEvent?: CustomEvent<Event>
+    #mouseUpEvent?: CustomEvent<Event>
     #keydownEvent?: CustomEvent<Event>
+
+    #isDraggingSelection: boolean = false
 
     #dummyContext?: OffscreenCanvasRenderingContext2D | null
     #localBoundingBox: HotCornerArea
@@ -739,6 +747,7 @@ export class TextBlock extends ShapeBlock {
         if (key === 'Tab') return this.#insertText('    ')
         if (key === 'Escape') {
             this.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, false)
+            this.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
             this.#selectionAnchor = undefined
             this.#selectionFocus = undefined
             this.__resetCursor('auto')
@@ -797,19 +806,30 @@ export class TextBlock extends ShapeBlock {
         if (!opt) {
             if (block.#mousedownEvent)
                 block.__removeEvent('mousedown', block.#mousedownEvent)
+            if (block.#mouseMoveEvent)
+                block.__removeEvent('mousemove', block.#mouseMoveEvent)
+            if (block.#mouseUpEvent)
+                block.__removeEvent('mouseup', block.#mouseUpEvent)
             if (block.#dbClickEvent)
                 block.__removeEvent('dblclick', block.#dbClickEvent)
             if (block.#keydownEvent)
                 block.__removeEvent('keydown', block.#keydownEvent)
             block.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, false)
+            block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+            block.#isDraggingSelection = false
+            block.__resetCursor('auto')
             block.#dbClickEvent = undefined
             block.#mousedownEvent = undefined
+            block.#mouseMoveEvent = undefined
+            block.#mouseUpEvent = undefined
             block.#keydownEvent = undefined
             return
         }
         if (
             !block.#dbClickEvent &&
             !block.#mousedownEvent &&
+            !block.#mouseMoveEvent &&
+            !block.#mouseUpEvent &&
             !block.#keydownEvent
         ) {
             const dbClick = (event: MouseEvent) => {
@@ -817,6 +837,8 @@ export class TextBlock extends ShapeBlock {
                 if (!clicked) return
                 block.__registerZIndex()
                 if (block.__ImFirst()) {
+                    block.#isDraggingSelection = false
+                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     block.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, true)
                     block.#selectionAnchor = block.#headLetterNode
                     block.#selectionFocus = block.#tailLetterNode
@@ -825,20 +847,66 @@ export class TextBlock extends ShapeBlock {
             }
             const mousedown = (event: MouseEvent) => {
                 if (block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)) {
+                    block.__registerZIndex()
+                    if (!block.__ImFirst()) return
+                    event.preventDefault()
                     const clicked = block.#checkLetterInBound(event)
                     if (!clicked) {
                         block.__updateRunningEvent(
                             TEXT_EDITING_RUNNING_EVENT,
                             false
                         )
+                        block.__updateRunningEvent(
+                            DRAGGABLE_RUNNING_EVENT,
+                            false
+                        )
                         block.#selectionAnchor = undefined
                         block.#selectionFocus = undefined
+                        block.#isDraggingSelection = false
                         block.__resetCursor('auto')
-                    } else {
+                        block.__invokeChange()
+                        return
+                    }
+                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                    if (event.shiftKey) {
+                        if (block.#selectionAnchor === undefined) {
+                            block.#selectionAnchor = clicked
+                        }
                         block.#selectionFocus = clicked
+                    } else {
                         block.#selectionAnchor = clicked
+                        block.#selectionFocus = clicked
+                    }
+                    block.#isDraggingSelection = true
+                    block.__selectCursor('text')
+                    block.__invokeChange()
+                }
+            }
+            const mousemove = (event: MouseEvent) => {
+                if (
+                    block.#isDraggingSelection &&
+                    block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) &&
+                    block.isMouseEventAllowed
+                ) {
+                    event.preventDefault()
+                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                    const clicked = block.#checkLetterInBound(event)
+                    if (clicked) {
+                        block.#selectionFocus = clicked
                     }
                     block.__invokeChange()
+                }
+            }
+            const mouseup = (event: MouseEvent) => {
+                if (block.#isDraggingSelection) {
+                    block.#isDraggingSelection = false
+                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                    block.__resetCursor('text')
+                    if (block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)) {
+                        const clicked = block.#checkLetterInBound(event)
+                        if (clicked) block.#selectionFocus = clicked
+                        block.__invokeChange()
+                    }
                 }
             }
             const keydown = (event: KeyboardEvent) => {
@@ -851,6 +919,8 @@ export class TextBlock extends ShapeBlock {
             }
             block.__addEvent('dblclick', dbClick)
             block.__addEvent('mousedown', mousedown)
+            block.__addEvent('mousemove', mousemove)
+            block.__addEvent('mouseup', mouseup)
             block.__addEvent('keydown', keydown)
         }
     }
