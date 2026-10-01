@@ -68,11 +68,13 @@ export class TextBlock extends ShapeBlock {
     #textHighlighted: boolean
 
     #dummyContext?: OffscreenCanvasRenderingContext2D | null
+    #localBoundingBox: HotCornerArea
 
     constructor(options: ITextOptions) {
         super(options)
         this.#defineProperties()
         this.#textHighlighted = false
+        this.#localBoundingBox = initialCorners
     }
 
     #defineProperties() {
@@ -126,6 +128,7 @@ export class TextBlock extends ShapeBlock {
 
     draw(_func?: DrawFunc): void {
         this.#setFont()
+        this.#buildWords()
         this.#updateLetterNodeCordinates()
         this.#drawCaret()
         this.#drawTextHighlight()
@@ -159,6 +162,8 @@ export class TextBlock extends ShapeBlock {
     init(): void {
         this.#constructDummyContext()
         super.init()
+        this.#setFont()
+        this.#buildWords()
         this.#updateLetterNodeCordinates()
         this.#updateBoundingCords()
     }
@@ -191,16 +196,71 @@ export class TextBlock extends ShapeBlock {
             maxXs.push(node.x + node.width)
             maxYs.push(node.y + node.height)
         })
-        const minXPoint = Math.min(...minXs)
-        const maxXPoint = Math.max(...maxXs)
-        const minYPoint = Math.min(...minYs)
-        const maxYPoint = Math.max(...maxYs)
-        this.boundingBox = {
-            topLeft: { x: minXPoint, y: minYPoint },
-            topRight: { x: maxXPoint, y: minYPoint },
-            bottomLeft: { x: minXPoint, y: maxYPoint },
-            bottomRight: { x: maxXPoint, y: maxYPoint },
+
+        if (minXs.length === 0) {
+            this.#localBoundingBox = initialCorners
+            this.boundingBox = initialCorners
+            return
         }
+
+        const minX = Math.min(...minXs)
+        const maxX = Math.max(...maxXs)
+        const minY = Math.min(...minYs)
+        const maxY = Math.max(...maxYs)
+
+        this.#localBoundingBox = {
+            topLeft: { x: minX, y: minY },
+            topRight: { x: maxX, y: minY },
+            bottomLeft: { x: minX, y: maxY },
+            bottomRight: { x: maxX, y: maxY },
+        }
+
+        const realTopLeftCord = this.#localToRealCords(minX, minY)
+        const realTopRightCord = this.#localToRealCords(maxX, minY)
+        const realBottomLeftCord = this.#localToRealCords(minX, maxY)
+        const realBottomRightCord = this.#localToRealCords(maxX, maxY)
+        const xs = [
+            realTopLeftCord.x,
+            realTopRightCord.x,
+            realBottomLeftCord.x,
+            realBottomRightCord.x,
+        ]
+        const ys = [
+            realTopLeftCord.y,
+            realTopRightCord.y,
+            realBottomLeftCord.y,
+            realBottomRightCord.y,
+        ]
+
+        const worldMinX = Math.min(...xs)
+        const worldMaxX = Math.max(...xs)
+        const worldMinY = Math.min(...ys)
+        const worldMaxY = Math.max(...ys)
+
+        this.boundingBox = {
+            topLeft: { x: worldMinX, y: worldMinY },
+            topRight: { x: worldMaxX, y: worldMinY },
+            bottomLeft: { x: worldMinX, y: worldMaxY },
+            bottomRight: { x: worldMaxX, y: worldMaxY },
+        }
+    }
+    #localToRealCords(x: number, y: number) {
+        const verticalFlip = this.verticalFlip()
+        const horizontalFlip = this.horizontalFlip()
+        const fx = horizontalFlip ? -1 : 1
+        const fy = verticalFlip ? -1 : 1
+        const rotate = this.rotate() || 0
+        const rotSign = verticalFlip !== horizontalFlip ? -1 : 1
+        const centerX = this.rotationCenterX()
+        const centerY = this.rotationCenterY()
+        const angle = rotate * rotSign
+        const cosA = Math.cos(angle)
+        const sinA = Math.sin(angle)
+        let wx = x - centerX
+        let wy = y - centerY
+        wx = wx * cosA - wy * sinA
+        wy = wx * sinA + wy * cosA
+        return { x: wx * fx + centerX, y: wy * fy + centerY }
     }
     #color(block: TextBlock, opt: string) {
         if (opt !== undefined) {
@@ -301,14 +361,16 @@ export class TextBlock extends ShapeBlock {
         }
     }
     #updateLetterNodeCordinates() {
-        this.#setFont()
         const wrap = this.wrap()
         const width = this.width()
+        const height = this.height()
+        const absoluteWidth = Math.abs(width)
         const x = this.x()
         const y = this.y()
         const letterSpacing = this.letterSpacing()
         const lineHeight = this.lineHeight()
-        this.#buildWords()
+        const addW = this.horizontalFlip() ? width : 0
+        const addH = this.verticalFlip() ? height : 0
         const words = Object.entries(this.#words ?? {})
         let wordIdx = 0
         let currentWord = words[wordIdx]
@@ -325,7 +387,10 @@ export class TextBlock extends ShapeBlock {
                 measure?.fontBoundingBoxAscent ||
                 0
             wrapW += letter.width
-            if (wrapW >= width && (wrap === 'letter' || wrap === 'word')) {
+            if (
+                wrapW >= absoluteWidth &&
+                (wrap === 'letter' || wrap === 'word')
+            ) {
                 yPos += wrapH
                 xPos = x
                 wrapW = letter.width
@@ -333,19 +398,33 @@ export class TextBlock extends ShapeBlock {
             if (letter.letter === ' ' && wrap === 'word') {
                 wordIdx += 1
                 currentWord = words[wordIdx]
-                if (currentWord && wrapW + currentWord[1].width > width)
+                if (currentWord && wrapW + currentWord[1].width > absoluteWidth)
                     wrapW += currentWord[1].width
             }
 
             if (letter.height > wrapH && letter.letter !== ' ')
                 wrapH = letter.height + lineHeight
-            letter.x = xPos
-            letter.y = yPos + wrapH
+            letter.x = xPos + addW
+            letter.y = yPos + wrapH + addH
             xPos += letter.width
         })
     }
     #checkLetterInBound(event: MouseEvent) {
-        const { x, y } = this.canvas?.getCursorPosition(event)!
+        let { x, y } = this.canvas?.getCursorPosition(event)!
+        const rotate = this.rotate() || 0
+        const verticalFlip = this.verticalFlip()
+        const horizontalFlip = this.horizontalFlip()
+        const centerX = this.rotationCenterX()
+        const centerY = this.rotationCenterY()
+
+        if (horizontalFlip) x = 2 * centerX - x
+        if (verticalFlip) y = 2 * centerY - y
+        if (rotate !== 0) {
+            const rotSign = verticalFlip !== horizontalFlip ? -1 : 1
+            const inv = this.__rotateCordiantesByCenter(x, y, -rotate * rotSign)
+            x = inv.x
+            y = inv.y
+        }
         let currentNode
         this.#findLetterNode((letterNode: LetterNode) => {
             const yInBound = inRange(
@@ -412,11 +491,11 @@ export class TextBlock extends ShapeBlock {
             !this.#currentLetterNode
         )
             return
-        const boundingBox = this.boundingBox
-        const x = boundingBox.topLeft.x
-        const y = boundingBox.topLeft.y
-        const width = boundingBox.topRight.x - boundingBox.topLeft.x
-        const height = boundingBox.bottomRight.y - boundingBox.topRight.y
+        const bb = this.#localBoundingBox
+        const x = bb.topLeft.x
+        const y = bb.topLeft.y
+        const width = bb.topRight.x - bb.topLeft.x
+        const height = bb.bottomLeft.y - bb.topLeft.y
         context.save()
         context.beginPath()
         context.fillStyle = TEXT_HIGHLIGHT_COLOR
