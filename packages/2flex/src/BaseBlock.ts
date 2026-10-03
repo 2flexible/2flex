@@ -161,6 +161,9 @@ export interface ChildsContainer {
     width: number
     height: number
 }
+
+export type ValueConverterFunc<T, O> = (value: T) => O
+
 export class BaseBlock extends Node {
     [key: string]: any
 
@@ -638,11 +641,11 @@ export class BaseBlock extends Node {
         const cacheWidth = this.getOptionCache('width')
         const cacheHeight = this.getOptionCache('height')
 
-        const blockInitW = this.__unitConverter({
+        const blockInitW = this.__valueConverter({
             val: this.initWidth,
             widthRelated: true,
         }) as number
-        const blockInitH = this.__unitConverter({
+        const blockInitH = this.__valueConverter({
             val: this.initHeight,
             widthRelated: false,
         }) as number
@@ -858,12 +861,12 @@ export class BaseBlock extends Node {
             const blockMarginBottom = b.marginBottom() * verticalFlipSign
             const blockMarginLeft = b.marginLeft() * horiztionalFlipSign
             const blockMarginRight = b.marginRight() * horiztionalFlipSign
-            
-            const blockInitW = b.__unitConverter({
+
+            const blockInitW = b.__valueConverter({
                 val: b.initWidth,
                 widthRelated: true,
             }) as number
-            const blockInitH = b.__unitConverter({
+            const blockInitH = b.__valueConverter({
                 val: b.initHeight,
                 widthRelated: false,
             }) as number
@@ -958,7 +961,8 @@ export class BaseBlock extends Node {
         method: string,
         defaultValue: any,
         widthRelated?: boolean,
-        func?: (block: any, opt?: any) => void
+        func?: (block: any, opt?: any) => void,
+        valueConverter?: ValueConverterFunc<any, any>
     ): void {
         ;(BaseBlock.prototype as Record<string, any>)[method] = function (
             this: BaseBlock,
@@ -968,7 +972,8 @@ export class BaseBlock extends Node {
                 opt,
                 method,
                 defaultValue,
-                widthRelated
+                widthRelated,
+                valueConverter
             )
             func?.(this, value)
             return value
@@ -1032,16 +1037,21 @@ export class BaseBlock extends Node {
         opt: T | undefined,
         option: string,
         defaultOpt: O,
-        widthRelated?: boolean
+        widthRelated?: boolean,
+        valueConverter?: ValueConverterFunc<T, O>
     ): O {
         let currentValue: any = opt
         const important = this.getOptionCurrent('important')
         if (important && Object.hasOwn(important, option))
             currentValue = important[option]
-        currentValue = this.__unitConverter<T, O>({
-            val: currentValue,
-            widthRelated: widthRelated,
-        })
+        if (valueConverter === undefined) {
+            currentValue = this.__valueConverter<T, O>({
+                val: currentValue,
+                widthRelated: widthRelated,
+            })
+
+            // console.log(option, currentValue, opt)
+        } else currentValue = valueConverter?.(currentValue)
         return this.__cacheOption(currentValue, option, defaultOpt)
     }
     __cacheOption<I, O>(opt: I, option: BlockOptionKeys, defaultOpt: O) {
@@ -1055,73 +1065,77 @@ export class BaseBlock extends Node {
         }
         return value
     }
-    __unitConverter<T, O>({
+    __valueConverter<T, O>({
         val,
         widthRelated,
     }: {
         val?: T
         widthRelated?: boolean
     }): O {
-        if (val && typeof val === 'string') {
-            if (namedColors[val]) {
-                return colorToRgba(val) as O
-            } else if (val.startsWith('#')) {
-                return hexToRgba(val) as O
-            } else if (val.startsWith('hsl')) {
-                return hslToRgba(val) as O
-            } else if (/^\d/.test(val)) {
-                const size = widthRelated
-                    ? this.__parentWidth
-                    : this.__parentHeight
-                const space = widthRelated
-                    ? this.__widthSpaces
-                    : this.__heightSpaces
-                if (val.endsWith('px')) return Number(val.split('px')[0]) as O
-                else if (val.endsWith('%')) {
-                    return (fromPercentage(
-                        Number(val.split('%')[0]),
-                        size || 1
-                    ) - space) as O
-                } else if (val.endsWith('rem'))
-                    return (fromRem(
-                        Number(val.split('rem')[0]),
-                        this.canvas?.width || 1
-                    ) - space) as O
-                else if (val.endsWith('em')) {
-                    return (fromEm(Number(val.split('em')[0]), size || 1) -
-                        space) as O
-                } else if (val.endsWith('vh') && !widthRelated)
-                    return (fromVH(
-                        Number(val.split('vh')[0]),
-                        this.canvas?.height || 1
-                    ) - space) as O
-                else if (val.endsWith('vw') && widthRelated)
-                    return (fromVW(
-                        Number(val.split('vw')[0]),
-                        this.canvas?.width || 1
-                    ) - space) as O
-                else if (val.endsWith('cm'))
-                    return fromCm(Number(val.split('cm')[0])) as O
-                else if (val.endsWith('mm'))
-                    return fromMm(Number(val.split('mm')[0])) as O
-                else if (val.endsWith('q'))
-                    return fromQ(Number(val.split('q')[0])) as O
-                else if (val.endsWith('in'))
-                    return fromIn(Number(val.split('in')[0])) as O
-                else if (val.endsWith('pc'))
-                    return fromPc(Number(val.split('pc')[0])) as O
-                else if (val.endsWith('pt'))
-                    return fromPt(Number(val.split('pt')[0])) as O
-                else return Number(val) as O
+        if (typeof val === 'string') {
+            if (/^\d/.test(val)) {
+                return this.__unitConverter(val, widthRelated) as O
+            } else {
+                return this.__colorConverter(val) as O
             }
         } else if (val instanceof Array) {
             const vals = []
             for (let i = 0, len = val.length; i < len; i++) {
-                vals.push(this.__unitConverter({ val: val[i] }))
+                vals.push(this.__valueConverter({ val: val[i] }))
             }
             return vals as O
         }
         return val as O
+    }
+    __unitConverter(value: string, widthRelated?: boolean) {
+        const size = widthRelated ? this.__parentWidth : this.__parentHeight
+        const space = widthRelated ? this.__widthSpaces : this.__heightSpaces
+        if (value.endsWith('px')) return Number(value.split('px')[0])
+        else if (value.endsWith('%')) {
+            return (
+                fromPercentage(Number(value.split('%')[0]), size || 1) - space
+            )
+        } else if (value.endsWith('rem'))
+            return (
+                fromRem(
+                    Number(value.split('rem')[0]),
+                    this.canvas?.width || 1
+                ) - space
+            )
+        else if (value.endsWith('em')) {
+            return fromEm(Number(value.split('em')[0]), size || 1) - space
+        } else if (value.endsWith('vh') && !widthRelated)
+            return (
+                fromVH(Number(value.split('vh')[0]), this.canvas?.height || 1) -
+                space
+            )
+        else if (value.endsWith('vw') && widthRelated)
+            return (
+                fromVW(Number(value.split('vw')[0]), this.canvas?.width || 1) -
+                space
+            )
+        else if (value.endsWith('cm'))
+            return fromCm(Number(value.split('cm')[0]))
+        else if (value.endsWith('mm'))
+            return fromMm(Number(value.split('mm')[0]))
+        else if (value.endsWith('q')) return fromQ(Number(value.split('q')[0]))
+        else if (value.endsWith('in'))
+            return fromIn(Number(value.split('in')[0]))
+        else if (value.endsWith('pc'))
+            return fromPc(Number(value.split('pc')[0]))
+        else if (value.endsWith('pt'))
+            return fromPt(Number(value.split('pt')[0]))
+        else return Number(value)
+    }
+    __colorConverter(value: string) {
+        if (namedColors[value]) {
+            return colorToRgba(value)
+        } else if (value.startsWith('#')) {
+            return hexToRgba(value)
+        } else if (value.startsWith('hsl')) {
+            return hslToRgba(value)
+        }
+        return value
     }
     __translateX(x: number) {
         const position = this.position()
