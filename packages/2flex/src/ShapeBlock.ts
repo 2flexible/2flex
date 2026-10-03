@@ -626,25 +626,22 @@ export class ShapeBlock extends Block {
     render(): void {
         super.render()
         if (this.hidden()) return
+        const centerX = this.rotationCenterX()
+        const centerY = this.rotationCenterY()
+        const verticalFlipRotate = this.verticalFlip() ? -1 : 1
+        const horizontalFlipRotate = this.horizontalFlip() ? -1 : 1
+
         this.beginPath()
         this.context?.save()
         // need to clip child before restore if its exist
         this.__childClipping?.(this)
-        this.context?.translate(this.rotationCenterX(), this.rotationCenterY())
-        this.context?.rotate(this.rotate())
-        // @TODO: add features for vertical or horizantal flipping
-        // this.context?.setTransform(
-        //     this.horizontalFlip() ? -1 : 1,
-        //     0,
-        //     0,
-        //     this.verticalFlip() ? -1 : 1,
-        //     !this.horizontalFlip() ? this.rotationCenterX() : 0,
-        //     !this.verticalFlip() ? this.rotationCenterY() : 0
-        // );
-        this.context?.translate(
-            -this.rotationCenterX(),
-            -this.rotationCenterY()
+        this.context?.translate(centerX, centerY)
+        // vertical or horizantal flipping
+        this.context?.scale(horizontalFlipRotate, verticalFlipRotate)
+        this.context?.rotate(
+            this.rotate() * verticalFlipRotate * horizontalFlipRotate
         )
+        this.context?.translate(-centerX, -centerY)
         this.#contextFilter()
         if (this.getOptionCurrent('lineDash') !== undefined) this.lineDash()
         if (this.getOptionCurrent('lineWidth') !== undefined) this.lineWidth()
