@@ -1,7 +1,7 @@
-import { RelativeType } from '../Block'
+import { SELECTABLE_RUNNING_EVENT } from '../const'
 import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
-import type { FillStyle } from '../ShapeBlock'
-import type { IBlock } from '../types'
+import type { DrawFunc, FillStyle } from '../ShapeBlock'
+import { RelativeType } from '../types'
 
 export type BorderStyle = 'solid' | 'dotted'
 export type BorderWidth = RelativeType
@@ -19,126 +19,147 @@ interface ICircleOptions extends IShapeOptions {
     borderColor?: BorderColor
 }
 
-export class CircleBlock extends ShapeBlock<ICircleOptions> {
-    constructor(options: IBlock<ICircleOptions>) {
+export class CircleBlock extends ShapeBlock {
+    #circlePath?: Path2D
+
+    constructor(options: ICircleOptions) {
         super(options)
         this.lineJoin('round')
         this.lineCap('round')
-    }
-    draw(_func?: (context: CanvasRenderingContext2D) => void): void {
-        if (!this.context) return
-        if (!this.#isAngleEmpty) {
-            this.context?.arc(
-                this.__getRealCenterX,
-                this.__getRealCenterY,
-                this.innerRadius(),
-                this.endAngle(),
-                this.startAngle(),
-                true
-            )
-        }
-        this.context?.ellipse(
-            this.__getRealCenterX,
-            this.__getRealCenterY,
-            this.width() / 2 - this.hotLineStrokeWidth(),
-            this.height() / 2 - this.hotLineStrokeWidth(),
-            0,
-            this.startAngle(),
-            this.endAngle()
-        )
-        this.fillStyle(this.backgroundColor())
-        this.fill()
-        this.stroke()
-        if (this.#isAngleEmpty) this.beginPath()
-        if (!this.#isAngleEmpty)
-            this.context?.arc(
-                this.__getRealCenterX,
-                this.__getRealCenterY,
-                this.innerRadius(),
-                this.endAngle(),
-                this.startAngle(),
-                true
-            )
-        this.fillStyle('transparent')
-        this.fill({ fill: true })
+        this.#circlePath = new Path2D()
+        this.#defineProperties()
     }
 
-    get #isAngleEmpty() {
-        if (this.startAngle() === 0 && this.endAngle() === Math.PI * 2)
-            return true
-        return false
-    }
-
-    innerRadius(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'innerRadius', 0)
-    }
-    startAngle(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'startAngle', 0)
-    }
-    endAngle(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'endAngle', Math.PI * 2)
-    }
-    backgroundColor(opt?: string) {
-        const backgroundColor = this.__valueHandler(
-            opt,
+    #defineProperties() {
+        this.addProperty('innerRadius', 0)
+        this.addProperty('startAngle', 0)
+        this.addProperty('endAngle', Math.PI * 2)
+        this.addProperty(
             'backgroundColor',
-            undefined
+            undefined,
+            false,
+            (block: CircleBlock, opt: string) =>
+                this.#backgroundColor(block, opt)
         )
-        if (backgroundColor) {
-            super.fillStyle(backgroundColor)
-            this.fill({ fill: true })
-        }
-        return backgroundColor
+        this.addProperty(
+            'borderWidth',
+            undefined,
+            false,
+            (block: CircleBlock, opt: number) => this.#borderWidth(block, opt)
+        )
+        this.addProperty(
+            'borderColor',
+            undefined,
+            false,
+            (block: CircleBlock, opt: string) => this.#borderColor(block, opt)
+        )
+        this.addProperty('borderStyle', 'solid')
+        this.addProperty(
+            'border',
+            undefined,
+            false,
+            undefined,
+            (opt: CircleBorder | string) => this.#border(opt)
+        )
     }
-    borderWidth(opt?: RelativeType) {
-        const borderWidth = this.__valueHandler(opt, 'borderWidth', 0)
-        super.lineWidth(borderWidth)
-        return borderWidth
-    }
-    borderColor(opt?: string) {
-        const borderColor = this.__valueHandler(opt, 'borderColor', 'black')
-        super.strokeStyle(borderColor)
-        return borderColor
-    }
-    borderStyle(opt?: BorderStyle): BorderStyle {
-        return this.__valueHandler(opt, 'borderStyle', 'solid')
-    }
+    draw(_func?: DrawFunc): void {
+        if (!this.context) return
+        const cx = this.realCenterX
+        const cy = this.realCenterY
+        const startAngle = this.startAngle()
+        const endAngle = this.endAngle()
+        const innerR = this.innerRadius()
+        const outerRX = this.width() / 2 - this.hotLineStrokeWidth()
+        const outerRY = this.height() / 2 - this.hotLineStrokeWidth()
 
-    border(opt?: CircleBorder | string) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const border = this.__valueHandler(opt, 'border', undefined)
-        if (border) {
-            this.borderWidth(border[0])
-            this.borderStyle(border[1] as BorderStyle)
-            this.borderColor(border[2])
-            this.stroke({ stroke: true })
-        }
-        return border
-    }
+        const path = new Path2D()
 
+        if (startAngle === 0 && endAngle === Math.PI * 2) {
+            path.moveTo(cx + outerRX, cy)
+            path.ellipse(cx, cy, outerRX, outerRY, 0, 0, Math.PI * 2)
+            if (innerR > 0) {
+                path.moveTo(cx + innerR, cy)
+                path.arc(cx, cy, innerR, 0, Math.PI * 2)
+            }
+        } else {
+            path.moveTo(
+                cx + innerR * Math.cos(startAngle),
+                cy + innerR * Math.sin(startAngle)
+            )
+            path.arc(cx, cy, innerR, startAngle, endAngle, false)
+            path.lineTo(
+                cx + outerRX * Math.cos(endAngle),
+                cy + outerRY * Math.sin(endAngle)
+            )
+            path.ellipse(cx, cy, outerRX, outerRY, 0, endAngle, startAngle, true)
+            path.closePath()
+        }
+
+        this.#circlePath = path
+
+        this.fillStyle(this.backgroundColor())
+        const useEvenodd =
+            startAngle === 0 && endAngle === Math.PI * 2 && innerR > 0
+        this.fill({
+            fill: true,
+            path,
+            ...(useEvenodd ? { fillRule: 'evenodd' } : {}),
+        })
+        this.stroke({ stroke: true, path })
+    }
+    #backgroundColor(block: CircleBlock, opt?: string) {
+        if (opt !== undefined) {
+            block.fillStyle(opt)
+            block.fill({ fill: true })
+        }
+    }
+    #borderWidth(block: CircleBlock, opt?: number) {
+        if (opt !== undefined) block.lineWidth(opt)
+    }
+    #borderColor(block: CircleBlock, opt?: string) {
+        if (opt !== undefined) block.strokeStyle(opt)
+    }
+    #border(opt?: CircleBorder | string) {
+        if (opt === undefined) return
+        if (typeof opt === 'string') opt = this.#borderConvert(opt)
+        this.borderWidth(opt[0])
+        this.borderStyle(opt[1] as BorderStyle)
+        this.borderColor(opt[2])
+        this.stroke({ stroke: true })
+    }
     #borderConvert(opt: string): CircleBorder {
         const splitted = opt.split(' ')
-        const borderWidth = this.__unitConverter<string | number, number>({
-            val: splitted[0],
-            widthRelated: true,
-        })
-        const borderStyle = this.__unitConverter<
-            string | undefined,
-            BorderStyle
-        >({
-            val: splitted[1],
-            widthRelated: false,
-        })
-        const borderColor = this.__unitConverter<string, string>({
-            val: splitted[2],
-            widthRelated: false,
-        })
+        const borderWidth = this.__unitConverter(splitted[0], true)
+        const borderStyle = splitted[1] as BorderStyle
+        const borderColor = this.__colorConverter(splitted[2]) as string
         return [borderWidth, borderStyle, borderColor]
+    }
+    #pathInBound(x: number, y: number) {
+        const context = this.context
+        const path = this.#circlePath
+        if (!context || !path) return false
+        const centerX = this.rotationCenterX()
+        const centerY = this.rotationCenterY()
+        context.save()
+        context.translate(centerX, centerY)
+        context.rotate(this.rotate())
+        context.translate(-centerX, -centerY)
+        context.lineWidth = this.borderWidth()
+        const inStroke = context.isPointInStroke(path, x, y)
+        const inPath = context.isPointInPath(path, x, y)
+        context.restore()
+        return inStroke || inPath
+    }
+    checkInBound(event: MouseEvent): boolean {
+        if (!this.__isRunningEventActive(SELECTABLE_RUNNING_EVENT)) {
+            const { x, y } = this.canvas?.getCursorPosition(event)!
+            return this.#pathInBound(x, y)
+        } else return super.checkInBound(event)
     }
     __clipShape() {
         this.__clipPath?.ellipse(
-            this.__getRealCenterX,
-            this.__getRealCenterY,
+            this.realCenterX,
+            this.realCenterY,
             this.width() / 2,
             this.height() / 2,
             0,
