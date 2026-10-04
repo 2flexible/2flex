@@ -70,35 +70,40 @@ export class RectangleBlock extends ShapeBlock {
             undefined,
             false,
             undefined,
-            (opt?: RectangleBorder) => this.#border(opt)
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#border(block, opt)
         )
         this.addProperty(
             'borderTop',
             undefined,
             false,
             undefined,
-            (opt?: RectangleBorder) => this.#borderTop(opt)
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderTop(block, opt)
         )
         this.addProperty(
             'borderBottom',
             undefined,
             false,
             undefined,
-            (opt?: RectangleBorder) => this.#borderBottom(opt)
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderBottom(block, opt)
         )
         this.addProperty(
             'borderLeft',
             undefined,
             false,
             undefined,
-            (opt?: RectangleBorder) => this.#borderLeft(opt)
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderLeft(block, opt)
         )
         this.addProperty(
             'borderRight',
             undefined,
             false,
             undefined,
-            (opt?: RectangleBorder) => this.#borderRight(opt)
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderRight(block, opt)
         )
     }
 
@@ -141,18 +146,18 @@ export class RectangleBlock extends ShapeBlock {
         if (opt !== undefined) block.strokeStyle(opt)
     }
 
-    #border(opt?: RectangleBorder) {
+    #border(block: RectangleBlock, opt?: RectangleBorder) {
         if (opt === undefined) return opt
         if (
-            this.#isBorderSet('borderTop') ||
-            this.#isBorderSet('borderRight') ||
-            this.#isBorderSet('borderBottom') ||
-            this.#isBorderSet('borderLeft')
+            block.#isBorderSet('borderTop') ||
+            block.#isBorderSet('borderRight') ||
+            block.#isBorderSet('borderBottom') ||
+            block.#isBorderSet('borderLeft')
         ) {
             return opt
         }
-        if (typeof opt === 'string') opt = this.#borderConvert(opt)
-        const ctx = this.context
+        if (typeof opt === 'string') opt = block.#borderConvert(opt)
+        const ctx = block.context
         if (!ctx) return opt
         const [width, style, color] = opt
         ctx.save()
@@ -165,22 +170,22 @@ export class RectangleBlock extends ShapeBlock {
             ctx.setLineDash([])
             ctx.lineCap = 'butt'
         }
-        if (this.#rectPath) ctx.stroke(this.#rectPath)
+        if (block.#rectPath) ctx.stroke(block.#rectPath)
         ctx.restore()
         return opt
     }
 
-    #borderTop(opt?: RectangleBorder) {
-        return this.#borderSide('top', opt)
+    #borderTop(block: RectangleBlock, opt?: RectangleBorder) {
+        return block.#borderSide('top', opt)
     }
-    #borderRight(opt?: RectangleBorder) {
-        return this.#borderSide('right', opt)
+    #borderRight(block: RectangleBlock, opt?: RectangleBorder) {
+        return block.#borderSide('right', opt)
     }
-    #borderBottom(opt?: RectangleBorder) {
-        return this.#borderSide('bottom', opt)
+    #borderBottom(block: RectangleBlock, opt?: RectangleBorder) {
+        return block.#borderSide('bottom', opt)
     }
-    #borderLeft(opt?: RectangleBorder) {
-        return this.#borderSide('left', opt)
+    #borderLeft(block: RectangleBlock, opt?: RectangleBorder) {
+        return block.#borderSide('left', opt)
     }
 
     #borderSide(
@@ -298,10 +303,12 @@ export class RectangleBlock extends ShapeBlock {
                 } else if (extendStart(brR)) {
                     path.moveTo(x + w, y + h)
                     path.lineTo(x + w, y + h - brR)
-                    if (brR > 0) path.arcTo(x + w, y + h, x + w - brR, y + h, brR)
+                    if (brR > 0)
+                        path.arcTo(x + w, y + h, x + w - brR, y + h, brR)
                 } else {
                     path.moveTo(x + w, y + h - brR)
-                    if (brR > 0) path.arcTo(x + w, y + h, x + w - brR, y + h, brR)
+                    if (brR > 0)
+                        path.arcTo(x + w, y + h, x + w - brR, y + h, brR)
                 }
                 path.lineTo(x + blR, y + h)
                 if (blR > 0) path.arcTo(x, y + h, x, y + h - blR, blR)

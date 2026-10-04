@@ -59,7 +59,8 @@ export class CircleBlock extends ShapeBlock {
             undefined,
             false,
             undefined,
-            (opt: CircleBorder | string) => this.#border(opt)
+            (block: CircleBlock, opt: CircleBorder | string) =>
+                this.#border(block, opt)
         )
     }
     draw(_func?: DrawFunc): void {
@@ -91,7 +92,16 @@ export class CircleBlock extends ShapeBlock {
                 cx + outerRX * Math.cos(endAngle),
                 cy + outerRY * Math.sin(endAngle)
             )
-            path.ellipse(cx, cy, outerRX, outerRY, 0, endAngle, startAngle, true)
+            path.ellipse(
+                cx,
+                cy,
+                outerRX,
+                outerRY,
+                0,
+                endAngle,
+                startAngle,
+                true
+            )
             path.closePath()
         }
 
@@ -119,13 +129,13 @@ export class CircleBlock extends ShapeBlock {
     #borderColor(block: CircleBlock, opt?: string) {
         if (opt !== undefined) block.strokeStyle(opt)
     }
-    #border(opt?: CircleBorder | string) {
+    #border(block: CircleBlock, opt?: CircleBorder | string) {
         if (opt === undefined) return
-        if (typeof opt === 'string') opt = this.#borderConvert(opt)
-        this.borderWidth(opt[0])
-        this.borderStyle(opt[1] as BorderStyle)
-        this.borderColor(opt[2])
-        this.stroke({ stroke: true })
+        if (typeof opt === 'string') opt = block.#borderConvert(opt)
+        block.borderWidth(opt[0])
+        block.borderStyle(opt[1] as BorderStyle)
+        block.borderColor(opt[2])
+        block.stroke({ stroke: true })
     }
     #borderConvert(opt: string): CircleBorder {
         const splitted = opt.split(' ')

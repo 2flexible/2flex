@@ -162,7 +162,7 @@ export interface ChildsContainer {
     height: number
 }
 
-export type ValueConverterFunc<T, O> = (value: T) => O
+export type ValueConverterFunc<T, O> = (block: any, value: T) => O
 
 export class BaseBlock extends Node {
     [key: string]: any
@@ -964,7 +964,7 @@ export class BaseBlock extends Node {
         func?: (block: any, opt?: any) => void,
         valueConverter?: ValueConverterFunc<any, any>
     ): void {
-        ;(BaseBlock.prototype as Record<string, any>)[method] = function (
+        ;(this.constructor.prototype as Record<string, any>)[method] = function (
             this: BaseBlock,
             opt?: any
         ) {
@@ -1050,8 +1050,7 @@ export class BaseBlock extends Node {
                 widthRelated: widthRelated,
             })
 
-            // console.log(option, currentValue, opt)
-        } else currentValue = valueConverter?.(currentValue)
+        } else currentValue = valueConverter?.(this, currentValue)
         return this.__cacheOption(currentValue, option, defaultOpt)
     }
     __cacheOption<I, O>(opt: I, option: BlockOptionKeys, defaultOpt: O) {
