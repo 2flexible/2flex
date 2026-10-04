@@ -178,7 +178,7 @@ export interface IShapeOptions extends IBlockOptions {
 
     lineTo?: XY
     lineWidth?: RelativeType
-    lineDash?: LineDash[]
+    lineDash?: LineDash
     lineCap?: CanvasLineCap
     lineDashOffset?: CanvasPathDrawingStyles['lineDashOffset']
     lineJoin?: CanvasLineJoin
@@ -236,6 +236,7 @@ export interface IShapeOptions extends IBlockOptions {
     clip?: Clip
 
     drawImage?: DrawImage
+    pattern?: Pattern
     imageSmoothingEnabled?: boolean
     imageSmoothingQuality?: ImageSmoothingQuality
 
@@ -625,47 +626,117 @@ export class ShapeBlock extends Block {
     }
     render(): void {
         super.render()
-        if (this.hidden()) return
+        const context = this.context
+        if (this.hidden() || !context) return
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
         const verticalFlipRotate = this.verticalFlip() ? -1 : 1
         const horizontalFlipRotate = this.horizontalFlip() ? -1 : 1
 
         this.beginPath()
-        this.context?.save()
+        context.save()
         // need to clip child before restore if its exist
         this.__childClipping?.(this)
-        this.context?.translate(centerX, centerY)
+        context.translate(centerX, centerY)
         // vertical or horizantal flipping
-        this.context?.scale(horizontalFlipRotate, verticalFlipRotate)
-        this.context?.rotate(
+        context.scale(horizontalFlipRotate, verticalFlipRotate)
+        context.rotate(
             this.rotate() * verticalFlipRotate * horizontalFlipRotate
         )
-        this.context?.translate(-centerX, -centerY)
+        context.translate(-centerX, -centerY)
         this.#contextFilter()
-        if (this.getOptionCurrent('lineDash') !== undefined) this.lineDash()
-        if (this.getOptionCurrent('lineWidth') !== undefined) this.lineWidth()
-        if (this.getOptionCurrent('lineCap') !== undefined) this.lineCap()
+        this.#applyContexttStyles(context)
+        this.draw()
+        context.restore()
+    }
+
+    #applyContexttStyles(context: OffscreenCanvasRenderingContext2D) {
+        context.save()
+        context.translate(this.x(), this.y())
+        if (this.getOptionCurrent('globalAlpha') !== undefined)
+            this.globalAlpha()
+        if (this.getOptionCurrent('globalCompositeOperation') !== undefined)
+            this.globalCompositeOperation()
+
+        if (this.getOptionCurrent('blur') !== undefined) this.blur()
+        if (this.getOptionCurrent('brightness') !== undefined) this.brightness()
+        if (this.getOptionCurrent('contrast') !== undefined) this.contrast()
+        if (this.getOptionCurrent('dropShadow') !== undefined) this.dropShadow()
+        if (this.getOptionCurrent('grayscale') !== undefined) this.grayscale()
+        if (this.getOptionCurrent('hueRotate') !== undefined) this.hueRotate()
+        if (this.getOptionCurrent('saturate') !== undefined) this.saturate()
+        if (this.getOptionCurrent('sepia') !== undefined) this.sepia()
+
+        if (this.getOptionCurrent('conicGradient') !== undefined)
+            this.conicGradient()
+        if (this.getOptionCurrent('radialGradient') !== undefined)
+            this.radialGradient()
+        if (this.getOptionCurrent('linearGradient') !== undefined)
+            this.linearGradient()
+        if (this.getOptionCurrent('colorStops') !== undefined)
+            this.colorStops()
+        if (this.getOptionCurrent('pattern') !== undefined) this.pattern()
+
         if (this.getOptionCurrent('shadowBlur') !== undefined) this.shadowBlur()
         if (this.getOptionCurrent('shadowColor') !== undefined)
             this.shadowColor()
+        if (this.getOptionCurrent('shadowOffsetX') !== undefined)
+            this.shadowOffsetX()
+        if (this.getOptionCurrent('shadowOffsetY') !== undefined)
+            this.shadowOffsetY()
         if (this.getOptionCurrent('fillStyle') !== undefined) this.fillStyle()
-        if (this.getOptionCurrent('fillRect') !== undefined) this.fillRect()
-        if (this.getOptionCurrent('rect') !== undefined) this.rect()
+
+        if (this.getOptionCurrent('lineWidth') !== undefined) this.lineWidth()
+        if (this.getOptionCurrent('lineCap') !== undefined) this.lineCap()
+        if (this.getOptionCurrent('lineJoin') !== undefined) this.lineJoin()
+        if (this.getOptionCurrent('miterLimit') !== undefined) this.miterLimit()
+        if (this.getOptionCurrent('lineDash') !== undefined) this.lineDash()
+        if (this.getOptionCurrent('lineDashOffset') !== undefined)
+            this.lineDashOffset()
+        if (this.getOptionCurrent('strokeStyle') !== undefined)
+            this.strokeStyle()
+
         if (this.getOptionCurrent('imageSmoothingEnabled') !== undefined)
             this.imageSmoothingEnabled()
         if (this.getOptionCurrent('imageSmoothingQuality') !== undefined)
             this.imageSmoothingQuality()
-        if (this.getOptionCurrent('strokeStyle') !== undefined)
-            this.strokeStyle()
+
+        if (this.getOptionCurrent('font') !== undefined) this.font()
+        if (this.getOptionCurrent('fontStretch') !== undefined) this.fontStretch()
+        if (this.getOptionCurrent('fontKerning') !== undefined) this.fontKerning()
+        if (this.getOptionCurrent('fontVariantCaps') !== undefined)
+            this.fontVariantCaps()
+        if (this.getOptionCurrent('wordSpacing') !== undefined) this.wordSpacing()
+        if (this.getOptionCurrent('direction') !== undefined) this.direction()
+        if (this.getOptionCurrent('textAlign') !== undefined) this.textAlign()
+        if (this.getOptionCurrent('textBaseline') !== undefined) this.textBaseline()
+        if (this.getOptionCurrent('textRendering') !== undefined) this.textRendering()
+        if (this.getOptionCurrent('letterSpacing') !== undefined)
+            this.letterSpacing()
+
+        if (this.getOptionCurrent('moveTo') !== undefined) this.moveTo()
+        if (this.getOptionCurrent('lineTo') !== undefined) this.lineTo()
+        if (this.getOptionCurrent('quadraticCurveTo') !== undefined)
+            this.quadraticCurveTo()
+        if (this.getOptionCurrent('bezierCurveTo') !== undefined)
+            this.bezierCurveTo()
+        if (this.getOptionCurrent('arc') !== undefined) this.arc()
+        if (this.getOptionCurrent('arcTo') !== undefined) this.arcTo()
+        if (this.getOptionCurrent('ellipse') !== undefined) this.ellipse()
+        if (this.getOptionCurrent('rect') !== undefined) this.rect()
+        if (this.getOptionCurrent('roundRect') !== undefined) this.roundRect()
+        if (this.getOptionCurrent('fillRect') !== undefined) this.fillRect()
+        if (this.getOptionCurrent('strokeRect') !== undefined) this.strokeRect()
+
+        if (this.getOptionCurrent('fillText') !== undefined) this.fillText()
+        if (this.getOptionCurrent('strokeText') !== undefined) this.strokeText()
+        if (this.getOptionCurrent('drawImage') !== undefined) this.drawImage()
+
         if (this.getOptionCurrent('clip') !== undefined) this.clip()
 
-        this.draw()
-
-        if (this.getOptionCurrent('fill')) this.fill()
-        if (this.getOptionCurrent('stroke')) this.stroke()
-
-        this.context?.restore()
+        if (this.getOptionCurrent('fill') !== undefined) this.fill()
+        if (this.getOptionCurrent('stroke') !== undefined) this.stroke()
+        context.restore()
     }
 
     draw(_func?: DrawFunc) {
@@ -684,71 +755,70 @@ export class ShapeBlock extends Block {
         this.context?.closePath()
     }
     #clip(block: ShapeBlock, opt?: Clip) {
-        if (opt) {
-            const fillRule = opt.fillRule || 'nonzero'
-            if (opt.path) block.context?.clip(opt.path, fillRule)
-            else block.context?.clip(fillRule)
-        }
+        const context = block.context
+        if (!opt || !context) return
+        const fillRule = opt.fillRule || 'nonzero'
+        if (opt.path) block.context?.clip(opt.path, fillRule)
+        else block.context?.clip(fillRule)
     }
     #fill(block: ShapeBlock, opt?: Fill) {
-        if (opt && opt.fill) {
-            const fillRule = (opt.fillRule || 'nonzero') as CanvasFillRule
-            if (opt.path) block.context?.fill(opt.path, fillRule)
-            else block.context?.fill(fillRule)
-        }
+        const context = block.context
+        if (!opt || !opt.fill || !context) return
+        const fillRule = (opt.fillRule || 'nonzero') as CanvasFillRule
+        if (opt.path) context.fill(opt.path, fillRule)
+        else context.fill(fillRule)
     }
     #fillStyle(block: ShapeBlock, opt?: FillStyle) {
-        if (block.context && opt)
-            block.context.fillStyle =
-                block.#gradient || block.#canvasPattern || opt
+        const context = block.context
+        if (!context || !opt) return
+        context.fillStyle = block.#gradient || block.#canvasPattern || opt
     }
 
     #conicGradient(block: ShapeBlock, opt?: ConicGradient) {
-        if (opt)
-            block.#gradient = block.context?.createConicGradient(
-                opt.angle,
-                opt.x,
-                opt.y
-            )
+        if (!opt) return
+        block.#gradient = block.context?.createConicGradient(
+            opt.angle,
+            opt.x,
+            opt.y
+        )
     }
     #radialGradient(block: ShapeBlock, opt?: RadialGradient) {
-        if (opt)
-            block.#gradient = block.context?.createRadialGradient(
-                opt.x0,
-                opt.y0,
-                opt.r0,
-                opt.x1,
-                opt.y1,
-                opt.r1
-            )
+        if (!opt) return
+        block.#gradient = block.context?.createRadialGradient(
+            opt.x0,
+            opt.y0,
+            opt.r0,
+            opt.x1,
+            opt.y1,
+            opt.r1
+        )
     }
     #linearGradient(block: ShapeBlock, opt?: LinearGradient) {
-        if (opt)
-            block.#gradient = block.context?.createLinearGradient(
-                opt.x0,
-                opt.y0,
-                opt.x1,
-                opt.y1
-            )
+        if (!opt) return
+        block.#gradient = block.context?.createLinearGradient(
+            opt.x0,
+            opt.y0,
+            opt.x1,
+            opt.y1
+        )
     }
     #colorStops(block: ShapeBlock, opt?: GradientStops[]) {
-        if (opt) {
-            for (let stop of opt) {
-                block.#gradient?.addColorStop(stop.stop, stop.color)
-                stop.gradient?.addColorStop(stop.stop, stop.color)
-            }
+        if (!opt) return
+        for (let stop of opt) {
+            block.#gradient?.addColorStop(stop.stop, stop.color)
+            stop.gradient?.addColorStop(stop.stop, stop.color)
         }
     }
     #stroke(block: ShapeBlock, opt?: Stroke) {
-        if (opt && opt.stroke) {
-            if (opt.path) block.context?.stroke(opt.path)
-            else block.context?.stroke()
-        }
+        const context = block.context
+        if (!opt || !opt.stroke || !context) return
+        if (opt.path) context.stroke(opt.path)
+        else context.stroke()
     }
     #strokeStyle(block: ShapeBlock, opt?: StrokeStyle) {
-        if (block.context && opt)
-            block.context.strokeStyle =
-                block.#gradient || block.#canvasPattern || opt
+        const context = block.context
+        if (!context || !opt) return
+        context.strokeStyle = block.#gradient || block.#canvasPattern || opt
     }
     #lineCap(block: ShapeBlock, opt?: CanvasLineCap) {
         if (block.context && opt) block.context.lineCap = opt
@@ -806,50 +876,17 @@ export class ShapeBlock extends Block {
             )
     }
     #fillRect(block: ShapeBlock, opt?: RectOpt) {
-        const { x, y, width, height } = block.__valueHandler(opt, 'fillRect', {
-            x: block.x(),
-            y: block.y(),
-            width: block.width(),
-            height: block.height(),
-        })
-        block.context?.fillRect(
-            block.x() + x,
-            block.y() + y,
-            block.width() - width,
-            block.height() - height
-        )
+        if (opt) block.context?.fillRect(opt.x, opt.y, opt.width, opt.height)
     }
     #rect(block: ShapeBlock, opt?: RectOpt) {
-        if (opt)
-            block.context?.rect(
-                block.x() + opt.x,
-                block.y() + opt.y,
-                opt.width,
-                opt.height
-            )
+        if (opt) block.context?.rect(opt.x, opt.y, opt.width, opt.height)
     }
     #roundRect(block: ShapeBlock, opt?: RoundRectOpt) {
-        if (opt) {
-            block.context?.roundRect(
-                block.x() + opt.x,
-                block.y() + opt.y,
-                opt.width,
-                opt.height,
-                opt.borderRadius
-            )
-        }
+        if (opt) block.context?.roundRect(opt.x, opt.y, opt.width, opt.height)
     }
     #strokeRect(block: ShapeBlock, opt?: RectOpt) {
-        if (opt) {
-            block.context?.strokeRect(
-                block.x() + opt.x,
-                block.y() + opt.y,
-                opt.width,
-                opt.height
-            )
-        }
+        if (opt) block.context?.strokeRect(opt.x, opt.y, opt.width, opt.height)
     }
-
     #arc(block: ShapeBlock, opt?: Arc) {
         if (opt)
             block.context?.arc(
@@ -861,7 +898,6 @@ export class ShapeBlock extends Block {
                 opt.counterclockwise
             )
     }
-
     #arcTo(block: ShapeBlock, opt?: ArcTo) {
         if (opt)
             block.context?.arcTo(opt.x1, opt.y1, opt.x2, opt.y2, opt.radius)
@@ -882,7 +918,7 @@ export class ShapeBlock extends Block {
     }
 
     #moveTo(block: ShapeBlock, opt?: XY) {
-        if (opt) block.context?.moveTo(block.x() + opt.x, block.y() + opt.y)
+        if (opt) block.context?.moveTo(opt.x, opt.y)
     }
     #lineJoin(block: ShapeBlock, opt?: CanvasLineJoin) {
         if (block.context && opt) block.context.lineJoin = opt
@@ -920,17 +956,17 @@ export class ShapeBlock extends Block {
     }
 
     #fillText(block: ShapeBlock, opt?: DrawText) {
-        if (opt)
-            if (opt.maxWidth)
-                block.context?.fillText(opt.text, opt.x, opt.y, opt.maxWidth)
-            else block.context?.fillText(opt.text, opt.x, opt.y)
+        if (!opt) return
+        if (opt.maxWidth)
+            block.context?.fillText(opt.text, opt.x, opt.y, opt.maxWidth)
+        else block.context?.fillText(opt.text, opt.x, opt.y)
     }
 
     #strokeText(block: ShapeBlock, opt?: DrawText) {
-        if (opt)
-            if (opt.maxWidth)
-                block.context?.strokeText(opt.text, opt.x, opt.y, opt.maxWidth)
-            else block.context?.strokeText(opt.text, opt.x, opt.y)
+        if (!opt) return
+        if (opt.maxWidth)
+            block.context?.strokeText(opt.text, opt.x, opt.y, opt.maxWidth)
+        else block.context?.strokeText(opt.text, opt.x, opt.y)
     }
 
     #fontStretch(block: ShapeBlock, opt?: CanvasFontStretch) {
@@ -1096,25 +1132,21 @@ export class ShapeBlock extends Block {
         if (opt && opt.source)
             block.context?.drawImage(
                 opt.source,
-                opt.clipX || 0,
-                opt.clipY || 0,
-                opt.clipWidth || block.width(),
-                opt.clipHeight || block.height(),
-                opt.x || block.x(),
-                opt.y || block.y(),
-                opt.width || block.width(),
-                opt.height || block.height()
+                opt.clipX,
+                opt.clipY,
+                opt.clipWidth,
+                opt.clipHeight,
+                opt.x,
+                opt.y,
+                opt.width,
+                opt.height
             )
     }
     #pattern(block: ShapeBlock, opt?: Pattern) {
-        const pattern = block.__valueHandler(opt, 'pattern', {
-            image: undefined,
-            repetition: 'repeat',
-        })
-        if (pattern.image && pattern.repetition)
+        if (opt)
             block.#canvasPattern = block.context?.createPattern(
-                pattern.image,
-                pattern.repetition
+                opt.image,
+                opt.repetition
             )
     }
 
@@ -1125,7 +1157,6 @@ export class ShapeBlock extends Block {
     #imageSmoothingQuality(block: ShapeBlock, opt?: ImageSmoothingQuality) {
         if (block.context && opt) block.context.imageSmoothingQuality = opt
     }
-
     #globalCompositeOperation(
         block: ShapeBlock,
         opt?: GlobalCompositeOperation
