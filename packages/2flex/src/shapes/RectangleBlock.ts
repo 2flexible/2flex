@@ -416,6 +416,29 @@ export class RectangleBlock extends ShapeBlock {
         this.__clipPath?.rect(x, y, w, h)
     }
 
+    updateCords(): void {
+        super.updateCords()
+        this.#adjustBoundingBox()
+    }
+    #adjustBoundingBox(): void {
+        const extra = (this.hotLineStrokeWidth() + this.#maxBorderWidth()) / 2
+
+        const { topLeft, topRight, bottomLeft, bottomRight } = this.boundingBox
+
+        this.boundingBox = {
+            topLeft: { x: topLeft.x - extra, y: topLeft.y - extra },
+            topRight: { x: topRight.x + extra, y: topRight.y - extra },
+            bottomLeft: {
+                x: bottomLeft.x - extra,
+                y: bottomLeft.y + extra,
+            },
+            bottomRight: {
+                x: bottomRight.x + extra,
+                y: bottomRight.y + extra,
+            },
+        }
+    }
+
     #pathInBound(x: number, y: number) {
         const context = this.context
         const path = this.#rectPath

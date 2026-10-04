@@ -137,6 +137,29 @@ export class CircleBlock extends ShapeBlock {
         block.borderColor(opt[2])
         block.stroke({ stroke: true })
     }
+    updateCords(): void {
+        super.updateCords()
+        this.#adjustBoundingBox()
+    }
+    #adjustBoundingBox(): void {
+        const borderWidth = (this.getOptionCurrent('borderWidth') as number) ?? 0
+        const extra = (this.hotLineStrokeWidth() + borderWidth) / 2
+
+        const { topLeft, topRight, bottomLeft, bottomRight } = this.boundingBox
+
+        this.boundingBox = {
+            topLeft: { x: topLeft.x - extra, y: topLeft.y - extra },
+            topRight: { x: topRight.x + extra, y: topRight.y - extra },
+            bottomLeft: {
+                x: bottomLeft.x - extra,
+                y: bottomLeft.y + extra,
+            },
+            bottomRight: {
+                x: bottomRight.x + extra,
+                y: bottomRight.y + extra,
+            },
+        }
+    }
     #borderConvert(opt: string): CircleBorder {
         const splitted = opt.split(' ')
         const borderWidth = this.__unitConverter(splitted[0], true)
