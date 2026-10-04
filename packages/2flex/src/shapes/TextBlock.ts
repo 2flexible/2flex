@@ -89,24 +89,9 @@ export class TextBlock extends ShapeBlock {
         this.addProperty('fontWeight', 'normal')
         this.addProperty('fontVariant', 'normal')
         this.addProperty('fontStyle', 'normal')
-        this.addProperty(
-            'color',
-            undefined,
-            false,
-            (block: TextBlock, opt: string) => this.#color(block, opt)
-        )
-        this.addProperty(
-            'strokeColor',
-            undefined,
-            false,
-            (block: TextBlock, opt: string) => this.#strokeColor(block, opt)
-        )
-        this.addProperty(
-            'strokeWidth',
-            undefined,
-            false,
-            (block: TextBlock, opt: number) => this.#strokeWidth(block, opt)
-        )
+        this.addProperty('color', undefined)
+        this.addProperty('strokeColor', undefined)
+        this.addProperty('strokeWidth', undefined)
         this.addProperty('wrap', 'nowrap')
         this.addProperty('onEditable', undefined)
         this.addProperty(
@@ -138,24 +123,32 @@ export class TextBlock extends ShapeBlock {
         this.#updateLetterNodeCordinates()
         this.#drawCaret()
         this.#drawTextHighlight()
+        const context = this.context
         const color = this.color()
         const strokeColor = this.strokeColor()
+        const hasFill = color !== undefined && !!context
+        const hasStroke = strokeColor !== undefined && !!context
+        if (hasFill && context) context.fillStyle = color
+        if (hasStroke && context) {
+            context.strokeStyle = strokeColor
+            context.lineWidth = this.strokeWidth() ?? 0
+        }
         this.#walkLetterNodes((letterNode: LetterNode) => {
-            if (color !== undefined) {
-                super.fillText({
-                    text: letterNode.letter,
-                    x: letterNode.x,
-                    y: letterNode.y,
-                    maxWidth: letterNode.width,
-                })
+            if (hasFill && context) {
+                context.fillText(
+                    letterNode.letter!,
+                    letterNode.x,
+                    letterNode.y,
+                    letterNode.width
+                )
             }
-            if (strokeColor !== undefined) {
-                super.strokeText({
-                    text: letterNode.letter,
-                    x: letterNode.x,
-                    y: letterNode.y,
-                    maxWidth: letterNode.width,
-                })
+            if (hasStroke && context) {
+                context.strokeText(
+                    letterNode.letter!,
+                    letterNode.x,
+                    letterNode.y,
+                    letterNode.width
+                )
             }
         })
     }
@@ -267,23 +260,6 @@ export class TextBlock extends ShapeBlock {
         wx = wx * cosA - wy * sinA
         wy = wx * sinA + wy * cosA
         return { x: wx * fx + centerX, y: wy * fy + centerY }
-    }
-    #color(block: TextBlock, opt: string) {
-        if (opt !== undefined) {
-            block.fillStyle(opt)
-            block.fill({ stroke: true })
-        }
-    }
-    #strokeColor(block: TextBlock, opt: string) {
-        if (opt !== undefined) {
-            block.strokeStyle(opt)
-            block.stroke({ stroke: true })
-        }
-    }
-    #strokeWidth(block: TextBlock, opt: number) {
-        if (opt !== undefined) {
-            block.lineWidth(opt)
-        }
     }
     text(opt: string) {
         const text = this.__cacheOption(opt, 'text', undefined)

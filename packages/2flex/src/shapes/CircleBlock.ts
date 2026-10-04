@@ -34,25 +34,9 @@ export class CircleBlock extends ShapeBlock {
         this.addProperty('innerRadius', 0)
         this.addProperty('startAngle', 0)
         this.addProperty('endAngle', Math.PI * 2)
-        this.addProperty(
-            'backgroundColor',
-            undefined,
-            false,
-            (block: CircleBlock, opt: string) =>
-                this.#backgroundColor(block, opt)
-        )
-        this.addProperty(
-            'borderWidth',
-            undefined,
-            false,
-            (block: CircleBlock, opt: number) => this.#borderWidth(block, opt)
-        )
-        this.addProperty(
-            'borderColor',
-            undefined,
-            false,
-            (block: CircleBlock, opt: string) => this.#borderColor(block, opt)
-        )
+        this.addProperty('backgroundColor', undefined)
+        this.addProperty('borderWidth', 0, true)
+        this.addProperty('borderColor', 'black')
         this.addProperty('borderStyle', 'solid')
         this.addProperty(
             'border',
@@ -64,7 +48,8 @@ export class CircleBlock extends ShapeBlock {
         )
     }
     draw(_func?: DrawFunc): void {
-        if (!this.context) return
+        const context = this.context
+        if (!context) return
         const cx = this.realCenterX
         const cy = this.realCenterY
         const startAngle = this.startAngle()
@@ -107,27 +92,13 @@ export class CircleBlock extends ShapeBlock {
 
         this.#circlePath = path
 
-        this.fillStyle(this.backgroundColor())
+        context.fillStyle = this.backgroundColor()
+        context.lineWidth = this.borderWidth()
+        context.strokeStyle = this.borderColor()
         const useEvenodd =
             startAngle === 0 && endAngle === Math.PI * 2 && innerR > 0
-        this.fill({
-            fill: true,
-            path,
-            ...(useEvenodd ? { fillRule: 'evenodd' } : {}),
-        })
-        this.stroke({ stroke: true, path })
-    }
-    #backgroundColor(block: CircleBlock, opt?: string) {
-        if (opt !== undefined) {
-            block.fillStyle(opt)
-            block.fill({ fill: true })
-        }
-    }
-    #borderWidth(block: CircleBlock, opt?: number) {
-        if (opt !== undefined) block.lineWidth(opt)
-    }
-    #borderColor(block: CircleBlock, opt?: string) {
-        if (opt !== undefined) block.strokeStyle(opt)
+        context.fill(path, useEvenodd ? 'evenodd' : 'nonzero')
+        context.stroke(path)
     }
     #border(block: CircleBlock, opt?: CircleBorder | string) {
         if (opt === undefined) return
@@ -135,14 +106,14 @@ export class CircleBlock extends ShapeBlock {
         block.borderWidth(opt[0])
         block.borderStyle(opt[1] as BorderStyle)
         block.borderColor(opt[2])
-        block.stroke({ stroke: true })
     }
     updateCords(): void {
         super.updateCords()
         this.#adjustBoundingBox()
     }
     #adjustBoundingBox(): void {
-        const borderWidth = (this.getOptionCurrent('borderWidth') as number) ?? 0
+        const borderWidth =
+            (this.getOptionCurrent('borderWidth') as number) ?? 0
         const extra = (this.hotLineStrokeWidth() + borderWidth) / 2
 
         const { topLeft, topRight, bottomLeft, bottomRight } = this.boundingBox

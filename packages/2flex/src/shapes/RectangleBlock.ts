@@ -36,34 +36,17 @@ export class RectangleBlock extends ShapeBlock {
     }
 
     #defineOptions() {
-        this.addProperty(
-            'backgroundColor',
-            'white',
-            false,
-            (block: RectangleBlock, opt: FillStyle) =>
-                this.#backgroundColor(block, opt)
-        )
+        this.addProperty('backgroundColor', 'white')
         this.addProperty(
             'borderRadius',
             [0, 0, 0, 0],
             false,
+            undefined,
             (block: RectangleBlock, opt?: BorderRadius) =>
                 this.#borderRadius(block, opt)
         )
-        this.addProperty(
-            'borderWidth',
-            0,
-            false,
-            (block: RectangleBlock, opt?: RelativeType) =>
-                this.#borderWidth(block, opt)
-        )
-        this.addProperty(
-            'borderColor',
-            'white',
-            false,
-            (block: RectangleBlock, opt?: FillStyle) =>
-                this.#borderColor(block, opt)
-        )
+        this.addProperty('borderWidth', 0, true)
+        this.addProperty('borderColor', 'white')
         this.addProperty('borderStyle', 'solid')
         this.addProperty(
             'border',
@@ -71,7 +54,7 @@ export class RectangleBlock extends ShapeBlock {
             false,
             undefined,
             (block: RectangleBlock, opt?: RectangleBorder) =>
-                this.#border(block, opt)
+                this.#borderParse(block, opt)
         )
         this.addProperty(
             'borderTop',
@@ -79,7 +62,7 @@ export class RectangleBlock extends ShapeBlock {
             false,
             undefined,
             (block: RectangleBlock, opt?: RectangleBorder) =>
-                this.#borderTop(block, opt)
+                this.#borderParse(block, opt)
         )
         this.addProperty(
             'borderBottom',
@@ -87,7 +70,7 @@ export class RectangleBlock extends ShapeBlock {
             false,
             undefined,
             (block: RectangleBlock, opt?: RectangleBorder) =>
-                this.#borderBottom(block, opt)
+                this.#borderParse(block, opt)
         )
         this.addProperty(
             'borderLeft',
@@ -95,7 +78,7 @@ export class RectangleBlock extends ShapeBlock {
             false,
             undefined,
             (block: RectangleBlock, opt?: RectangleBorder) =>
-                this.#borderLeft(block, opt)
+                this.#borderParse(block, opt)
         )
         this.addProperty(
             'borderRight',
@@ -103,11 +86,13 @@ export class RectangleBlock extends ShapeBlock {
             false,
             undefined,
             (block: RectangleBlock, opt?: RectangleBorder) =>
-                this.#borderRight(block, opt)
+                this.#borderParse(block, opt)
         )
     }
 
     draw(_func?: DrawFunc): void {
+        const context = this.context
+        if (!context) return
         const x = this.x()
         const y = this.y()
         const w = this.width()
@@ -120,45 +105,31 @@ export class RectangleBlock extends ShapeBlock {
 
         const bg = this.backgroundColor()
         if (bg !== undefined) {
-            this.fillStyle(bg)
-            this.context?.fill(rectPath)
+            context.fillStyle = bg
+            context.fill(rectPath)
         }
-
-        this.border(this.border())
-        this.borderTop(this.borderTop())
-        this.borderBottom(this.borderBottom())
-        this.borderLeft(this.borderLeft())
-        this.borderRight(this.borderRight())
+        this.#border(this.border())
+        this.#borderTop(this.borderTop())
+        this.#borderBottom(this.borderBottom())
+        this.#borderLeft(this.borderLeft())
+        this.#borderRight(this.borderRight())
     }
 
     #borderRadius(block: RectangleBlock, radius?: BorderRadius) {
         if (radius !== undefined) return shortHandParser(radius)
     }
-    #backgroundColor(block: RectangleBlock, bg: FillStyle) {
-        if (bg !== undefined) {
-            block.fillStyle(bg)
-        }
-    }
-    #borderWidth(block: RectangleBlock, opt?: RelativeType) {
-        if (opt !== undefined) block.lineWidth(opt)
-    }
-    #borderColor(block: RectangleBlock, opt?: FillStyle) {
-        if (opt !== undefined) block.strokeStyle(opt)
-    }
 
-    #border(block: RectangleBlock, opt?: RectangleBorder) {
-        if (opt === undefined) return opt
+    #border(opt?: RectangleBorder) {
+        const ctx = this.context
+        if (!opt || !ctx) return
         if (
-            block.#isBorderSet('borderTop') ||
-            block.#isBorderSet('borderRight') ||
-            block.#isBorderSet('borderBottom') ||
-            block.#isBorderSet('borderLeft')
+            this.#isBorderSet('borderTop') ||
+            this.#isBorderSet('borderRight') ||
+            this.#isBorderSet('borderBottom') ||
+            this.#isBorderSet('borderLeft')
         ) {
-            return opt
+            return
         }
-        if (typeof opt === 'string') opt = block.#borderConvert(opt)
-        const ctx = block.context
-        if (!ctx) return opt
         const [width, style, color] = opt
         ctx.save()
         ctx.lineWidth = width as number
@@ -170,37 +141,40 @@ export class RectangleBlock extends ShapeBlock {
             ctx.setLineDash([])
             ctx.lineCap = 'butt'
         }
-        if (block.#rectPath) ctx.stroke(block.#rectPath)
+        if (this.#rectPath) ctx.stroke(this.#rectPath)
         ctx.restore()
-        return opt
     }
 
-    #borderTop(block: RectangleBlock, opt?: RectangleBorder) {
-        return block.#borderSide('top', opt)
+    #borderTop(opt?: RectangleBorder) {
+        return this.#borderSide('top', opt)
     }
-    #borderRight(block: RectangleBlock, opt?: RectangleBorder) {
-        return block.#borderSide('right', opt)
+    #borderRight(opt?: RectangleBorder) {
+        return this.#borderSide('right', opt)
     }
-    #borderBottom(block: RectangleBlock, opt?: RectangleBorder) {
-        return block.#borderSide('bottom', opt)
+    #borderBottom(opt?: RectangleBorder) {
+        return this.#borderSide('bottom', opt)
     }
-    #borderLeft(block: RectangleBlock, opt?: RectangleBorder) {
-        return block.#borderSide('left', opt)
+    #borderLeft(opt?: RectangleBorder) {
+        return this.#borderSide('left', opt)
+    }
+
+    #borderParse(block: RectangleBlock, opt: any) {
+        if (opt === undefined) return opt
+        if (typeof opt === 'string') opt = block.#borderConvert(opt)
+        else if (opt instanceof Array && opt.length == 3) {
+            opt[0] = block.__unitConverter(opt[0], true)
+            opt[2] = block.__colorConverter(opt[2]) as string
+        }
+        return opt
     }
 
     #borderSide(
         side: BorderSide,
         opt?: RectangleBorder
     ): RectangleBorder | undefined {
-        if (opt === undefined) return opt
-        if (typeof opt === 'string') opt = this.#borderConvert(opt)
-        const [width, style, color] = opt as [
-            BorderWidth,
-            BorderStyle,
-            BorderColor,
-        ]
         const ctx = this.context
-        if (!ctx) return opt
+        if (!opt || !ctx) return
+        const [width, style, color] = opt
         const path = this.#sidePath(side, width as number)
         const r = this.#resolvedRadius()
         const sideHasArcs =
@@ -226,7 +200,6 @@ export class RectangleBlock extends ShapeBlock {
         }
         ctx.stroke(path)
         ctx.restore()
-        return opt
     }
 
     #hasAdjacentBorder(side: BorderSide): boolean {
@@ -422,9 +395,7 @@ export class RectangleBlock extends ShapeBlock {
     }
     #adjustBoundingBox(): void {
         const extra = (this.hotLineStrokeWidth() + this.#maxBorderWidth()) / 2
-
         const { topLeft, topRight, bottomLeft, bottomRight } = this.boundingBox
-
         this.boundingBox = {
             topLeft: { x: topLeft.x - extra, y: topLeft.y - extra },
             topRight: { x: topRight.x + extra, y: topRight.y - extra },

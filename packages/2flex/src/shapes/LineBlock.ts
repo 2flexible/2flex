@@ -170,18 +170,8 @@ export class LineBlock extends ShapeBlock {
         this.addProperty('controlPointStrokeColor', CONTROLS_POINT_STROKE_COLOR)
 
         this.addProperty('closeLine', undefined)
-        this.addProperty(
-            'lineColor',
-            undefined,
-            false,
-            (block: LineBlock, opt: string) => this.#lineColor(block, opt)
-        )
-        this.addProperty(
-            'fillColor',
-            undefined,
-            false,
-            (block: LineBlock, opt: string) => this.#fillColor(block, opt)
-        )
+        this.addProperty('lineColor', undefined)
+        this.addProperty('fillColor', undefined)
 
         this.addProperty(
             'editable',
@@ -194,20 +184,26 @@ export class LineBlock extends ShapeBlock {
     render(): void {
         super.render()
         this.#resetDefaultRunningEvents()
+        this.#handleRunningEditable()
     }
-draw(_func?: DrawFunc) {
+    draw(_func?: DrawFunc) {
         this.path = this.#buildPath()
+        const context = this.context
+        if (!context) return
 
-        const isEditable = this.__isRunningEventActive(EDITABLE_RUNNING_EVENT)
-        this.hotLines(!isEditable)
-        if (isEditable) this.__selectCursor('auto')
-
-        if (this.fill()) this.context?.fill(this.path)
-        if (this.stroke()) this.context?.stroke(this.path)
+        context.fillStyle = this.fillColor()
+        context.strokeStyle = this.lineColor()
+        context.lineWidth = this.lineWidth() ?? 0
+        context.fill(this.path)
+        context.stroke(this.path)
 
         this.#buildInlineHotLines()
     }
-
+    #handleRunningEditable() {
+        const isEditable = this.__isRunningEventActive(EDITABLE_RUNNING_EVENT)
+        this.hotLines(!isEditable)
+        if (isEditable) this.__selectCursor('auto')
+    }
     updateCordinates(): void {
         super.updateCordinates()
         this.#handleSticky()
@@ -642,10 +638,12 @@ draw(_func?: DrawFunc) {
     #pathInBound(x: number, y: number, path: Path2D) {
         const context = this.context
         if (!context || !path) return false
+        const centerX = this.rotationCenterX()
+        const centerY = this.rotationCenterY()
         context.save()
-        context.translate(this.rotationCenterX(), this.rotationCenterY())
+        context.translate(centerX, centerY)
         context.rotate(this.rotate())
-        context.translate(-this.rotationCenterX(), -this.rotationCenterY())
+        context.translate(-centerX, -centerY)
         context.lineWidth = this.lineWidth()
         const inStroke = context.isPointInStroke(path, x, y)
         const inPath = context.isPointInPath(path, x, y)
@@ -844,18 +842,6 @@ draw(_func?: DrawFunc) {
             this.__addEvent('mousedown', mousedown as any)
             this.__addEvent('mousemove', mousemove as any)
             this.__addEvent('mouseup', mouseup as any)
-        }
-    }
-    #lineColor(block: LineBlock, opt: string) {
-        if (opt !== undefined) {
-            block.strokeStyle(opt)
-            block.stroke({ stroke: true })
-        }
-    }
-    #fillColor(block: LineBlock, opt: string) {
-        if (opt !== undefined) {
-            block.fillStyle(opt)
-            block.fill({ fill: true })
         }
     }
 
