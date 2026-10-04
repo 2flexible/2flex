@@ -1,10 +1,8 @@
-import type { IBlock } from '../types'
-import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
-import { RelativeType } from '../Block'
+import { DrawFunc, IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import type { RelativeType } from '../types'
 
-type ObjectFit = 'contain' | 'cover' | 'fill'
+type ObjectFit = 'contain' | 'cover' | 'fill' | 'scale-down'
 type Repeat = number | 'fill'
-type ImageSource = string | HTMLImageElement
 
 interface ImageOptions extends IShapeOptions {
     clipX?: RelativeType
@@ -16,136 +14,178 @@ interface ImageOptions extends IShapeOptions {
     repeatY?: Repeat
 }
 
-export class ImageBlock extends ShapeBlock<ImageOptions> {
+export class ImageBlock extends ShapeBlock {
     #cacheImage?: HTMLImageElement
-    constructor(source: ImageSource, options: IBlock<ImageOptions>) {
+    constructor(options: ImageOptions) {
         super(options)
-        this.source(source)
+        this.#defineProperties()
     }
 
-    draw(_func?: (context: CanvasRenderingContext2D) => void): void {
+    #defineProperties() {
+        this.addProperty('source', undefined)
+        this.addProperty('repeatX', undefined)
+        this.addProperty('repeatY', undefined)
+        this.addProperty('clipX', 0)
+        this.addProperty('clipY', 0)
+        this.addProperty('clipWidth', undefined)
+        this.addProperty('clipHeight', undefined)
+        this.addProperty('objectFit', 'scale-down')
+    }
+
+    draw(_func?: DrawFunc): void {
         if (!this.#cacheImage) {
-            if (typeof this.source() === 'string') {
-                this.#cacheImage = new Image()
-                this.#cacheImage.src = this.source()!
-            } else this.#cacheImage = this.source()
-            this.#cacheImage?.addEventListener('load', () => this.#drawImage())
+            this.#buildImage()
         } else this.#drawImage()
     }
 
+    #buildImage() {
+        if (typeof this.source() === 'string') {
+            this.#cacheImage = new Image()
+            this.#cacheImage.src = this.source()!
+        } else this.#cacheImage = this.source()
+        this.#cacheImage?.addEventListener('load', () => {
+            this.__invokeChange()
+            this.#drawImage()
+        })
+    }
+
     #drawImage() {
-        if (!this.#cacheImage) return
+        const cacheImage = this.#cacheImage
+        const context = this.context
+        if (!cacheImage || !context) return
         const fit = this.objectFit()
-        let width = this.#cacheImage.width
-        let height = this.#cacheImage.height
+        const x = this.x()
+        const y = this.y()
+        const realWidth = this.width()
+        const realHeight = this.height()
+
+        const clipX = this.clipX()
+        const clipY = this.clipY()
+        const clipWidth = this.clipWidth()
+        const clipHeight = this.clipHeight()
+        const repeatX = this.repeatX()
+        const repeatY = this.repeatY()
+
+        const imgWidth = cacheImage.width
+        const imgHeight = cacheImage.height
 
         let wrapW = 0
         let wrapH = 0
-        let x = this.x()
-        let y = this.y()
 
-        let clipW = this.clipWidth()
-        let clipH = this.clipHeight()
-
-        if (!this.isRepeat) {
-            if (fit === 'contain') {
-                clipW = width
-                clipH = height
-                if (height > this.height()) {
-                    const aspectH = height / this.height()
+        let clipW = clipWidth ?? realWidth
+        let clipH = clipHeight ?? realHeight
+        if (!(repeatX !== undefined || repeatY !== undefined)) {
+            let imgAdjustedWidth = imgWidth
+            let imgAdjustedHeight = imgHeight
+            let drawX = x
+            let drawY = y
+            let imgClipX = clipX
+            let imgClipY = clipY
+            if (fit === 'scale-down') {
+                const blockRatio = Math.min(
+                    realWidth / imgWidth,
+                    realHeight / imgHeight
+                )
+                const ratio = Math.min(blockRatio, 1)
+                const scaledW = imgWidth * ratio
+                const scaledH = imgHeight * ratio
+                imgAdjustedWidth = scaledW
+                imgAdjustedHeight = scaledH
+                clipW = imgWidth
+                clipH = imgHeight
+                drawX = x + (realWidth - scaledW) / 2
+                drawY = y + (realHeight - scaledH) / 2
+            } else if (fit === 'contain') {
+                clipW = imgWidth
+                clipH = imgHeight
+                if (imgHeight > realHeight) {
+                    const aspectH = imgHeight / realHeight
                     clipH *= aspectH
                     clipW *= aspectH
                 }
-                if (width > this.width()) {
-                    const aspectW = width / this.width()
+                if (imgWidth > realWidth) {
+                    const aspectW = imgWidth / realWidth
                     clipW *= aspectW
                     clipH *= aspectW
                 }
             } else if (fit === 'cover') {
-                clipW = this.#cacheImage.width
-                clipH = this.#cacheImage.height
+                const ratio = Math.max(
+                    realWidth / imgWidth,
+                    realHeight / imgHeight
+                )
+                imgAdjustedWidth = realWidth
+                imgAdjustedHeight = realHeight
+                const visibleSrcW = realWidth / ratio
+                const visibleSrcH = realHeight / ratio
+                clipW = visibleSrcW
+                clipH = visibleSrcH
+                imgClipX = (imgWidth - visibleSrcW) / 2
+                imgClipY = (imgHeight - visibleSrcH) / 2
             } else if (fit === 'fill') {
-                width = this.width()
-                height = this.height()
-                clipW = this.#cacheImage.width
-                clipH = this.#cacheImage.height
+                imgAdjustedWidth = realWidth
+                imgAdjustedHeight = realHeight
+                clipW = imgWidth
+                clipH = imgHeight
             }
 
-            this.context?.drawImage(
-                this.#cacheImage,
-                this.clipX(),
-                this.clipY(),
+            context.drawImage(
+                cacheImage,
+                imgClipX,
+                imgClipY,
                 clipW,
                 clipH,
-                x,
-                y,
-                width,
-                height
+                drawX,
+                drawY,
+                imgAdjustedWidth,
+                imgAdjustedHeight
             )
         } else {
-            let wPerImage = this.width()
-            let hPerImage = this.height()
-            if (this.repeatX() !== undefined) {
-                if (this.repeatX() === 'fill') wPerImage = width
-                else wPerImage = this.width() / this.repeatX()!
+            if (imgWidth <= 0 || imgHeight <= 0) return
+            let wPerImage = realWidth
+            let hPerImage = realHeight
+            let xPerImage = x
+            let yPerImage = y
+            if (repeatX !== undefined) {
+                if (repeatX === 'fill')
+                    wPerImage = imgWidth > realWidth ? realWidth : imgWidth
+                else wPerImage = realWidth / repeatX
             }
 
-            if (this.repeatY() !== undefined) {
-                if (this.repeatY() === 'fill') hPerImage = height
-                else hPerImage = this.height() / this.repeatY()!
+            if (repeatY !== undefined) {
+                if (repeatY === 'fill')
+                    hPerImage = imgHeight > realHeight ? realHeight : imgHeight
+                else hPerImage = realHeight / repeatY!
             }
 
-            while (this.height() > Math.ceil(wrapH)) {
-                while (this.width() > Math.ceil(wrapW)) {
-                    this.context?.drawImage(
-                        this.#cacheImage,
-                        this.clipX(),
-                        this.clipY(),
-                        width - this.clipX(),
-                        height - this.clipY(),
-                        x,
-                        y,
-                        wPerImage,
-                        hPerImage
-                    )
-                    wrapW += wPerImage || this.width()
-                    x += wPerImage || this.width()
+            while (realHeight > Math.ceil(wrapH)) {
+                while (realWidth > Math.ceil(wrapW)) {
+                    if (
+                        xPerImage + wPerImage <= x + realWidth &&
+                        yPerImage + hPerImage <= y + realHeight
+                    ) {
+                        context.drawImage(
+                            cacheImage,
+                            clipX,
+                            clipY,
+                            imgWidth - clipX,
+                            imgHeight - clipY,
+                            xPerImage,
+                            yPerImage,
+                            wPerImage,
+                            hPerImage
+                        )
+                    }
+                    wrapW += wPerImage
+                    xPerImage += wPerImage
                 }
-                wrapH += hPerImage || this.height()
-                y += hPerImage || this.height()
+                wrapH += hPerImage
+                yPerImage += hPerImage
                 wrapW = 0
-                x = this.x()
+                xPerImage = x
             }
         }
     }
-
-    source(opt?: ImageSource) {
-        return this.__valueHandler(opt, 'source', undefined)
-    }
-
-    get isRepeat() {
+    get #isRepeat() {
         return this.repeatX() !== undefined || this.repeatY() !== undefined
-    }
-
-    repeatX(opt?: Repeat) {
-        return this.__valueHandler(opt, 'repeatX', undefined)
-    }
-    repeatY(opt?: Repeat) {
-        return this.__valueHandler(opt, 'repeatY', undefined)
-    }
-    clipX(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'clipX', 0)
-    }
-    clipY(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'clipY', 0)
-    }
-    clipWidth(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'clipWidth', this.width())
-    }
-    clipHeight(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'clipHeight', this.height())
-    }
-    objectFit(opt?: ObjectFit) {
-        return this.__valueHandler(opt, 'objectFit', undefined)
     }
 }
