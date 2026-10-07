@@ -44,16 +44,17 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
         }
         updateCords(): void {
             super.updateCords()
-
+            this.#updateHotLineBlockParameters()
+            this.#hotLineBlock?.__invokeChange()
+        }
+        updateCordinates(): void {
+            super.updateCordinates()
             this.#hotCornerCords = {
                 topLeft: this.cornerTopLeft(),
                 topRight: this.cornerTopRight(),
                 bottomLeft: this.cornerBottomLeft(),
                 bottomRight: this.cornerBottomRight(),
             }
-
-            this.#updateHotLineBlockParameters()
-            this.#hotLineBlock?.__invokeChange()
         }
         #getHigherZindex() {
             let higherZindex = 0
@@ -69,7 +70,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             if (!block.#hotLineBlock && opt) {
                 const hotLineBlock = block.#buildHotLines(block)
                 block.canvas?.add(hotLineBlock)
-            } 
+            }
         }
         #updateHotLineBlockParameters() {
             if (!this.#hotLineBlock) return
@@ -77,40 +78,33 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             const strokeWidth = this.hotCornerStrokeWidth()
             this.#hotLineBlock.rotationCenterX(this.rotationCenterX())
             this.#hotLineBlock.rotationCenterY(this.rotationCenterY())
-            this.#hotLineBlock.rotate(this.rotate())
-            const x = this.horizontalFlip()
-                ? Math.abs(this.x() + this.width())
-                : this.x()
-            const y = this.verticalFlip()
-                ? Math.abs(this.y() + this.height())
-                : this.y()
+            this.#hotLineBlock.rotate(0)
+            const bb = this.boundingBox
+            const x = bb.topLeft.x
+            const y = bb.topLeft.y
+            const w = bb.bottomRight.x - bb.topLeft.x
+            const h = bb.bottomRight.y - bb.topLeft.y
             this.#hotLineBlock.x(x - (size + strokeWidth) / 2)
             this.#hotLineBlock.y(y - (size + strokeWidth) / 2)
-            this.#hotLineBlock.width(
-                Math.abs(this.width()) + size + strokeWidth
-            )
-            this.#hotLineBlock.height(
-                Math.abs(this.height()) + size + strokeWidth
-            )
-           
+            this.#hotLineBlock.width(w + size + strokeWidth)
+            this.#hotLineBlock.height(h + size + strokeWidth)
+
             this.#hotLineBlock.zIndex(this.#getHigherZindex())
         }
 
         #buildHotLines(block: any) {
-            const size = block.hotCornerSize() / 2
             block.#hotLineBlock = new BaseBlock({
                 name: HOT_LINE_BLOCK_NAME,
-                x: block.x() - size,
-                y: block.y() - size,
-                width: Math.abs(block.width()) + size,
-                height: Math.abs(block.height()) + size,
-                rotate: block.rotate(),
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0,
+                rotate: 0,
                 rotationCenterX: block.rotationCenterX(),
                 rotationCenterY: block.rotationCenterY(),
                 zIndex: block.#getHigherZindex(),
             })
             block.#hotLineBlock.onRender((hotLineBlock: BaseBlock) => {
-             
                 if (
                     !block.__isRunningEventActive(SELECTABLE_RUNNING_EVENT) ||
                     !block.hotLines()
@@ -128,7 +122,6 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 context.save()
                 // need to clip hot line area too
                 block.__childClipping?.(hotLineBlock)
-
                 context.translate(
                     block.rotationCenterX(),
                     block.rotationCenterY()
@@ -150,7 +143,6 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.#hotCornerCords.topRight.x,
                     block.#hotCornerCords.topRight.y
                 )
-
                 context.lineTo(
                     block.#hotCornerCords.bottomRight.x,
                     block.#hotCornerCords.bottomRight.y
