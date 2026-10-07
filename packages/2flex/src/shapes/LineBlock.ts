@@ -347,36 +347,39 @@ export class LineBlock extends ShapeBlock {
         this.#adjsutBoundingBox()
     }
     #adjsutBoundingBox() {
-        let c1: number[] = []
-        let c2: number[] = []
-        if (this.#isLineTypeCubicBezier) {
-            c1 = [this.startControlX(), this.endControlX()]
-            c2 = [this.startControlY(), this.endControlY()]
+        const rotate = this.rotate() || 0
+        const rot = (x: number, y: number) =>
+            this.__rotateCordiantesByCenter(x, y, rotate)
+
+        let xs: number[] = []
+        let ys: number[] = []
+
+        for (let i = 0; i < this.__points.x.length; i++) {
+            const x = this.__points.x[i]
+            const y = this.__points.y[i]
+            if (x === undefined || y === undefined) continue
+            const p = rot(x, y)
+            xs.push(p.x)
+            ys.push(p.y)
         }
-        const xMinB = Math.min(...this.__points.x, ...c1)
-        const yMinB = Math.min(...this.__points.y, ...c2)
-        const xMaxB = Math.max(...this.__points.x, ...c1)
-        const yMaxB = Math.max(...this.__points.y, ...c2)
+        if (this.#isLineTypeCubicBezier) {
+            const pairs: [number, number][] = [
+                [this.startControlX(), this.startControlY()],
+                [this.endControlX(), this.endControlY()],
+            ]
+            for (const [x, y] of pairs) {
+                const p = rot(x, y)
+                xs.push(p.x)
+                ys.push(p.y)
+            }
+        }
         this.boundingBox = {
-            topLeft: {
-                x: xMinB,
-                y: yMinB,
-            },
-            topRight: {
-                x: xMaxB,
-                y: yMinB,
-            },
-            bottomLeft: {
-                x: xMinB,
-                y: yMaxB,
-            },
-            bottomRight: {
-                x: xMaxB,
-                y: yMaxB,
-            },
+            topLeft: { x: Math.min(...xs), y: Math.min(...ys) },
+            topRight: { x: Math.max(...xs), y: Math.min(...ys) },
+            bottomLeft: { x: Math.min(...xs), y: Math.max(...ys) },
+            bottomRight: { x: Math.max(...xs), y: Math.max(...ys) },
         }
     }
-
     #adjustBlockCordinates() {
         let c1: number[] = []
         let c2: number[] = []
@@ -438,7 +441,6 @@ export class LineBlock extends ShapeBlock {
         const points = []
         const D = Math.pow(b, 2) - 4 * a * c
         if (D == 0) {
-            cubicBezier
             const t = -b / (2 * a)
             if (t >= 0 && t <= 1) points.push(t)
         } else if (D > 0) {
@@ -500,9 +502,6 @@ export class LineBlock extends ShapeBlock {
         const controlPointStrokeColor = this.controlPointStrokeColor()
 
         context.save()
-        context.translate(this.rotationCenterX(), this.rotationCenterY())
-        context.rotate(this.rotate())
-        context.translate(-this.rotationCenterX(), -this.rotationCenterY())
         context.setLineDash([])
 
         this.beginPath()
@@ -663,7 +662,6 @@ export class LineBlock extends ShapeBlock {
             block.#editableClickEvent = undefined
             return
         }
-
         if (
             block.#editableDbClickEvent === undefined &&
             block.#editableClickEvent === undefined
@@ -695,6 +693,8 @@ export class LineBlock extends ShapeBlock {
                 }
                 block.__invokeChange()
             }
+            block.#editableDbClickEvent = dblclick as any
+            block.#editableClickEvent = click as any
             // @TODO: fix any issues
             block.__addEvent('dblclick', dblclick as any)
             block.__addEvent('click', click as any)
@@ -755,11 +755,10 @@ export class LineBlock extends ShapeBlock {
             if (mousemove) this.__removeEvent('mousemove', mousemove as any)
             if (mouseup) this.__removeEvent('mouseup', mouseup as any)
             this.#controlPointEvents[point].mousedown = undefined
-            this.#controlPointEvents[point].mousedown = undefined
-            this.#controlPointEvents[point].mousedown = undefined
+            this.#controlPointEvents[point].mousemove = undefined
+            this.#controlPointEvents[point].mouseup = undefined
             return
         }
-
         if (
             mousedown === undefined &&
             mouseup === undefined &&
@@ -804,14 +803,25 @@ export class LineBlock extends ShapeBlock {
                     const { x, y } = this.canvas?.getCursorPosition(event)!
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
-                    if (diffX !== 0) {
-                        const diff = diffX - beforeCords.x
-                        this.setOptionCurrent(xPointName, pointsMap.x + diff)
+                    const incX = diffX - beforeCords.x
+                    const incY = diffY - beforeCords.y
+                    if (incX !== 0 || incY !== 0) {
+                        const angle = -this.rotate()
+                        const cos = Math.cos(angle)
+                        const sin = Math.sin(angle)
+                        const pointIncX = incX * cos - incY * sin
+                        const pointIncY = incX * sin + incY * cos
+                        if (pointIncX !== 0)
+                            this.setOptionCurrent(
+                                xPointName,
+                                pointsMap.x + pointIncX
+                            )
+                        if (pointIncY !== 0)
+                            this.setOptionCurrent(
+                                yPointName,
+                                pointsMap.y + pointIncY
+                            )
                         beforeCords.x = diffX
-                    }
-                    if (diffY !== 0) {
-                        const diff = diffY - beforeCords.y
-                        this.setOptionCurrent(yPointName, pointsMap.y + diff)
                         beforeCords.y = diffY
                     }
                     this.__invokeChange()
@@ -838,6 +848,11 @@ export class LineBlock extends ShapeBlock {
                         this.__invokeChange()
                     }
                 }
+            }
+            this.#controlPointEvents[point] = {
+                mousedown: mousedown as any,
+                mousemove: mousemove as any,
+                mouseup: mouseup as any,
             }
             this.__addEvent('mousedown', mousedown as any)
             this.__addEvent('mousemove', mousemove as any)
