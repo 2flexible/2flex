@@ -391,7 +391,6 @@ export function shortHandParser(shortHandValue: ShortHandRelativeType) {
     if (typeof shortHandValue === 'number') {
         return [shortHandValue, shortHandValue, shortHandValue, shortHandValue]
     } else if (shortHandValue instanceof Array) {
-        let shortHandList: (RelativeType | undefined)[] = []
         switch (shortHandValue.length) {
             case 1:
                 return [
@@ -453,4 +452,31 @@ export function reversePostOrderTraversal<T extends Node>(
 }
 export function worldTileKey(worldCol: number, worldRow: number): string {
     return `${worldCol},${worldRow}`
+}
+
+export function stationaryPoints(
+    p0: number,
+    p1: number,
+    p2: number,
+    p3: number
+) {
+    const a = 3 * (-p0 + 3 * p1 - 3 * p2 + p3)
+    const b = 6 * (p0 - 2 * p1 + p2)
+    const c = 3 * (p1 - p0)
+
+    const points = []
+    const D = Math.pow(b, 2) - 4 * a * c
+    if (D == 0) {
+        const t = -b / (2 * a)
+        if (t >= 0 && t <= 1) points.push(t)
+    } else if (D > 0) {
+        const base = Math.sqrt(D)
+        const t1 = (-b + base) / (2 * a)
+        const t2 = (-b - base) / (2 * a)
+        if (t1 >= 0 && t1 <= 1) points.push(t1)
+        if (t2 >= 0 && t2 <= 1) points.push(t2)
+    }
+    return points.map((i) => {
+        return cubicBezier(p0, p1, p2, p3, i)
+    })
 }
