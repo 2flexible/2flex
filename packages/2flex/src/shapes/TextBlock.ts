@@ -84,6 +84,15 @@ export class TextBlock extends ShapeBlock {
     }
 
     #defineProperties() {
+        this.addProperty(
+            'text',
+            undefined,
+            false,
+            (block: TextBlock, opt?: string) => this.#text(block, opt),
+            (block, val) => {
+                return val
+            }
+        )
         this.addProperty('fontFamily', 'sans-serif')
         this.addProperty('fontSize', 0, true)
         this.addProperty('fontWeight', 'normal')
@@ -261,16 +270,15 @@ export class TextBlock extends ShapeBlock {
         wy = wx * sinA + wy * cosA
         return { x: wx * fx + centerX, y: wy * fy + centerY }
     }
-    text(opt: string) {
-        const text = this.__cacheOption(opt, 'text', undefined)
+    #text(block: TextBlock, text?: string) {
         if (text === undefined) return
-        this.#words = undefined
+        block.#words = undefined
         const splitedText = text.split('')
         for (let i = 0, len = splitedText.length; i < len; i++) {
-            this.#addLetter(splitedText[i], this.#tailLetterNode)
+            block.#addLetter(splitedText[i], block.#tailLetterNode)
         }
-        this.#selectionFocus = this.#tailLetterNode
-        this.#selectionAnchor = this.#tailLetterNode
+        block.#selectionFocus = block.#tailLetterNode
+        block.#selectionAnchor = block.#tailLetterNode
     }
     #addLetter(letter: string, tail?: LetterNode) {
         const current = new LetterNode(letter)
@@ -542,8 +550,7 @@ export class TextBlock extends ShapeBlock {
     #extendSelection(direction: 'prev' | 'next') {
         const focus = this.#selectionFocus
         if (!focus) return
-        this.#selectionFocus =
-            direction === 'prev' ? focus.prev : focus.next
+        this.#selectionFocus = direction === 'prev' ? focus.prev : focus.next
     }
     #currentY(): number | undefined {
         return this.#selectionFocus?.y
@@ -566,7 +573,8 @@ export class TextBlock extends ShapeBlock {
                 node !== focus &&
                 (direction === 'down' ? node.y > currentY : node.y < currentY)
             ) {
-                const dist = Math.abs(node.y - currentY) + Math.abs(node.x - currentX)
+                const dist =
+                    Math.abs(node.y - currentY) + Math.abs(node.x - currentX)
                 if (dist < bestDist) {
                     bestDist = dist
                     best = node
@@ -600,7 +608,8 @@ export class TextBlock extends ShapeBlock {
                 node !== focus &&
                 (direction === 'down' ? node.y > currentY : node.y < currentY)
             ) {
-                const dist = Math.abs(node.y - currentY) + Math.abs(node.x - currentX)
+                const dist =
+                    Math.abs(node.y - currentY) + Math.abs(node.x - currentX)
                 if (dist < bestDist) {
                     bestDist = dist
                     best = node
@@ -733,21 +742,16 @@ export class TextBlock extends ShapeBlock {
         if (!shift) {
             if (key === 'ArrowLeft') return this.#moveCaret('prev')
             if (key === 'ArrowRight') return this.#moveCaret('next')
-            if (key === 'ArrowUp')
-                return this.#moveCaretVertically('up')
-            if (key === 'ArrowDown')
-                return this.#moveCaretVertically('down')
+            if (key === 'ArrowUp') return this.#moveCaretVertically('up')
+            if (key === 'ArrowDown') return this.#moveCaretVertically('down')
             if (key === 'Home') return this.#setCaret(this.#headLetterNode)
             if (key === 'End') return this.#setCaret(this.#tailLetterNode)
-            if (key === 'PageUp')
-                return this.#setCaret(this.#headLetterNode)
-            if (key === 'PageDown')
-                return this.#setCaret(this.#tailLetterNode)
+            if (key === 'PageUp') return this.#setCaret(this.#headLetterNode)
+            if (key === 'PageDown') return this.#setCaret(this.#tailLetterNode)
         } else {
             if (key === 'ArrowLeft') return this.#extendSelection('prev')
             if (key === 'ArrowRight') return this.#extendSelection('next')
-            if (key === 'ArrowUp')
-                return this.#extendSelectionVertically('up')
+            if (key === 'ArrowUp') return this.#extendSelectionVertically('up')
             if (key === 'ArrowDown')
                 return this.#extendSelectionVertically('down')
             if (key === 'Home') {
@@ -878,7 +882,9 @@ export class TextBlock extends ShapeBlock {
                     block.#isDraggingSelection = false
                     block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     block.__resetCursor('text')
-                    if (block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)) {
+                    if (
+                        block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)
+                    ) {
                         const clicked = block.#checkLetterInBound(event)
                         if (clicked) block.#selectionFocus = clicked
                         block.__invokeChange()

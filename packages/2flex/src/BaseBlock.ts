@@ -31,8 +31,6 @@ import {
     namedColors,
     hslToRgba,
     shortHandParser,
-    xIntersect,
-    yIntersect,
     clamp,
     preOrderTraversal,
 } from './Utils'
@@ -280,6 +278,9 @@ export class BaseBlock extends Node {
         }
     }
     #defineProperties() {
+        this.addProperty('name', undefined, false, undefined, (block, val) => {
+            return val
+        })
         this.addProperty('x', 0, true)
         this.addProperty('y', 0, false)
         this.addProperty('cornerTopLeft', undefined)
@@ -1365,9 +1366,6 @@ export class BaseBlock extends Node {
         if (this.canvas) this.canvas.demandRemoveBlock(block)
         else this.#pending['removedChilds'].push(block)
         this.__invokeHistory({ addChild: block }, { removeChild: block })
-    }
-    name(opt?: string) {
-        return this.__cacheOption(opt, 'name', undefined)
     }
     contextMenu(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {
