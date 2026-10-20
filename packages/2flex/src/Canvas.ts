@@ -743,13 +743,7 @@ export class Canvas {
 
                 if (foundClass) {
                     // @TODO: fix any issue
-                    foundBlock =
-                        blockPaylaod.additionalParams.length !== 0
-                            ? new (foundClass as any)(
-                                  ...blockPaylaod.additionalParams,
-                                  blockPaylaod.options || {}
-                              )
-                            : new foundClass(blockPaylaod.options || {})
+                    foundBlock = new foundClass(blockPaylaod.options || {})
                 }
             }
             if (foundBlock) {

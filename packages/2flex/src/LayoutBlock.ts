@@ -274,11 +274,11 @@ export class LayoutBlock extends Block {
             let blockW = Math.abs(b.width())
             let blockH = Math.abs(b.height())
 
-            const blockInitW = b.__unitConverter({
+            const blockInitW = b.__valueConverter({
                 val: b.initWidth,
                 widthRelated: true,
             }) as number
-            const blockInitH = b.__unitConverter({
+            const blockInitH = b.__valueConverter({
                 val: b.initHeight,
                 widthRelated: false,
             }) as number

@@ -5,6 +5,8 @@ import {
     ImageBlock,
     RectangleBlock,
     VideoBlock,
+    LineBlock,
+    TextBlock
 } from './shapes/index'
 import { LayoutBlock } from './LayoutBlock'
 import { ShapeBlock } from './ShapeBlock'
@@ -41,6 +43,8 @@ export {
     Canvas,
     Block,
     LayoutBlock,
+    LineBlock,
+    TextBlock,
     ShapeBlock,
     RectangleBlock,
     CircleBlock,

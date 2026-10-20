@@ -145,7 +145,6 @@ export interface BlockPayload {
     options: OptionsMap
     cacheOptions: OptionsMap
     childs: BlockPayload[]
-    additionalParams: any[]
 }
 
 type RunningEvents = { [key: string]: boolean }
@@ -1249,7 +1248,6 @@ export class BaseBlock extends Node {
             options: this.options,
             cacheOptions: this.cacheOptions,
             childs: childs,
-            additionalParams: [],
         }
     }
     __updateRunningEvent(event: string, isActive: boolean) {
