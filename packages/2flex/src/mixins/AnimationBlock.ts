@@ -13,7 +13,6 @@ import {
     easingParser,
     getPrototype,
     lerp,
-    namedColors,
     rgbaRepresenter,
     rgbaToArray,
 } from '../Utils'
@@ -45,13 +44,13 @@ export type AnimationKeyframe = KeyFrame & IteratableOpts
 
 export interface KeyframesConfig {
     currentIdx: number
-    currentVal: any
-    breakPoints: IteratableOpts
+    currentVal: unknown
+    breakPoints: CompiledValue[]
     iterDirection: number
     invoker: any
-    category: any
-    underlyingValue: RGBA | number
-    accumulator: RGBA | number
+    category: ValueKind
+    underlyingValue: CompiledValue
+    accumulator: CompiledValue
 }
 
 export interface KeyframeIterationConfig {
@@ -67,6 +66,22 @@ export interface KeyframeIterationConfig {
 export type CallbackAnimator = (timestamp: number, easing: number) => void
 
 export interface IAnimationBlock extends IBaseBlockOptions {}
+
+type ValueKind =
+    | 'number'
+    | 'color'
+    | 'boolean'
+    | 'string'
+    | 'array'
+    | 'object'
+    | 'unsupported'
+
+type CompiledValue =
+    | { kind: 'number'; value: number }
+    | { kind: 'color'; value: RGBA }
+    | { kind: 'discrete'; value: unknown }
+    | { kind: 'array'; value: CompiledValue[] }
+    | { kind: 'object'; value: Record<string, CompiledValue> }
 
 export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
@@ -104,6 +119,7 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
             config['pauseStartedAt'] = performance.now()
         }
         animationFinish(animationId: AnimationId) {
+            this.#applyFinalValues(animationId)
             this.#keyframeIterationConfig[animationId]['isFinished'] = true
             this.#keyframeIterationConfig[animationId]['isRunning'] = false
         }
@@ -119,12 +135,9 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 settings['direction'] = 'alternate-reverse'
             else if (settings['direction'] === 'alternate-reverse')
                 settings['direction'] = 'alternate'
-            for (const [key, value] of Object.entries(
-                this.#keyframes[animationId]
-            )) {
+            for (const value of Object.values(this.#keyframes[animationId])) {
                 value.breakPoints.reverse()
-                if (value.category === 'color') value.accumulator = [0, 0, 0, 0]
-                else value.accumulator = 0
+                value.accumulator = this.#zeroCompiled(value.breakPoints[0])
             }
         }
         animationDelay(animationId: AnimationId, value: Delay) {
@@ -154,6 +167,233 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
         removeAnimation(animationId: AnimationId) {
             this.__removeAnimation(animationId)
         }
+        #isRgbaString(value: unknown): value is string {
+            return typeof value === 'string' && /^rgba\(/.test(value.trim())
+        }
+        #isPlainObject(value: unknown): value is Record<string, unknown> {
+            if (typeof value !== 'object' || value === null) return false
+            const proto = Object.getPrototypeOf(value)
+            return proto === Object.prototype || proto === null
+        }
+        #detectValueKind(value: unknown): ValueKind {
+            if (typeof value === 'number') return 'number'
+            if (typeof value === 'boolean') return 'boolean'
+            if (typeof value === 'string')
+                return this.#isRgbaString(value) ? 'color' : 'string'
+            if (value instanceof Array) return 'array'
+            if (this.#isPlainObject(value)) return 'object'
+            return 'unsupported'
+        }
+        #isAdditive(kind: ValueKind): boolean {
+            return (
+                kind === 'number' ||
+                kind === 'color' ||
+                kind === 'array' ||
+                kind === 'object'
+            )
+        }
+        #compileValue(value: unknown): CompiledValue {
+            switch (this.#detectValueKind(value)) {
+                case 'number':
+                    return {
+                        kind: 'number',
+                        value: value as number,
+                    }
+                case 'color':
+                    return {
+                        kind: 'color',
+                        value: rgbaToArray(value as string),
+                    }
+                case 'array':
+                    return {
+                        kind: 'array',
+                        value: (value as unknown[]).map((item) =>
+                            this.#compileValue(item)
+                        ),
+                    }
+                case 'object': {
+                    const object: Record<string, CompiledValue> = {}
+                    for (const [key, item] of Object.entries(
+                        value as Record<string, unknown>
+                    )) {
+                        object[key] = this.#compileValue(item)
+                    }
+                    return { kind: 'object', value: object }
+                }
+                default:
+                    return { kind: 'discrete', value }
+            }
+        }
+        #toRawValue(compiled: CompiledValue): unknown {
+            switch (compiled.kind) {
+                case 'number':
+                case 'discrete':
+                    return compiled.value
+                case 'color':
+                    return rgbaRepresenter(compiled.value)
+                case 'array':
+                    return compiled.value.map((item) => this.#toRawValue(item))
+                case 'object': {
+                    const object: Record<string, unknown> = {}
+                    for (const [key, item] of Object.entries(compiled.value)) {
+                        object[key] = this.#toRawValue(item)
+                    }
+                    return object
+                }
+            }
+        }
+        #zeroCompiled(compiled: CompiledValue): CompiledValue {
+            switch (compiled.kind) {
+                case 'number':
+                    return { kind: 'number', value: 0 }
+                case 'color':
+                    return { kind: 'color', value: [0, 0, 0, 0] }
+                case 'array':
+                    return {
+                        kind: 'array',
+                        value: compiled.value.map((item) =>
+                            this.#zeroCompiled(item)
+                        ),
+                    }
+                case 'object': {
+                    const object: Record<string, CompiledValue> = {}
+                    for (const [key, item] of Object.entries(compiled.value)) {
+                        object[key] = this.#zeroCompiled(item)
+                    }
+                    return { kind: 'object', value: object }
+                }
+                default:
+                    return compiled
+            }
+        }
+        #lerpNumber(start: number, end: number, t: number, rate: number) {
+            const cancelOut = start < end ? start : end
+            return (lerp(start, end, t) - cancelOut) * rate + cancelOut
+        }
+        #lerpCompiled(
+            start: CompiledValue,
+            end: CompiledValue,
+            t: number,
+            rate = 1
+        ): CompiledValue {
+            if (start.kind === 'number' && end.kind === 'number') {
+                return {
+                    kind: 'number',
+                    value: this.#lerpNumber(start.value, end.value, t, rate),
+                }
+            }
+            if (start.kind === 'color' && end.kind === 'color') {
+                const value: RGBA = [0, 0, 0, 0]
+                for (let idx = 0; idx < 4; idx++) {
+                    value[idx] = this.#lerpNumber(
+                        start.value[idx] ?? 0,
+                        end.value[idx] ?? 0,
+                        t,
+                        rate
+                    )
+                }
+                return { kind: 'color', value }
+            }
+            if (start.kind === 'array' && end.kind === 'array') {
+                return {
+                    kind: 'array',
+                    value: start.value.map((item, idx) =>
+                        this.#lerpCompiled(
+                            item,
+                            end.value[idx] ?? item,
+                            t,
+                            rate
+                        )
+                    ),
+                }
+            }
+            if (start.kind === 'object' && end.kind === 'object') {
+                const keys = new Set([
+                    ...Object.keys(start.value),
+                    ...Object.keys(end.value),
+                ])
+                const object: Record<string, CompiledValue> = {}
+                for (const key of keys) {
+                    const from = start.value[key]
+                    const to = end.value[key]
+                    object[key] = this.#lerpCompiled(
+                        from ?? to,
+                        to ?? from,
+                        t,
+                        rate
+                    )
+                }
+                return { kind: 'object', value: object }
+            }
+            return t >= 0.5 ? end : start
+        }
+        #addCompiled(
+            accumulator: CompiledValue,
+            addend: CompiledValue
+        ): CompiledValue {
+            if (accumulator.kind === 'number' && addend.kind === 'number') {
+                return {
+                    kind: 'number',
+                    value: accumulator.value + addend.value,
+                }
+            }
+            if (accumulator.kind === 'color' && addend.kind === 'color') {
+                const value: RGBA = [0, 0, 0, 0]
+                for (let idx = 0; idx < 4; idx++) {
+                    value[idx] =
+                        (accumulator.value[idx] ?? 0) + (addend.value[idx] ?? 0)
+                }
+                return { kind: 'color', value }
+            }
+            if (accumulator.kind === 'array' && addend.kind === 'array') {
+                return {
+                    kind: 'array',
+                    value: accumulator.value.map((item, idx) =>
+                        this.#addCompiled(item, addend.value[idx] ?? item)
+                    ),
+                }
+            }
+            if (accumulator.kind === 'object' && addend.kind === 'object') {
+                const keys = new Set([
+                    ...Object.keys(accumulator.value),
+                    ...Object.keys(addend.value),
+                ])
+                const object: Record<string, CompiledValue> = {}
+                for (const key of keys) {
+                    const from = accumulator.value[key]
+                    const to = addend.value[key]
+                    object[key] = this.#addCompiled(from ?? to, to ?? from)
+                }
+                return { kind: 'object', value: object }
+            }
+            if (accumulator.kind === 'discrete' && addend.kind === 'discrete') {
+                return accumulator.value === addend.value ? accumulator : addend
+            }
+            return addend
+        }
+        #normalizeBreakpointArity(breakPoints: CompiledValue[]) {
+            let maxLength = 0
+            for (const breakPoint of breakPoints) {
+                if (
+                    breakPoint.kind === 'array' &&
+                    breakPoint.value.length > maxLength
+                )
+                    maxLength = breakPoint.value.length
+            }
+            if (maxLength === 0) return
+            for (const breakPoint of breakPoints) {
+                if (
+                    breakPoint.kind !== 'array' ||
+                    breakPoint.value.length === 0
+                )
+                    continue
+                while (breakPoint.value.length < maxLength) {
+                    breakPoint.value.push(
+                        breakPoint.value[breakPoint.value.length - 1]
+                    )
+                }
+            }
+        }
         #generateAnimationId() {
             return String(new Date().getTime())
         }
@@ -166,83 +406,71 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
             const iterationStart = settings.iterationStart
 
             let maxBreakPointLen = 0
+            const nonAdditiveKeys: string[] = []
 
-            for (let [key, keyframe] of Object.entries(keyframeOptions)) {
+            for (const [key, keyframe] of Object.entries(keyframeOptions)) {
                 const obj = getPrototype(this, key)
                 if (!obj) continue
+
                 const currentObjValue = obj.value.call(this)
 
-                let validKeyframe = keyframe
-                let category
-
-                validKeyframe = keyframe.map((frameValue: any) =>
+                const breakPoints = keyframe.map((frameValue: any) =>
                     obj.value.call(this, frameValue)
                 )
                 obj.value.call(this, currentObjValue)
+
+                const compiled = breakPoints.map((value: any) =>
+                    this.#compileValue(value)
+                )
+                this.#normalizeBreakpointArity(compiled)
+
+                const currentKind = this.#detectValueKind(currentObjValue)
+                const category =
+                    currentKind !== 'unsupported'
+                        ? currentKind
+                        : this.#detectValueKind(breakPoints[0])
+
                 if (
-                    typeof validKeyframe[0] === 'string' &&
-                    (validKeyframe as any)[0].includes('rgba')
-                ) {
-                    validKeyframe = validKeyframe.map((i: any) =>
-                        rgbaToArray(i)
-                    )
-                    category = 'color'
-                }
+                    settings.composite !== 'replace' &&
+                    !this.#isAdditive(category)
+                )
+                    nonAdditiveKeys.push(key)
 
                 if (
                     settings.direction === 'reverse' ||
                     settings.direction === 'alternate-reverse'
                 )
-                    validKeyframe.reverse()
+                    compiled.reverse()
 
                 let iterDirection = 1
-                const idx = Math.round(
-                    iterationStart * (validKeyframe.length - 1)
+                const idx = Math.round(iterationStart * (compiled.length - 1))
+
+                const nextValue =
+                    compiled[idx + 1] ?? compiled[idx - 1] ?? compiled[idx]
+
+                const currentVal = this.#toRawValue(
+                    this.#lerpCompiled(compiled[idx], nextValue, iterationStart)
                 )
-                let currentVal: RGBA | number = 0
 
-                let nextValue = validKeyframe[idx]
-                if (validKeyframe[idx + 1] !== undefined)
-                    nextValue = validKeyframe[idx + 1]
-                else if (validKeyframe[idx - 1] !== undefined)
-                    nextValue = validKeyframe[idx - 1]
+                if (idx === compiled.length - 1) iterDirection *= -1
 
-                if (category === 'color') {
-                    const R =
-                        validKeyframe[idx][0] + nextValue[0] * iterationStart
-                    const G =
-                        validKeyframe[idx][1] + nextValue[1] * iterationStart
-
-                    const B =
-                        validKeyframe[idx][2] + nextValue[2] * iterationStart
-                    const A =
-                        validKeyframe[idx][3] + nextValue[3] * iterationStart
-                    currentVal = [R, G, B, A]
-                } else {
-                    currentVal = validKeyframe[idx] + nextValue * iterationStart
-                }
-
-                if (idx === validKeyframe.length - 1) iterDirection *= -1
-
-                if (validKeyframe.length > maxBreakPointLen)
-                    maxBreakPointLen = validKeyframe.length as number
-                const zeroAcc: RGBA | number =
-                    category === 'color' ? [0, 0, 0, 0] : 0
-                const underlyingValue: RGBA | number =
-                    category === 'color'
-                        ? rgbaToArray(currentObjValue as string)
-                        : (currentObjValue as number)
+                if (compiled.length > maxBreakPointLen)
+                    maxBreakPointLen = compiled.length
                 ;(this.#keyframes[animationId] ??= {})[key] = {
                     currentIdx: idx,
                     currentVal: currentVal,
-                    breakPoints: validKeyframe,
+                    breakPoints: compiled,
                     iterDirection: iterDirection,
                     category: category,
                     invoker: obj,
-                    underlyingValue: underlyingValue,
-                    accumulator: zeroAcc,
+                    underlyingValue:
+                        this.#detectValueKind(currentObjValue) !== 'unsupported'
+                            ? this.#compileValue(currentObjValue)
+                            : this.#zeroCompiled(compiled[0]),
+                    accumulator: this.#zeroCompiled(compiled[0]),
                 }
             }
+
             config['maxKeyframeLen'] = maxBreakPointLen
         }
         #keyframeParser(
@@ -295,6 +523,7 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     settings.iterations !== Infinity &&
                     config.iter === settings.iterations
                 ) {
+                    this.#applyFinalValues(animationId)
                     config.isFinished = true
                     config.isRunning = false
                     settings.onFinish()
@@ -311,125 +540,53 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
                 const keyframes = this.#keyframes[animationId]
 
-                for (let [, [, valueT]] of Object.entries(
-                    Object.entries(keyframes)
-                )) {
-                    const underlyingValue = valueT.underlyingValue
-                    const accumulator = valueT.accumulator
-
-                    let off =
-                        settings.composite === 'add'
-                            ? underlyingValue
-                            : settings.composite === 'accumulate'
-                              ? accumulator
-                              : undefined
-
-                    if (config.isFinished) {
-                        let lastIdx = valueT.breakPoints.length - 1
-                        const finalBreak = valueT.breakPoints[lastIdx]
-                        if (
-                            settings.direction === 'reverse' ||
-                            settings.direction === 'alternate-reverse'
-                        )
-                            lastIdx = 0
-
-                        if (valueT.category === 'color') {
-                            off = (off ?? [0, 0, 0, 0]) as RGBA
-                            valueT.invoker?.value.call(
-                                this,
-                                rgbaRepresenter([
-                                    finalBreak[0] + off[0],
-                                    finalBreak[1] + off[1],
-                                    finalBreak[2] + off[2],
-                                    finalBreak[3] + off[3],
-                                ])
-                            )
-                        } else {
-                            off = off ?? 0
-                            valueT.invoker?.value.call(this, finalBreak + off)
-                        }
-                        continue
-                    }
+                for (const valueT of Object.values(keyframes)) {
                     let currentIdx = valueT.currentIdx
-                    let iterDirection = valueT.iterDirection
-                    let nextIdx = currentIdx + iterDirection
+                    const iterDirection = valueT.iterDirection
+                    const nextIdx = currentIdx + iterDirection
 
-                    let startVal = valueT.breakPoints[currentIdx]
-                    let endVal = valueT.breakPoints[nextIdx]
-                    let currentVal = valueT.currentVal
+                    const startVal = valueT.breakPoints[currentIdx]
+                    const endVal = valueT.breakPoints[nextIdx] ?? startVal
 
-                    if (valueT.category === 'color') {
-                        const cancelOutR =
-                            startVal[0] < endVal[0] ? startVal[0] : endVal[0]
-                        const cancelOutG =
-                            startVal[1] < endVal[1] ? startVal[1] : endVal[1]
-                        const cancelOutB =
-                            startVal[2] < endVal[2] ? startVal[2] : endVal[2]
-                        const cancelOutA =
-                            startVal[3] < endVal[3] ? startVal[3] : endVal[3]
-                        const R =
-                            (lerp(startVal[0], endVal[0], parsedEasing) -
-                                cancelOutR) *
-                                settings.playbackRate +
-                            cancelOutR
-                        const G =
-                            (lerp(startVal[1], endVal[1], parsedEasing) -
-                                cancelOutG) *
-                                settings.playbackRate +
-                            cancelOutG
-                        const B =
-                            (lerp(startVal[2], endVal[2], parsedEasing) -
-                                cancelOutB) *
-                                settings.playbackRate +
-                            cancelOutB
-                        const A =
-                            (lerp(startVal[3], endVal[3], parsedEasing) -
-                                cancelOutA) *
-                                settings.playbackRate +
-                            cancelOutA
+                    const additive = this.#isAdditive(valueT.category)
+                    const off = !additive
+                        ? undefined
+                        : settings.composite === 'add'
+                          ? valueT.underlyingValue
+                          : settings.composite === 'accumulate'
+                            ? valueT.accumulator
+                            : undefined
 
-                        currentVal = [R, G, B, A]
-                        off = (off ?? [0, 0, 0, 0]) as RGBA
-                        valueT.invoker?.value.call(
-                            this,
-                            rgbaRepresenter([
-                                currentVal[0] + off[0],
-                                currentVal[1] + off[1],
-                                currentVal[2] + off[2],
-                                currentVal[3] + off[3],
-                            ])
+                    const currentVal = this.#lerpCompiled(
+                        startVal,
+                        endVal,
+                        parsedEasing,
+                        settings.playbackRate
+                    )
+
+                    valueT.invoker?.value.call(
+                        this,
+                        this.#toRawValue(
+                            off
+                                ? this.#addCompiled(currentVal, off)
+                                : currentVal
                         )
-                    } else {
-                        const cancelOut = startVal < endVal ? startVal : endVal
-                        const lerped =
-                            (lerp(startVal, endVal, parsedEasing) - cancelOut) *
-                                settings.playbackRate +
-                            cancelOut
-                        currentVal = lerped
-                        off = off ?? 0
-                        valueT.invoker?.value.call(this, currentVal + off)
-                    }
+                    )
+
                     if (segmentComplete) {
                         currentIdx += iterDirection
                         const lastIdx = valueT.breakPoints.length - 1
                         if (
                             currentIdx === lastIdx &&
-                            settings.composite === 'accumulate'
+                            settings.composite === 'accumulate' &&
+                            additive
                         ) {
-                            const endBp = valueT.breakPoints[
-                                iterDirection > 0 ? lastIdx : 0
-                            ] as RGBA | number
-                            if (valueT.category === 'color') {
-                                const eb = endBp as RGBA
-                                const acc = valueT.accumulator as RGBA
-                                acc[0] += eb[0]
-                                acc[1] += eb[1]
-                                acc[2] += eb[2]
-                                acc[3] += eb[3]
-                            } else {
-                                const acc = valueT.accumulator as number
-                                valueT.accumulator = acc + (endBp as number)
-                            }
+                            valueT.accumulator = this.#addCompiled(
+                                valueT.accumulator,
+                                valueT.breakPoints[
+                                    iterDirection > 0 ? lastIdx : 0
+                                ] ?? startVal
+                            )
                         }
                         if (
                             nextIdx === valueT.breakPoints.length - 1 ||
@@ -440,7 +597,6 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                                 settings.direction === 'reverse'
                             ) {
                                 currentIdx = 0
-                                currentVal = valueT.breakPoints[0]
                             } else if (
                                 settings.direction == 'alternate' ||
                                 settings.direction == 'alternate-reverse'
@@ -452,7 +608,7 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         valueT.currentIdx = currentIdx
                     }
 
-                    valueT.currentVal = currentVal
+                    valueT.currentVal = this.#toRawValue(currentVal)
                 }
 
                 if (segmentComplete) {
@@ -461,6 +617,7 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         settings.iterations !== Infinity &&
                         config.iter === settings.iterations
                     ) {
+                        this.#applyFinalValues(animationId)
                         config.isFinished = true
                         config.isRunning = false
                         settings.onFinish()
@@ -470,6 +627,43 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
                 this.__invokeChange()
             }
+        }
+        #applyFinalValues(animationId: AnimationId) {
+            const settings = this.#animationSettings[animationId]
+            const keyframes = this.#keyframes[animationId]
+            if (!keyframes) return
+
+            let hasApplied = false
+
+            for (const valueT of Object.values(keyframes)) {
+                const lastIdx = valueT.breakPoints.length - 1
+                const finalIdx =
+                    settings.direction === 'reverse' ||
+                    settings.direction === 'alternate-reverse'
+                        ? 0
+                        : lastIdx
+                const finalBreak = valueT.breakPoints[finalIdx]
+                if (finalBreak === undefined) continue
+
+                const additive = this.#isAdditive(valueT.category)
+                const off = !additive
+                    ? undefined
+                    : settings.composite === 'add'
+                      ? valueT.underlyingValue
+                      : settings.composite === 'accumulate'
+                        ? valueT.accumulator
+                        : undefined
+
+                valueT.invoker?.value.call(
+                    this,
+                    this.#toRawValue(
+                        off ? this.#addCompiled(finalBreak, off) : finalBreak
+                    )
+                )
+                hasApplied = true
+            }
+
+            if (hasApplied) this.__invokeChange()
         }
         animate(keyframes: AnimationKeyframe, callback?: CallbackAnimator) {
             const animationId = keyframes.id ?? this.#generateAnimationId()
