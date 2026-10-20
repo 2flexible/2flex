@@ -30,14 +30,17 @@ export interface ITextOptions extends IShapeOptions {
     editable?: boolean
     wrap?: Wrap
     onEditable?: (block: TextBlock) => void
+    caret?: boolean
 }
 type WalkFunc = (letterNode: LetterNode) => void
 
+const TEXT_EDITABLE_RUNNING_EVENT = 'text-editable'
 const TEXT_EDITING_RUNNING_EVENT = 'text-editing'
 const TEXT_HIGHLIGHT_COLOR = 'rgba(0, 13, 255, 0.47)'
 const CARET_LINE_HEIGHT_GAP = 10
 const CARET_LINE_COLOR = 'white'
 const CARET_LINE_WIDTH = 2
+const CARET_HOLD_DURATION = 500
 
 class LetterNode {
     prev?: LetterNode
@@ -77,6 +80,10 @@ export class TextBlock extends ShapeBlock {
     #dummyContext?: OffscreenCanvasRenderingContext2D | null
     #localBoundingBox: HotCornerArea
 
+    #caretAnimationId?: string
+    #caretAnimationRunning: boolean = false
+    #lastInteractionAt: number = 0
+
     constructor(options: ITextOptions) {
         super(options)
         this.#defineProperties()
@@ -111,26 +118,71 @@ export class TextBlock extends ShapeBlock {
         )
         this.addProperty('letterSpacing', 0)
         this.addProperty('lineHeight', 1)
+        this.addProperty('caret', true)
     }
 
     render(): void {
-        super.render()
         this.#handleRunningEditable()
+        super.render()
     }
 
     #handleRunningEditable() {
         const isEditable = this.__isRunningEventActive(
-            TEXT_EDITING_RUNNING_EVENT
+            TEXT_EDITABLE_RUNNING_EVENT
         )
         this.hotLines(!isEditable)
         if (isEditable) this.__selectCursor('auto')
+        this.#handleCaretAnimation(isEditable)
+    }
+
+    #handleCaretAnimation(editable?: boolean) {
+        this.#addCaretAnimation()
+        const animationId = this.#caretAnimationId
+        if (!animationId) return
+
+        if (!!editable !== this.#caretAnimationRunning) {
+            if (editable) this.animationStart(animationId)
+            else this.animationStop(animationId)
+            this.#caretAnimationRunning = !!editable
+        }
+        if (this.#caretAnimationRunning) this.#holdCaretVisible()
+    }
+    #holdCaretVisible() {
+        if (
+            this.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) &&
+            performance.now() - this.#lastInteractionAt >= CARET_HOLD_DURATION
+        )
+            this.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, false)
+        if (
+            this.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) &&
+            !this.caret()
+        )
+            this.caret(true)
+    }
+    #markEditing() {
+        this.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, true)
+        this.#lastInteractionAt = performance.now()
+    }
+    #clearEditing() {
+        this.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, false)
+    }
+    #addCaretAnimation() {
+        if (this.#caretAnimationId) return
+        this.#caretAnimationId = this.animate({
+            caret: [true, false],
+            duration: 1000,
+            iterations: Infinity,
+            autoStart: false,
+        } as any)
+        this.#caretAnimationRunning = false
     }
 
     draw(_func?: DrawFunc): void {
         this.#setFont()
         this.#buildWords()
         this.#updateLetterNodeCordinates()
-        this.#drawCaret()
+        const caret = this.getOptionCurrent('caret')
+        if (caret) this.#drawCaret()
         this.#drawTextHighlight()
         const context = this.context
         const color = this.color()
@@ -174,6 +226,7 @@ export class TextBlock extends ShapeBlock {
         this.#buildWords()
         this.#updateLetterNodeCordinates()
         this.#updateBoundingCords()
+        this.#addCaretAnimation()
     }
     #constructDummyContext() {
         const dummyCanvas = new DummyCanvas(this.width(), this.height())
@@ -449,7 +502,7 @@ export class TextBlock extends ShapeBlock {
         const context = this.context
         if (
             !context ||
-            !this.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) ||
+            !this.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT) ||
             this.#hasSelection() ||
             !this.#selectionFocus
         )
@@ -478,7 +531,7 @@ export class TextBlock extends ShapeBlock {
         const context = this.context
         if (
             !context ||
-            !this.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) ||
+            !this.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT) ||
             !this.#hasSelection()
         )
             return
@@ -731,8 +784,9 @@ export class TextBlock extends ShapeBlock {
         if (key === 'Enter') return this.#insertText('\n')
         if (key === 'Tab') return this.#insertText('    ')
         if (key === 'Escape') {
-            this.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, false)
+            this.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, false)
             this.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+            this.#clearEditing()
             this.#selectionAnchor = undefined
             this.#selectionFocus = undefined
             this.__resetCursor('auto')
@@ -794,8 +848,9 @@ export class TextBlock extends ShapeBlock {
                 block.__removeEvent('dblclick', block.#dbClickEvent)
             if (block.#keydownEvent)
                 block.__removeEvent('keydown', block.#keydownEvent)
-            block.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, false)
+            block.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, false)
             block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+            block.#clearEditing()
             block.#isDraggingSelection = false
             block.__resetCursor('auto')
             block.#dbClickEvent = undefined
@@ -819,27 +874,31 @@ export class TextBlock extends ShapeBlock {
                 if (block.__ImFirst()) {
                     block.#isDraggingSelection = false
                     block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                    block.__updateRunningEvent(TEXT_EDITING_RUNNING_EVENT, true)
+                    block.__updateRunningEvent(
+                        TEXT_EDITABLE_RUNNING_EVENT,
+                        true
+                    )
                     block.#selectionAnchor = block.#headLetterNode
                     block.#selectionFocus = block.#tailLetterNode
                     block.__invokeChange()
                 }
             }
             const mousedown = (event: MouseEvent) => {
-                if (block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)) {
+                if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
                     block.__registerZIndex()
                     if (!block.__ImFirst()) return
                     event.preventDefault()
                     const clicked = block.#checkLetterInBound(event)
                     if (!clicked) {
                         block.__updateRunningEvent(
-                            TEXT_EDITING_RUNNING_EVENT,
+                            TEXT_EDITABLE_RUNNING_EVENT,
                             false
                         )
                         block.__updateRunningEvent(
                             DRAGGABLE_RUNNING_EVENT,
                             false
                         )
+                        block.#clearEditing()
                         block.#selectionAnchor = undefined
                         block.#selectionFocus = undefined
                         block.#isDraggingSelection = false
@@ -865,7 +924,7 @@ export class TextBlock extends ShapeBlock {
             const mousemove = (event: MouseEvent) => {
                 if (
                     block.#isDraggingSelection &&
-                    block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT) &&
+                    block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
                 ) {
                     event.preventDefault()
@@ -874,6 +933,7 @@ export class TextBlock extends ShapeBlock {
                     if (clicked) {
                         block.#selectionFocus = clicked
                     }
+                    block.#markEditing()
                     block.__invokeChange()
                 }
             }
@@ -883,19 +943,23 @@ export class TextBlock extends ShapeBlock {
                     block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     block.__resetCursor('text')
                     if (
-                        block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)
+                        block.__isRunningEventActive(
+                            TEXT_EDITABLE_RUNNING_EVENT
+                        )
                     ) {
                         const clicked = block.#checkLetterInBound(event)
                         if (clicked) block.#selectionFocus = clicked
                         block.__invokeChange()
+                        block.#markEditing()
                     }
                 }
             }
             const keydown = (event: KeyboardEvent) => {
-                if (block.__isRunningEventActive(TEXT_EDITING_RUNNING_EVENT)) {
+                if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
                     event.preventDefault()
                     block.#keyMappingBehaviors(event)
                     block.onEditable()?.(block)
+                    block.#markEditing()
                     block.__invokeChange()
                 }
             }
@@ -904,6 +968,11 @@ export class TextBlock extends ShapeBlock {
             block.__addEvent('mousemove', mousemove)
             block.__addEvent('mouseup', mouseup)
             block.__addEvent('keydown', keydown)
+            block.#dbClickEvent = dbClick as any
+            block.#mousedownEvent = mousedown as any
+            block.#mouseMoveEvent = mousemove as any
+            block.#mouseUpEvent = mouseup as any
+            block.#keydownEvent = keydown as any
         }
     }
 }
