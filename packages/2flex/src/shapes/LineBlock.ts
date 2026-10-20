@@ -378,45 +378,48 @@ export class LineBlock extends ShapeBlock {
         super.updateCords()
         this.#adjsutBoundingBox()
     }
+    addControlPoint(point: ControlPoint, index: number) {
+        let foundPoint = this.#findPointNode((p) => p.id == index)
+        if (!foundPoint) foundPoint = this.#tailPointNode
+        const newPoint = this.#createPointNode(this.#nextPointId(), point)
+        this.#addPointAfter(newPoint, foundPoint)
+    }
+    removeControlPoint(index: number) {
+        const foundPoint = this.#findPointNode((p) => p.id == index)
+        if (foundPoint) this.#removePoint(foundPoint)
+    }
+    addControlPointToTail(point: ControlPoint) {
+        const newPoint = this.#createPointNode(this.#nextPointId(), point)
+        this.#addPointAfter(newPoint, this.#tailPointNode)
+    }
+    addControlPointToHead(point: ControlPoint) {
+        const newPoint = this.#createPointNode(this.#nextPointId(), point)
+        this.#addPointBefore(newPoint, this.#headPointNode)
+    }
+    removeControlPointTail() {
+        if (this.#tailPointNode) this.#removePoint(this.#tailPointNode)
+    }
+    removeControlPointHead() {
+        if (this.#headPointNode) this.#removePoint(this.#headPointNode)
+    }
     #buildPoints(points: ControlPoint[]) {
-        this.#resetPoints()
-        let id = 0
         for (let i = 0, len = points.length; i < len; i++) {
-            const point = points[i]
-            const controlPoint = new PointNode(id)
-            this.#addPointProperties(id)
-            this.#initPoints(id, point)
-            controlPoint.startX = point.startX
-            controlPoint.startY = point.startY
-            controlPoint.endX = point.endX
-            controlPoint.endY = point.endY
-
-            controlPoint.startControlX = point.startControlX
-            controlPoint.startControlY = point.startControlY
-            controlPoint.endControlX = point.endControlX
-            controlPoint.endControlY = point.endControlY
-
-            controlPoint.startDraggable = point.startDraggable
-            controlPoint.endDraggable = point.endDraggable
-            controlPoint.startControllable = point.startControllable
-            controlPoint.endControllable = point.endControllable
-
-            controlPoint.stickyStart = point.stickyStart
-            controlPoint.stickyEnd = point.stickyEnd
-
-            this.#stickyDependendBlocks(point)
+            const controlPoint = this.#createPointNode(i, points[i])
             this.#addPointAfter(controlPoint, this.#tailPointNode)
-            id += 1
         }
     }
     #resetPoints() {
-        this.#walkPointNodes((point) => {
-            const pointId = point.id!
-            this.#removePointProperties(pointId)
-            this.#headPointNode = undefined
-            this.#tailPointNode = undefined
-            this.#removeStickyDepenededBlock(point)
-        })
+        let node = this.#headPointNode
+        this.#headPointNode = undefined
+        this.#tailPointNode = undefined
+        while (node) {
+            const next = node.next
+            this.#removePointProperties(node.id!)
+            this.#removeStickyDependentBlock(node)
+            node.prev = undefined
+            node.next = undefined
+            node = next
+        }
     }
     #removePointProperties(id: number) {
         for (const key of CONTROLPOINT_PROPERTY_NAMES) {
@@ -424,17 +427,45 @@ export class LineBlock extends ShapeBlock {
             this.removeProperty(propertyName)
         }
     }
-    #removeStickyDepenededBlock(point: PointNode) {
+    #removeStickyDependentBlock(point: PointNode) {
         const stickyStart = point.stickyStart
         const stickyEnd = point.stickyEnd
         if (stickyStart) stickyStart.block.removeDependency(this)
         if (stickyEnd) stickyEnd.block.removeDependency(this)
     }
-    #stickyDependendBlocks(point: ControlPoint) {
+    #stickyDependentBlocks(point: ControlPoint) {
         const stickyStart = point.stickyStart
         const stickyEnd = point.stickyEnd
         if (stickyStart) stickyStart.block.addDependecy(this)
         if (stickyEnd) stickyEnd.block.addDependecy(this)
+    }
+    #createPointNode(id: number, point: ControlPoint): PointNode {
+        const controlPoint = new PointNode(id)
+        this.#addPointProperties(id)
+        this.#initPoints(id, point)
+        controlPoint.startX = point.startX
+        controlPoint.startY = point.startY
+        controlPoint.endX = point.endX
+        controlPoint.endY = point.endY
+        controlPoint.startControlX = point.startControlX
+        controlPoint.startControlY = point.startControlY
+        controlPoint.endControlX = point.endControlX
+        controlPoint.endControlY = point.endControlY
+        controlPoint.startDraggable = point.startDraggable
+        controlPoint.endDraggable = point.endDraggable
+        controlPoint.startControllable = point.startControllable
+        controlPoint.endControllable = point.endControllable
+        controlPoint.stickyStart = point.stickyStart
+        controlPoint.stickyEnd = point.stickyEnd
+        this.#stickyDependentBlocks(point)
+        return controlPoint
+    }
+    #nextPointId(): number {
+        let maxId = -1
+        this.#walkPointNodes((point) => {
+            if (point.id !== undefined && point.id > maxId) maxId = point.id
+        })
+        return maxId + 1
     }
     #initPoints(id: number, point: ControlPoint) {
         for (const key of CONTROLPOINT_PROPERTY_NAMES) {
@@ -445,6 +476,7 @@ export class LineBlock extends ShapeBlock {
 
     #controlPoints(block: LineBlock, opt?: ControlPoint[]) {
         if (opt !== undefined) {
+            block.#resetPoints()
             block.#buildPoints(opt)
         }
     }
@@ -547,19 +579,23 @@ export class LineBlock extends ShapeBlock {
     #addPointAfter(point: PointNode, tail?: PointNode) {
         if (tail) {
             point.next = tail.next
+            if (point.next) point.next.prev = point
             tail.next = point
             point.prev = tail
         }
         if (!this.#headPointNode) this.#headPointNode = point
         if (!this.#tailPointNode) this.#tailPointNode = point
         if (this.#tailPointNode === tail) {
-            // if (this.#tailPointNode) this.#tailPointNode.next = point
             this.#tailPointNode = point
         }
     }
-    #addPointBefore(point: PointNode, head: PointNode) {
-        point.next = head
-        if (head) head.prev = point
+    #addPointBefore(point: PointNode, head?: PointNode) {
+        if (head) {
+            if (head.prev) head.prev.next = point
+            point.next = head
+            point.prev = head.prev
+            head.prev = point
+        }
         if (!this.#headPointNode) this.#headPointNode = point
         if (!this.#tailPointNode) this.#tailPointNode = point
         if (this.#headPointNode === head) {
@@ -570,21 +606,32 @@ export class LineBlock extends ShapeBlock {
         let head = this.#headPointNode
         if (!head) return
         if (head === point) {
-            this.#headPointNode = this.#headPointNode?.next
+            const nextHead = this.#headPointNode?.next
+            if (nextHead) nextHead.prev = undefined
+            this.#headPointNode = nextHead
+            if (this.#tailPointNode === point) this.#tailPointNode = undefined
+            point.prev = undefined
+            point.next = undefined
             return
         }
-        while (head.next && head !== point) {
+        while (head && head !== point) {
             head = head.next
         }
-        const next_letter = head.next
-        const previus_letter = head.prev
-        if (next_letter) next_letter.prev = previus_letter
-        if (previus_letter) previus_letter.next = next_letter
+        if (!head) return
+        const nextLetter = head.next
+        const previusLetter = head.prev
+        if (nextLetter) nextLetter.prev = previusLetter
+        if (previusLetter) previusLetter.next = nextLetter
+        if (this.#tailPointNode === point) this.#tailPointNode = previusLetter
+        point.prev = undefined
+        point.next = undefined
     }
     #findPointNode(statementFunc: (pointNode: PointNode) => boolean) {
         let pointNode: undefined | PointNode = this.#headPointNode
         while (pointNode) {
-            if (statementFunc(pointNode)) break
+            if (statementFunc(pointNode)) {
+                return pointNode
+            }
             pointNode = pointNode.next
         }
     }
