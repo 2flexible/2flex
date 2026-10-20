@@ -27,6 +27,7 @@ export interface ITextOptions extends IShapeOptions {
     fontWeight?: FontWeight
     fontStyle?: FontStyle
     fontVariant?: FontVariant
+    lineHeight?: RelativeType
     editable?: boolean
     wrap?: Wrap
     onEditable?: (block: TextBlock) => void
@@ -50,11 +51,15 @@ class LetterNode {
     y: number
     width: number
     height: number
+    descent: number
+    line: number
     constructor(letter: string) {
         this.x = 0
         this.y = 0
         this.width = 0
         this.height = 0
+        this.descent = 0
+        this.line = 0
         this.letter = letter
     }
 }
@@ -68,6 +73,7 @@ export class TextBlock extends ShapeBlock {
     #words?: {
         [key: string]: { width: number; height: number }
     }
+    #wordsFontKey?: string
 
     #dbClickEvent?: CustomEvent<Event>
     #mousedownEvent?: CustomEvent<Event>
@@ -117,7 +123,14 @@ export class TextBlock extends ShapeBlock {
             (block: TextBlock, opt: boolean) => this.#editable(block, opt)
         )
         this.addProperty('letterSpacing', 0)
-        this.addProperty('lineHeight', 1)
+        this.addProperty(
+            'lineHeight',
+            0,
+            false,
+            undefined,
+            (block: TextBlock, val?: RelativeType) =>
+                block.#parseLineHeight(val)
+        )
         this.addProperty('caret', true)
     }
 
@@ -215,6 +228,22 @@ export class TextBlock extends ShapeBlock {
     }
     get #formatedFont() {
         return `${this.fontStyle()} ${this.fontVariant()} ${this.fontWeight()} ${this.fontSize()}px ${this.fontFamily()}`
+    }
+    get #lineHeightPx() {
+        return (this.fontSize() || 0) * (this.lineHeight() ?? 1)
+    }
+    #parseLineHeight(val?: RelativeType): number | undefined {
+        if (val === undefined) return undefined
+        if (typeof val === 'number')
+            return Number.isFinite(val) ? val : undefined
+        const trimmed = String(val).trim()
+        if (trimmed === '') return undefined
+        if (trimmed.endsWith('%')) {
+            const num = Number(trimmed.slice(0, -1))
+            return Number.isFinite(num) ? num / 100 : undefined
+        }
+        const num = Number(trimmed)
+        return Number.isFinite(num) ? num : undefined
     }
     get #activeContext() {
         return this.context || this.#dummyContext
@@ -326,6 +355,7 @@ export class TextBlock extends ShapeBlock {
     #text(block: TextBlock, text?: string) {
         if (text === undefined) return
         block.#words = undefined
+        block.#wordsFontKey = undefined
         const splitedText = text.split('')
         for (let i = 0, len = splitedText.length; i < len; i++) {
             block.#addLetter(splitedText[i], block.#tailLetterNode)
@@ -364,11 +394,13 @@ export class TextBlock extends ShapeBlock {
         if (previus_letter) previus_letter.next = next_letter
     }
     #buildWords() {
-        if (this.#words !== undefined) return
-        const letterSpacing = this.letterSpacing()
-        const lineHeight = this.lineHeight()
+        const letterSpacing = this.letterSpacing() ?? 0
+        const fontKey = `${this.#formatedFont}|${letterSpacing}`
+        if (this.#words !== undefined && this.#wordsFontKey === fontKey) return
         this.#words = {}
+        this.#wordsFontKey = fontKey
         const words = this.#words
+        const lineHeightPx = this.#lineHeightPx
         let word = ''
         this.#walkLetterNodes((letterNode) => {
             word += letterNode.letter
@@ -382,7 +414,7 @@ export class TextBlock extends ShapeBlock {
                 const wordHeight =
                     (measure?.actualBoundingBoxAscent ||
                         measure?.fontBoundingBoxAscent ||
-                        0) + lineHeight
+                        0) + lineHeightPx
                 words[word] = {
                     width: wordWidth,
                     height: wordHeight,
@@ -412,8 +444,8 @@ export class TextBlock extends ShapeBlock {
         const absoluteWidth = Math.abs(width)
         const x = this.x()
         const y = this.y()
-        const letterSpacing = this.letterSpacing()
-        const lineHeight = this.lineHeight()
+        const letterSpacing = this.letterSpacing() ?? 0
+        const lineHeightPx = this.#lineHeightPx
         const addW = this.horizontalFlip() ? width : 0
         const addH = this.verticalFlip() ? height : 0
         const words = Object.entries(this.#words ?? {})
@@ -423,13 +455,20 @@ export class TextBlock extends ShapeBlock {
         let yPos = y
         let wrapW = 0
         let wrapH = 0
-        this.#walkLetterNodes((letter: LetterNode) => {
-            if (!letter.letter) return
+        let node: LetterNode | undefined = this.#headLetterNode
+        while (node) {
+            const letter = node
+            node = node.next
+            if (!letter.letter) continue
             const measure = this.measureText(letter.letter)
             letter.width = (measure?.width ?? 0) + letterSpacing
             letter.height =
                 measure?.actualBoundingBoxAscent ||
                 measure?.fontBoundingBoxAscent ||
+                0
+            letter.descent =
+                measure?.actualBoundingBoxDescent ||
+                measure?.fontBoundingBoxDescent ||
                 0
             wrapW += letter.width
             if (
@@ -446,13 +485,12 @@ export class TextBlock extends ShapeBlock {
                 if (currentWord && wrapW + currentWord[1].width > absoluteWidth)
                     wrapW += currentWord[1].width
             }
-
             if (letter.height > wrapH && letter.letter !== ' ')
-                wrapH = letter.height + lineHeight
+                wrapH = letter.height + lineHeightPx
             letter.x = xPos + addW
             letter.y = yPos + wrapH + addH
             xPos += letter.width
-        })
+        }
     }
     #checkLetterInBound(event: MouseEvent) {
         let { x, y } = this.canvas?.getCursorPosition(event)!
