@@ -27,28 +27,42 @@ export class Block extends OverflowBlock(
         )
     )
 ) {
+    #userOnRender?: onRender
+    #onRenderWrapper?: onRender
     constructor(options: IBlockOptions) {
         super(options)
         this.addProperty(
             'onRender',
             undefined,
             false,
-            (block: BaseBlock, opt?: onRender) => this.#onRender(block, opt)
+            (block: Block, opt?: onRender) => this.#onRender(block, opt)
         )
     }
     render() {
         super.render()
         this.__childClipping?.(this)
     }
-    #onRender(thisBlock: BaseBlock, opt?: onRender) {
-        const onRender = (block: any) => {
-            thisBlock.context?.save()
-            // need to clip child before restore if its exist
-            block.__childClipping?.(thisBlock)
-            opt?.(block)
-            thisBlock.context?.restore()
+    #onRender(thisBlock: Block, opt?: onRender) {
+        // getter call returns already wrapped value, so it must not be
+        // registered as a new user callback or it would wrap itself forever
+        if (opt !== undefined && opt !== thisBlock.#onRenderWrapper)
+            thisBlock.#userOnRender = opt
+
+        if (thisBlock.#onRenderWrapper === undefined) {
+            thisBlock.#onRenderWrapper = (block: any) => {
+                thisBlock.context?.save()
+                // need to clip child before restore if its exist
+                block.__childClipping?.(thisBlock)
+                thisBlock.#userOnRender?.(block)
+                thisBlock.context?.restore()
+            }
         }
-        thisBlock.setOptionCurrent('onRender', onRender)
+        // set() writes the raw option value back, so wrapper always must be stored
+        if (
+            thisBlock.getOptionCurrent('onRender') !==
+            thisBlock.#onRenderWrapper
+        )
+            thisBlock.setOptionCurrent('onRender', thisBlock.#onRenderWrapper)
     }
     updateChildsCordinate(): void {
         const blockHorizontalFlip = this.horizontalFlip()
