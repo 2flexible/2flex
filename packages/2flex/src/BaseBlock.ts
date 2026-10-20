@@ -64,6 +64,7 @@ export type PaddingType = ShortHandRelativeType
 export type FlexBasis = RelativeType | 'auto'
 export type SelfType = 'self' | 'parent'
 export type onRender = (block: BaseBlock) => void
+export type Dependencies = BaseBlock[]
 
 export interface IBaseBlockOptions {
     [key: string]: any
@@ -123,6 +124,7 @@ export interface IBaseBlockOptions {
     // grid-area: grid-row-start / grid-column-start / grid-row-end / grid-column-end | itemname
     // gridArea?: number[]
     onRender?: onRender
+    dependencies?: Dependencies
 }
 type BlockOptionKeys = keyof IBaseBlockOptions
 
@@ -193,6 +195,7 @@ export class BaseBlock extends Node {
     #pending: Pending
     #runningEvents: RunningEvents
     #bindOptions: BindOptions[]
+    #dependendBlocks: Set<BaseBlock>
 
     constructor(options: IBaseBlockOptions) {
         super()
@@ -212,6 +215,7 @@ export class BaseBlock extends Node {
         this.__childsContainer = { width: 0, height: 0 }
 
         this.#bindOptions = []
+        this.#dependendBlocks = new Set()
 
         this.#runningEvents = {}
 
@@ -357,6 +361,13 @@ export class BaseBlock extends Node {
         // this.addProperty('gridColumnEnd', 0)
         // this.addProperty('gridArea', [])
         this.addProperty('onRender', undefined)
+        this.addProperty(
+            'dependencies',
+            [],
+            false,
+            (block: BaseBlock, opt: Dependencies) =>
+                this.#dependency(block, opt)
+        )
     }
     #updateOptionsCache() {
         const options = this.options
@@ -629,6 +640,16 @@ export class BaseBlock extends Node {
             block.__refreshHeadBlock()
         }
         block.#order = order
+    }
+    #dependency(block: BaseBlock, dependencies: Dependencies) {
+        if (dependencies) block.#dependendBlocks = new Set(dependencies)
+    }
+    #invokeDependencies() {
+        const canvas = this.canvas
+        if (!canvas) return
+        for (const dependend of this.#dependendBlocks) {
+            canvas.demandInvoke(dependend)
+        }
     }
     updateCordinates() {
         let currentX = this.getOptionCurrent('x')
@@ -964,20 +985,23 @@ export class BaseBlock extends Node {
         func?: (block: any, opt?: any) => void,
         valueConverter?: ValueConverterFunc<any, any>
     ): void {
-        ;(this.constructor.prototype as Record<string, any>)[method] = function (
-            this: BaseBlock,
-            opt?: any
-        ) {
-            const value = this.__valueHandler(
-                opt,
-                method,
-                defaultValue,
-                widthRelated,
-                valueConverter
-            )
-            func?.(this, value)
-            return value
-        }
+        ;(this.constructor.prototype as Record<string, any>)[method] =
+            function (this: BaseBlock, opt?: any) {
+                const value = this.__valueHandler(
+                    opt,
+                    method,
+                    defaultValue,
+                    widthRelated,
+                    valueConverter
+                )
+                func?.(this, value)
+                return value
+            }
+    }
+    removeProperty(method: string): void {
+        delete (this.constructor.prototype as Record<string, any>)[method]
+        this.options.delete(method as BlockOptionKeys)
+        this.cacheOptions.delete(method as BlockOptionKeys)
     }
     getOptionCache(key: string) {
         return this.cacheOptions.get(key)
@@ -1049,7 +1073,6 @@ export class BaseBlock extends Node {
                 val: currentValue,
                 widthRelated: widthRelated,
             })
-
         } else currentValue = valueConverter?.(this, currentValue)
         return this.__cacheOption(currentValue, option, defaultOpt)
     }
@@ -1201,6 +1224,7 @@ export class BaseBlock extends Node {
             this.parentNode?.__invokeChange()
             return
         }
+        this.#invokeDependencies()
         this.canvas?.demandInvoke(this)
     }
     __selectCursor(cursor: string) {
@@ -1309,6 +1333,12 @@ export class BaseBlock extends Node {
             this.__invokeHistory(before, after)
             this.__invokeChange()
         }
+    }
+    addDependecy(block: BaseBlock) {
+        this.#dependendBlocks.add(block)
+    }
+    removeDependency(block: BaseBlock) {
+        this.#dependendBlocks.delete(block)
     }
     bindTo(block: BaseBlock, options: BlockOptionKeys[]) {
         block.#bindOptions.push({ block: block, options: options })
