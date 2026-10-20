@@ -1,5 +1,5 @@
 import { DrawFunc, FillStyle, IShapeOptions, ShapeBlock } from '../ShapeBlock'
-import { cubicBezier, getPrototype, stationaryPoints } from '../Utils'
+import { getPrototype, stationaryPoints } from '../Utils'
 import type { RelativeType } from '../types'
 import type { Block } from '../Block'
 import {
@@ -9,10 +9,10 @@ import {
     ROTATABLE_RUNNING_EVENT,
 } from '../const'
 
-interface StickyLine {
+interface StickTo {
     block: Block
-    x: number
-    y: number
+    x?: number
+    y?: number
 }
 
 interface ControlPoint {
@@ -29,6 +29,8 @@ interface ControlPoint {
     endDraggable?: boolean
     startControllable?: boolean
     endControllable?: boolean
+    stickyStart?: StickTo
+    stickyEnd?: StickTo
 }
 
 class PointNode {
@@ -47,6 +49,8 @@ class PointNode {
     endDraggable?: boolean
     startControllable?: boolean
     endControllable?: boolean
+    stickyStart?: StickTo
+    stickyEnd?: StickTo
     constructor(id: number) {
         this.id = id
     }
@@ -61,9 +65,6 @@ export interface ILineOptions extends IShapeOptions {
     closeLine?: boolean
     controlPointsSize?: RelativeType
     editable?: boolean
-    // @TODO: can be expilicity assing to a point
-    stickStart?: StickyLine
-    stickEnd?: StickyLine
 }
 type CustomPointEvents = {
     [key: string]: {
@@ -84,6 +85,23 @@ const END_DRAGGABLE_PATH = 'endDraggable'
 const START_CONTROLLABLE_PATH = 'startControllable'
 const END_CONTROLLABLE_PATH = 'endControllable'
 
+const CONTROLPOINT_PROPERTY_NAMES = [
+    'startX',
+    'startY',
+    'endX',
+    'endY',
+    'startControlX',
+    'startControlY',
+    'endControlX',
+    'endControlY',
+    'startDraggable',
+    'endDraggable',
+    'startControllable',
+    'endControllable',
+    'stickyStart',
+    'stickyEnd',
+]
+
 export class LineBlock extends ShapeBlock {
     // @TODO: we should hide the paths also
     path?: Path2D
@@ -103,28 +121,6 @@ export class LineBlock extends ShapeBlock {
     #cacheHeight?: number
 
     #points: { x: number[]; y: number[] } = { x: [], y: [] }
-    __stickyStartBlock: {
-        x?: number
-        y?: number
-        width?: number
-        height?: number
-    } = {
-        x: undefined,
-        y: undefined,
-        width: undefined,
-        height: undefined,
-    }
-    __stickyEndBlock: {
-        x?: number
-        y?: number
-        width?: number
-        height?: number
-    } = {
-        x: undefined,
-        y: undefined,
-        width: undefined,
-        height: undefined,
-    }
 
     constructor(options: ILineOptions) {
         super(options)
@@ -141,8 +137,8 @@ export class LineBlock extends ShapeBlock {
             (block: LineBlock, opt: ControlPoint[]) =>
                 this.#controlPoints(block, opt)
         )
-        this.addProperty('stickStart', undefined)
-        this.addProperty('stickEnd', undefined)
+        this.addProperty('stickyStart', undefined)
+        this.addProperty('stickyEnd', undefined)
         this.addProperty('controlPointsSize', CONTROLS_POINT_SIZE)
         this.addProperty('controlLineWidth', CONTROLS_LINE_WIDTH)
         this.addProperty(
@@ -202,7 +198,6 @@ export class LineBlock extends ShapeBlock {
     }
     updateCordinates(): void {
         super.updateCordinates()
-        this.#handleSticky()
         const currentX = this.getOptionCurrent('x')
         const currentY = this.getOptionCurrent('y')
         const currentWidth = this.getOptionCurrent('width')
@@ -214,6 +209,9 @@ export class LineBlock extends ShapeBlock {
         let endDiffY: number
         this.#walkPointNodes((point: PointNode) => {
             const pointId = point.id!
+            const stickyStart = this.#getCurrentPoint('stickyStart', pointId)
+            const sticktEnd = this.#getCurrentPoint('stickyEnd', pointId)
+
             let startX = this.#getCurrentPoint('startX', pointId)
             let cacheStartX = this.#getCachePoint('startX', pointId)
             let startY = this.#getCurrentPoint('startY', pointId)
@@ -283,7 +281,6 @@ export class LineBlock extends ShapeBlock {
                 this.#setCurrentPoint('endControlY', pointId, endY)
                 cacheEndControlY = endY
             }
-
             const diffX = currentX - cacheX!
             const diffY = currentY - cacheY!
             const diffW = currentWidth - cacheWidth!
@@ -304,6 +301,20 @@ export class LineBlock extends ShapeBlock {
             } else {
                 startY += dY
                 endY += diffY
+            }
+
+            if (stickyStart !== undefined) {
+                const currX = stickyStart.block?.getOptionCurrent('x')
+                const currY = stickyStart.block?.getOptionCurrent('y')
+                startX = currX + (stickyStart.x ?? 0)
+                startY = currY + (stickyStart.y ?? 0)
+            }
+
+            if (sticktEnd !== undefined) {
+                const currX = sticktEnd.block?.getOptionCurrent('x')
+                const currY = sticktEnd.block?.getOptionCurrent('y')
+                endX = currX + (sticktEnd.x ?? 0)
+                endY = currY + (sticktEnd.y ?? 0)
             }
 
             const startXDiff = endDiffX ?? startX - cacheStartX
@@ -348,6 +359,7 @@ export class LineBlock extends ShapeBlock {
             if (prevEndY !== undefined) {
                 this.#setCurrentPoint('startY', pointId, prevEndY)
             } else this.#setCurrentPoint('startY', pointId, startY)
+
             this.#setCurrentPoint('endX', pointId, endX)
             this.#setCurrentPoint('endY', pointId, endY)
             prevEndX = cacheEndX
@@ -367,6 +379,7 @@ export class LineBlock extends ShapeBlock {
         this.#adjsutBoundingBox()
     }
     #buildPoints(points: ControlPoint[]) {
+        this.#resetPoints()
         let id = 0
         for (let i = 0, len = points.length; i < len; i++) {
             const point = points[i]
@@ -387,26 +400,44 @@ export class LineBlock extends ShapeBlock {
             controlPoint.endDraggable = point.endDraggable
             controlPoint.startControllable = point.startControllable
             controlPoint.endControllable = point.endControllable
+
+            controlPoint.stickyStart = point.stickyStart
+            controlPoint.stickyEnd = point.stickyEnd
+
+            this.#stickyDependendBlocks(point)
             this.#addPointAfter(controlPoint, this.#tailPointNode)
             id += 1
         }
     }
+    #resetPoints() {
+        this.#walkPointNodes((point) => {
+            const pointId = point.id!
+            this.#removePointProperties(pointId)
+            this.#headPointNode = undefined
+            this.#tailPointNode = undefined
+            this.#removeStickyDepenededBlock(point)
+        })
+    }
+    #removePointProperties(id: number) {
+        for (const key of CONTROLPOINT_PROPERTY_NAMES) {
+            const propertyName = this.#formatPointName(key, id)
+            this.removeProperty(propertyName)
+        }
+    }
+    #removeStickyDepenededBlock(point: PointNode) {
+        const stickyStart = point.stickyStart
+        const stickyEnd = point.stickyEnd
+        if (stickyStart) stickyStart.block.removeDependency(this)
+        if (stickyEnd) stickyEnd.block.removeDependency(this)
+    }
+    #stickyDependendBlocks(point: ControlPoint) {
+        const stickyStart = point.stickyStart
+        const stickyEnd = point.stickyEnd
+        if (stickyStart) stickyStart.block.addDependecy(this)
+        if (stickyEnd) stickyEnd.block.addDependecy(this)
+    }
     #initPoints(id: number, point: ControlPoint) {
-        const keys = [
-            'startX',
-            'startY',
-            'endX',
-            'endY',
-            'startControlX',
-            'startControlY',
-            'endControlX',
-            'endControlY',
-            'startDraggable',
-            'endDraggable',
-            'startControllable',
-            'endControllable',
-        ]
-        for (const key of keys) {
+        for (const key of CONTROLPOINT_PROPERTY_NAMES) {
             const propertyName = this.#formatPointName(key, id)
             getPrototype(this, propertyName)?.value.call(this, point[key])
         }
@@ -443,6 +474,8 @@ export class LineBlock extends ShapeBlock {
             END_CONTROLLABLE_PATH,
             id
         )
+        const stickyStart = this.#formatPointName('stickyStart', id)
+        const stickyEnd = this.#formatPointName('stickyEnd', id)
 
         this.addProperty(startX, undefined, true)
         this.addProperty(startY, undefined)
@@ -508,6 +541,8 @@ export class LineBlock extends ShapeBlock {
                     endControllablePath
                 )
         )
+        this.addProperty(stickyStart, undefined)
+        this.addProperty(stickyEnd, undefined)
     }
     #addPointAfter(point: PointNode, tail?: PointNode) {
         if (tail) {
@@ -975,61 +1010,8 @@ export class LineBlock extends ShapeBlock {
         })
         context.restore()
     }
-    #handleSticky() {
-        const stickyStart = this.stickStart()
-        const stickyEnd = this.stickEnd()
-        if (stickyStart !== undefined) {
-            if (this.__stickyStartBlock.x !== undefined) {
-                stickyStart.x +=
-                    stickyStart.block.x() - this.__stickyStartBlock.x
-            }
-            if (this.__stickyStartBlock.y !== undefined) {
-                stickyStart.y +=
-                    stickyStart.block.y() - this.__stickyStartBlock.y
-            }
 
-            if (this.__stickyStartBlock.width !== undefined) {
-                stickyStart.x +=
-                    stickyStart.block.width() - this.__stickyStartBlock.width
-            }
-            if (this.__stickyStartBlock.height !== undefined) {
-                stickyStart.y +=
-                    stickyStart.block.height() - this.__stickyStartBlock.height
-            }
-            this.__stickyStartBlock.x = stickyStart.block.x()
-            this.__stickyStartBlock.y = stickyStart.block.y()
-            this.__stickyStartBlock.width = stickyStart.block.width()
-            this.__stickyStartBlock.height = stickyStart.block.height()
-
-            this.startX(stickyStart.x)
-            this.startY(stickyStart.y)
-        }
-        if (stickyEnd !== undefined) {
-            if (this.__stickyEndBlock.x !== undefined) {
-                stickyEnd.x += stickyEnd.block.x() - this.__stickyEndBlock.x
-            }
-            if (this.__stickyEndBlock.y !== undefined) {
-                stickyEnd.y += stickyEnd.block.y() - this.__stickyEndBlock.y
-            }
-            if (this.__stickyEndBlock.width !== undefined) {
-                stickyEnd.x +=
-                    stickyEnd.block.width() - this.__stickyEndBlock.width
-            }
-            if (this.__stickyEndBlock.height !== undefined) {
-                stickyEnd.y +=
-                    stickyEnd.block.height() - this.__stickyEndBlock.height
-            }
-            this.__stickyEndBlock.x = stickyEnd.block.x()
-            this.__stickyEndBlock.y = stickyEnd.block.y()
-            this.__stickyEndBlock.width = stickyEnd.block.width()
-            this.__stickyEndBlock.height = stickyEnd.block.height()
-
-            this.endX(stickyEnd.x)
-            this.endY(stickyEnd.y)
-        }
-    }
-
-#pathInBound(x: number, y: number, path: Path2D, lineWidth?: number) {
+    #pathInBound(x: number, y: number, path: Path2D, lineWidth?: number) {
         const context = this.context
         if (!context || !path) return false
         const centerX = this.rotationCenterX()
