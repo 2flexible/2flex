@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 import { Block, Canvas } from '@2flexible/2flex'
 import { rgbaToArray } from '../../Utils'
@@ -8,6 +8,7 @@ import {
 } from '../../const'
 
 let block: Block
+let childBlock: Block
 let canvas: Canvas
 
 // the canvas applies every queued change (block init, option recalculation,
@@ -54,6 +55,20 @@ const dispatchMouse = (
             cancelable: true,
         })
     )
+}
+
+// makes a block paint its own box, so what ends up on the canvas can be
+// asserted by screenshot
+const drawFilledBlock = (block: Block) => {
+    block.set({
+        onRender: () => {
+            const context = block.context
+            if (!context) return
+            context.beginPath()
+            context.fillStyle = 'red'
+            context.fillRect(block.x(), block.y(), block.width(), block.height())
+        },
+    })
 }
 
 describe('Block', () => {
@@ -695,10 +710,299 @@ describe('Block', () => {
                 width: 40,
                 height: 50,
             })
+            drawFilledBlock(childBlock)
             block.addChild(childBlock)
             canvas.add(block)
             await flush()
             expect(childBlock.hidden()).toBe(true)
+            // a hidden block is not painted at all
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'child-not-drawn-while-parent-is-hidden'
+            )
+        })
+        it('should draw child block of a visible parent', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+            })
+            const childBlock = new Block({
+                x: 20,
+                y: 20,
+                width: 40,
+                height: 50,
+            })
+            drawFilledBlock(childBlock)
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            expect(childBlock.hidden()).toBe(false)
+            // the child is laid out by its parent and painted on top of it
+            expect([childBlock.x(), childBlock.y()]).toStrictEqual([70, 90])
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'child-drawn-while-parent-is-visible'
+            )
+        })
+        it('should show a child which is hidden on its own', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+            })
+            const childBlock = new Block({
+                width: 40,
+                height: 50,
+                hidden: true,
+            })
+            drawFilledBlock(childBlock)
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            // visibility always comes from the parent, so the child is drawn
+            expect(childBlock.hidden()).toBe(false)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'child-hidden-by-itself-is-drawn'
+            )
+        })
+    })
+    describe('child layout', () => {
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            await flush()
+        })
+        it('should wrap childs into a new row when parent runs out of width', async () => {
+            block = new Block({ x: 0, y: 0, width: 100, height: 100 })
+            const childBlocks = [
+                new Block({ width: 40, height: 20 }),
+                new Block({ width: 40, height: 20 }),
+                new Block({ width: 40, height: 20 }),
+            ]
+            childBlocks.forEach((child) => block.addChild(child))
+            canvas.add(block)
+            await flush()
+            // two of them fit into a row, the third one starts a new row
+            expect([
+                [childBlocks[0].x(), childBlocks[0].y()],
+                [childBlocks[1].x(), childBlocks[1].y()],
+                [childBlocks[2].x(), childBlocks[2].y()],
+            ]).toStrictEqual([
+                [0, 0],
+                [40, 0],
+                [0, 20],
+            ])
+            expect(block.__childsContainer).toStrictEqual({
+                width: 80,
+                height: 40,
+            })
+        })
+        it('should measure childs container with their margins', async () => {
+            block = new Block({ x: 0, y: 0, width: 400, height: 400 })
+            const childBlocks = [
+                new Block({ width: 100, height: 40 }),
+                new Block({ width: 130, height: 40, margin: 30 }),
+                new Block({ width: 100, height: 40 }),
+            ]
+            childBlocks.forEach((child) => block.addChild(child))
+            canvas.add(block)
+            await flush()
+            expect([
+                [childBlocks[0].x(), childBlocks[0].y()],
+                [childBlocks[1].x(), childBlocks[1].y()],
+                [childBlocks[2].x(), childBlocks[2].y()],
+            ]).toStrictEqual([
+                [0, 0],
+                [130, 30],
+                [290, 0],
+            ])
+            // margins belong to the space a child takes in the parent
+            expect(block.__childsContainer).toStrictEqual({
+                width: 390,
+                height: 100,
+            })
+        })
+        it('should lay childs out backwards when parent is horizontally flipped', async () => {
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: -100,
+                height: 100,
+                horizontalFlipResize: true,
+            })
+            const childBlocks = [
+                new Block({ width: 40, height: 40 }),
+                new Block({ width: 40, height: 40 }),
+            ]
+            childBlocks.forEach((child) => block.addChild(child))
+            canvas.add(block)
+            await flush()
+            expect(block.horizontalFlip()).toBe(true)
+            expect([
+                [childBlocks[0].x(), childBlocks[0].width()],
+                [childBlocks[1].x(), childBlocks[1].width()],
+            ]).toStrictEqual([
+                [0, -40],
+                [-40, -40],
+            ])
+        })
+        it('should lay childs out backwards when parent is vertically flipped', async () => {
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: -100,
+                verticalFlipResize: true,
+            })
+            const childBlocks = [
+                new Block({ width: 40, height: 40 }),
+                new Block({ width: 40, height: 40 }),
+                new Block({ width: 40, height: 40 }),
+            ]
+            childBlocks.forEach((child) => block.addChild(child))
+            canvas.add(block)
+            await flush()
+            expect(block.verticalFlip()).toBe(true)
+            // childs of a row stay on the same line with a flipped height, only
+            // the row which does not fit anymore starts upwards
+            expect([
+                [childBlocks[0].x(), childBlocks[0].y(), childBlocks[0].height()],
+                [childBlocks[1].x(), childBlocks[1].y(), childBlocks[1].height()],
+                [childBlocks[2].x(), childBlocks[2].y(), childBlocks[2].height()],
+            ]).toStrictEqual([
+                [0, 0, -40],
+                [40, 0, -40],
+                [0, -40, -40],
+            ])
+        })
+        it('should keep absolute and fixed childs out of the flow', async () => {
+            block = new Block({ x: 0, y: 0, width: 100, height: 100 })
+            const absoluteChild = new Block({
+                width: 500,
+                height: 20,
+                position: 'absolute',
+            })
+            const flowingChild = new Block({ width: 80, height: 20 })
+            block.addChild(absoluteChild)
+            block.addChild(flowingChild)
+            canvas.add(block)
+            await flush()
+            // the absolute child neither moves nor pushes the flowing one
+            expect([absoluteChild.x(), absoluteChild.y()]).toStrictEqual([0, 0])
+            expect([flowingChild.x(), flowingChild.y()]).toStrictEqual([0, 0])
+            expect(block.__childsContainer).toStrictEqual({
+                width: 80,
+                height: 20,
+            })
+        })
+        it('should reconvert child initial size on every parent layout', async () => {
+            block = new Block({ x: 0, y: 0, width: 200, height: 100 })
+            const percentChild = new Block({ width: '50%', height: 20 })
+            block.addChild(percentChild)
+            canvas.add(block)
+            await flush()
+            expect(percentChild.width()).toBe(100)
+            block.set({ width: 400 })
+            await flush()
+            // a relative size is resolved against the parent again
+            expect(percentChild.width()).toBe(200)
+        })
+        it('should give childs the rotation center of their parent', async () => {
+            block = new Block({ x: 70, y: 90, width: 100, height: 100 })
+            const centerChild = new Block({ width: 40, height: 50 })
+            block.addChild(centerChild)
+            canvas.add(block)
+            await flush()
+            expect(centerChild.rotationCenter()).toBe('parent')
+            expect([
+                centerChild.rotationCenterX(),
+                centerChild.rotationCenterY(),
+            ]).toStrictEqual([
+                block.rotationCenterX(),
+                block.rotationCenterY(),
+            ])
+        })
+        it('should inherit rotation of parent in current and cache', async () => {
+            block = new Block({ x: 0, y: 0, width: 100, height: 100, rotate: 0.6 })
+            const rotatedChild = new Block({ width: 40, height: 50 })
+            block.addChild(rotatedChild)
+            canvas.add(block)
+            await flush()
+            expect(rotatedChild.rotate()).toBeCloseTo(0.6)
+            expect(rotatedChild.getOptionCurrent('rotate')).toBeCloseTo(0.6)
+            expect(rotatedChild.getOptionCache('rotate')).toBeCloseTo(0.6)
+            block.set({ rotate: 1.2 })
+            await flush()
+            expect(rotatedChild.getOptionCurrent('rotate')).toBeCloseTo(1.2)
+            expect(rotatedChild.getOptionCache('rotate')).toBeCloseTo(1.2)
+        })
+        it('should move already laid out childs when parent changes', async () => {
+            block = new Block({ x: 0, y: 0, width: 200, height: 100 })
+            const movedChild = new Block({ width: 40, height: 20 })
+            block.addChild(movedChild)
+            canvas.add(block)
+            await flush()
+            expect([movedChild.x(), movedChild.y()]).toStrictEqual([0, 0])
+            block.set({ x: 100, y: 50 })
+            await flush()
+            expect([movedChild.x(), movedChild.y()]).toStrictEqual([100, 50])
+            // resizing the parent does not resize the child
+            block.set({ width: 300 })
+            await flush()
+            expect([movedChild.x(), movedChild.width()]).toStrictEqual([100, 40])
+        })
+        it('should show childs again when parent becomes visible', async () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 200,
+                height: 100,
+                hidden: true,
+            })
+            const hiddenChild = new Block({ width: 40, height: 20 })
+            drawFilledBlock(hiddenChild)
+            block.addChild(hiddenChild)
+            canvas.add(block)
+            await flush()
+            expect(hiddenChild.hidden()).toBe(true)
+            block.set({ hidden: false })
+            await flush()
+            expect(hiddenChild.hidden()).toBe(false)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'child-drawn-after-parent-is-shown'
+            )
+        })
+        it('should keep sticky child pinned to the parent edge on scroll', async () => {
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                overflowY: 'scroll',
+            })
+            const scrollingChild = new Block({ width: 20, height: 200 })
+            const stickyChild = new Block({
+                width: 20,
+                height: 20,
+                position: 'sticky',
+                top: 10,
+            })
+            block.addChild(scrollingChild)
+            block.addChild(stickyChild)
+            canvas.add(block)
+            await flush()
+            // there is nothing scrolled yet, both childs sit at the top
+            expect(scrollingChild.y()).toBe(block.y())
+            expect(stickyChild.y() - block.y()).toBe(10)
+
+            block.__overflowTranslateY(-60)
+            block.__invokeChange()
+            await flush(3)
+            // the regular child scrolls away while the sticky one stays put
+            expect(scrollingChild.y()).toBe(block.y() + block.overflowPositionY())
+            expect(stickyChild.y() - block.y()).toBe(10)
         })
     })
     describe('spacing', () => {
@@ -1119,19 +1423,7 @@ describe('Block', () => {
                 height: 300,
                 backgroundColor: 'red',
             })
-            const onRenderChildDraw = () => {
-                const context = childBlock.context
-                if (!context) return
-                context.beginPath()
-                context.fillStyle = 'red'
-                context.fillRect(
-                    childBlock.x(),
-                    childBlock.y(),
-                    childBlock.width(),
-                    childBlock.height()
-                )
-            }
-            childBlock.set({ onRender: onRenderChildDraw })
+            drawFilledBlock(childBlock)
             block.addChild(childBlock)
             await flush()
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
@@ -1145,19 +1437,7 @@ describe('Block', () => {
                 height: 300,
                 backgroundColor: 'red',
             })
-            const onRenderChildDraw = () => {
-                const context = childBlock.context
-                if (!context) return
-                context.beginPath()
-                context.fillStyle = 'red'
-                context.fillRect(
-                    childBlock.x(),
-                    childBlock.y(),
-                    childBlock.width(),
-                    childBlock.height()
-                )
-            }
-            childBlock.set({ onRender: onRenderChildDraw })
+            drawFilledBlock(childBlock)
             block.addChild(childBlock)
             await flush()
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
@@ -1233,6 +1513,239 @@ describe('Block', () => {
             )
             await flush()
             expect(childBlock.y()).toBe(-20)
+        })
+    })
+    describe('overflow translation', () => {
+        // translating only stores the new offset, the canvas clamps it back on
+        // the next layout of the block, so the change has to be demanded
+        const translateX = async (target: Block, x: number) => {
+            target.__overflowTranslateX(x)
+            target.__invokeChange()
+            await flush(3)
+        }
+        const translateY = async (target: Block, y: number) => {
+            target.__overflowTranslateY(y)
+            target.__invokeChange()
+            await flush(3)
+        }
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                overflowX: 'scroll',
+            })
+            childBlock = new Block({ width: 300, height: 20 })
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+        })
+        it('should accumulate overflow translation on x', async () => {
+            await translateX(block, -30)
+            expect(block.overflowPositionX()).toBe(-30)
+            await translateX(block, -30)
+            expect(block.overflowPositionX()).toBe(-60)
+        })
+        it('should scroll back to the start of the overflow area on x', async () => {
+            await translateX(block, -30)
+            expect(block.overflowPositionX()).toBe(-30)
+            // past the start of the area there is nothing left to scroll to
+            await translateX(block, 50)
+            expect(block.overflowPositionX()).toBe(0)
+        })
+        it('should clamp overflow translation on x to the overflowed childs', async () => {
+            await translateX(block, -999)
+            // the childs are 300 wide inside a 100 wide parent
+            expect(block.overflowPositionX()).toBe(-200)
+        })
+        it('should not translate overflow position on x when childs fit', async () => {
+            block.set({ width: 400 })
+            await flush()
+            await translateX(block, -50)
+            expect(block.overflowPositionX()).toBe(0)
+        })
+        it('should accumulate and clamp overflow translation on y', async () => {
+            const tallBlock = new Block({
+                x: 0,
+                y: 200,
+                width: 100,
+                height: 100,
+                overflowY: 'scroll',
+            })
+            const tallChild = new Block({ width: 20, height: 300 })
+            tallBlock.addChild(tallChild)
+            canvas.add(tallBlock)
+            await flush()
+            await translateY(tallBlock, -30)
+            expect(tallBlock.overflowPositionY()).toBe(-30)
+            await translateY(tallBlock, -999)
+            expect(tallBlock.overflowPositionY()).toBe(-200)
+        })
+        it('should not translate overflow position on y when childs fit', async () => {
+            await translateY(block, -50)
+            expect(block.overflowPositionY()).toBe(0)
+        })
+        it('should move childs by the overflow position', async () => {
+            expect(childBlock.x()).toBe(0)
+            await translateX(block, -20)
+            expect(childBlock.x()).toBe(-20)
+        })
+    })
+    describe('onRender', () => {
+        // the canvas renders blocks in its own loop, which would call the
+        // callback on every frame, so render is driven manually here
+        beforeEach(() => {
+            block = new Block({ x: 20, y: 10, width: 100, height: 100 })
+        })
+        it('should call the user callback with the block on render', () => {
+            const onRender = vi.fn()
+            block.set({ onRender })
+            block.render()
+            expect(onRender).toHaveBeenCalledTimes(1)
+            expect(onRender).toHaveBeenCalledWith(block)
+        })
+        it('should call the callback given through the constructor options', () => {
+            const onRender = vi.fn()
+            const blockWithRender = new Block({
+                width: 50,
+                height: 50,
+                onRender,
+            })
+            blockWithRender.render()
+            expect(onRender).toHaveBeenCalledWith(blockWithRender)
+        })
+        it('should not call the callback while the block is hidden', () => {
+            const onRender = vi.fn()
+            block.set({ hidden: true, onRender })
+            block.render()
+            expect(onRender).not.toHaveBeenCalled()
+        })
+        it('should store the render wrapper as the current option value', () => {
+            block.set({ onRender: () => {} })
+            // the raw option value is only resolved by the first call, the
+            // wrapper replaces it in the options right afterwards
+            block.onRender()
+            const wrapper = block.onRender()
+            expect(block.onRender()).toBe(wrapper)
+            expect(block.getOptionCurrent('onRender')).toBe(wrapper)
+        })
+        it('should not register the wrapper as the user callback', () => {
+            const onRender = vi.fn()
+            block.set({ onRender })
+            // reading the option resolves the wrapper, reading it again has to
+            // keep it as a wrapper instead of a new user callback
+            block.onRender()
+            block.onRender()
+            block.render()
+            expect(onRender).toHaveBeenCalledTimes(1)
+        })
+        it('should keep the wrapper and replace the user callback on set', () => {
+            const first = vi.fn()
+            const second = vi.fn()
+            block.set({ onRender: first })
+            block.onRender()
+            const wrapper = block.onRender()
+
+            block.set({ onRender: second })
+            block.onRender()
+            expect(block.onRender()).toBe(wrapper)
+            block.render()
+            expect(first).not.toHaveBeenCalled()
+            expect(second).toHaveBeenCalledTimes(1)
+        })
+        it('should render a block which has no context to clip', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            const clippingParent = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                overflow: 'hidden',
+            })
+            const onRender = vi.fn()
+            const contextlessChild = new Block({ width: 200, height: 200 })
+            clippingParent.addChild(contextlessChild)
+            contextlessChild.set({ onRender })
+            canvas.add(clippingParent)
+            await flush()
+            const context = contextlessChild.context
+            contextlessChild.context = undefined
+            expect(() => contextlessChild.render()).not.toThrow()
+            contextlessChild.context = context
+            expect(onRender).toHaveBeenCalled()
+        })
+    })
+    describe('child clipping', () => {
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            await flush()
+        })
+        it('should clip a child by its parent', async () => {
+            block = new Block({
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 100,
+                overflow: 'hidden',
+            })
+            childBlock = new Block({ width: 300, height: 300 })
+            drawFilledBlock(childBlock)
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'child-clipped-by-parent'
+            )
+        })
+        it('should clip a child by a rotated parent', async () => {
+            block = new Block({
+                x: 150,
+                y: 150,
+                width: 100,
+                height: 100,
+                rotate: 0.8,
+                overflow: 'hidden',
+            })
+            childBlock = new Block({ width: 300, height: 300 })
+            drawFilledBlock(childBlock)
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'child-clipped-by-rotated-parent'
+            )
+        })
+        it('should clip a grandchild by every clipping parent', async () => {
+            block = new Block({
+                x: 20,
+                y: 20,
+                width: 200,
+                height: 200,
+                overflow: 'hidden',
+            })
+            // the margin moves the middle block out of the outer one, so both
+            // of their clip paths have to be applied to the red child
+            const middleBlock = new Block({
+                width: 100,
+                height: 100,
+                margin: 150,
+                overflow: 'hidden',
+            })
+            const grandChildBlock = new Block({ width: 200, height: 200 })
+            drawFilledBlock(grandChildBlock)
+            block.addChild(middleBlock)
+            middleBlock.addChild(grandChildBlock)
+            canvas.add(block)
+            await flush()
+            expect([
+                middleBlock.x(),
+                middleBlock.y(),
+            ]).toStrictEqual([170, 170])
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'child-clipped-by-ancestors'
+            )
         })
     })
     describe('transformations', () => {
