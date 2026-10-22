@@ -197,15 +197,16 @@ export function lerp(start: number, end: number, t: number) {
 export function linear(...args: number[]): LinearEasing {
     const nTimes = 1 / (args.length - 1)
     return (t: number) => {
+        const c = Math.min(1, Math.max(0, t))
         const stepB = Math.min(
             args.length - 1,
-            Math.max(0, Math.floor(t / nTimes))
+            Math.max(0, Math.floor(c / nTimes))
         )
         const x0 = stepB * nTimes
         const x1 = Math.min(1, (stepB + 1) * nTimes)
         const y0 = args[stepB]
         const y1 = args[Math.min(stepB + 1, args.length - 1)]
-        const localT = x1 === x0 ? 0 : (t - x0) / (x1 - x0)
+        const localT = x1 === x0 ? 0 : (c - x0) / (x1 - x0)
         return y0 + localT * (y1 - y0)
     }
 }
@@ -250,21 +251,23 @@ export const namedColors: { [key: string]: string } = {
     aqua: '#00ffff',
 }
 export function hexToRgba(hex: string) {
-    hex = hex.substring(1)
-    let RR = hex.slice(0, 2) as any
-    let GG = hex.slice(2, 4) as any
-    let BB = hex.slice(4, 6) as any
-    let AA = 1
-    if (hex.length === 8) AA = parseInt(hex.slice(7, 9))
-    if (hex.length === 2) {
-        RR += RR
-        GG += GG
-        BB += BB
+    let value = hex.startsWith('#') ? hex.substring(1) : hex
+    // the shorthand form repeats every digit, so `#f00` becomes `#ff0000` and
+    // `#f008` becomes `#ff000088`, which then can be read as a regular one
+    if (value.length === 3 || value.length === 4) {
+        value = value
+            .split('')
+            .map((char) => char + char)
+            .join('')
     }
-    RR = parseInt(RR, 16)
-    GG = parseInt(GG, 16)
-    BB = parseInt(BB, 16)
-    return rgbaRepresenter([RR, GG, BB])
+    const R = parseInt(value.slice(0, 2), 16)
+    const G = parseInt(value.slice(2, 4), 16)
+    const B = parseInt(value.slice(4, 6), 16)
+    const A =
+        value.length >= 8
+            ? Math.round((parseInt(value.slice(6, 8), 16) / 255) * 100) / 100
+            : 1
+    return rgbaRepresenter([R, G, B, A])
 }
 
 export function hslToRgba(hsl: string): string {
@@ -325,7 +328,9 @@ export function colorToRgba(color: string) {
     return hexToRgba(namedColors[color])
 }
 export function rgbaRepresenter(rgba: number[]): string {
-    return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] || 1})`
+    return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${
+        rgba[3] === undefined ? 1 : rgba[3]
+    })`
 }
 export function rgbaToArray(rgba: string): RGBA {
     const colors = rgba.match(/\d+\.?\d*/g) || []
