@@ -776,7 +776,9 @@ export class Canvas {
     registerBlocks(...blocks: (typeof BaseBlock)[]) {
         this.#registeredBlocks.push(...blocks)
     }
-
+    find(queries: IBlockOptions): BaseBlock[] {
+        return this.#scene.find(queries)
+    }
     undo() {
         if (!this.#defaultOptions.history) return
         this.#history.toBack()
