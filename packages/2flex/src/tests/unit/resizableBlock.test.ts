@@ -94,6 +94,59 @@ describe('ResizableBlock', () => {
             expect(hotAreas()).toMatchSnapshot()
         })
     })
+    describe('hot resizable area customizing', () => {
+        // every hot area is a size x size square placed on the corner of the
+        // block, pushed further away from it by the configured gap
+        const topLeftAreaSize = () => {
+            const area = block.hotResizableAreaTopLeft()
+            return {
+                width: area.topRight.x - area.topLeft.x,
+                height: area.bottomLeft.y - area.topLeft.y,
+            }
+        }
+        const topLeftAreaOffset = () => {
+            const corner = block.cornerTopLeft()
+            const area = block.hotResizableAreaTopLeft()
+            return {
+                x: area.topLeft.x - corner.x,
+                y: area.topLeft.y - corner.y,
+            }
+        }
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 100,
+            })
+            canvas.add(block)
+            await flush()
+        })
+        it('should use the default hot area size', () => {
+            expect(block.hotResizableAreaSize()).toBe(15)
+            expect(block.hotResizableAreaGap()).toBe(0)
+            expect(topLeftAreaSize()).toStrictEqual({ width: 15, height: 15 })
+            expect(topLeftAreaOffset()).toStrictEqual({ x: 0, y: 0 })
+        })
+        it('should grow the hot area by hotResizableAreaSize', async () => {
+            block.set({ hotResizableAreaSize: 30 })
+            await flush()
+            expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })
+        })
+        it('should move the hot area outwards by hotResizableAreaGap', async () => {
+            block.set({ hotResizableAreaSize: 30, hotResizableAreaGap: 10 })
+            await flush()
+            expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })
+            expect(topLeftAreaOffset()).toStrictEqual({ x: -10, y: -10 })
+        })
+        it('should convert a hot area size given in px', async () => {
+            block.set({ hotResizableAreaSize: '30px' })
+            await flush()
+            expect(block.hotResizableAreaSize()).toBe(30)
+            expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })
+        })
+    })
     describe('resizing', () => {
         beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)

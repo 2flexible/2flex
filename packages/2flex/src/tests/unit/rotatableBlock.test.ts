@@ -90,6 +90,61 @@ describe('RotatableBlock', () => {
             expect(hotAreas()).toMatchSnapshot()
         })
     })
+    describe('hot rotatable area customizing', () => {
+        // every hot area is a size x size square placed on the corner of the
+        // block, pushed further away from it by the configured gap
+        const topLeftAreaSize = () => {
+            const area = block.hotRotatableAreaTopLeft()
+            return {
+                width: area.topRight.x - area.topLeft.x,
+                height: area.bottomLeft.y - area.topLeft.y,
+            }
+        }
+        const topLeftAreaOffset = () => {
+            const corner = block.cornerTopLeft()
+            const area = block.hotRotatableAreaTopLeft()
+            return {
+                x: area.topLeft.x - corner.x,
+                y: area.topLeft.y - corner.y,
+            }
+        }
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 100,
+            })
+            canvas.add(block)
+            await flush()
+        })
+        it('should use the default hot area size', () => {
+            expect(block.hotRotatableAreaSize()).toBe(15)
+            expect(block.hotRotatableAreaGap()).toBe(0)
+            expect(topLeftAreaSize()).toStrictEqual({ width: 15, height: 15 })
+            expect(topLeftAreaOffset()).toStrictEqual({ x: -15, y: -15 })
+        })
+        it('should grow the hot area by hotRotatableAreaSize', async () => {
+            block.set({ hotRotatableAreaSize: 30 })
+            await flush()
+            expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })
+        })
+        it('should move the hot area outwards by hotRotatableAreaGap', async () => {
+            block.set({ hotRotatableAreaSize: 30, hotRotatableAreaGap: 10 })
+            await flush()
+            expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })
+            // the area hangs outside of the corner, so the gap is added to the
+            // size on both axes
+            expect(topLeftAreaOffset()).toStrictEqual({ x: -40, y: -40 })
+        })
+        it('should convert a hot area size given in px', async () => {
+            block.set({ hotRotatableAreaSize: '30px' })
+            await flush()
+            expect(block.hotRotatableAreaSize()).toBe(30)
+            expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })
+        })
+    })
     describe('rotating', () => {
         beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
