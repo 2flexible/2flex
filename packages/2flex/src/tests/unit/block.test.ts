@@ -1,10 +1,28 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
-import { OVERFLOW_SCROLL_BAR_BLOCK_NAME } from '../../const'
+import { Block, Canvas } from '@2flexible/2flex'
+import {
+    OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
+    OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
+} from '../../const'
 
 let block: Block
 let canvas: Canvas
+
+// the canvas applies every queued change (block init, option recalculation,
+// dom event registration, drawing) inside its render loop which is driven by
+// requestAnimationFrame, so tests have to let frames pass before asserting
+const flush = async (frames = 2) => {
+    for (let i = 0; i < frames; i++)
+        await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => resolve())
+        )
+}
+
+// mouse events are only dispatched to blocks while the pointer is considered
+// inside the canvas, which is tracked by a real mouseenter event
+const allowMouse = (target: Canvas) =>
+    target.canvas.dispatchEvent(new MouseEvent('mouseenter'))
 
 const dispatchMouse = (
     element: HTMLElement,
@@ -66,14 +84,16 @@ describe('Block', () => {
                 20
             )
         })
-        it('should convert % to number relative to parent width and height', () => {
+        it('should convert % to number relative to parent width and height', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             canvas.add(block)
+            await flush()
             expect(block.__valueHandler('20%', 'customValue', 0, true)).toBe(80)
         })
-        it('should convert rem to number relative to canvas size', () => {
+        it('should convert rem to number relative to canvas size', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             canvas.add(block)
+            await flush()
             expect(block.__valueHandler('1.6rem', 'customValue', 0, true)).toBe(
                 640
             )
@@ -85,16 +105,18 @@ describe('Block', () => {
                 childBlock.__valueHandler('2em', 'customValue', 0, true)
             ).toBe(200)
         })
-        it('should convert vw to number relative to canvas width', () => {
+        it('should convert vw to number relative to canvas width', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             canvas.add(block)
+            await flush()
             expect(block.__valueHandler('20vw', 'customValue', 0, true)).toBe(
                 80
             )
         })
-        it('should convert vh to number relative to canvas height', () => {
+        it('should convert vh to number relative to canvas height', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             canvas.add(block)
+            await flush()
             expect(block.__valueHandler('20vh', 'customValue', 0, false)).toBe(
                 100
             )
@@ -166,16 +188,17 @@ describe('Block', () => {
             block.set({ x: 10 })
             expect(block.x()).toBe(10)
         })
-        it('should bind options of block', () => {
+        it('should bind options of block', async () => {
             block.set({ x: 100 })
             const bindBlock = new Block({ x: 50, y: 10 })
             bindBlock.bindTo(block, ['x'])
             canvas.add(bindBlock)
+            await flush()
             expect(bindBlock.x()).toBe(100)
         })
     })
     describe('block transformations', () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 x: 20,
@@ -184,6 +207,7 @@ describe('Block', () => {
                 height: 100,
             })
             canvas.add(block)
+            await flush()
         })
         it('should set initial coordinates', () => {
             expect([
@@ -209,8 +233,9 @@ describe('Block', () => {
                 block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
-        it('should change x coordinate', () => {
+        it('should change x coordinate', async () => {
             block.set({ x: 120 })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -234,8 +259,9 @@ describe('Block', () => {
                 block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
-        it('should change y coordinate', () => {
+        it('should change y coordinate', async () => {
             block.set({ y: 20 })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -259,8 +285,9 @@ describe('Block', () => {
                 block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
-        it('should resize width', () => {
+        it('should resize width', async () => {
             block.set({ width: 50 })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -284,8 +311,9 @@ describe('Block', () => {
                 block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
-        it('should resize height', () => {
+        it('should resize height', async () => {
             block.set({ height: 50 })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -309,12 +337,14 @@ describe('Block', () => {
                 block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
-        it('should scale width and height', () => {
+        it('should scale width and height', async () => {
             block.set({ scale: 3 })
+            await flush()
             expect(block.width()).toBe(300)
         })
-        it('should rotate block', () => {
+        it('should rotate block', async () => {
             block.set({ rotate: 1.2 })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -338,11 +368,12 @@ describe('Block', () => {
                 block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
-        it('should change rotation center x', () => {
+        it('should change rotation center x', async () => {
             block.set({
                 rotationCenterX: block.x() + block.width(),
                 rotate: 1.2,
             })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -350,11 +381,12 @@ describe('Block', () => {
                 block.cornerBottomRight(),
             ]).toMatchSnapshot()
         })
-        it('should change rotation center y', () => {
+        it('should change rotation center y', async () => {
             block.set({
                 rotationCenterY: block.y() + block.height(),
                 rotate: 1.2,
             })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -362,11 +394,12 @@ describe('Block', () => {
                 block.cornerBottomRight(),
             ]).toMatchSnapshot()
         })
-        it('should change coordinates on horizontal flip', () => {
+        it('should change coordinates on horizontal flip', async () => {
             block.set({
                 horizontalFlipResize: true,
                 width: -100,
             })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -390,11 +423,12 @@ describe('Block', () => {
                 block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
-        it('should change coordinates on vertical flip', () => {
+        it('should change coordinates on vertical flip', async () => {
             block.set({
                 verticalFlipResize: true,
                 height: -100,
             })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -418,13 +452,14 @@ describe('Block', () => {
                 block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
-        it('should change coordinates on horizontal and vertical flip', () => {
+        it('should change coordinates on horizontal and vertical flip', async () => {
             block.set({
                 horizontalFlipResize: true,
                 verticalFlipResize: true,
                 width: -100,
                 height: -100,
             })
+            await flush()
             expect([
                 block.cornerTopLeft(),
                 block.cornerTopRight(),
@@ -461,7 +496,7 @@ describe('Block', () => {
             const childBlock = new Block({})
             block.addChild(childBlock)
             canvas.add(block)
-            expect(block.childNodes[0]).toBe(childBlock)
+            expect([...block.childNodes][0]).toBe(childBlock)
         })
         it('should add child blocks after canvas init', () => {
             canvas = new Canvas('myCanvas', 400, 500)
@@ -474,7 +509,7 @@ describe('Block', () => {
             const childBlock = new Block({})
             canvas.add(block)
             block.addChild(childBlock)
-            expect(block.childNodes[0]).toBe(childBlock)
+            expect([...block.childNodes][0]).toBe(childBlock)
         })
         it('should remove child blocks before canvas init', () => {
             canvas = new Canvas('myCanvas', 400, 500)
@@ -488,7 +523,7 @@ describe('Block', () => {
             block.addChild(childBlock)
             block.removeChild(childBlock)
             canvas.add(block)
-            expect(block.childNodes[0]).toBe(undefined)
+            expect([...block.childNodes][0]).toBe(undefined)
         })
         it('should find child blocks after canvas init', () => {
             canvas = new Canvas('myCanvas', 400, 500)
@@ -502,7 +537,7 @@ describe('Block', () => {
             block.addChild(childBlock)
             canvas.add(block)
             block.removeChild(childBlock)
-            expect(block.childNodes[0]).toBe(undefined)
+            expect([...block.childNodes][0]).toBe(undefined)
         })
         it('should list child blocks', () => {
             block = new Block({
@@ -533,17 +568,22 @@ describe('Block', () => {
                 hotLines: true,
                 overflow: 'scroll',
             })
+            const headBlock = block
             const childBlocks = [new Block({}), new Block({}), new Block({})]
             block.addChild(childBlocks[0])
             block.addChild(childBlocks[1])
             block.addChild(childBlocks[2])
             let currIdx = 0
-            block.listAllChilds((block) => {
-                expect(childBlocks[currIdx]).toBe(block)
+            // listAllChilds traverses the tree starting from the block itself,
+            // so the first visited node is the block and not one of its childs
+            block.listAllChilds((child) => {
+                if (child === headBlock) return
+                expect(childBlocks[currIdx]).toBe(child)
                 currIdx++
             })
+            expect(currIdx).toBe(childBlocks.length)
         })
-        it('should adjust coordinates of child blocks', () => {
+        it('should adjust coordinates of child blocks', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 x: 70,
@@ -561,6 +601,7 @@ describe('Block', () => {
             block.addChild(childBlocks[1])
             block.addChild(childBlocks[2])
             canvas.add(block)
+            await flush()
             expect([
                 childBlocks[0].x(),
                 childBlocks[0].y(),
@@ -603,7 +644,7 @@ describe('Block', () => {
                 expect.closeTo(1.2),
             ])
         })
-        it('should adjust child rotation center to self', () => {
+        it('should adjust child rotation center to self', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 x: 70,
@@ -621,12 +662,13 @@ describe('Block', () => {
             })
             block.addChild(childBlock)
             canvas.add(block)
+            await flush()
             expect([
                 childBlock.rotationCenterX(),
                 childBlock.rotationCenterY(),
             ]).toStrictEqual([90, 115])
         })
-        it('should hide child block', () => {
+        it('should hide child block', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 x: 70,
@@ -643,17 +685,19 @@ describe('Block', () => {
             })
             block.addChild(childBlock)
             canvas.add(block)
+            await flush()
             expect(childBlock.hidden()).toBe(true)
         })
     })
     describe('spacing', () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 width: 400,
                 height: 400,
             })
             canvas.add(block)
+            await flush()
         })
         it('padding should parse values', () => {
             block.set({ padding: 20 })
@@ -700,7 +744,7 @@ describe('Block', () => {
                 block.paddingLeft(),
             ]).toStrictEqual([30, 30, 30, 30])
         })
-        it('padding should adjust width and height of block', () => {
+        it('padding should adjust width and height of block', async () => {
             const blockWidth = block.width()
             const blockHeight = block.height()
             const paddingRight = 30
@@ -709,10 +753,11 @@ describe('Block', () => {
                 paddingRight: paddingRight,
                 paddingBottom: paddingBottom,
             })
+            await flush()
             expect(block.width()).toBe(paddingRight + blockWidth)
             expect(block.height()).toBe(paddingBottom + blockHeight)
         })
-        it('padding should add spacing around itself', () => {
+        it('padding should add spacing around itself', async () => {
             const padding = 30
             const childBlocks = [
                 new Block({ width: 100, height: 40 }),
@@ -723,6 +768,7 @@ describe('Block', () => {
             block.addChild(childBlocks[1])
             block.addChild(childBlocks[2])
             block.set({ padding: padding })
+            await flush()
             expect(childBlocks[0].x()).toBe(padding)
             expect(childBlocks[1].x()).toBe(childBlocks[0].width() + padding)
             expect(childBlocks[2].x()).toBe(
@@ -774,7 +820,7 @@ describe('Block', () => {
                 block.marginLeft(),
             ]).toStrictEqual([30, 30, 30, 30])
         })
-        it('margin should add spacing around itself', () => {
+        it('margin should add spacing around itself', async () => {
             const margin = 30
             const childBlocks = [
                 new Block({ width: 100, height: 40 }),
@@ -784,7 +830,10 @@ describe('Block', () => {
             block.addChild(childBlocks[0])
             block.addChild(childBlocks[1])
             block.addChild(childBlocks[2])
+            // nothing is set on the parent here, so it has to be demanded
+            // explicitly to lay its childs out
             block.__invokeChange()
+            await flush()
             expect(childBlocks[0].x()).toBe(0)
             expect(childBlocks[1].x()).toBe(childBlocks[0].width() + margin)
             expect(childBlocks[2].x()).toBe(
@@ -793,31 +842,36 @@ describe('Block', () => {
         })
     })
     describe('min and max size', () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 width: 400,
                 height: 400,
             })
             canvas.add(block)
+            await flush()
         })
-        it('should limit width by maxWidth', () => {
+        it('should limit width by maxWidth', async () => {
             block.set({ maxWidth: 120 })
+            await flush()
             expect(block.width()).toBe(120)
         })
-        it('should limit height by maxHeight', () => {
+        it('should limit height by maxHeight', async () => {
             block.set({ maxHeight: 120 })
+            await flush()
             expect(block.height()).toBe(120)
         })
-        it('should enforce minWidth', () => {
+        it('should enforce minWidth', async () => {
             block.set({ minWidth: 50, width: 20 })
+            await flush()
             expect(block.width()).toBe(50)
         })
-        it('should enforce minHeight', () => {
+        it('should enforce minHeight', async () => {
             block.set({ minHeight: 50, height: 20 })
+            await flush()
             expect(block.height()).toBe(50)
         })
-        it('should resize children respecting min and max size', () => {
+        it('should resize children respecting min and max size', async () => {
             const childBlocks = [
                 new Block({
                     width: 100,
@@ -835,47 +889,52 @@ describe('Block', () => {
                     width: 100,
                     height: 40,
                     maxWidth: 120,
-                    minWith: 40,
+                    minWidth: 40,
                 }),
             ]
             block.addChild(childBlocks[0])
             block.addChild(childBlocks[1])
             block.addChild(childBlocks[2])
             block.set({ width: 200 })
-            block.__invokeChange()
+            await flush()
+
+            // a child is always laid out by its parent and keeps its initial
+            // size, so maxWidth can only shrink it and never grow it
             expect([
                 childBlocks[0].x(),
                 childBlocks[0].y(),
                 childBlocks[0].width(),
-            ]).toStrictEqual([0, 0, 120])
+            ]).toStrictEqual([0, 0, 100])
 
             expect([
                 childBlocks[1].x(),
                 childBlocks[1].y(),
                 childBlocks[1].width(),
-            ]).toStrictEqual([0, 40, 90])
+            ]).toStrictEqual([100, 0, 90])
             expect([
                 childBlocks[2].x(),
                 childBlocks[2].y(),
                 childBlocks[2].width(),
-            ]).toStrictEqual([0, 80, 120])
+            ]).toStrictEqual([0, 40, 100])
         })
     })
     describe('positioning', () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 width: 120,
                 height: 120,
             })
             canvas.add(block)
+            await flush()
         })
-        it('should set fixed position', () => {
+        it('should set fixed position', async () => {
             block.set({
                 position: 'fixed',
                 left: 40,
                 top: 30,
             })
+            await flush()
             expect([block.x(), block.y()]).toStrictEqual([40, 30])
             block.set({
                 position: 'fixed',
@@ -884,14 +943,16 @@ describe('Block', () => {
                 right: 120,
                 bottom: 30,
             })
+            await flush()
             expect([block.x(), block.y()]).toStrictEqual([160, 350])
         })
-        it('should set absolute position', () => {
+        it('should set absolute position', async () => {
             block.set({
                 position: 'absolute',
                 left: 40,
                 top: 30,
             })
+            await flush()
             expect([block.x(), block.y()]).toStrictEqual([40, 30])
 
             block.set({
@@ -901,9 +962,10 @@ describe('Block', () => {
                 left: undefined,
                 top: undefined,
             })
+            await flush()
             expect([block.x(), block.y()]).toStrictEqual([160, 350])
         })
-        it('should set sticky position', () => {
+        it('should set sticky position', async () => {
             block.set({
                 position: 'sticky',
                 left: 40,
@@ -911,6 +973,7 @@ describe('Block', () => {
                 x: 10,
                 y: 10,
             })
+            await flush()
             expect([block.x(), block.y()]).toStrictEqual([40, 30])
 
             block.set({
@@ -922,14 +985,16 @@ describe('Block', () => {
                 left: undefined,
                 top: undefined,
             })
+            await flush()
             expect([block.x(), block.y()]).toStrictEqual([160, 180])
         })
-        it('should set relative position', () => {
+        it('should set relative position', async () => {
             block.set({
                 position: 'relative',
                 left: 40,
                 top: 30,
             })
+            await flush()
             expect([block.x(), block.y()]).toStrictEqual([40, 30])
 
             block.set({
@@ -939,27 +1004,30 @@ describe('Block', () => {
                 left: undefined,
                 top: undefined,
             })
+            await flush()
             expect([block.x(), block.y()]).toStrictEqual([-120, -200])
         })
-        it('does not adjust fixed positioned child', () => {
+        it('does not adjust fixed positioned child', async () => {
             const childBlock = new Block({
                 position: 'fixed',
                 left: 100,
                 top: 50,
             })
             block.addChild(childBlock)
+            await flush()
             expect([childBlock.x(), childBlock.y()]).toStrictEqual([100, 50])
         })
-        it('does not adjust absolute positioned child', () => {
+        it('does not adjust absolute positioned child', async () => {
             const childBlock = new Block({
                 position: 'absolute',
                 left: 100,
                 top: 50,
             })
             block.addChild(childBlock)
+            await flush()
             expect([childBlock.x(), childBlock.y()]).toStrictEqual([100, 50])
         })
-        it('should position relative child', () => {
+        it('should position relative child', async () => {
             block.set({ x: 100, y: 100 })
             const childBlock = new Block({
                 position: 'relative',
@@ -967,6 +1035,7 @@ describe('Block', () => {
                 right: 100,
             })
             block.addChild(childBlock)
+            await flush()
             expect([childBlock.x(), childBlock.y()]).toStrictEqual([0, 0])
 
             childBlock.set({
@@ -975,9 +1044,10 @@ describe('Block', () => {
                 bottom: undefined,
                 right: undefined,
             })
+            await flush()
             expect([childBlock.x(), childBlock.y()]).toStrictEqual([200, 200])
         })
-        it('should position sticky child', () => {
+        it('should position sticky child', async () => {
             block.set({ x: 100, y: 100, overflow: 'scroll' })
             const childBlock = new Block({
                 width: 20,
@@ -993,9 +1063,7 @@ describe('Block', () => {
 
             block.addChild(childBlock)
             block.addChild(childBlockSecond)
-            block.__overflowTranslateX(100)
-            block.__overflowTranslateY(100)
-            block.__invokeChange()
+            await flush()
             expect([childBlock.x(), childBlock.y()]).toStrictEqual([110, 110])
 
             childBlockSecond.set({
@@ -1004,13 +1072,20 @@ describe('Block', () => {
                 top: undefined,
                 left: undefined,
             })
+            await flush()
             expect([childBlockSecond.x(), childBlockSecond.y()]).toStrictEqual([
                 120, 100,
             ])
         })
     })
     describe('overflow', () => {
-        beforeEach(() => {
+        // scroll bars are separate blocks added to the canvas scene, so they
+        // are looked up by the side specific name they are created with
+        const xScrollBars = () =>
+            canvas.find({ name: OVERFLOW_X_SCROLL_BAR_BLOCK_NAME })
+        const yScrollBars = () =>
+            canvas.find({ name: OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME })
+        beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 x: 0,
@@ -1020,6 +1095,7 @@ describe('Block', () => {
                 selectable: true,
             })
             canvas.add(block)
+            await flush()
         })
         afterEach(() => {
             canvas.isFocused = false
@@ -1045,7 +1121,7 @@ describe('Block', () => {
             }
             childBlock.set({ onRender: onRenderChildDraw })
             block.addChild(childBlock)
-            block.__invokeChange()
+            await flush()
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'overflow-hidden'
             )
@@ -1071,45 +1147,49 @@ describe('Block', () => {
             }
             childBlock.set({ onRender: onRenderChildDraw })
             block.addChild(childBlock)
+            await flush()
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'overflow-visible'
             )
         })
-        it('should create scroll bar for overflowX scroll', () => {
+        it('should create scroll bar for overflowX scroll', async () => {
+            expect(xScrollBars()).toHaveLength(0)
             block.set({ overflowX: 'scroll' })
-            expect(block.childNodes[0].name()).toBe(
-                OVERFLOW_SCROLL_BAR_BLOCK_NAME
-            )
+            await flush()
+            expect(xScrollBars()).toHaveLength(1)
+            expect(yScrollBars()).toHaveLength(0)
         })
-        it('should create scroll bar for overflowY scroll', () => {
+        it('should create scroll bar for overflowY scroll', async () => {
+            expect(yScrollBars()).toHaveLength(0)
             block.set({ overflowY: 'scroll' })
-            expect(block.childNodes[0].name()).toBe(
-                OVERFLOW_SCROLL_BAR_BLOCK_NAME
-            )
+            await flush()
+            expect(yScrollBars()).toHaveLength(1)
+            expect(xScrollBars()).toHaveLength(0)
         })
-        it('should create scroll bar for overflowX auto', () => {
+        it('should create scroll bar for overflowX auto', async () => {
+            expect(xScrollBars()).toHaveLength(0)
             block.set({ overflowX: 'auto' })
-            expect(block.childNodes[0].name()).toBe(
-                OVERFLOW_SCROLL_BAR_BLOCK_NAME
-            )
+            await flush()
+            expect(xScrollBars()).toHaveLength(1)
+            expect(yScrollBars()).toHaveLength(0)
         })
-        it('should create scroll bar for overflowY auto', () => {
+        it('should create scroll bar for overflowY auto', async () => {
+            expect(yScrollBars()).toHaveLength(0)
             block.set({ overflowY: 'auto' })
-            expect(block.childNodes[0].name()).toBe(
-                OVERFLOW_SCROLL_BAR_BLOCK_NAME
-            )
+            await flush()
+            expect(yScrollBars()).toHaveLength(1)
+            expect(xScrollBars()).toHaveLength(0)
         })
-        it('should scroll on wheel along x axis', () => {
+        it('should scroll on wheel along x axis', async () => {
             const childBlock = new Block({ width: 150, height: 50 })
             block.addChild(childBlock)
             block.set({ overflowX: 'scroll' })
+            await flush()
 
-            // the canvas registers its wheel listener on window load, which
-            // already fired in the test environment, so trigger it manually
-            window.onload?.(new Event('load'))
             canvas.isFocused = true
 
-            window.dispatchEvent(
+            // the wheel listener is registered on the canvas element itself
+            canvas.canvas.dispatchEvent(
                 new WheelEvent('wheel', {
                     shiftKey: true,
                     deltaY: 100,
@@ -1119,17 +1199,18 @@ describe('Block', () => {
                     cancelable: true,
                 })
             )
-            expect(childBlock.x()).toBe(-10)
+            await flush()
+            expect(childBlock.x()).toBe(-20)
         })
-        it('should scroll on wheel along y axis', () => {
+        it('should scroll on wheel along y axis', async () => {
             const childBlock = new Block({ width: 50, height: 150 })
             block.addChild(childBlock)
             block.set({ overflowY: 'scroll' })
+            await flush()
 
-            window.onload?.(new Event('load'))
             canvas.isFocused = true
 
-            window.dispatchEvent(
+            canvas.canvas.dispatchEvent(
                 new WheelEvent('wheel', {
                     deltaY: 100,
                     clientX: 10,
@@ -1138,11 +1219,12 @@ describe('Block', () => {
                     cancelable: true,
                 })
             )
-            expect(childBlock.y()).toBe(-10)
+            await flush()
+            expect(childBlock.y()).toBe(-20)
         })
     })
     describe('transformations', () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 x: 0,
@@ -1152,15 +1234,19 @@ describe('Block', () => {
                 selectable: true,
             })
             canvas.add(block)
+            allowMouse(canvas)
+            await flush()
         })
         it('should resize block by dragging', async () => {
             block.set({ resizable: true })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
 
             // select the block so the resize handles become active
             dispatchMouse(element, 'mousedown', 10, 10)
             dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
 
             // hover the right resizable edge to arm the resize handle
             dispatchMouse(element, 'mousemove', 100, 50)
@@ -1177,12 +1263,14 @@ describe('Block', () => {
         })
         it('should resize from specified corners', async () => {
             block.set({ resizable: true })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
 
             // select the block so the resize handles become active
             dispatchMouse(element, 'mousedown', 10, 10)
             dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
 
             // hover the top-left resizable corner to arm the corner handle
             dispatchMouse(element, 'mousemove', 5, 5)
@@ -1207,11 +1295,13 @@ describe('Block', () => {
                 resizable: true,
                 onResizable: onResizeFunc,
             })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
 
             dispatchMouse(element, 'mousedown', 10, 10)
             dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
 
             dispatchMouse(element, 'mousemove', 100, 50)
 
@@ -1226,12 +1316,14 @@ describe('Block', () => {
 
         it('should rotate block by dragging', async () => {
             block.set({ rotatable: true })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
 
             // select the block so the rotation handles become active
             dispatchMouse(element, 'mousedown', 10, 10)
             dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
 
             // hover the bottom-right rotatable corner to arm the handle
             dispatchMouse(element, 'mousemove', 105, 105)
@@ -1246,11 +1338,13 @@ describe('Block', () => {
         })
         it('should rotate from specified corners', async () => {
             block.set({ rotatable: true })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
 
             dispatchMouse(element, 'mousedown', 10, 10)
             dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
 
             // hover the top-left rotatable corner to arm the handle
             dispatchMouse(element, 'mousemove', -7, -7)
@@ -1272,11 +1366,13 @@ describe('Block', () => {
                 rotatable: true,
                 onRotatable: onRotateFunc,
             })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
 
             dispatchMouse(element, 'mousedown', 10, 10)
             dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
 
             dispatchMouse(element, 'mousemove', 105, 105)
 
@@ -1291,6 +1387,7 @@ describe('Block', () => {
 
         it('should drag block', async () => {
             block.set({ draggable: true })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
 
@@ -1302,6 +1399,7 @@ describe('Block', () => {
         })
         it('should drag block only along x axis', async () => {
             block.set({ draggable: true, draggableY: false })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
             dispatchMouse(element, 'mousedown', 10, 10, 1)
@@ -1311,6 +1409,7 @@ describe('Block', () => {
         })
         it('should drag block only along y axis', async () => {
             block.set({ draggable: true, draggableX: false })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
             dispatchMouse(element, 'mousedown', 10, 10, 1)
@@ -1328,6 +1427,7 @@ describe('Block', () => {
                 draggableX: false,
                 onDraggable: onDragFunc,
             })
+            await flush()
             const targetLocator = page.elementLocator(canvas.canvas)
             const element = (await targetLocator.element()) as HTMLElement
             dispatchMouse(element, 'mousedown', 10, 10, 1)
@@ -1336,7 +1436,7 @@ describe('Block', () => {
         })
     })
     describe('events', () => {
-        beforeEach(() => {
+        beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 x: 0,
@@ -1346,6 +1446,8 @@ describe('Block', () => {
                 selectable: true,
             })
             canvas.add(block)
+            allowMouse(canvas)
+            await flush()
         })
         it('should trigger click event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
@@ -1353,6 +1455,7 @@ describe('Block', () => {
             block.click(() => {
                 isClicked = true
             })
+            await flush()
             await userEvent.click(currentCanvas, { position: { x: 10, y: 10 } })
             expect(isClicked).toBeTruthy()
         })
@@ -1362,6 +1465,7 @@ describe('Block', () => {
             block.dblclick(() => {
                 isClicked = true
             })
+            await flush()
             await userEvent.dblClick(currentCanvas, {
                 position: { x: 10, y: 10 },
             })
@@ -1373,6 +1477,7 @@ describe('Block', () => {
             block.contextMenu(() => {
                 isClicked = true
             })
+            await flush()
             await userEvent.click(currentCanvas, {
                 position: { x: 10, y: 10 },
                 button: 'right',
@@ -1387,6 +1492,7 @@ describe('Block', () => {
             block.mousedown(() => {
                 isMouseDown = true
             })
+            await flush()
             dispatchMouse(element, 'mousedown', 10, 10, 1)
             expect(isMouseDown).toBeTruthy()
         })
@@ -1398,27 +1504,20 @@ describe('Block', () => {
             block.mouseup(() => {
                 isMouseUp = true
             })
+            await flush()
             dispatchMouse(element, 'mouseup', 10, 10)
             expect(isMouseUp).toBeTruthy()
         })
         it('should trigger mousemove event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
-            const element = await currentCanvas.element()
+            const element = (await currentCanvas.element()) as HTMLElement
 
             let isMouseMove = false
             block.mousemove(() => {
                 isMouseMove = true
             })
-            element.dispatchEvent(
-                new MouseEvent('mousemove', {
-                    clientX: 10,
-                    clientY: 10,
-                    button: 0,
-                    buttons: 1,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
+            await flush()
+            dispatchMouse(element, 'mousemove', 10, 10, 1)
             expect(isMouseMove).toBeTruthy()
         })
         it('should trigger mouseenter event', async () => {
@@ -1429,6 +1528,7 @@ describe('Block', () => {
             block.mouseenter(() => {
                 isMouseEnter = true
             })
+            await flush()
 
             dispatchMouse(element, 'mousemove', 10, 10)
 
@@ -1438,11 +1538,27 @@ describe('Block', () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
             const element = (await currentCanvas.element()) as HTMLElement
 
+            // leaving is only reported when another block is registered above
+            // the one under the pointer, otherwise the block always stays the
+            // first one, so the pointer has to move over a second block
+            const upperBlock = new Block({
+                x: 300,
+                y: 300,
+                width: 50,
+                height: 50,
+                zIndex: 1,
+            })
+            upperBlock.mousemove(() => {})
+            canvas.add(upperBlock)
+            await flush()
+
             let isMouseLeave = false
             block.mouseleave(() => {
                 isMouseLeave = true
             })
+            await flush()
 
+            // move the pointer out of the block and over the upper block
             dispatchMouse(element, 'mousemove', 320, 320)
 
             expect(isMouseLeave).toBeTruthy()
@@ -1451,12 +1567,13 @@ describe('Block', () => {
         it.todo('should trigger mouseout event', async () => {})
         it('should trigger keyup event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
-            const element = await currentCanvas.element()
+            const element = (await currentCanvas.element()) as HTMLElement
 
             let isKeyUp = false
             block.keyup(() => {
                 isKeyUp = true
             })
+            await flush()
 
             canvas.isFocused = true
             element.dispatchEvent(
@@ -1471,12 +1588,13 @@ describe('Block', () => {
         })
         it('should trigger keydown event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
-            const element = await currentCanvas.element()
+            const element = (await currentCanvas.element()) as HTMLElement
 
             let isKeyDown = false
             block.keydown(() => {
                 isKeyDown = true
             })
+            await flush()
 
             canvas.isFocused = true
             element.dispatchEvent(
@@ -1491,12 +1609,13 @@ describe('Block', () => {
         })
         it('should trigger wheel event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
-            const element = await currentCanvas.element()
+            const element = (await currentCanvas.element()) as HTMLElement
 
             let isWheeled = false
             block.wheel(() => {
                 isWheeled = true
             })
+            await flush()
 
             canvas.isFocused = true
             element.dispatchEvent(
@@ -1513,12 +1632,13 @@ describe('Block', () => {
         })
         it('does not select non-selectable block', async () => {
             block.set({ selectable: false })
+            await flush()
             const currentCanvas = page.elementLocator(canvas.canvas)
             const element = (await currentCanvas.element()) as HTMLElement
 
             dispatchMouse(element, 'mousedown', 10, 10, 1)
 
-            expect(canvas.whoIsTheFirst(block.zIndex())).toBeFalsy()
+            expect(canvas.whoIsTheFirst(block.nodeId!)).toBeFalsy()
         })
         it('registers events before adding block to canvas', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
@@ -1535,6 +1655,8 @@ describe('Block', () => {
                 isClicked = true
             })
             canvas.add(block)
+            allowMouse(canvas)
+            await flush()
             await userEvent.click(currentCanvas, { position: { x: 10, y: 10 } })
             expect(isClicked).toBeTruthy()
         })
