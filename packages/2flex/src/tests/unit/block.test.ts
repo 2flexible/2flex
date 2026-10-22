@@ -1,81 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 import { Block, Canvas } from '@2flexible/2flex'
-import { rgbaToArray } from '../../Utils'
 import {
-    OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
-    OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
-} from '../../const'
+    allowMouse,
+    dispatchMouse,
+    drawFilledBlock,
+    flush,
+    removeCanvasElements,
+} from './helpers'
 
 let block: Block
-let childBlock: Block
 let canvas: Canvas
-
-// the canvas applies every queued change (block init, option recalculation,
-// dom event registration, drawing) inside its render loop which is driven by
-// requestAnimationFrame, so tests have to let frames pass before asserting
-const flush = async (frames = 2) => {
-    for (let i = 0; i < frames; i++)
-        await new Promise<void>((resolve) =>
-            requestAnimationFrame(() => resolve())
-        )
-}
-
-// mouse events are only dispatched to blocks while the pointer is considered
-// inside the canvas, which is tracked by a real mouseenter event
-const allowMouse = (target: Canvas) =>
-    target.canvas.dispatchEvent(new MouseEvent('mouseenter'))
-
-// animations are driven by the render loop in real time, so finishing ones
-// have to be waited for instead of being flushed a fixed amount of frames
-const waitFor = async (predicate: () => boolean, timeout = 3000) => {
-    const start = performance.now()
-    while (!predicate()) {
-        if (performance.now() - start > timeout) return false
-        await new Promise((resolve) => setTimeout(resolve, 16))
-    }
-    return true
-}
-
-const dispatchMouse = (
-    element: HTMLElement,
-    type: string,
-    x: number,
-    y: number,
-    buttons = 0
-) => {
-    const rect = element.getBoundingClientRect()
-    element.dispatchEvent(
-        new MouseEvent(type, {
-            clientX: rect.left + x,
-            clientY: rect.top + y,
-            button: 0,
-            buttons,
-            bubbles: true,
-            cancelable: true,
-        })
-    )
-}
-
-// makes a block paint its own box, so what ends up on the canvas can be
-// asserted by screenshot
-const drawFilledBlock = (block: Block) => {
-    block.set({
-        onRender: () => {
-            const context = block.context
-            if (!context) return
-            context.beginPath()
-            context.fillStyle = 'red'
-            context.fillRect(block.x(), block.y(), block.width(), block.height())
-        },
-    })
-}
 
 describe('Block', () => {
     afterEach(() => {
-        document
-            .querySelectorAll('canvas')
-            .forEach((element) => element.remove())
+        removeCanvasElements()
     })
 
     describe('Constructor', () => {
@@ -224,7 +163,7 @@ describe('Block', () => {
             expect(bindBlock.x()).toBe(100)
         })
     })
-    describe('block transformations', () => {
+    describe('block geometry', () => {
         beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
@@ -243,22 +182,6 @@ describe('Block', () => {
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
             ]).toMatchSnapshot()
-            expect([
-                block.hotRotatableAreaTopLeft(),
-                block.hotRotatableAreaTopRight(),
-                block.hotRotatableAreaBottomLeft(),
-                block.hotRotatableAreaBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotResizableAreaTopLeft(),
-                block.hotResizableAreaTopRight(),
-                block.hotResizableAreaBottomLeft(),
-                block.hotResizableAreaBottomRight(),
-                block.hotResizableAreaTop(),
-                block.hotResizableAreaLeft(),
-                block.hotResizableAreaBottom(),
-                block.hotResizableAreaRight(),
-            ]).toMatchSnapshot()
         })
         it('should change x coordinate', async () => {
             block.set({ x: 120 })
@@ -268,22 +191,6 @@ describe('Block', () => {
                 block.cornerTopRight(),
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotRotatableAreaTopLeft(),
-                block.hotRotatableAreaTopRight(),
-                block.hotRotatableAreaBottomLeft(),
-                block.hotRotatableAreaBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotResizableAreaTopLeft(),
-                block.hotResizableAreaTopRight(),
-                block.hotResizableAreaBottomLeft(),
-                block.hotResizableAreaBottomRight(),
-                block.hotResizableAreaTop(),
-                block.hotResizableAreaLeft(),
-                block.hotResizableAreaBottom(),
-                block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
         it('should change y coordinate', async () => {
@@ -295,22 +202,6 @@ describe('Block', () => {
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
             ]).toMatchSnapshot()
-            expect([
-                block.hotRotatableAreaTopLeft(),
-                block.hotRotatableAreaTopRight(),
-                block.hotRotatableAreaBottomLeft(),
-                block.hotRotatableAreaBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotResizableAreaTopLeft(),
-                block.hotResizableAreaTopRight(),
-                block.hotResizableAreaBottomLeft(),
-                block.hotResizableAreaBottomRight(),
-                block.hotResizableAreaTop(),
-                block.hotResizableAreaLeft(),
-                block.hotResizableAreaBottom(),
-                block.hotResizableAreaRight(),
-            ]).toMatchSnapshot()
         })
         it('should resize width', async () => {
             block.set({ width: 50 })
@@ -321,22 +212,6 @@ describe('Block', () => {
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
             ]).toMatchSnapshot()
-            expect([
-                block.hotRotatableAreaTopLeft(),
-                block.hotRotatableAreaTopRight(),
-                block.hotRotatableAreaBottomLeft(),
-                block.hotRotatableAreaBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotResizableAreaTopLeft(),
-                block.hotResizableAreaTopRight(),
-                block.hotResizableAreaBottomLeft(),
-                block.hotResizableAreaBottomRight(),
-                block.hotResizableAreaTop(),
-                block.hotResizableAreaLeft(),
-                block.hotResizableAreaBottom(),
-                block.hotResizableAreaRight(),
-            ]).toMatchSnapshot()
         })
         it('should resize height', async () => {
             block.set({ height: 50 })
@@ -346,22 +221,6 @@ describe('Block', () => {
                 block.cornerTopRight(),
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotRotatableAreaTopLeft(),
-                block.hotRotatableAreaTopRight(),
-                block.hotRotatableAreaBottomLeft(),
-                block.hotRotatableAreaBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotResizableAreaTopLeft(),
-                block.hotResizableAreaTopRight(),
-                block.hotResizableAreaBottomLeft(),
-                block.hotResizableAreaBottomRight(),
-                block.hotResizableAreaTop(),
-                block.hotResizableAreaLeft(),
-                block.hotResizableAreaBottom(),
-                block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
         it('should scale width and height', async () => {
@@ -377,22 +236,6 @@ describe('Block', () => {
                 block.cornerTopRight(),
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotRotatableAreaTopLeft(),
-                block.hotRotatableAreaTopRight(),
-                block.hotRotatableAreaBottomLeft(),
-                block.hotRotatableAreaBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotResizableAreaTopLeft(),
-                block.hotResizableAreaTopRight(),
-                block.hotResizableAreaBottomLeft(),
-                block.hotResizableAreaBottomRight(),
-                block.hotResizableAreaTop(),
-                block.hotResizableAreaLeft(),
-                block.hotResizableAreaBottom(),
-                block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
         it('should change rotation center x', async () => {
@@ -433,22 +276,6 @@ describe('Block', () => {
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
             ]).toMatchSnapshot()
-            expect([
-                block.hotRotatableAreaTopLeft(),
-                block.hotRotatableAreaTopRight(),
-                block.hotRotatableAreaBottomLeft(),
-                block.hotRotatableAreaBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotResizableAreaTopLeft(),
-                block.hotResizableAreaTopRight(),
-                block.hotResizableAreaBottomLeft(),
-                block.hotResizableAreaBottomRight(),
-                block.hotResizableAreaTop(),
-                block.hotResizableAreaLeft(),
-                block.hotResizableAreaBottom(),
-                block.hotResizableAreaRight(),
-            ]).toMatchSnapshot()
         })
         it('should change coordinates on vertical flip', async () => {
             block.set({
@@ -461,22 +288,6 @@ describe('Block', () => {
                 block.cornerTopRight(),
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotRotatableAreaTopLeft(),
-                block.hotRotatableAreaTopRight(),
-                block.hotRotatableAreaBottomLeft(),
-                block.hotRotatableAreaBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotResizableAreaTopLeft(),
-                block.hotResizableAreaTopRight(),
-                block.hotResizableAreaBottomLeft(),
-                block.hotResizableAreaBottomRight(),
-                block.hotResizableAreaTop(),
-                block.hotResizableAreaLeft(),
-                block.hotResizableAreaBottom(),
-                block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
         it('should change coordinates on horizontal and vertical flip', async () => {
@@ -492,22 +303,6 @@ describe('Block', () => {
                 block.cornerTopRight(),
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotRotatableAreaTopLeft(),
-                block.hotRotatableAreaTopRight(),
-                block.hotRotatableAreaBottomLeft(),
-                block.hotRotatableAreaBottomRight(),
-            ]).toMatchSnapshot()
-            expect([
-                block.hotResizableAreaTopLeft(),
-                block.hotResizableAreaTopRight(),
-                block.hotResizableAreaBottomLeft(),
-                block.hotResizableAreaBottomRight(),
-                block.hotResizableAreaTop(),
-                block.hotResizableAreaLeft(),
-                block.hotResizableAreaBottom(),
-                block.hotResizableAreaRight(),
             ]).toMatchSnapshot()
         })
     })
@@ -868,9 +663,21 @@ describe('Block', () => {
             // childs of a row stay on the same line with a flipped height, only
             // the row which does not fit anymore starts upwards
             expect([
-                [childBlocks[0].x(), childBlocks[0].y(), childBlocks[0].height()],
-                [childBlocks[1].x(), childBlocks[1].y(), childBlocks[1].height()],
-                [childBlocks[2].x(), childBlocks[2].y(), childBlocks[2].height()],
+                [
+                    childBlocks[0].x(),
+                    childBlocks[0].y(),
+                    childBlocks[0].height(),
+                ],
+                [
+                    childBlocks[1].x(),
+                    childBlocks[1].y(),
+                    childBlocks[1].height(),
+                ],
+                [
+                    childBlocks[2].x(),
+                    childBlocks[2].y(),
+                    childBlocks[2].height(),
+                ],
             ]).toStrictEqual([
                 [0, 0, -40],
                 [40, 0, -40],
@@ -919,13 +726,16 @@ describe('Block', () => {
             expect([
                 centerChild.rotationCenterX(),
                 centerChild.rotationCenterY(),
-            ]).toStrictEqual([
-                block.rotationCenterX(),
-                block.rotationCenterY(),
-            ])
+            ]).toStrictEqual([block.rotationCenterX(), block.rotationCenterY()])
         })
         it('should inherit rotation of parent in current and cache', async () => {
-            block = new Block({ x: 0, y: 0, width: 100, height: 100, rotate: 0.6 })
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                rotate: 0.6,
+            })
             const rotatedChild = new Block({ width: 40, height: 50 })
             block.addChild(rotatedChild)
             canvas.add(block)
@@ -951,7 +761,9 @@ describe('Block', () => {
             // resizing the parent does not resize the child
             block.set({ width: 300 })
             await flush()
-            expect([movedChild.x(), movedChild.width()]).toStrictEqual([100, 40])
+            expect([movedChild.x(), movedChild.width()]).toStrictEqual([
+                100, 40,
+            ])
         })
         it('should show childs again when parent becomes visible', async () => {
             block = new Block({
@@ -1001,7 +813,9 @@ describe('Block', () => {
             block.__invokeChange()
             await flush(3)
             // the regular child scrolls away while the sticky one stays put
-            expect(scrollingChild.y()).toBe(block.y() + block.overflowPositionY())
+            expect(scrollingChild.y()).toBe(
+                block.y() + block.overflowPositionY()
+            )
             expect(stickyChild.y() - block.y()).toBe(10)
         })
     })
@@ -1394,205 +1208,6 @@ describe('Block', () => {
             ])
         })
     })
-    describe('overflow', () => {
-        // scroll bars are separate blocks added to the canvas scene, so they
-        // are looked up by the side specific name they are created with
-        const xScrollBars = () =>
-            canvas.find({ name: OVERFLOW_X_SCROLL_BAR_BLOCK_NAME })
-        const yScrollBars = () =>
-            canvas.find({ name: OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME })
-        beforeEach(async () => {
-            canvas = new Canvas('myCanvas', 400, 500)
-            block = new Block({
-                x: 0,
-                y: 0,
-                width: 100,
-                height: 100,
-                selectable: true,
-            })
-            canvas.add(block)
-            await flush()
-        })
-        afterEach(() => {
-            canvas.isFocused = false
-        })
-        it('should hide overflow', async () => {
-            block.set({ overflow: 'hidden' })
-            const childBlock = new Block({
-                width: 300,
-                height: 300,
-                backgroundColor: 'red',
-            })
-            drawFilledBlock(childBlock)
-            block.addChild(childBlock)
-            await flush()
-            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
-                'overflow-hidden'
-            )
-        })
-        it('should show overflow', async () => {
-            block.set({ overflow: 'visible' })
-            const childBlock = new Block({
-                width: 300,
-                height: 300,
-                backgroundColor: 'red',
-            })
-            drawFilledBlock(childBlock)
-            block.addChild(childBlock)
-            await flush()
-            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
-                'overflow-visible'
-            )
-        })
-        it('should create scroll bar for overflowX scroll', async () => {
-            expect(xScrollBars()).toHaveLength(0)
-            block.set({ overflowX: 'scroll' })
-            await flush()
-            expect(xScrollBars()).toHaveLength(1)
-            expect(yScrollBars()).toHaveLength(0)
-        })
-        it('should create scroll bar for overflowY scroll', async () => {
-            expect(yScrollBars()).toHaveLength(0)
-            block.set({ overflowY: 'scroll' })
-            await flush()
-            expect(yScrollBars()).toHaveLength(1)
-            expect(xScrollBars()).toHaveLength(0)
-        })
-        it('should create scroll bar for overflowX auto', async () => {
-            expect(xScrollBars()).toHaveLength(0)
-            block.set({ overflowX: 'auto' })
-            await flush()
-            expect(xScrollBars()).toHaveLength(1)
-            expect(yScrollBars()).toHaveLength(0)
-        })
-        it('should create scroll bar for overflowY auto', async () => {
-            expect(yScrollBars()).toHaveLength(0)
-            block.set({ overflowY: 'auto' })
-            await flush()
-            expect(yScrollBars()).toHaveLength(1)
-            expect(xScrollBars()).toHaveLength(0)
-        })
-        it('should scroll on wheel along x axis', async () => {
-            const childBlock = new Block({ width: 150, height: 50 })
-            block.addChild(childBlock)
-            block.set({ overflowX: 'scroll' })
-            await flush()
-
-            canvas.isFocused = true
-
-            // the wheel listener is registered on the canvas element itself
-            canvas.canvas.dispatchEvent(
-                new WheelEvent('wheel', {
-                    shiftKey: true,
-                    deltaY: 100,
-                    clientX: 10,
-                    clientY: 10,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
-            await flush()
-            expect(childBlock.x()).toBe(-20)
-        })
-        it('should scroll on wheel along y axis', async () => {
-            const childBlock = new Block({ width: 50, height: 150 })
-            block.addChild(childBlock)
-            block.set({ overflowY: 'scroll' })
-            await flush()
-
-            canvas.isFocused = true
-
-            canvas.canvas.dispatchEvent(
-                new WheelEvent('wheel', {
-                    deltaY: 100,
-                    clientX: 10,
-                    clientY: 10,
-                    bubbles: true,
-                    cancelable: true,
-                })
-            )
-            await flush()
-            expect(childBlock.y()).toBe(-20)
-        })
-    })
-    describe('overflow translation', () => {
-        // translating only stores the new offset, the canvas clamps it back on
-        // the next layout of the block, so the change has to be demanded
-        const translateX = async (target: Block, x: number) => {
-            target.__overflowTranslateX(x)
-            target.__invokeChange()
-            await flush(3)
-        }
-        const translateY = async (target: Block, y: number) => {
-            target.__overflowTranslateY(y)
-            target.__invokeChange()
-            await flush(3)
-        }
-        beforeEach(async () => {
-            canvas = new Canvas('myCanvas', 400, 500)
-            block = new Block({
-                x: 0,
-                y: 0,
-                width: 100,
-                height: 100,
-                overflowX: 'scroll',
-            })
-            childBlock = new Block({ width: 300, height: 20 })
-            block.addChild(childBlock)
-            canvas.add(block)
-            await flush()
-        })
-        it('should accumulate overflow translation on x', async () => {
-            await translateX(block, -30)
-            expect(block.overflowPositionX()).toBe(-30)
-            await translateX(block, -30)
-            expect(block.overflowPositionX()).toBe(-60)
-        })
-        it('should scroll back to the start of the overflow area on x', async () => {
-            await translateX(block, -30)
-            expect(block.overflowPositionX()).toBe(-30)
-            // past the start of the area there is nothing left to scroll to
-            await translateX(block, 50)
-            expect(block.overflowPositionX()).toBe(0)
-        })
-        it('should clamp overflow translation on x to the overflowed childs', async () => {
-            await translateX(block, -999)
-            // the childs are 300 wide inside a 100 wide parent
-            expect(block.overflowPositionX()).toBe(-200)
-        })
-        it('should not translate overflow position on x when childs fit', async () => {
-            block.set({ width: 400 })
-            await flush()
-            await translateX(block, -50)
-            expect(block.overflowPositionX()).toBe(0)
-        })
-        it('should accumulate and clamp overflow translation on y', async () => {
-            const tallBlock = new Block({
-                x: 0,
-                y: 200,
-                width: 100,
-                height: 100,
-                overflowY: 'scroll',
-            })
-            const tallChild = new Block({ width: 20, height: 300 })
-            tallBlock.addChild(tallChild)
-            canvas.add(tallBlock)
-            await flush()
-            await translateY(tallBlock, -30)
-            expect(tallBlock.overflowPositionY()).toBe(-30)
-            await translateY(tallBlock, -999)
-            expect(tallBlock.overflowPositionY()).toBe(-200)
-        })
-        it('should not translate overflow position on y when childs fit', async () => {
-            await translateY(block, -50)
-            expect(block.overflowPositionY()).toBe(0)
-        })
-        it('should move childs by the overflow position', async () => {
-            expect(childBlock.x()).toBe(0)
-            await translateX(block, -20)
-            expect(childBlock.x()).toBe(-20)
-        })
-    })
     describe('onRender', () => {
         // the canvas renders blocks in its own loop, which would call the
         // callback on every frame, so render is driven manually here
@@ -1675,289 +1290,6 @@ describe('Block', () => {
             expect(() => contextlessChild.render()).not.toThrow()
             contextlessChild.context = context
             expect(onRender).toHaveBeenCalled()
-        })
-    })
-    describe('child clipping', () => {
-        beforeEach(async () => {
-            canvas = new Canvas('myCanvas', 400, 500)
-            await flush()
-        })
-        it('should clip a child by its parent', async () => {
-            block = new Block({
-                x: 50,
-                y: 50,
-                width: 100,
-                height: 100,
-                overflow: 'hidden',
-            })
-            childBlock = new Block({ width: 300, height: 300 })
-            drawFilledBlock(childBlock)
-            block.addChild(childBlock)
-            canvas.add(block)
-            await flush()
-            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
-                'child-clipped-by-parent'
-            )
-        })
-        it('should clip a child by a rotated parent', async () => {
-            block = new Block({
-                x: 150,
-                y: 150,
-                width: 100,
-                height: 100,
-                rotate: 0.8,
-                overflow: 'hidden',
-            })
-            childBlock = new Block({ width: 300, height: 300 })
-            drawFilledBlock(childBlock)
-            block.addChild(childBlock)
-            canvas.add(block)
-            await flush()
-            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
-                'child-clipped-by-rotated-parent'
-            )
-        })
-        it('should clip a grandchild by every clipping parent', async () => {
-            block = new Block({
-                x: 20,
-                y: 20,
-                width: 200,
-                height: 200,
-                overflow: 'hidden',
-            })
-            // the margin moves the middle block out of the outer one, so both
-            // of their clip paths have to be applied to the red child
-            const middleBlock = new Block({
-                width: 100,
-                height: 100,
-                margin: 150,
-                overflow: 'hidden',
-            })
-            const grandChildBlock = new Block({ width: 200, height: 200 })
-            drawFilledBlock(grandChildBlock)
-            block.addChild(middleBlock)
-            middleBlock.addChild(grandChildBlock)
-            canvas.add(block)
-            await flush()
-            expect([
-                middleBlock.x(),
-                middleBlock.y(),
-            ]).toStrictEqual([170, 170])
-            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
-                'child-clipped-by-ancestors'
-            )
-        })
-    })
-    describe('transformations', () => {
-        beforeEach(async () => {
-            canvas = new Canvas('myCanvas', 400, 500)
-            block = new Block({
-                x: 0,
-                y: 0,
-                width: 100,
-                height: 100,
-                selectable: true,
-            })
-            canvas.add(block)
-            allowMouse(canvas)
-            await flush()
-        })
-        it('should resize block by dragging', async () => {
-            block.set({ resizable: true })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-
-            // select the block so the resize handles become active
-            dispatchMouse(element, 'mousedown', 10, 10)
-            dispatchMouse(element, 'mouseup', 10, 10)
-            await flush()
-
-            // hover the right resizable edge to arm the resize handle
-            dispatchMouse(element, 'mousemove', 100, 50)
-
-            dispatchMouse(element, 'mousedown', 100, 50, 1)
-
-            dispatchMouse(element, 'mousemove', 200, 50, 1)
-
-            dispatchMouse(element, 'mouseup', 200, 50)
-            expect(block.width()).toBe(200)
-            expect(block.x()).toBe(0)
-            expect(block.y()).toBe(0)
-            expect(block.height()).toBe(100)
-        })
-        it('should resize from specified corners', async () => {
-            block.set({ resizable: true })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-
-            // select the block so the resize handles become active
-            dispatchMouse(element, 'mousedown', 10, 10)
-            dispatchMouse(element, 'mouseup', 10, 10)
-            await flush()
-
-            // hover the top-left resizable corner to arm the corner handle
-            dispatchMouse(element, 'mousemove', 5, 5)
-
-            dispatchMouse(element, 'mousedown', 5, 5, 1)
-
-            dispatchMouse(element, 'mousemove', 20, 20, 1)
-
-            dispatchMouse(element, 'mouseup', 20, 20)
-
-            expect(block.x()).toBe(15)
-            expect(block.y()).toBe(15)
-            expect(block.width()).toBe(85)
-            expect(block.height()).toBe(85)
-        })
-        it('should call onResize while resizing', async () => {
-            let isResizingOn = false
-            const onResizeFunc = () => {
-                isResizingOn = true
-            }
-            block.set({
-                resizable: true,
-                onResizable: onResizeFunc,
-            })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-
-            dispatchMouse(element, 'mousedown', 10, 10)
-            dispatchMouse(element, 'mouseup', 10, 10)
-            await flush()
-
-            dispatchMouse(element, 'mousemove', 100, 50)
-
-            dispatchMouse(element, 'mousedown', 100, 50, 1)
-
-            dispatchMouse(element, 'mousemove', 200, 50, 1)
-
-            dispatchMouse(element, 'mouseup', 200, 50)
-
-            expect(isResizingOn).toBeTruthy()
-        })
-
-        it('should rotate block by dragging', async () => {
-            block.set({ rotatable: true })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-
-            // select the block so the rotation handles become active
-            dispatchMouse(element, 'mousedown', 10, 10)
-            dispatchMouse(element, 'mouseup', 10, 10)
-            await flush()
-
-            // hover the bottom-right rotatable corner to arm the handle
-            dispatchMouse(element, 'mousemove', 105, 105)
-
-            dispatchMouse(element, 'mousedown', 105, 105, 1)
-
-            dispatchMouse(element, 'mousemove', 150, 50, 1)
-
-            dispatchMouse(element, 'mouseup', 150, 50)
-
-            expect(block.rotate()).toBeCloseTo(-Math.PI / 4, 10)
-        })
-        it('should rotate from specified corners', async () => {
-            block.set({ rotatable: true })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-
-            dispatchMouse(element, 'mousedown', 10, 10)
-            dispatchMouse(element, 'mouseup', 10, 10)
-            await flush()
-
-            // hover the top-left rotatable corner to arm the handle
-            dispatchMouse(element, 'mousemove', -7, -7)
-
-            dispatchMouse(element, 'mousedown', -7, -7, 1)
-
-            dispatchMouse(element, 'mousemove', 150, 50, 1)
-
-            dispatchMouse(element, 'mouseup', 150, 50)
-
-            expect(block.rotate()).toBeCloseTo((3 * Math.PI) / 4, 10)
-        })
-        it('should call onRotate while rotating', async () => {
-            let isRotatingOn = false
-            const onRotateFunc = () => {
-                isRotatingOn = true
-            }
-            block.set({
-                rotatable: true,
-                onRotatable: onRotateFunc,
-            })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-
-            dispatchMouse(element, 'mousedown', 10, 10)
-            dispatchMouse(element, 'mouseup', 10, 10)
-            await flush()
-
-            dispatchMouse(element, 'mousemove', 105, 105)
-
-            dispatchMouse(element, 'mousedown', 105, 105, 1)
-
-            dispatchMouse(element, 'mousemove', 150, 50, 1)
-
-            dispatchMouse(element, 'mouseup', 150, 50)
-
-            expect(isRotatingOn).toBeTruthy()
-        })
-
-        it('should drag block', async () => {
-            block.set({ draggable: true })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-
-            dispatchMouse(element, 'mousedown', 10, 10, 1)
-
-            dispatchMouse(element, 'mousemove', 100, 100, 1)
-            expect(block.x()).toBe(90)
-            expect(block.y()).toBe(90)
-        })
-        it('should drag block only along x axis', async () => {
-            block.set({ draggable: true, draggableY: false })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-            dispatchMouse(element, 'mousedown', 10, 10, 1)
-            dispatchMouse(element, 'mousemove', 100, 100, 1)
-            expect(block.x()).toBe(90)
-            expect(block.y()).toBe(0)
-        })
-        it('should drag block only along y axis', async () => {
-            block.set({ draggable: true, draggableX: false })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-            dispatchMouse(element, 'mousedown', 10, 10, 1)
-            dispatchMouse(element, 'mousemove', 100, 100, 1)
-            expect(block.x()).toBe(0)
-            expect(block.y()).toBe(90)
-        })
-        it('should call onDrag while dragging', async () => {
-            let isDraggingOn = false
-            const onDragFunc = () => {
-                isDraggingOn = true
-            }
-            block.set({
-                draggable: true,
-                draggableX: false,
-                onDraggable: onDragFunc,
-            })
-            await flush()
-            const targetLocator = page.elementLocator(canvas.canvas)
-            const element = (await targetLocator.element()) as HTMLElement
-            dispatchMouse(element, 'mousedown', 10, 10, 1)
-            dispatchMouse(element, 'mousemove', 100, 100, 1)
-            expect(isDraggingOn).toBeTruthy()
         })
     })
     describe('events', () => {
@@ -2155,16 +1487,6 @@ describe('Block', () => {
 
             expect(isWheeled).toBeTruthy()
         })
-        it('does not select non-selectable block', async () => {
-            block.set({ selectable: false })
-            await flush()
-            const currentCanvas = page.elementLocator(canvas.canvas)
-            const element = (await currentCanvas.element()) as HTMLElement
-
-            dispatchMouse(element, 'mousedown', 10, 10, 1)
-
-            expect(canvas.whoIsTheFirst(block.nodeId!)).toBeFalsy()
-        })
         it('registers events before adding block to canvas', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
@@ -2184,310 +1506,6 @@ describe('Block', () => {
             await flush()
             await userEvent.click(currentCanvas, { position: { x: 10, y: 10 } })
             expect(isClicked).toBeTruthy()
-        })
-    })
-    describe('Customizing')
-    describe('Animations', () => {
-        beforeEach(async () => {
-            canvas = new Canvas('myCanvas', 400, 500)
-            block = new Block({
-                x: 0,
-                y: 0,
-                width: 100,
-                height: 100,
-            })
-            canvas.add(block)
-            await flush()
-        })
-        it('should generate a unique id for every animation', () => {
-            const first = block.animate({ id: undefined, x: [0, 100] })
-            const second = block.animate({ id: undefined, x: [0, 100] })
-            expect(first).not.toBe(second)
-        })
-        it('should generate a unique id across blocks on the same canvas', () => {
-            const otherBlock = new Block({ width: 50, height: 50 })
-            canvas.add(otherBlock)
-            expect(block.animate({ id: undefined, x: [0, 100] })).not.toBe(
-                otherBlock.animate({ id: undefined, x: [0, 100] })
-            )
-        })
-        it('should use the given animation id', () => {
-            expect(block.animate({ id: 'myAnimation', x: [0, 100] })).toBe(
-                'myAnimation'
-            )
-        })
-        it('should apply the final keyframe value on animationFinish', () => {
-            const animationId = block.animate({ id: 'finish', x: [0, 100] })
-            block.animationFinish(animationId)
-            expect(block.x()).toBe(100)
-        })
-        it('should use the first keyframe when direction is reverse', () => {
-            const animationId = block.animate({ id: 'direction', x: [40, 100] })
-            block.animationDirection(animationId, 'reverse')
-            block.animationFinish(animationId)
-            expect(block.x()).toBe(40)
-        })
-        it('should resolve the last of several keyframes', () => {
-            const animationId = block.animate({
-                id: 'multiple',
-                x: [0, 50, 200],
-            })
-            block.animationFinish(animationId)
-            expect(block.x()).toBe(200)
-        })
-        it('should add the keyframe value to the underlying one', async () => {
-            block.set({ x: 50 })
-            await flush()
-            const animationId = block.animate({
-                id: 'composite',
-                composite: 'add',
-                x: [0, 100],
-            })
-            block.animationFinish(animationId)
-            expect(block.x()).toBe(150)
-        })
-        it('should interpolate a discrete value only at the end', async () => {
-            const animationId = block.animate({
-                id: 'discrete',
-                x: [0, 100],
-                hidden: [false, true],
-            })
-            block.animationStart(animationId)
-            await flush(3)
-            expect(block.hidden()).toBe(false)
-
-            block.animationFinish(animationId)
-            expect(block.hidden()).toBe(true)
-        })
-        it('should not run before it is started', async () => {
-            const animationId = block.animate({ id: 'auto', x: [0, 100] })
-            await flush(4)
-            expect(block.x()).toBe(0)
-            expect(animationId).toBe('auto')
-        })
-        it('should animate after animationStart', async () => {
-            const animationId = block.animate({ id: 'start', x: [0, 100] })
-            await flush()
-            block.animationStart(animationId)
-            await flush(4)
-            expect(block.x()).toBeGreaterThan(0)
-            expect(block.x()).toBeLessThan(100)
-        })
-        it('should run on its own with autoStart', async () => {
-            block.animate({ id: 'autoStart', autoStart: true, x: [0, 100] })
-            await flush(4)
-            expect(block.x()).toBeGreaterThan(0)
-            expect(block.x()).toBeLessThan(100)
-        })
-        it('should freeze the value while stopped', async () => {
-            const animationId = block.animate({ id: 'stop', x: [0, 100] })
-            block.animationStart(animationId)
-            await flush(4)
-
-            block.animationStop(animationId)
-            const stoppedAt = block.x()
-            expect(stoppedAt).toBeGreaterThan(0)
-
-            await flush(4)
-            expect(block.x()).toBe(stoppedAt)
-        })
-        it('should continue after being restarted', async () => {
-            const animationId = block.animate({ id: 'restart', x: [0, 100] })
-            block.animationStart(animationId)
-            await flush(3)
-
-            block.animationStop(animationId)
-            const stoppedAt = block.x()
-
-            block.animationStart(animationId)
-            await flush(4)
-            expect(block.x()).toBeGreaterThan(stoppedAt)
-        })
-        it('should finish and call onFinish when iterations are reached', async () => {
-            let isFinished = false
-            block.animate({
-                id: 'iterations',
-                autoStart: true,
-                duration: 40,
-                iterations: 1,
-                onFinish: () => {
-                    isFinished = true
-                },
-                x: [0, 100],
-            })
-            expect(await waitFor(() => isFinished)).toBe(true)
-            expect(block.x()).toBe(100)
-        })
-        it('should stop updating after removeAnimation', async () => {
-            const animationId = block.animate({
-                id: 'remove',
-                autoStart: true,
-                x: [0, 100],
-            })
-            await flush(3)
-
-            block.removeAnimation(animationId)
-            await flush()
-            const removedAt = block.x()
-
-            await flush(4)
-            expect(block.x()).toBe(removedAt)
-        })
-        // keyframes go through the value converter of the animated option, so
-        // every kind of value it accepts can be used as a breakpoint
-        describe('keyframe value kinds', () => {
-            it('should animate a number keyframe', () => {
-                const animationId = block.animate({
-                    id: 'number',
-                    x: [0, 120],
-                })
-                block.animationFinish(animationId)
-                expect(block.x()).toBe(120)
-            })
-            it('should animate a px keyframe', () => {
-                const animationId = block.animate({
-                    id: 'px',
-                    x: ['0px', '75px'],
-                })
-                block.animationFinish(animationId)
-                expect(block.x()).toBe(75)
-            })
-            it('should animate a percentage keyframe', () => {
-                // 50% of the 400 wide canvas
-                const animationId = block.animate({
-                    id: 'percentage',
-                    x: ['0%', '50%'],
-                })
-                block.animationFinish(animationId)
-                expect(block.x()).toBe(200)
-            })
-            it('should animate a centimeter keyframe', () => {
-                const animationId = block.animate({
-                    id: 'centimeter',
-                    x: ['1cm', '2cm'],
-                })
-                block.animationFinish(animationId)
-                expect(block.x()).toBe(75.6)
-            })
-            it('should animate a color keyframe', () => {
-                const animationId = block.animate({
-                    id: 'color',
-                    hotCornerBackgroundColor: ['red', 'blue'],
-                })
-                block.animationFinish(animationId)
-                expect(block.hotCornerBackgroundColor()).toBe(
-                    'rgba(0, 0, 255, 1)'
-                )
-            })
-            it('should interpolate a color keyframe', async () => {
-                const animationId = block.animate({
-                    id: 'colorLerp',
-                    autoStart: true,
-                    hotCornerBackgroundColor: ['red', 'blue'],
-                })
-                await flush(4)
-
-                const [r, , b] = rgbaToArray(
-                    block.hotCornerBackgroundColor()
-                ) as number[]
-                expect(r).toBeLessThan(255)
-                expect(b).toBeGreaterThan(0)
-            })
-            it('should animate a boolean keyframe', () => {
-                const animationId = block.animate({
-                    id: 'boolean',
-                    hidden: [true, false],
-                })
-                block.animationFinish(animationId)
-                expect(block.hidden()).toBe(false)
-            })
-            it('should animate a string keyframe', () => {
-                const animationId = block.animate({
-                    id: 'string',
-                    name: ['first', 'last'],
-                })
-                block.animationFinish(animationId)
-                expect(block.name()).toBe('last')
-            })
-            it('should animate an array keyframe', () => {
-                const animationId = block.animate({
-                    id: 'array',
-                    hotCornerRadius: [
-                        [10, 20],
-                        [30, 40],
-                    ],
-                })
-                block.animationFinish(animationId)
-                expect(block.hotCornerRadius()).toEqual([30, 40])
-            })
-            it('should interpolate every item of an array keyframe', async () => {
-                const animationId = block.animate({
-                    id: 'arrayLerp',
-                    autoStart: true,
-                    hotCornerRadius: [
-                        [0, 100],
-                        [100, 200],
-                    ],
-                })
-                await flush(4)
-
-                const [first, second] = block.hotCornerRadius() as number[]
-                expect(first).toBeGreaterThan(0)
-                expect(first).toBeLessThan(100)
-                expect(second).toBeGreaterThan(100)
-                expect(second).toBeLessThan(200)
-            })
-            it('should pad array keyframes to the same arity', () => {
-                const animationId = block.animate({
-                    id: 'arrayArity',
-                    hotCornerRadius: [[10], [20, 30, 40]],
-                })
-                block.animationFinish(animationId)
-                expect(block.hotCornerRadius()).toEqual([20, 30, 40])
-            })
-            it('should animate an object keyframe', () => {
-                const animationId = block.animate({
-                    id: 'object',
-                    rotatableTopLeft: [
-                        { x: 0, y: 0 },
-                        { x: 40, y: 60 },
-                    ],
-                })
-                block.animationFinish(animationId)
-                expect(block.rotatableTopLeft()).toEqual({ x: 40, y: 60 })
-            })
-            it('should interpolate every key of an object keyframe', async () => {
-                const animationId = block.animate({
-                    id: 'objectLerp',
-                    autoStart: true,
-                    rotatableTopLeft: [
-                        { x: 0, y: 0 },
-                        { x: 100, y: 200 },
-                    ],
-                })
-                await flush(4)
-
-                const { x, y } = block.rotatableTopLeft() as {
-                    x: number
-                    y: number
-                }
-                expect(x).toBeGreaterThan(0)
-                expect(x).toBeLessThan(100)
-                expect(y).toBeGreaterThan(0)
-                expect(y).toBeLessThan(200)
-            })
-            it('should animate multiple options at once', () => {
-                const animationId = block.animate({
-                    id: 'multipleOptions',
-                    x: [10, 20],
-                    y: [30, 40],
-                    rotate: [0, 1.2],
-                })
-                block.animationFinish(animationId)
-                expect(block.x()).toBe(20)
-                expect(block.y()).toBe(40)
-                expect(block.rotate()).toBe(1.2)
-            })
         })
     })
 })

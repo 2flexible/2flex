@@ -1,0 +1,694 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RotatableBlock > hot rotatable areas > should change coordinates on horizontal and vertical flip 1`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -95,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": -80,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": -95,
+      "y": 30,
+    },
+    "topRight": {
+      "x": -80,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": -70,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": -70,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": -85,
+    },
+    "topRight": {
+      "x": 35,
+      "y": -85,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -95,
+      "y": -70,
+    },
+    "bottomRight": {
+      "x": -80,
+      "y": -70,
+    },
+    "topLeft": {
+      "x": -95,
+      "y": -85,
+    },
+    "topRight": {
+      "x": -80,
+      "y": -85,
+    },
+  },
+]
+`;
+
+exports[`RotatableBlock > hot rotatable areas > should change coordinates on horizontal flip 1`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -95,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": -80,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": -95,
+      "y": 15,
+    },
+    "topRight": {
+      "x": -80,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 20,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 35,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 20,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 35,
+      "y": 130,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -95,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": -80,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": -95,
+      "y": 130,
+    },
+    "topRight": {
+      "x": -80,
+      "y": 130,
+    },
+  },
+]
+`;
+
+exports[`RotatableBlock > hot rotatable areas > should change coordinates on vertical flip 1`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 45,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 45,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 30,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 30,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": -70,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": -70,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": -85,
+    },
+    "topRight": {
+      "x": 20,
+      "y": -85,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": -70,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": -70,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": -85,
+    },
+    "topRight": {
+      "x": 135,
+      "y": -85,
+    },
+  },
+]
+`;
+
+exports[`RotatableBlock > hot rotatable areas > should change x coordinate 1`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 220,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 235,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 220,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 235,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 105,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 120,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 105,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 120,
+      "y": 130,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 220,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 235,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 220,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 235,
+      "y": 130,
+    },
+  },
+]
+`;
+
+exports[`RotatableBlock > hot rotatable areas > should change y coordinate 1`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 20,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 20,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 5,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 20,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 20,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 5,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 5,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 135,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 135,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 120,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 120,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 135,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 135,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 120,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 120,
+    },
+  },
+]
+`;
+
+exports[`RotatableBlock > hot rotatable areas > should resize height 1`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 95,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 95,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 80,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 80,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 95,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 95,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 80,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 80,
+    },
+  },
+]
+`;
+
+exports[`RotatableBlock > hot rotatable areas > should resize width 1`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 70,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 85,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 70,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 85,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 130,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 70,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 85,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 70,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 85,
+      "y": 130,
+    },
+  },
+]
+`;
+
+exports[`RotatableBlock > hot rotatable areas > should rotate block 1`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 93.04870025737753,
+      "y": 1.2995716882966093,
+    },
+    "bottomRight": {
+      "x": 98.48406657452763,
+      "y": 15.280157977805004,
+    },
+    "topLeft": {
+      "x": 107.02928654688593,
+      "y": -4.135794628853489,
+    },
+    "topRight": {
+      "x": 112.46465286403603,
+      "y": 9.844791660654906,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 134.719842022195,
+      "y": 108.48406657452763,
+    },
+    "bottomRight": {
+      "x": 140.1552083393451,
+      "y": 122.46465286403603,
+    },
+    "topLeft": {
+      "x": 148.70042831170338,
+      "y": 103.04870025737753,
+    },
+    "topRight": {
+      "x": 154.1357946288535,
+      "y": 117.02928654688593,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": -14.135794628853489,
+      "y": 42.97071345311407,
+    },
+    "bottomRight": {
+      "x": -8.70042831170339,
+      "y": 56.95129974262247,
+    },
+    "topLeft": {
+      "x": -0.15520833934509426,
+      "y": 37.535347135963974,
+    },
+    "topRight": {
+      "x": 5.280157977805004,
+      "y": 51.51593342547237,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 27.535347135963974,
+      "y": 150.1552083393451,
+    },
+    "bottomRight": {
+      "x": 32.97071345311407,
+      "y": 164.1357946288535,
+    },
+    "topLeft": {
+      "x": 41.51593342547237,
+      "y": 144.719842022195,
+    },
+    "topRight": {
+      "x": 46.95129974262247,
+      "y": 158.70042831170338,
+    },
+  },
+]
+`;
+
+exports[`RotatableBlock > hot rotatable areas > should set initial coordinates 1`] = `
+[
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 30,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 30,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 15,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 15,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 5,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 20,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 5,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 20,
+      "y": 130,
+    },
+  },
+  {
+    "bottomLeft": {
+      "x": 120,
+      "y": 145,
+    },
+    "bottomRight": {
+      "x": 135,
+      "y": 145,
+    },
+    "topLeft": {
+      "x": 120,
+      "y": 130,
+    },
+    "topRight": {
+      "x": 135,
+      "y": 130,
+    },
+  },
+]
+`;
