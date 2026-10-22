@@ -1,5 +1,5 @@
 import { BaseBlock } from './BaseBlock'
-import { Block } from './Block'
+import { Block, IBlockOptions } from './Block'
 import { RelativeType } from './types'
 
 type JustifyContent =
@@ -91,7 +91,7 @@ interface GridLayout {
 }
 type ILayout = 'flex' | 'inline-flex' | 'grid' | 'inline-grid'
 
-interface LayoutOptions extends GridLayout, FlexLayout {
+interface LayoutOptions extends IBlockOptions, GridLayout, FlexLayout {
     layout?: ILayout
     justifyContent?: JustifyContent
     alignContent?: AlignContent
@@ -172,7 +172,7 @@ export class LayoutBlock extends Block {
         )
     }
 
-    addChild(block: this): void {
+    addChild(block: BaseBlock): void {
         super.addChild(block)
         this.#assingOrdering()
         this.#orderChilds()
@@ -188,7 +188,7 @@ export class LayoutBlock extends Block {
         }
     }
 
-    removeChild(block: this): void {
+    removeChild(block: BaseBlock): void {
         super.removeChild(block)
         this.#assingOrdering()
         this.#orderChilds()

@@ -9,13 +9,13 @@ export class Node {
         this.childNodes = new Set()
     }
 
-    addChild(node: this) {
+    addChild(node: Node) {
         if (!this.childNodes.has(node)) {
             node.parentNode = this
             this.childNodes.add(node)
         }
     }
-    removeChild(child: this) {
+    removeChild(child: Node) {
         const remove = (node: Node): boolean => {
             if (node.childNodes.has(child)) {
                 node.childNodes.delete(child)

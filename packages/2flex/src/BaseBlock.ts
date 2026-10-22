@@ -1212,10 +1212,10 @@ export class BaseBlock extends Node {
         if (this.nodeId) return this.canvas?.whoIsTheFirst(this.nodeId)
         return false
     }
-    __addChildInternal(block: this) {
+    __addChildInternal(block: BaseBlock) {
         super.addChild(block)
     }
-    __removeChildInternal(block: this): void {
+    __removeChildInternal(block: BaseBlock): void {
         super.removeChild(block)
         block.__childAdjustment = undefined
     }
@@ -1354,13 +1354,13 @@ export class BaseBlock extends Node {
         })
         return blocks
     }
-    addChild(block: this): void {
+    addChild(block: BaseBlock): void {
         super.addChild(block)
         if (this.canvas) this.canvas.demandAddBlock(block)
         else this.#pending['addedChilds'].push(block)
         this.__invokeHistory({ removeChild: block }, { addChild: block })
     }
-    removeChild(block: this): void {
+    removeChild(block: BaseBlock): void {
         super.removeChild(block)
         block.__childAdjustment = undefined
         if (this.canvas) this.canvas.demandRemoveBlock(block)
