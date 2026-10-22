@@ -11,7 +11,9 @@ export const intiBoxCords = { x: 0, y: 0, width: 0, height: 0 }
 
 export const HOT_LINE_BLOCK_NAME = '__hot_line_hidden'
 
-export const OVERFLOW_SCROLL_BAR_BLOCK_NAME = '__overflow_scroll_bar_hidden'
+export const OVERFLOW_X_SCROLL_BAR_BLOCK_NAME = '__overflow_x_scroll_bar_hidden'
+
+export const OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME = '__overflow_y_scroll_bar_hidden'
 
 export const SELECTABLE_RUNNING_EVENT = 'selecting'
 export const RESIZABLE_RUNNING_EVENT = 'resizing'

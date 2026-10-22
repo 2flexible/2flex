@@ -1,8 +1,9 @@
 import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
-    OVERFLOW_SCROLL_BAR_BLOCK_NAME,
+    OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
+    OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_Y_SCROLL_RUNNING_EVENT,
     RESIZABLE_RUNNING_EVENT,
     ROTATABLE_RUNNING_EVENT,
@@ -378,7 +379,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             if (block.#overflowXscrollBarBlock)
                 return block.#overflowXscrollBarBlock
             block.#overflowXscrollBarBlock = new BaseBlock({
-                name: OVERFLOW_SCROLL_BAR_BLOCK_NAME,
+                name: OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
                 position: 'fixed',
             })
             block.#updateOverflowXBlockParameters()
@@ -541,7 +542,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 return block.#overflowYscrollBarBlock
 
             block.#overflowYscrollBarBlock = new BaseBlock({
-                name: OVERFLOW_SCROLL_BAR_BLOCK_NAME,
+                name: OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
                 position: 'fixed',
             })
             block.#updateOverflowYBlockParameters()

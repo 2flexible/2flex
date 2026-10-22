@@ -14,7 +14,12 @@ import {
     AnimationId,
 } from './types'
 import { getPrototype } from './Utils'
-import { HOT_LINE_BLOCK_NAME, OVERFLOW_SCROLL_BAR_BLOCK_NAME } from './const'
+import {
+    HOT_LINE_BLOCK_NAME,
+    OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
+    OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
+} from './const'
+import { IBlockOptions } from './Block'
 
 // Canvas options shouldn't be style properties
 interface CanvasOptions {
@@ -483,7 +488,8 @@ export class Canvas {
             const name = block.getOptionCurrent('name')
             return (
                 (position === 'fixed' || position === 'sticky') &&
-                name !== OVERFLOW_SCROLL_BAR_BLOCK_NAME &&
+                name !== OVERFLOW_X_SCROLL_BAR_BLOCK_NAME &&
+                name !== OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME &&
                 name !== HOT_LINE_BLOCK_NAME
             )
         })
