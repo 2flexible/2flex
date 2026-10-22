@@ -1,4 +1,4 @@
-import { BaseBlock, BlockPayload } from './BaseBlock'
+import { BaseBlock, BlockPayload, IBaseBlockOptions } from './BaseBlock'
 import { CanvasScene } from './CanvasScene'
 import { defaultBlocks } from './defaultBlocks'
 import { CanvasDOMManager } from './DOMManager'
@@ -710,9 +710,9 @@ export class Canvas {
             },
             blocks: [],
         }
-        this.#scene.preOrderTraversal((block: BaseBlock) => {
-            payload.blocks.push(block.__generatePayload())
-        })
+        for (const block of this.#scene.head.childNodes) {
+            payload.blocks.push((block as BaseBlock).__generatePayload())
+        }
         return JSON.stringify(payload)
     }
     load(payload: string) {
@@ -724,6 +724,9 @@ export class Canvas {
         this.options = canvasOpt.options
         this.width = canvasOpt.width
         this.height = canvasOpt.height
+        this.#domCanvas.canvasId = canvasOpt.canvasId
+        this.#domCanvas.width = canvasOpt.width
+        this.#domCanvas.height = canvasOpt.height
 
         if (this.options) this.#setOptions(this.options)
         this.#init()
@@ -753,7 +756,13 @@ export class Canvas {
                 }
             }
             if (foundBlock) {
-                foundBlock.options = blockPaylaod.options
+                for (const [key, value] of Object.entries(
+                    blockPaylaod.options || {}
+                ))
+                    foundBlock.options.set(
+                        key as keyof IBaseBlockOptions,
+                        value
+                    )
                 for (
                     let i = 0, len = blockPaylaod.childs.length;
                     i < len;

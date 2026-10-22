@@ -140,8 +140,8 @@ type BlockEvent = {
 export interface BlockPayload {
     nodeId: NodeId
     name: string
-    options: OptionsMap
-    cacheOptions: OptionsMap
+    options: Partial<Record<BlockOptionKeys, any>>
+    cacheOptions: Partial<Record<BlockOptionKeys, any>>
     childs: BlockPayload[]
 }
 
@@ -1246,8 +1246,8 @@ export class BaseBlock extends Node {
         return {
             nodeId: this.nodeId,
             name: this.constructor.name,
-            options: this.options,
-            cacheOptions: this.cacheOptions,
+            options: Object.fromEntries(this.options),
+            cacheOptions: Object.fromEntries(this.cacheOptions),
             childs: childs,
         }
     }
