@@ -4,9 +4,12 @@ import type {
     Animator,
     BlockConstructor,
     Composite,
+    CubicBezier,
     Direction,
     Easing,
+    LinearEasing,
     RGBA,
+    StepsEasing,
 } from '../types'
 import {
     clamp,
@@ -25,8 +28,25 @@ export type PlaybackRate = number
 export type AutoStart = boolean
 export type IteratableOpts = { [key: string]: any }
 
+// a single breakpoint of an animated option. options that hold arrays or plain
+// objects are animated by nesting them, which the value compiler walks through
+// recursively, so the shape is allowed to nest as well
+export type KeyframeValue =
+    | number
+    | string
+    | boolean
+    | LinearEasing
+    | CubicBezier
+    | StepsEasing
+    | (() => void)
+    | KeyframeValue[]
+    | { [key: string]: KeyframeValue }
+
+// every animated option is given as a list of breakpoints
+export type KeyframeBreakpoints = KeyframeValue[]
+
 export interface KeyFrame {
-    [key: string]: KeyFrame[keyof KeyFrame]
+    [key: string]: KeyframeValue | KeyframeBreakpoints | undefined
     id?: string
     autoStart?: AutoStart
     iterations?: Iterations
@@ -82,6 +102,8 @@ type CompiledValue =
     | { kind: 'discrete'; value: unknown }
     | { kind: 'array'; value: CompiledValue[] }
     | { kind: 'object'; value: Record<string, CompiledValue> }
+
+let animationIdCounter = 0
 
 export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
@@ -395,7 +417,8 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
             }
         }
         #generateAnimationId() {
-            return String(new Date().getTime())
+            animationIdCounter += 1
+            return `${new Date().getTime()}_${animationIdCounter}`
         }
         #buildKeyframes(
             animationId: AnimationId,
