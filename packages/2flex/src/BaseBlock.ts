@@ -1340,10 +1340,10 @@ export class BaseBlock extends Node {
         this.#dependendBlocks.delete(block)
     }
     bindTo(block: BaseBlock, options: BlockOptionKeys[]) {
-        block.#bindOptions.push({ block: block, options: options })
+        this.#bindOptions.push({ block, options })
     }
     unbind(block: BaseBlock) {
-        block.#bindOptions = block.#bindOptions.filter((i) => i.block !== block)
+        this.#bindOptions = this.#bindOptions.filter((i) => i.block !== block)
     }
     findChilds<T extends IBaseBlockOptions>(queries: T) {
         let blocks: BaseBlock[] = []
