@@ -13,7 +13,7 @@ export type BorderRadius = ShortHandRelativeType
 export interface IRectangleOptions extends IShapeOptions {
     backgroundColor?: FillStyle
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    borderRadius?: number[]
+    borderRadius?: BorderRadius
     borderStyle?: BorderStyle
     borderWidth?: BorderWidth
     borderColor?: BorderColor
@@ -116,7 +116,17 @@ export class RectangleBlock extends ShapeBlock {
     }
 
     #borderRadius(block: RectangleBlock, radius?: BorderRadius) {
-        if (radius !== undefined) return shortHandParser(radius)
+        if (radius === undefined) return
+        const converted = Array.isArray(radius)
+            ? radius.map((value) =>
+                  typeof value === 'number'
+                      ? value
+                      : block.__unitConverter(value, true)
+              )
+            : typeof radius === 'number'
+              ? radius
+              : block.__unitConverter(radius, true)
+        return shortHandParser(converted as ShortHandRelativeType)
     }
 
     #border(opt?: RectangleBorder) {
@@ -162,8 +172,14 @@ export class RectangleBlock extends ShapeBlock {
         if (opt === undefined) return opt
         if (typeof opt === 'string') opt = block.#borderConvert(opt)
         else if (opt instanceof Array && opt.length == 3) {
-            opt[0] = block.__unitConverter(opt[0], true)
-            opt[2] = block.__colorConverter(opt[2]) as string
+            opt[0] =
+                typeof opt[0] === 'number'
+                    ? opt[0]
+                    : block.__unitConverter(opt[0], true)
+            opt[2] =
+                typeof opt[2] === 'string'
+                    ? (block.__colorConverter(opt[2]) as string)
+                    : opt[2]
         }
         return opt
     }
