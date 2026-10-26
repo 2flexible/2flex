@@ -101,9 +101,9 @@ export class TextBlock extends ShapeBlock {
             'text',
             undefined,
             false,
-            (block: TextBlock, opt?: string) => this.#text(block, opt),
-            (block, val) => {
-                return val
+            undefined,
+            (block: TextBlock, val?: string) => {
+                block.#text(val)
             }
         )
         this.addProperty('fontFamily', 'sans-serif')
@@ -346,52 +346,54 @@ export class TextBlock extends ShapeBlock {
         const angle = rotate * rotSign
         const cosA = Math.cos(angle)
         const sinA = Math.sin(angle)
-        let wx = x - centerX
-        let wy = y - centerY
-        wx = wx * cosA - wy * sinA
-        wy = wx * sinA + wy * cosA
-        return { x: wx * fx + centerX, y: wy * fy + centerY }
+        const wx = x - centerX
+        const wy = y - centerY
+        const rx = wx * cosA - wy * sinA
+        const ry = wx * sinA + wy * cosA
+        return { x: rx * fx + centerX, y: ry * fy + centerY }
     }
-    #text(block: TextBlock, text?: string) {
-        if (text === undefined) return
-        block.#words = undefined
-        block.#wordsFontKey = undefined
-        const splitedText = text.split('')
-        for (let i = 0, len = splitedText.length; i < len; i++) {
-            block.#addLetter(splitedText[i], block.#tailLetterNode)
-        }
-        block.#selectionFocus = block.#tailLetterNode
-        block.#selectionAnchor = block.#tailLetterNode
+    #text(text?: string) {
+        if (text === undefined) return text
+        this.#invalidateWords()
+        this.#headLetterNode = undefined
+        this.#tailLetterNode = undefined
+        for (const letter of text.split(''))
+            this.#insertLetter(letter, this.#tailLetterNode)
+        this.#selectionFocus = this.#tailLetterNode
+        this.#selectionAnchor = this.#tailLetterNode
+        return text
     }
-    #addLetter(letter: string, tail?: LetterNode) {
-        const current = new LetterNode(letter)
-        const tailNode = tail ?? this.#tailLetterNode
-        if (tailNode) {
-            current.next = tailNode?.next
-            tailNode.next = current
-            current.prev = tailNode
+    #invalidateWords() {
+        this.#words = undefined
+        this.#wordsFontKey = undefined
+    }
+    #insertLetter(letter: string, after?: LetterNode): LetterNode {
+        const node = new LetterNode(letter)
+        if (after) {
+            node.next = after.next
+            node.prev = after
+            if (after.next) after.next.prev = node
+            after.next = node
+            if (this.#tailLetterNode === after) this.#tailLetterNode = node
+        } else {
+            node.next = this.#headLetterNode
+            if (this.#headLetterNode) this.#headLetterNode.prev = node
+            this.#headLetterNode = node
+            if (!this.#tailLetterNode) this.#tailLetterNode = node
         }
-        if (!this.#headLetterNode) this.#headLetterNode = current
-        if (!this.#tailLetterNode) this.#tailLetterNode = current
-        if (this.#tailLetterNode === tail) {
-            if (this.#tailLetterNode) this.#tailLetterNode.next = current
-            this.#tailLetterNode = current
-        }
+        this.#invalidateWords()
+        return node
     }
     #removeLetter(letterNode: LetterNode) {
-        let head = this.#headLetterNode
-        if (!head) return
-        if (head === letterNode) {
-            this.#headLetterNode = this.#headLetterNode?.next
-            return
-        }
-        while (head.next && head !== letterNode) {
-            head = head.next
-        }
-        const next_letter = head.next
-        const previus_letter = head.prev
-        if (next_letter) next_letter.prev = previus_letter
-        if (previus_letter) previus_letter.next = next_letter
+        const previous = letterNode.prev
+        const next = letterNode.next
+        if (previous) previous.next = next
+        else this.#headLetterNode = next
+        if (next) next.prev = previous
+        else this.#tailLetterNode = previous
+        letterNode.prev = undefined
+        letterNode.next = undefined
+        this.#invalidateWords()
     }
     #buildWords() {
         const letterSpacing = this.letterSpacing() ?? 0
@@ -538,24 +540,20 @@ export class TextBlock extends ShapeBlock {
     #drawCaret() {
         this.#setFont()
         const context = this.context
+        const focus = this.#selectionFocus
         if (
             !context ||
             !this.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT) ||
             this.#hasSelection() ||
-            !this.#selectionFocus
+            !focus
         )
             return
 
-        const text = this.getOptionCurrent('text')
-        const measure = this.measureText(text)
-        const node = this.#selectionFocus.next
-        const meauserHeight =
-            measure?.actualBoundingBoxAscent ||
-            measure?.fontBoundingBoxAscent ||
-            0
-        const y = (node?.y ?? 0) - meauserHeight - CARET_LINE_HEIGHT_GAP
-        const x = node?.x ?? 0
-        const height = y + meauserHeight + CARET_LINE_HEIGHT_GAP * 2
+        const node = focus.next
+        const ascent = node?.height || focus.height || 0
+        const y = (node?.y ?? focus.y) - ascent - CARET_LINE_HEIGHT_GAP
+        const x = node?.x ?? focus.x + focus.width
+        const height = y + ascent + CARET_LINE_HEIGHT_GAP * 2
         context.save()
         context.beginPath()
         context.moveTo(x, y)
@@ -728,19 +726,16 @@ export class TextBlock extends ShapeBlock {
     #deleteRange() {
         const range = this.#selectionRange()
         if (!range) return
+        const letters: LetterNode[] = []
         let node: LetterNode | undefined = range.start
         while (node) {
-            const next: LetterNode | undefined = node.next
-            const after: LetterNode | undefined =
-                node === range.end ? undefined : next
-            this.#removeLetter(node)
-            if (node === range.end) {
-                this.#selectionFocus = node.prev
-                break
-            }
-            node = after
+            letters.push(node)
+            if (node === range.end) break
+            node = node.next
         }
-        this.#selectionAnchor = this.#selectionFocus
+        const caret = range.start.prev
+        for (const letter of letters) this.#removeLetter(letter)
+        this.#setCaret(caret)
     }
     #selectionText(): string {
         const range = this.#selectionRange()
@@ -757,14 +752,11 @@ export class TextBlock extends ShapeBlock {
     #insertText(text: string) {
         if (this.#hasSelection()) this.#deleteRange()
         if (text === '') return
-        const chars = text.split('')
-        let last: LetterNode | undefined = this.#selectionFocus
-        for (const ch of chars) {
-            this.#addLetter(ch, last)
-            last = last ? last.next : this.#headLetterNode
-        }
-        this.#selectionFocus = last
-        this.#selectionAnchor = last
+        let after: LetterNode | undefined = this.#selectionFocus
+        for (const letter of text.split(''))
+            after = this.#insertLetter(letter, after)
+        this.#selectionFocus = after
+        this.#selectionAnchor = after
     }
     #handleBackspace() {
         if (this.#hasSelection()) {
@@ -773,8 +765,9 @@ export class TextBlock extends ShapeBlock {
         }
         const focus = this.#selectionFocus
         if (!focus) return
+        const previous = focus.prev
         this.#removeLetter(focus)
-        this.#setCaret(focus.prev)
+        this.#setCaret(previous)
     }
     #handleDelete() {
         if (this.#hasSelection()) {
