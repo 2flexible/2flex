@@ -103,7 +103,7 @@ export class TextBlock extends ShapeBlock {
             false,
             undefined,
             (block: TextBlock, val?: string) => {
-                block.#text(val)
+                return block.#text(val)
             }
         )
         this.addProperty('fontFamily', 'sans-serif')
