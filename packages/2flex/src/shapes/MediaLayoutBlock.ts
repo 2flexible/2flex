@@ -5,6 +5,7 @@ type ObjectFit = 'contain' | 'cover' | 'fill' | 'scale-down'
 type Repeat = number | 'fill'
 
 export interface MediaLayoutOptions extends IShapeOptions {
+    source: CanvasImageSource,
     clipX?: RelativeType
     clipY?: RelativeType
     clipWidth?: RelativeType
