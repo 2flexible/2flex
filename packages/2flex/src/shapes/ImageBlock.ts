@@ -1,9 +1,9 @@
-import { MediaLayoutBlock, MediaLayoutOptions } from './MediaLayoutBlock'
+import { MediaLayoutBlock, MediaLayoutBlockOptions } from './MediaLayoutBlock'
 
-interface ImageOptions extends MediaLayoutOptions {}
+export interface ImageBlockOptions extends MediaLayoutBlockOptions {}
 
 export class ImageBlock extends MediaLayoutBlock {
-    constructor(options: ImageOptions) {
+    constructor(options: ImageBlockOptions) {
         super(options)
     }
     init(): void {

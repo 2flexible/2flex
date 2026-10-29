@@ -1,11 +1,11 @@
-import { DrawFunc, IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import { DrawFunc, ShapeBlockOptions, ShapeBlock } from '../ShapeBlock'
 import { RelativeType } from '../types'
 
 type ObjectFit = 'contain' | 'cover' | 'fill' | 'scale-down'
 type Repeat = number | 'fill'
 
-export interface MediaLayoutOptions extends IShapeOptions {
-    source: CanvasImageSource,
+export interface MediaLayoutBlockOptions extends ShapeBlockOptions {
+    source: CanvasImageSource
     clipX?: RelativeType
     clipY?: RelativeType
     clipWidth?: RelativeType
@@ -18,7 +18,7 @@ export interface MediaLayoutOptions extends IShapeOptions {
 export class MediaLayoutBlock extends ShapeBlock {
     mediaSource?: CanvasImageSource
 
-    constructor(options: MediaLayoutOptions) {
+    constructor(options: MediaLayoutBlockOptions) {
         super(options)
         this.#defineProperties()
     }

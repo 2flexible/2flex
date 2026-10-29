@@ -1,5 +1,5 @@
 import { BaseBlock } from './BaseBlock'
-import { IBlockOptions } from './Block'
+import { BlockOptions } from './Block'
 import { Node } from './Node'
 import {
     postOrderTraversal,
@@ -28,7 +28,7 @@ export class CanvasScene {
     removeBlock(block: BaseBlock) {
         this.head.removeChild(block)
     }
-    find(queries: IBlockOptions): BaseBlock[] {
+    find(queries: BlockOptions): BaseBlock[] {
         const keys = Object.keys(queries)
         if (keys.length === 1 && keys[0] === 'nodeId') {
             const block = this.#nodeIdIndex.get(queries.nodeId as number)

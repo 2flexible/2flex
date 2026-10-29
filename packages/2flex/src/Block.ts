@@ -1,5 +1,5 @@
-import { HotLineBlock, IHotLineOptions } from './mixins/HotLineBlock'
-import { BaseBlock, IBaseBlockOptions, onRender } from './BaseBlock'
+import { HotLineBlock, IHotLineBlockOptions } from './mixins/HotLineBlock'
+import { BaseBlock, BaseBlockOptions, onRender } from './BaseBlock'
 import { AnimationBlock, IAnimationBlock } from './mixins/AnimationBlock'
 import { DraggableBlock, IDraggableOptions } from './mixins/DraggableBlock'
 import { IOverflowOptions, OverflowBlock } from './mixins/OverflowBlock'
@@ -7,11 +7,11 @@ import { IResizableOptions, ResizableBlock } from './mixins/ResizableBlock'
 import { IRotatableOptions, RotatableBlock } from './mixins/RotatableBlock'
 import { SelectableBlock, ISelectableOptions } from './mixins/SelectableBlock'
 
-export interface IBlockOptions
+export interface BlockOptions
     extends
-        IBaseBlockOptions,
+        BaseBlockOptions,
         IOverflowOptions,
-        IHotLineOptions,
+        IHotLineBlockOptions,
         ISelectableOptions,
         IResizableOptions,
         IRotatableOptions,
@@ -29,7 +29,7 @@ export class Block extends OverflowBlock(
 ) {
     #userOnRender?: onRender
     #onRenderWrapper?: onRender
-    constructor(options: IBlockOptions) {
+    constructor(options: BlockOptions) {
         super(options)
         this.addProperty(
             'onRender',

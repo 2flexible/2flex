@@ -1,4 +1,4 @@
-import { Block, IBlockOptions } from './Block'
+import { Block, BlockOptions } from './Block'
 import type { RelativeType, XY } from './types'
 
 export type GradientType = 'linear' | 'conic' | 'radial'
@@ -169,7 +169,7 @@ export type DrawFunc = (context: OffscreenCanvasRenderingContext2D) => void
 
 export type DropShadow = [RelativeType, RelativeType, RelativeType, FillStyle]
 
-export interface IShapeOptions extends IBlockOptions {
+export interface ShapeBlockOptions extends BlockOptions {
     fill?: Fill
     fillStyle?: FillStyle
 
@@ -249,7 +249,7 @@ export class ShapeBlock extends Block {
     #filters: ShapeFilters = {}
     #filterStr?: string
 
-    constructor(options: IShapeOptions) {
+    constructor(options: ShapeBlockOptions) {
         super(options)
         this.addProperty(
             'clip',
@@ -673,8 +673,7 @@ export class ShapeBlock extends Block {
             this.radialGradient()
         if (this.getOptionCurrent('linearGradient') !== undefined)
             this.linearGradient()
-        if (this.getOptionCurrent('colorStops') !== undefined)
-            this.colorStops()
+        if (this.getOptionCurrent('colorStops') !== undefined) this.colorStops()
         if (this.getOptionCurrent('pattern') !== undefined) this.pattern()
 
         if (this.getOptionCurrent('shadowBlur') !== undefined) this.shadowBlur()
@@ -702,15 +701,20 @@ export class ShapeBlock extends Block {
             this.imageSmoothingQuality()
 
         if (this.getOptionCurrent('font') !== undefined) this.font()
-        if (this.getOptionCurrent('fontStretch') !== undefined) this.fontStretch()
-        if (this.getOptionCurrent('fontKerning') !== undefined) this.fontKerning()
+        if (this.getOptionCurrent('fontStretch') !== undefined)
+            this.fontStretch()
+        if (this.getOptionCurrent('fontKerning') !== undefined)
+            this.fontKerning()
         if (this.getOptionCurrent('fontVariantCaps') !== undefined)
             this.fontVariantCaps()
-        if (this.getOptionCurrent('wordSpacing') !== undefined) this.wordSpacing()
+        if (this.getOptionCurrent('wordSpacing') !== undefined)
+            this.wordSpacing()
         if (this.getOptionCurrent('direction') !== undefined) this.direction()
         if (this.getOptionCurrent('textAlign') !== undefined) this.textAlign()
-        if (this.getOptionCurrent('textBaseline') !== undefined) this.textBaseline()
-        if (this.getOptionCurrent('textRendering') !== undefined) this.textRendering()
+        if (this.getOptionCurrent('textBaseline') !== undefined)
+            this.textBaseline()
+        if (this.getOptionCurrent('textRendering') !== undefined)
+            this.textRendering()
         if (this.getOptionCurrent('letterSpacing') !== undefined)
             this.letterSpacing()
 

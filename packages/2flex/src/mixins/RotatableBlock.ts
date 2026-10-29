@@ -1,4 +1,4 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     initialCorners,
@@ -11,7 +11,7 @@ import {
 import { BlockConstructor, HotCornerArea, XY } from '../types'
 import { checkInBound } from '../Utils'
 
-export interface IRotatableOptions extends IBaseBlockOptions {
+export interface IRotatableOptions extends BaseBlockOptions {
     rotatable?: boolean
     rotatableTopLeft?: boolean
     rotatableTopRight?: boolean

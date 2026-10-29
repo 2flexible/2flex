@@ -1,6 +1,6 @@
 import { SELECTABLE_RUNNING_EVENT } from '../const'
 import { ShapeBlock } from '../ShapeBlock'
-import type { DrawFunc, FillStyle, IShapeOptions } from '../ShapeBlock'
+import type { DrawFunc, FillStyle, ShapeBlockOptions } from '../ShapeBlock'
 import type { RelativeType, ShortHandRelativeType } from '../types'
 import { shortHandParser } from '../Utils'
 
@@ -10,7 +10,7 @@ export type BorderColor = FillStyle
 export type RectangleBorder = [BorderWidth, BorderStyle, BorderColor] | string
 export type BorderRadius = ShortHandRelativeType
 
-export interface IRectangleOptions extends IShapeOptions {
+export interface RectangleBlockOptions extends ShapeBlockOptions {
     backgroundColor?: FillStyle
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius?: BorderRadius
@@ -29,7 +29,7 @@ type BorderSide = 'top' | 'right' | 'bottom' | 'left'
 export class RectangleBlock extends ShapeBlock {
     #rectPath?: Path2D
 
-    constructor(options: IRectangleOptions) {
+    constructor(options: RectangleBlockOptions) {
         super(options)
         this.#rectPath = new Path2D()
         this.#defineOptions()

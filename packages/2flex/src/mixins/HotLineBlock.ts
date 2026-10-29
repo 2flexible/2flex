@@ -1,4 +1,4 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
 import {
     HOT_LINE_BLOCK_NAME,
     initialCorners,
@@ -6,7 +6,7 @@ import {
 } from '../const'
 import { BlockConstructor, HotCornerArea } from '../types'
 
-export interface IHotLineOptions extends IBaseBlockOptions {
+export interface IHotLineBlockOptions extends BaseBlockOptions {
     hotCornerSize?: number
     hotCornerRadius?: number
     hotCornerStrokeWidth?: number

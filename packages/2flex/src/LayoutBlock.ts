@@ -1,5 +1,5 @@
 import { BaseBlock } from './BaseBlock'
-import { Block, IBlockOptions } from './Block'
+import { Block, BlockOptions } from './Block'
 import { RelativeType } from './types'
 
 type JustifyContent =
@@ -91,7 +91,8 @@ interface GridLayout {
 }
 type ILayout = 'flex' | 'inline-flex' | 'grid' | 'inline-grid'
 
-interface LayoutOptions extends IBlockOptions, GridLayout, FlexLayout {
+export interface LayoutBlockOptions
+    extends BlockOptions, GridLayout, FlexLayout {
     layout?: ILayout
     justifyContent?: JustifyContent
     alignContent?: AlignContent
@@ -128,7 +129,7 @@ export class LayoutBlock extends Block {
     #alignInvoker?: () => void
     #alignItemsInvoker?: () => void
 
-    constructor(options: LayoutOptions) {
+    constructor(options: LayoutBlockOptions) {
         super(options)
 
         this.#startXPos = []

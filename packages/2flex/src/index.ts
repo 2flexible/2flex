@@ -1,15 +1,21 @@
 import { Canvas } from './Canvas'
-import { Block } from './Block'
+import { Block, BlockOptions } from './Block'
 import {
-    CircleBlock,
-    ImageBlock,
     RectangleBlock,
+    RectangleBlockOptions,
+    CircleBlock,
+    CircleBlockOptions,
+    ImageBlock,
+    ImageBlockOptions,
     VideoBlock,
+    VideoBlockOptions,
     LineBlock,
-    TextBlock
+    LineBlockOptions,
+    TextBlock,
+    TextBlockOptions,
 } from './shapes/index'
-import { LayoutBlock } from './LayoutBlock'
-import { ShapeBlock } from './ShapeBlock'
+import { LayoutBlock, LayoutBlockOptions } from './LayoutBlock'
+import { ShapeBlock, ShapeBlockOptions } from './ShapeBlock'
 import {
     radianToDegree,
     degreeToRadian,
@@ -42,14 +48,23 @@ import {
 export {
     Canvas,
     Block,
+    BlockOptions,
     LayoutBlock,
-    LineBlock,
-    TextBlock,
+    LayoutBlockOptions,
     ShapeBlock,
+    ShapeBlockOptions,
     RectangleBlock,
+    RectangleBlockOptions,
     CircleBlock,
+    CircleBlockOptions,
     ImageBlock,
+    ImageBlockOptions,
     VideoBlock,
+    VideoBlockOptions,
+    LineBlock,
+    LineBlockOptions,
+    TextBlock,
+    TextBlockOptions,
     radianToDegree,
     degreeToRadian,
     rotateCordinatesByRadian,

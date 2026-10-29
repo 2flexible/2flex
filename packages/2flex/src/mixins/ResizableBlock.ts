@@ -1,4 +1,4 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
 import {
     initialCorners,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
@@ -9,7 +9,7 @@ import {
 import { BlockConstructor, HotCornerArea, XY } from '../types'
 import { checkInBound } from '../Utils'
 
-export interface IResizableOptions extends IBaseBlockOptions {
+export interface IResizableOptions extends BaseBlockOptions {
     resizable?: boolean
     resizableTop?: boolean
     resizableLeft?: boolean

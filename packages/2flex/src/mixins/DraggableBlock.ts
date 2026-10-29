@@ -1,4 +1,4 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
@@ -8,7 +8,7 @@ import {
 } from '../const'
 import { BlockConstructor } from '../types'
 
-export interface IDraggableOptions extends IBaseBlockOptions {
+export interface IDraggableOptions extends BaseBlockOptions {
     draggable?: boolean
     draggableX?: boolean
     draggableY?: boolean

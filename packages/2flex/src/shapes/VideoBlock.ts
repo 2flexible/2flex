@@ -1,6 +1,6 @@
-import { MediaLayoutBlock, MediaLayoutOptions } from './MediaLayoutBlock'
+import { MediaLayoutBlock, MediaLayoutBlockOptions } from './MediaLayoutBlock'
 type OnPlayCallback = (timestamp: number) => void
-interface VideoOptions extends MediaLayoutOptions {
+export interface VideoBlockOptions extends MediaLayoutBlockOptions {
     autoPlay?: boolean
     onPlay?: OnPlayCallback
 }
@@ -10,7 +10,7 @@ export class VideoBlock extends MediaLayoutBlock {
         isPlaying: false,
         isPaused: false,
     }
-    constructor(options: VideoOptions) {
+    constructor(options: VideoBlockOptions) {
         super(options)
         this.#defineProperties()
     }
@@ -38,12 +38,12 @@ export class VideoBlock extends MediaLayoutBlock {
         }
     }
     pause() {
-        (this.mediaSource as HTMLVideoElement).pause()
+        ;(this.mediaSource as HTMLVideoElement).pause()
         this.#events.isPlaying = false
         this.#events.isPaused = true
     }
     play() {
-        (this.mediaSource as HTMLVideoElement).play()
+        ;(this.mediaSource as HTMLVideoElement).play()
         this.#events.isPlaying = true
         this.#events.isPaused = false
     }

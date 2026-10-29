@@ -1,5 +1,5 @@
 import { SELECTABLE_RUNNING_EVENT } from '../const'
-import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import { ShapeBlockOptions, ShapeBlock } from '../ShapeBlock'
 import type { DrawFunc, FillStyle } from '../ShapeBlock'
 import { RelativeType } from '../types'
 
@@ -8,7 +8,7 @@ export type BorderWidth = RelativeType
 export type BorderColor = string
 export type CircleBorder = [BorderWidth, BorderStyle, BorderColor]
 
-interface ICircleOptions extends IShapeOptions {
+export interface CircleBlockOptions extends ShapeBlockOptions {
     startAngle?: RelativeType
     endAngle?: RelativeType
     innerRadius?: RelativeType
@@ -22,7 +22,7 @@ interface ICircleOptions extends IShapeOptions {
 export class CircleBlock extends ShapeBlock {
     #circlePath?: Path2D
 
-    constructor(options: ICircleOptions) {
+    constructor(options: CircleBlockOptions) {
         super(options)
         this.lineJoin('round')
         this.lineCap('round')

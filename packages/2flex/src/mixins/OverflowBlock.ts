@@ -1,4 +1,4 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
@@ -13,7 +13,7 @@ import { clamp, checkInBound } from '../Utils'
 
 export type Overflow = 'visible' | 'hidden' | 'scroll' | 'auto'
 
-export interface IOverflowOptions extends IBaseBlockOptions {
+export interface IOverflowOptions extends BaseBlockOptions {
     overflow?: Overflow
     overflowX?: Overflow
     overflowY?: Overflow

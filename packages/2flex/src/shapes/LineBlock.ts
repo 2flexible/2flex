@@ -1,4 +1,9 @@
-import { DrawFunc, FillStyle, IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import {
+    DrawFunc,
+    FillStyle,
+    ShapeBlockOptions,
+    ShapeBlock,
+} from '../ShapeBlock'
 import { getPrototype, stationaryPoints } from '../Utils'
 import type { RelativeType } from '../types'
 import type { Block } from '../Block'
@@ -58,7 +63,7 @@ class PointNode {
 
 type WalkFunc = (letterNode: PointNode) => void
 
-export interface ILineOptions extends IShapeOptions {
+export interface LineBlockOptions extends ShapeBlockOptions {
     controlPoints?: ControlPoint[]
     lineColor?: FillStyle
     fillColor?: FillStyle
@@ -122,7 +127,7 @@ export class LineBlock extends ShapeBlock {
 
     #points: { x: number[]; y: number[] } = { x: [], y: [] }
 
-    constructor(options: ILineOptions) {
+    constructor(options: LineBlockOptions) {
         super(options)
         this.#controlPointEvents = {}
         this.#pointsPath = {}

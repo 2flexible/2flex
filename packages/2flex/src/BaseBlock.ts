@@ -64,7 +64,7 @@ export type SelfType = 'self' | 'parent'
 export type onRender = (block: BaseBlock) => void
 export type Dependencies = BaseBlock[]
 
-export interface IBaseBlockOptions {
+export interface BaseBlockOptions {
     [key: string]: any
     name?: string
     x?: RelativeType
@@ -104,7 +104,7 @@ export interface IBaseBlockOptions {
     zIndex?: number
     order?: number
     hidden?: boolean
-    important?: IBaseBlockOptions
+    important?: BaseBlockOptions
     // flex: Flex
     // alignSelf?: AlignSelf
     // justifySelf?: JustifySelf
@@ -124,7 +124,7 @@ export interface IBaseBlockOptions {
     onRender?: onRender
     dependencies?: Dependencies
 }
-type BlockOptionKeys = keyof IBaseBlockOptions
+type BlockOptionKeys = keyof BaseBlockOptions
 
 export type OptionsMap = Map<BlockOptionKeys, any>
 
@@ -194,7 +194,7 @@ export class BaseBlock extends Node {
     #bindOptions: BindOptions[]
     #dependendBlocks: Set<BaseBlock>
 
-    constructor(options: IBaseBlockOptions) {
+    constructor(options: BaseBlockOptions) {
         super()
         this.options = new Map()
         this.cacheOptions = new Map()
@@ -271,7 +271,7 @@ export class BaseBlock extends Node {
         this.#clearPendings()
         this.__refreshHeadBlock()
     }
-    #buildOptions(options: IBaseBlockOptions) {
+    #buildOptions(options: BaseBlockOptions) {
         const ownOptions = this.options
         for (const [key, value] of Object.entries(options)) {
             ownOptions.set(key, value)
@@ -1314,7 +1314,7 @@ export class BaseBlock extends Node {
     listAllChilds(_func: (block: BaseBlock) => void): void {
         preOrderTraversal(this, _func)
     }
-    set(options: IBaseBlockOptions): void {
+    set(options: BaseBlockOptions): void {
         let before: any = {}
         let after: any = {}
         for (const [key, value] of Object.entries(options)) {
@@ -1345,7 +1345,7 @@ export class BaseBlock extends Node {
     unbind(block: BaseBlock) {
         this.#bindOptions = this.#bindOptions.filter((i) => i.block !== block)
     }
-    findChilds<T extends IBaseBlockOptions>(queries: T) {
+    findChilds<T extends BaseBlockOptions>(queries: T) {
         let blocks: BaseBlock[] = []
         this.listAllChilds((block: BaseBlock) => {
             for (const [k, v] of Object.entries(queries)) {

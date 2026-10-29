@@ -10,14 +10,14 @@ import type {
     FontStyle,
     FontVariant,
     FontWeight,
-    IShapeOptions,
+    ShapeBlockOptions,
 } from '../ShapeBlock'
 import type { CustomEvent, HotCornerArea, RelativeType } from '../types'
 import { inRange } from '../Utils'
 
 type Wrap = 'letter' | 'word' | 'nowrap'
 
-export interface ITextOptions extends IShapeOptions {
+export interface TextBlockOptions extends ShapeBlockOptions {
     text?: string
     color?: string
     strokeWidth?: number
@@ -90,7 +90,7 @@ export class TextBlock extends ShapeBlock {
     #caretAnimationRunning: boolean = false
     #lastInteractionAt: number = 0
 
-    constructor(options: ITextOptions) {
+    constructor(options: TextBlockOptions) {
         super(options)
         this.#defineProperties()
         this.#localBoundingBox = initialCorners

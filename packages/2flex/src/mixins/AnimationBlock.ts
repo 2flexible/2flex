@@ -1,4 +1,4 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
 import type {
     AnimationId,
     Animator,
@@ -85,7 +85,7 @@ export interface KeyframeIterationConfig {
 
 export type CallbackAnimator = (timestamp: number, easing: number) => void
 
-export interface IAnimationBlock extends IBaseBlockOptions {}
+export interface IAnimationBlock extends BaseBlockOptions {}
 
 type ValueKind =
     | 'number'
