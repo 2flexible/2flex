@@ -4,7 +4,7 @@ import { RelativeType } from '../types'
 type ObjectFit = 'contain' | 'cover' | 'fill' | 'scale-down'
 type Repeat = number | 'fill'
 
-interface MediaLayoutOptions extends IShapeOptions {
+export interface MediaLayoutOptions extends IShapeOptions {
     clipX?: RelativeType
     clipY?: RelativeType
     clipWidth?: RelativeType

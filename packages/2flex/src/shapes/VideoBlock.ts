@@ -1,7 +1,6 @@
-import { IShapeOptions } from '../ShapeBlock'
-import { MediaLayoutBlock } from './MediaLayoutBlock'
+import { MediaLayoutBlock, MediaLayoutOptions } from './MediaLayoutBlock'
 type OnPlayCallback = (timestamp: number) => void
-interface VideoOptions extends IShapeOptions {
+interface VideoOptions extends MediaLayoutOptions {
     autoPlay?: boolean
     onPlay?: OnPlayCallback
 }

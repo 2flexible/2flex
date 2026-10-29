@@ -1,7 +1,6 @@
-import { IShapeOptions } from '../ShapeBlock'
-import { MediaLayoutBlock } from './MediaLayoutBlock'
+import { MediaLayoutBlock, MediaLayoutOptions } from './MediaLayoutBlock'
 
-interface ImageOptions extends IShapeOptions {}
+interface ImageOptions extends MediaLayoutOptions {}
 
 export class ImageBlock extends MediaLayoutBlock {
     constructor(options: ImageOptions) {
