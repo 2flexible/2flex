@@ -1,259 +1,454 @@
+import { SELECTABLE_RUNNING_EVENT } from '../const'
 import { ShapeBlock } from '../ShapeBlock'
-import type { FillStyle, IShapeOptions } from '../ShapeBlock'
-import type { IBlock } from '../types'
+import type { DrawFunc, FillStyle, IShapeOptions } from '../ShapeBlock'
+import type { RelativeType, ShortHandRelativeType } from '../types'
+import { shortHandParser } from '../Utils'
 
-export type BorderStyle = 'solid' | 'dotted' | undefined
-export type RectangleBorder = [number, BorderStyle, string]
+export type BorderStyle = 'solid' | 'dotted'
+export type BorderWidth = RelativeType
+export type BorderColor = FillStyle
+export type RectangleBorder = [BorderWidth, BorderStyle, BorderColor] | string
+export type BorderRadius = ShortHandRelativeType
 
 export interface IRectangleOptions extends IShapeOptions {
-    backgroundColor?: string
+    backgroundColor?: FillStyle
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    borderRadius?: number[]
+    borderRadius?: BorderRadius
     borderStyle?: BorderStyle
-    borderWidth?: number
-    borderColor?: string
-    border?: string
-    borderTop?: string
-    borderBottom?: string
-    borderLeft?: string
-    borderRight?: string
+    borderWidth?: BorderWidth
+    borderColor?: BorderColor
+    border?: RectangleBorder
+    borderTop?: RectangleBorder
+    borderBottom?: RectangleBorder
+    borderLeft?: RectangleBorder
+    borderRight?: RectangleBorder
 }
 
-export class RectangleBlock extends ShapeBlock<IRectangleOptions> {
-    constructor(options: IBlock<IRectangleOptions>) {
+type BorderSide = 'top' | 'right' | 'bottom' | 'left'
+
+export class RectangleBlock extends ShapeBlock {
+    #rectPath?: Path2D
+
+    constructor(options: IRectangleOptions) {
         super(options)
+        this.#rectPath = new Path2D()
+        this.#defineOptions()
     }
 
-    draw(
-        _func?: ((context: CanvasRenderingContext2D) => void) | undefined
-    ): void {
-        const cacheR = this.rotate()
-        this.rotate(0)
-        this.context?.roundRect(
-            this.x(),
-            this.y(),
-            this.width(),
-            this.height(),
-            this.borderRadius()
+    #defineOptions() {
+        this.addProperty('backgroundColor', 'white')
+        this.addProperty(
+            'borderRadius',
+            [0, 0, 0, 0],
+            false,
+            undefined,
+            (block: RectangleBlock, opt?: BorderRadius) =>
+                this.#borderRadius(block, opt)
         )
-        this.border()
-        this.borderBottom()
-        this.borderTop()
-        this.borderLeft()
-        this.borderRight()
-        this.rotate(cacheR)
+        this.addProperty('borderWidth', 0, true)
+        this.addProperty('borderColor', 'white')
+        this.addProperty('borderStyle', 'solid')
+        this.addProperty(
+            'border',
+            undefined,
+            false,
+            undefined,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderParse(block, opt)
+        )
+        this.addProperty(
+            'borderTop',
+            undefined,
+            false,
+            undefined,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderParse(block, opt)
+        )
+        this.addProperty(
+            'borderBottom',
+            undefined,
+            false,
+            undefined,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderParse(block, opt)
+        )
+        this.addProperty(
+            'borderLeft',
+            undefined,
+            false,
+            undefined,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderParse(block, opt)
+        )
+        this.addProperty(
+            'borderRight',
+            undefined,
+            false,
+            undefined,
+            (block: RectangleBlock, opt?: RectangleBorder) =>
+                this.#borderParse(block, opt)
+        )
     }
-    borderRadius(opt?: number[] | number): number[] {
-        const radius = this.__valueHandler(opt, 'borderRadius', [0, 0, 0, 0])
-        if (typeof radius === 'number') {
-            return [radius, radius, radius, radius]
+
+    draw(_func?: DrawFunc): void {
+        const context = this.context
+        if (!context) return
+        const x = this.x()
+        const y = this.y()
+        const w = this.width()
+        const h = this.height()
+        const radius = this.borderRadius()
+
+        const rectPath = new Path2D()
+        rectPath.roundRect(x, y, w, h, radius)
+        this.#rectPath = rectPath
+
+        const bg = this.backgroundColor()
+        if (bg !== undefined) {
+            context.fillStyle = bg
+            context.fill(rectPath)
         }
-        let defRadius: number[] = radius
-        switch (radius.length) {
-            case 1:
-                defRadius = [radius[0], radius[0], radius[0], radius[0]]
+        this.#border(this.border())
+        this.#borderTop(this.borderTop())
+        this.#borderBottom(this.borderBottom())
+        this.#borderLeft(this.borderLeft())
+        this.#borderRight(this.borderRight())
+    }
+
+    #borderRadius(block: RectangleBlock, radius?: BorderRadius) {
+        if (radius === undefined) return
+        const converted = Array.isArray(radius)
+            ? radius.map((value) =>
+                  typeof value === 'number'
+                      ? value
+                      : block.__unitConverter(value, true)
+              )
+            : typeof radius === 'number'
+              ? radius
+              : block.__unitConverter(radius, true)
+        return shortHandParser(converted as ShortHandRelativeType)
+    }
+
+    #border(opt?: RectangleBorder) {
+        const ctx = this.context
+        if (!opt || !ctx) return
+        if (
+            this.#isBorderSet('borderTop') ||
+            this.#isBorderSet('borderRight') ||
+            this.#isBorderSet('borderBottom') ||
+            this.#isBorderSet('borderLeft')
+        ) {
+            return
+        }
+        const [width, style, color] = opt
+        ctx.save()
+        ctx.lineWidth = width as number
+        ctx.strokeStyle = color as string
+        if (style === 'dotted') {
+            ctx.setLineDash([4, 4])
+            ctx.lineCap = 'butt'
+        } else {
+            ctx.setLineDash([])
+            ctx.lineCap = 'butt'
+        }
+        if (this.#rectPath) ctx.stroke(this.#rectPath)
+        ctx.restore()
+    }
+
+    #borderTop(opt?: RectangleBorder) {
+        return this.#borderSide('top', opt)
+    }
+    #borderRight(opt?: RectangleBorder) {
+        return this.#borderSide('right', opt)
+    }
+    #borderBottom(opt?: RectangleBorder) {
+        return this.#borderSide('bottom', opt)
+    }
+    #borderLeft(opt?: RectangleBorder) {
+        return this.#borderSide('left', opt)
+    }
+
+    #borderParse(block: RectangleBlock, opt: any) {
+        if (opt === undefined) return opt
+        if (typeof opt === 'string') opt = block.#borderConvert(opt)
+        else if (opt instanceof Array && opt.length == 3) {
+            opt[0] =
+                typeof opt[0] === 'number'
+                    ? opt[0]
+                    : block.__unitConverter(opt[0], true)
+            opt[2] =
+                typeof opt[2] === 'string'
+                    ? (block.__colorConverter(opt[2]) as string)
+                    : opt[2]
+        }
+        return opt
+    }
+
+    #borderSide(
+        side: BorderSide,
+        opt?: RectangleBorder
+    ): RectangleBorder | undefined {
+        const ctx = this.context
+        if (!opt || !ctx) return
+        const [width, style, color] = opt
+        const path = this.#sidePath(side, width as number)
+        const r = this.#resolvedRadius()
+        const sideHasArcs =
+            (side === 'top' && (r[0] > 0 || r[1] > 0)) ||
+            (side === 'right' && (r[1] > 0 || r[2] > 0)) ||
+            (side === 'bottom' && (r[2] > 0 || r[3] > 0)) ||
+            (side === 'left' && (r[3] > 0 || r[0] > 0))
+        ctx.save()
+        ctx.lineWidth = width as number
+        ctx.strokeStyle = color as string
+        ctx.lineJoin = 'round'
+        if (style === 'dotted') {
+            const edgeLength = this.#sideLength(side)
+            const step = Math.max(1, edgeLength / 4)
+            ctx.setLineDash([step, step])
+            ctx.lineCap = 'butt'
+        } else {
+            ctx.setLineDash([])
+            ctx.lineCap =
+                !sideHasArcs && this.#hasAdjacentBorder(side)
+                    ? 'square'
+                    : 'butt'
+        }
+        ctx.stroke(path)
+        ctx.restore()
+    }
+
+    #hasAdjacentBorder(side: BorderSide): boolean {
+        const neighbors: Record<BorderSide, [string, string]> = {
+            top: ['borderLeft', 'borderRight'],
+            right: ['borderTop', 'borderBottom'],
+            bottom: ['borderRight', 'borderLeft'],
+            left: ['borderBottom', 'borderTop'],
+        }
+        const [a, b] = neighbors[side]
+        const va = this.getOptionCurrent(a)
+        const vb = this.getOptionCurrent(b)
+        return (
+            (Array.isArray(va) && typeof va[0] === 'number') ||
+            (Array.isArray(vb) && typeof vb[0] === 'number')
+        )
+    }
+
+    #sideLength(side: BorderSide): number {
+        return side === 'left' || side === 'right'
+            ? this.height()
+            : this.width()
+    }
+
+    #sidePath(side: BorderSide, borderWidth: number): Path2D {
+        const x = this.x()
+        const y = this.y()
+        const w = this.width()
+        const h = this.height()
+        const r = this.#resolvedRadius()
+        const path = new Path2D()
+        const [tlR, trR, brR, blR] = r
+        const lwHalf = borderWidth / 2
+        const extendStart = (cornerR: number) => cornerR > 0 && cornerR < lwHalf
+        const extendEnd = (cornerR: number) => cornerR > 0 && cornerR < lwHalf
+        switch (side) {
+            case 'top':
+                if (this.#isBorderSet('borderLeft')) {
+                    path.moveTo(x + tlR, y)
+                } else if (extendStart(tlR)) {
+                    path.moveTo(x, y)
+                    path.lineTo(x, y + tlR)
+                    if (tlR > 0) path.arcTo(x, y, x + tlR, y, tlR)
+                } else {
+                    path.moveTo(x, y + tlR)
+                    if (tlR > 0) path.arcTo(x, y, x + tlR, y, tlR)
+                }
+                path.lineTo(x + w - trR, y)
+                if (trR > 0) path.arcTo(x + w, y, x + w, y + trR, trR)
+                if (!this.#isBorderSet('borderRight') && extendEnd(trR)) {
+                    path.lineTo(x + w, y)
+                }
                 break
-            case 2:
-                defRadius = [radius[0], radius[0], radius[1], radius[1]]
+            case 'right':
+                if (this.#isBorderSet('borderTop')) {
+                    path.moveTo(x + w, y + trR)
+                } else if (extendStart(trR)) {
+                    path.moveTo(x + w, y)
+                    path.lineTo(x + w - trR, y)
+                    if (trR > 0) path.arcTo(x + w, y, x + w, y + trR, trR)
+                } else {
+                    path.moveTo(x + w - trR, y)
+                    if (trR > 0) path.arcTo(x + w, y, x + w, y + trR, trR)
+                }
+                path.lineTo(x + w, y + h - brR)
+                if (brR > 0) path.arcTo(x + w, y + h, x + w - brR, y + h, brR)
+                if (!this.#isBorderSet('borderBottom') && extendEnd(brR)) {
+                    path.lineTo(x + w, y + h)
+                }
                 break
-            case 3:
-                defRadius = [radius[0], radius[0], radius[1], radius[2]]
+            case 'bottom':
+                if (this.#isBorderSet('borderRight')) {
+                    path.moveTo(x + w - brR, y + h)
+                } else if (extendStart(brR)) {
+                    path.moveTo(x + w, y + h)
+                    path.lineTo(x + w, y + h - brR)
+                    if (brR > 0)
+                        path.arcTo(x + w, y + h, x + w - brR, y + h, brR)
+                } else {
+                    path.moveTo(x + w, y + h - brR)
+                    if (brR > 0)
+                        path.arcTo(x + w, y + h, x + w - brR, y + h, brR)
+                }
+                path.lineTo(x + blR, y + h)
+                if (blR > 0) path.arcTo(x, y + h, x, y + h - blR, blR)
+                if (!this.#isBorderSet('borderLeft') && extendEnd(blR)) {
+                    path.lineTo(x, y + h)
+                }
+                break
+            case 'left':
+                if (this.#isBorderSet('borderBottom')) {
+                    path.moveTo(x, y + h - blR)
+                } else if (extendStart(blR)) {
+                    path.moveTo(x, y + h)
+                    path.lineTo(x + blR, y + h)
+                    if (blR > 0) path.arcTo(x, y + h, x, y + h - blR, blR)
+                } else {
+                    path.moveTo(x + blR, y + h)
+                    if (blR > 0) path.arcTo(x, y + h, x, y + h - blR, blR)
+                }
+                path.lineTo(x, y + tlR)
+                if (tlR > 0) path.arcTo(x, y, x + tlR, y, tlR)
+                if (!this.#isBorderSet('borderTop') && extendEnd(tlR)) {
+                    path.lineTo(x, y)
+                }
                 break
         }
-        return defRadius
+        return path
     }
 
-    backgroundColor(opt?: FillStyle) {
-        const bg = this.__valueHandler(opt, 'backgroundColor', 'black')
-        super.fillStyle(bg)
-        this.fill(true)
-        return bg
+    #isBorderSet(key: string): boolean {
+        const v = this.getOptionCurrent(key)
+        return Array.isArray(v) && typeof v[0] === 'number'
     }
 
-    border(opt?: RectangleBorder) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const border = this.__valueHandler(opt, 'border', undefined)
-        if (border) {
-            const { borderStyleArrWidth } = this.#borderParser(border)
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash(borderStyleArrWidth)
-            }
-            this.stroke(true)
+    #resolvedRadius(): [number, number, number, number] {
+        const r = this.borderRadius()
+        const parsed = shortHandParser(r as any) as any
+        if (!Array.isArray(parsed) || parsed.length !== 4) {
+            const n = (typeof r === 'number' ? r : 0) || 0
+            return [n, n, n, n]
         }
-        return border
-    }
-    borderWidth(opt?: number) {
-        const borderWidth = this.__valueHandler(opt, 'borderWidth', undefined)
-        super.lineWidth(borderWidth)
-        return borderWidth
-    }
-    borderColor(opt?: string) {
-        const borderColor = this.__valueHandler(opt, 'borderColor', undefined)
-        super.strokeStyle(borderColor)
-        return borderColor
-    }
-    borderStyle(opt?: BorderStyle): BorderStyle {
-        return this.__valueHandler(opt, 'borderStyle', undefined)
-    }
-    borderTop(opt?: RectangleBorder) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const borderTop = this.__valueHandler(opt, 'borderTop', undefined)
-        if (borderTop) {
-            let { borderStyleArrWidth } = this.#borderParser(borderTop)
-            borderStyleArrWidth.pop()
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash([
-                    ...borderStyleArrWidth,
-                    this.getRealHeight * 2 + this.getRealWidth,
-                ])
-            } else {
-                this.lineDash([
-                    this.getRealWidth,
-                    this.getRealWidth + 2 * this.getRealHeight,
-                    0,
-                    0,
-                ])
-            }
-            this.stroke(true)
+        let [tlR, trR, brR, blR] = parsed
+        const w = this.width()
+        const h = this.height()
+        const topSum = tlR + trR
+        if (topSum > 0 && topSum > w) {
+            const f = w / topSum
+            tlR *= f
+            trR *= f
         }
-        return borderTop
-    }
-
-    borderRight(opt?: RectangleBorder) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const borderRight = this.__valueHandler(opt, 'borderRight', undefined)
-        if (borderRight) {
-            const { borderStyleArrHeight } = this.#borderParser(borderRight)
-            borderStyleArrHeight.pop()
-
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash([
-                    0,
-                    this.getRealWidth,
-                    ...borderStyleArrHeight,
-                    this.getRealWidth + this.getRealHeight,
-                ])
-            } else if (this.borderStyle() === 'solid') {
-                this.lineDash([
-                    0,
-                    this.getRealWidth,
-                    this.getRealHeight,
-                    this.getRealWidth + this.getRealHeight,
-                ])
-            }
-            this.stroke(true)
+        const bottomSum = blR + brR
+        if (bottomSum > 0 && bottomSum > w) {
+            const f = w / bottomSum
+            blR *= f
+            brR *= f
         }
-        return borderRight
-    }
-    borderBottom(opt?: RectangleBorder) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const borderBottom = this.__valueHandler(opt, 'borderBottom', undefined)
-        if (borderBottom) {
-            let { borderStyleArrWidth } = this.#borderParser(borderBottom)
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash([
-                    0,
-                    this.getRealWidth + this.getRealHeight,
-                    ...borderStyleArrWidth,
-                ])
-            } else if (this.borderStyle() === 'solid') {
-                this.lineDash([
-                    0,
-                    this.getRealWidth + this.getRealHeight,
-                    this.getRealWidth,
-                    0,
-                ])
-            }
-            this.stroke(true)
+        const leftSum = tlR + blR
+        if (leftSum > 0 && leftSum > h) {
+            const f = h / leftSum
+            tlR *= f
+            blR *= f
         }
-        return borderBottom
-    }
-    borderLeft(opt?: RectangleBorder) {
-        if (opt && typeof opt === 'string') opt = this.#borderConvert(opt)
-        const borderLeft = this.__valueHandler(opt, 'borderLeft', undefined)
-        if (borderLeft) {
-            let { borderStyleArrHeight } = this.#borderParser(borderLeft)
-
-            if (this.borderStyle() === 'dotted') {
-                this.lineDash([
-                    0,
-                    this.getRealWidth * 2 + this.getRealHeight,
-                    ...borderStyleArrHeight,
-                ])
-            } else if (this.borderStyle() === 'solid') {
-                this.lineDash([
-                    0,
-                    this.getRealWidth * 2 + this.getRealHeight,
-                    this.getRealHeight,
-                    this.getRealWidth,
-                ])
-            }
-            this.stroke(true)
+        const rightSum = trR + brR
+        if (rightSum > 0 && rightSum > h) {
+            const f = h / rightSum
+            trR *= f
+            brR *= f
         }
-        return borderLeft
+        return [tlR, trR, brR, blR]
     }
 
     #borderConvert(opt: string): RectangleBorder {
         const splitted = opt.split(' ')
-        const borderWidth = this.__unitConverter<string | number, number>({
-            val: splitted[0],
-            widthRelated: true,
-        })
-        const borderStyle = this.__unitConverter<
-            string | undefined,
-            BorderStyle
-        >({
-            val: splitted[1],
-            widthRelated: false,
-        })
-        const borderColor = this.__unitConverter<string, string>({
-            val: splitted[2],
-            widthRelated: false,
-        })
+        const borderWidth = this.__unitConverter(splitted[0], true)
+        const borderStyle = splitted[1] as BorderStyle
+        const borderColor = this.__colorConverter(splitted[2]) as string
         return [borderWidth, borderStyle, borderColor]
     }
 
-    // border size, style(required), color
-    #borderParser(obj: RectangleBorder) {
-        const borderWidth = obj[0]
-        const borderStyle = obj[1]
-        const borderColor = obj[2]
-
-        const borderStyleArrWidth = []
-        const borderStyleArrHeight = []
-        if (borderStyle === 'dotted') {
-            let total = 0
-            const step = this.getRealWidth / (this.getRealWidth / 4)
-            while (total < this.getRealWidth) {
-                borderStyleArrWidth.push(step, step)
-                total += step * 2
-            }
-
-            total = 0
-            const stepHeight = this.getRealHeight / (this.getRealHeight / 4)
-            while (total < this.getRealHeight) {
-                borderStyleArrHeight.push(
-                    stepHeight,
-                    stepHeight,
-                    stepHeight,
-                    stepHeight
-                )
-                total += stepHeight * 2
+    #maxBorderWidth(): number {
+        const candidates: number[] = []
+        const bw = this.getOptionCurrent('borderWidth')
+        if (typeof bw === 'number') candidates.push(bw)
+        for (const key of [
+            'borderTop',
+            'borderRight',
+            'borderBottom',
+            'borderLeft',
+        ] as const) {
+            const v = this.getOptionCurrent(key)
+            if (Array.isArray(v) && typeof v[0] === 'number') {
+                candidates.push(v[0])
             }
         }
-        this.borderWidth(borderWidth)
-        this.borderStyle(borderStyle)
-        this.borderColor(borderColor)
-        return { borderStyleArrWidth, borderStyleArrHeight }
+        const b = this.getOptionCurrent('border')
+        if (Array.isArray(b) && typeof b[0] === 'number') candidates.push(b[0])
+        return candidates.length > 0 ? Math.max(...candidates) : 0
     }
 
     __clipShape() {
-        this.__clipPath?.roundRect(
-            this.getLeft.x + this.__leftSpace,
-            this.getTop.y + this.__topSpace,
-            this.getRealWidth - this.__widthSpaces,
-            this.getRealHeight - this.__heightSpaces,
-            this.borderRadius()
-        )
+        const maxLW = this.#maxBorderWidth()
+        const x = this.x() - maxLW / 2
+        const y = this.y() - maxLW / 2
+        const w = this.width() + maxLW
+        const h = this.height() + maxLW
+        this.__clipPath?.rect(x, y, w, h)
+    }
+
+    updateCords(): void {
+        super.updateCords()
+        this.#adjustBoundingBox()
+    }
+    #adjustBoundingBox(): void {
+        const extra = (this.hotLineStrokeWidth() + this.#maxBorderWidth()) / 2
+        const { topLeft, topRight, bottomLeft, bottomRight } = this.boundingBox
+        this.boundingBox = {
+            topLeft: { x: topLeft.x - extra, y: topLeft.y - extra },
+            topRight: { x: topRight.x + extra, y: topRight.y - extra },
+            bottomLeft: {
+                x: bottomLeft.x - extra,
+                y: bottomLeft.y + extra,
+            },
+            bottomRight: {
+                x: bottomRight.x + extra,
+                y: bottomRight.y + extra,
+            },
+        }
+    }
+
+    #pathInBound(x: number, y: number) {
+        const context = this.context
+        const path = this.#rectPath
+        if (!context || !path) return false
+        const centerX = this.rotationCenterX()
+        const centerY = this.rotationCenterY()
+        context.save()
+        context.translate(centerX, centerY)
+        context.rotate(this.rotate())
+        context.translate(-centerX, -centerY)
+        context.lineWidth = this.#maxBorderWidth()
+        const inStroke = context.isPointInStroke(path, x, y)
+        const inPath = context.isPointInPath(path, x, y)
+        context.restore()
+        return inStroke || inPath
+    }
+
+    checkInBound(event: MouseEvent): boolean {
+        if (!this.__isRunningEventActive(SELECTABLE_RUNNING_EVENT)) {
+            if (!this.#rectPath) return super.checkInBound(event)
+            const { x, y } = this.canvas?.getCursorPosition(event)!
+            return this.#pathInBound(x, y)
+        }
+        return super.checkInBound(event)
     }
 }

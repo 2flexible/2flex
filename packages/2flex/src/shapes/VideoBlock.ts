@@ -1,64 +1,50 @@
-import type { IBlock } from '../types'
-import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
-
+import { IShapeOptions } from '../ShapeBlock'
+import { MediaLayoutBlock } from './MediaLayoutBlock'
+type OnPlayCallback = (timestamp: number) => void
 interface VideoOptions extends IShapeOptions {
     autoPlay?: boolean
+    onPlay?: OnPlayCallback
 }
 
-export class VideoBlock extends ShapeBlock<VideoOptions> {
-    #cacheVideo?: HTMLVideoElement
+export class VideoBlock extends MediaLayoutBlock {
     #events = {
         isPlaying: false,
         isPaused: false,
     }
-    constructor(source: HTMLVideoElement, options: IBlock<VideoOptions>) {
+    constructor(options: VideoOptions) {
         super(options)
-        this.source(source)
+        this.#defineProperties()
     }
 
-    draw(_func?: (context: CanvasRenderingContext2D) => void): void {
-        if (!this.#cacheVideo) {
-            this.#cacheVideo = this.source()
-            if (this.#cacheVideo) {
-                ;(this.#cacheVideo as HTMLVideoElement).muted = true
-                if (this.autoPlay()) this.play()
-                this.#drawVideo()
+    #defineProperties() {
+        this.addProperty('autoPlay', false)
+        this.addProperty('onPlay', undefined)
+    }
+    init(): void {
+        super.init()
+        this.#buildVideo()
+    }
+    #buildVideo() {
+        this.mediaSource = this.source()
+        if (this.mediaSource) {
+            ;(this.mediaSource as HTMLVideoElement).muted = true
+            if (this.autoPlay()) this.play()
+            const animationId = String(new Date().getTime())
+            const videoPlayAnimator = (timestamp: number) => {
+                if (!this.mediaSource) return
+                if (this.isPlaying) this.onPlay()?.(timestamp)
+                this.__invokeChange()
             }
-        } else {
-            this.context?.drawImage(
-                this.#cacheVideo!,
-                0,
-                0,
-                this.width(),
-                this.height(),
-                this.x(),
-                this.y(),
-                this.width(),
-                this.height()
-            )
+            this.__addAnimation(animationId, videoPlayAnimator)
         }
-    }
-
-    #drawVideo() {
-        const videoPlayAnimator = (timestamp: number) => {
-            if (!this.#cacheVideo) return
-            if (this.isPlaying) this.onPlay()(timestamp)
-        }
-        this.__animationHandler(videoPlayAnimator)
-    }
-    source(opt?: HTMLVideoElement) {
-        return this.__valueHandler(opt, 'source', undefined)
-    }
-    autoPlay(opt?: boolean) {
-        return this.__valueHandler(opt, 'autoPlay', false)
     }
     pause() {
-        this.#cacheVideo?.pause()
+        (this.mediaSource as HTMLVideoElement).pause()
         this.#events.isPlaying = false
         this.#events.isPaused = true
     }
     play() {
-        this.#cacheVideo?.play()
+        (this.mediaSource as HTMLVideoElement).play()
         this.#events.isPlaying = true
         this.#events.isPaused = false
     }
@@ -67,14 +53,5 @@ export class VideoBlock extends ShapeBlock<VideoOptions> {
     }
     get isPaused() {
         return this.#events.isPaused
-    }
-    onPlay(func?: (timestamp: number) => undefined) {
-        const onPlay = this.__valueHandler<
-            (timestamp: number) => void,
-            ((timestamp: number) => void) | undefined
-        >(func, 'onPlay', undefined)
-        return (timestamp: number) => {
-            if (onPlay) onPlay?.(timestamp)
-        }
     }
 }

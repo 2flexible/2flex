@@ -16,6 +16,7 @@ export class CanvasDOMManager {
     canvasId: string
     width: number
     height: number
+    #domCanvas?: HTMLCanvasElement
     #domEvents: DomEvent = {}
     contextParams: ContextParamas = {
         alpha: true,
@@ -32,17 +33,31 @@ export class CanvasDOMManager {
     }
 
     get canvas(): HTMLCanvasElement {
-        const canvas = document.getElementById(
-            this.canvasId
-        ) as HTMLCanvasElement
-        if (!canvas) {
-            this.createCanvas()
+        if (!this.#domCanvas) {
+            let canvas = document.getElementById(
+                this.canvasId
+            ) as HTMLCanvasElement
+
+            if (!canvas) {
+                canvas = this.createCanvas()
+            } else {
+                canvas.tabIndex = 0
+                canvas.width = this.width * this.pixelRatio
+                canvas.height = this.height * this.pixelRatio
+                canvas.style.width = this.width + 'px'
+                canvas.style.height = this.height + 'px'
+            }
+            this.#domCanvas = canvas
         }
-        return canvas
+        return this.#domCanvas as HTMLCanvasElement
     }
 
-    get context(): CanvasRenderingContext2D {
-        return this.canvas.getContext('2d', this.contextParams)!
+    resetCanvas() {
+        this.#domCanvas = undefined
+    }
+
+    get context(): CanvasRenderingContext2D | null {
+        return this.canvas.getContext('2d', this.contextParams)
     }
 
     get pixelRatio() {
@@ -52,18 +67,21 @@ export class CanvasDOMManager {
     createCanvas() {
         const canvas = document.createElement('canvas') as HTMLCanvasElement
         canvas.id = this.canvasId
+        // need to test this
         canvas.tabIndex = 0
         canvas.width = this.width * this.pixelRatio
         canvas.height = this.height * this.pixelRatio
         canvas.style.width = this.width + 'px'
         canvas.style.height = this.height + 'px'
         document.querySelector('body')?.appendChild(canvas)
+        return canvas
     }
 
     changeStyle(options: ICssProperties) {
         for (const [key, value] of Object.entries(options)) {
             if (key in this.canvas.style)
-                this.canvas.style.setProperty(key, value as string)
+                // @FIX: type error in canvas style for key
+                (this.canvas.style as any)[key] = value
         }
     }
 
@@ -90,5 +108,10 @@ export class CanvasDOMManager {
 
     getListener(event: string) {
         return this.#domEvents[event]
+    }
+    clearAllEvents() {
+        for (const [event, eventFuncs] of Object.entries(this.#domEvents)) {
+            for (const func of eventFuncs) this.removeEventListener(event, func)
+        }
     }
 }

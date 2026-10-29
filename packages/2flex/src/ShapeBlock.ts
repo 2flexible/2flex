@@ -1,64 +1,30 @@
-import { Block } from './Block'
-import type { IBlock } from './types'
-
-export interface CursorPos {
-    x: number
-    y: number
-}
+import { Block, IBlockOptions } from './Block'
+import type { RelativeType, XY } from './types'
 
 export type GradientType = 'linear' | 'conic' | 'radial'
-export type LineJoinOpt = 'miter' | 'round' | 'bevel'
-export type LineDashOffset = number
 export type LineDash = number[]
-export type LineWidth = number
-export type LineCapOpt = 'butt' | 'round' | 'square'
-export type FillRule = CanvasFillRule
-export type strokeStyle = string
-export type FillStyle = string
-export type Fill = boolean
-export type Storke = boolean
+
+export interface Fill {
+    fill: boolean
+    path?: Path2D
+    fillRule?: CanvasFillRule
+}
+export interface Stroke {
+    stroke: boolean
+    path?: Path2D
+}
+
+export type FillStyle = CanvasFillStrokeStyles['fillStyle']
+export type StrokeStyle = CanvasFillStrokeStyles['strokeStyle']
+
 export type Font = string
 
 export interface DrawText {
     text: string
     x: number
     y: number
-    maxWidth: number
+    maxWidth?: number
 }
-
-export type FontStretch =
-    | 'normal'
-    | 'ultra-condensed'
-    | 'extra-condensed'
-    | 'condensed'
-    | 'semi-condensed'
-    | 'semi-expanded'
-    | 'expanded'
-    | 'extra-expanded'
-    | 'ultra-expanded'
-
-export type TextAlign = 'start' | 'end' | 'center' | 'left' | 'right'
-
-export type TextDirection = 'ltr' | 'rtl'
-
-export type TextBaseline =
-    | 'alphabetic'
-    | 'top'
-    | 'hanging'
-    | 'middle'
-    | 'ideographic'
-    | 'bottom'
-
-export type FontKerning = 'normal' | 'auto' | 'none'
-
-export type FontVariantCaps =
-    | 'normal'
-    | 'small-caps'
-    | 'all-small-caps'
-    | 'petite-caps'
-    | 'all-petite-caps'
-    | 'unicase'
-    | 'titling-caps'
 
 export type FontWeight =
     | 'normal'
@@ -76,16 +42,10 @@ export type FontWeight =
     | 900
 
 export type FontStyle = 'normal' | 'italic' | 'oblique'
-
 export type FontVariant = 'normal' | 'small-caps'
 
-export type TextRendering =
-    | 'auto'
-    | 'optimizeSpeed'
-    | 'optimizeLegibility'
-    | 'geometricPrecision'
-
 export interface GradientStops {
+    gradient?: CanvasGradient
     stop: number
     color: string
 }
@@ -119,7 +79,7 @@ export interface ConicGradient {
     x: number
     y: number
 }
-export interface RectOpt extends CursorPos {
+export interface RectOpt extends XY {
     x: number
     y: number
     width: number
@@ -129,11 +89,11 @@ export interface RoundRectOpt extends RectOpt {
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
     borderRadius: number[]
 }
-export interface PointInPath extends CursorPos {
+export interface PointInPath extends XY {
     path?: Path2D
-    fillRule?: FillRule
+    fillRule?: CanvasFillRule
 }
-export interface PointInStroke extends CursorPos {
+export interface PointInStroke extends XY {
     path?: Path2D
 }
 
@@ -153,17 +113,6 @@ interface ShapeFilters {
     saturate?: string
     sepia?: string
 }
-
-export type BaseFilters =
-    | 'blur'
-    | 'brightness'
-    | 'contrast'
-    | 'drop-shadow'
-    | 'grayscale'
-    | 'hue-rotate'
-    | 'opacity'
-    | 'saturate'
-    | 'sepia'
 
 interface Arc {
     x: number
@@ -190,7 +139,7 @@ interface Ellipse {
     rotation: number
     startAngle: number
     endAngle: number
-    counterclockwise?: number
+    counterclockwise?: boolean
 }
 interface DrawImage {
     source: CanvasImageSource
@@ -204,23 +153,44 @@ interface DrawImage {
     clipHeight: number
 }
 
-export type DrawFunc = (context: CanvasRenderingContext2D) => void
+interface Pattern {
+    image:
+        | HTMLImageElement
+        | SVGImageElement
+        | HTMLVideoElement
+        | HTMLCanvasElement
+        | ImageBitmap
+        | OffscreenCanvas
+        | VideoFrame
+    repetition: 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat'
+}
 
-export interface IShapeOptions {
+export type DrawFunc = (context: OffscreenCanvasRenderingContext2D) => void
+
+export type DropShadow = [RelativeType, RelativeType, RelativeType, FillStyle]
+
+export interface IShapeOptions extends IBlockOptions {
     fill?: Fill
     fillStyle?: FillStyle
 
-    stroke?: Storke
-    strokeStyle?: strokeStyle
+    stroke?: Stroke
+    strokeStyle?: StrokeStyle
 
-    line?: CursorPos
-    lineWidth?: LineWidth
-    lineDash?: LineDash[]
-    lineCap?: LineCapOpt
-    lineJoin?: LineJoinOpt
+    lineTo?: XY
+    lineWidth?: RelativeType
+    lineDash?: LineDash
+    lineCap?: CanvasLineCap
+    lineDashOffset?: CanvasPathDrawingStyles['lineDashOffset']
+    lineJoin?: CanvasLineJoin
 
-    bezierCurve?: BezierCurveToOpt
-    quadraticCurve?: QuadraticCurveToOpt
+    miterLimit?: CanvasPathDrawingStyles['miterLimit']
+
+    arc?: Arc
+    arcTo?: ArcTo
+    ellipse?: Ellipse
+
+    bezierCurveTo?: BezierCurveToOpt
+    quadraticCurveTo?: QuadraticCurveToOpt
 
     rect?: RectOpt
     roundRect?: RoundRectOpt
@@ -229,105 +199,544 @@ export interface IShapeOptions {
     pointInPath?: PointInPath
     pointInStroke?: PointInStroke
 
-    moveTo?: CursorPos
+    moveTo?: XY
 
     radialGradient?: RadialGradient
     linearGradient?: LinearGradient
     conicGradient?: ConicGradient
     colorStops?: GradientStops[]
 
-    blur?: number
-    brightness?: number
-    contrast?: number
-    dropShadow?: number
-    grayscale?: number
-    hueRotate?: number
-    saturate?: number
-    sepia?: number
+    blur?: RelativeType | RelativeType[]
+    brightness?: RelativeType | RelativeType[]
+    contrast?: RelativeType | RelativeType[]
+    dropShadow?: DropShadow | DropShadow[]
+    grayscale?: RelativeType | RelativeType[]
+    hueRotate?: RelativeType | RelativeType[]
+    saturate?: RelativeType | RelativeType[]
+    sepia?: RelativeType | RelativeType[]
+
+    shadowBlur?: RelativeType
+    shadowColor?: string
+    shadowOffsetX?: RelativeType
+    shadowOffsetY?: RelativeType
 
     fillText?: DrawText
     strokeText?: DrawText
-    fontWeight?: FontWeight
-    fontStyle?: FontStyle
-    fontVariant?: FontVariant
-    fontStretch?: FontStretch
-    fontKerning?: FontKerning
-    fontVariantCaps?: FontVariantCaps
-    textBaseline?: TextBaseline
-    textRendering?: TextRendering
+    font?: Font
+    fontStretch?: CanvasFontStretch
+    fontKerning?: CanvasFontKerning
+    fontVariantCaps?: CanvasFontVariantCaps
+    textBaseline?: CanvasTextBaseline
+    textRendering?: CanvasTextRendering
     wordSpacing?: string
     letterSpacing?: string
-    direction?: TextDirection
+    direction?: CanvasDirection
+    textAlign?: CanvasTextAlign
+
     clip?: Clip
-    pathData?: string
 
     drawImage?: DrawImage
+    pattern?: Pattern
     imageSmoothingEnabled?: boolean
     imageSmoothingQuality?: ImageSmoothingQuality
 
     globalCompositeOperation?: GlobalCompositeOperation
     globalAlpha?: number
 }
-export class ShapeBlock<T> extends Block<T | IShapeOptions> {
+export class ShapeBlock extends Block {
     #gradient?: CanvasGradient
-    #dataPath?: Path2D
-    __filters: ShapeFilters = {}
+    #canvasPattern?: CanvasPattern | null
+    #filters: ShapeFilters = {}
     #filterStr?: string
 
-    constructor(options: IBlock<IShapeOptions>) {
+    constructor(options: IShapeOptions) {
         super(options)
+        this.addProperty(
+            'clip',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: Clip) => this.#clip(block, opt)
+        )
+        this.addProperty(
+            'fill',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: Fill) => this.#fill(block, opt)
+        )
+        this.addProperty(
+            'fillStyle',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: FillStyle) => this.#fillStyle(block, opt)
+        )
+        this.addProperty(
+            'conicGradient',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: ConicGradient) =>
+                this.#conicGradient(block, opt)
+        )
+        this.addProperty(
+            'radialGradient',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RadialGradient) =>
+                this.#radialGradient(block, opt)
+        )
+        this.addProperty(
+            'linearGradient',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: LinearGradient) =>
+                this.#linearGradient(block, opt)
+        )
+        this.addProperty(
+            'colorStops',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: GradientStops[]) =>
+                this.#colorStops(block, opt)
+        )
+        this.addProperty(
+            'stroke',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: Stroke) => this.#stroke(block, opt)
+        )
+        this.addProperty(
+            'strokeStyle',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: StrokeStyle) =>
+                this.#strokeStyle(block, opt)
+        )
+        this.addProperty(
+            'lineCap',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasLineCap) =>
+                this.#lineCap(block, opt)
+        )
+        this.addProperty(
+            'lineWidth',
+            undefined,
+            true,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#lineWidth(block, opt)
+        )
+        this.addProperty(
+            'shadowBlur',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#shadowBlur(block, opt)
+        )
+        this.addProperty(
+            'shadowColor',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: string) => this.#shadowColor(block, opt)
+        )
+        this.addProperty(
+            'shadowOffsetX',
+            0,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#shadowOffsetX(block, opt)
+        )
+        this.addProperty(
+            'shadowOffsetY',
+            0,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#shadowOffsetY(block, opt)
+        )
+        this.addProperty(
+            'lineDash',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: LineDash) => this.#lineDash(block, opt)
+        )
+        this.addProperty(
+            'lineDashOffset',
+            undefined,
+            false,
+            (
+                block: ShapeBlock,
+                opt?: CanvasPathDrawingStyles['lineDashOffset']
+            ) => this.#lineDashOffset(block, opt)
+        )
+        this.addProperty(
+            'lineTo',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: XY) => this.#lineTo(block, opt)
+        )
+        this.addProperty(
+            'quadraticCurveTo',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: QuadraticCurveToOpt) =>
+                this.#quadraticCurveTo(block, opt)
+        )
+        this.addProperty(
+            'bezierCurveTo',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: BezierCurveToOpt) =>
+                this.#bezierCurveTo(block, opt)
+        )
+        this.addProperty(
+            'fillRect',
+            undefined,
+            true,
+            (block: ShapeBlock, opt?: RectOpt) => this.#fillRect(block, opt)
+        )
+        this.addProperty(
+            'rect',
+            undefined,
+            true,
+            (block: ShapeBlock, opt?: RectOpt) => this.#rect(block, opt)
+        )
+        this.addProperty(
+            'roundRect',
+            undefined,
+            true,
+            (block: ShapeBlock, opt?: RoundRectOpt) =>
+                this.#roundRect(block, opt)
+        )
+        this.addProperty(
+            'strokeRect',
+            undefined,
+            true,
+            (block: ShapeBlock, opt?: RectOpt) => this.#strokeRect(block, opt)
+        )
+        this.addProperty(
+            'arc',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: Arc) => this.#arc(block, opt)
+        )
+        this.addProperty(
+            'arcTo',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: ArcTo) => this.#arcTo(block, opt)
+        )
+        this.addProperty(
+            'ellipse',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: Ellipse) => this.#ellipse(block, opt)
+        )
+        this.addProperty(
+            'moveTo',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: XY) => this.#moveTo(block, opt)
+        )
+        this.addProperty(
+            'lineJoin',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasLineJoin) =>
+                this.#lineJoin(block, opt)
+        )
+        this.addProperty(
+            'font',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: Font) => this.#font(block, opt)
+        )
+        this.addProperty(
+            'fillText',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: DrawText) => this.#fillText(block, opt)
+        )
+        this.addProperty(
+            'strokeText',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: DrawText) => this.#strokeText(block, opt)
+        )
+        this.addProperty(
+            'fontStretch',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasFontStretch) =>
+                this.#fontStretch(block, opt)
+        )
+        this.addProperty(
+            'fontKerning',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasFontKerning) =>
+                this.#fontKerning(block, opt)
+        )
+        this.addProperty(
+            'fontVariantCaps',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasFontVariantCaps) =>
+                this.#fontVariantCaps(block, opt)
+        )
+        this.addProperty(
+            'wordSpacing',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#wordSpacing(block, opt)
+        )
+        this.addProperty(
+            'direction',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasDirection) =>
+                this.#direction(block, opt)
+        )
+        this.addProperty(
+            'letterSpacing',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#letterSpacing(block, opt)
+        )
+        this.addProperty(
+            'textAlign',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasTextAlign) =>
+                this.#textAlign(block, opt)
+        )
+        this.addProperty(
+            'miterLimit',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasPathDrawingStyles['miterLimit']) =>
+                this.#miterLimit(block, opt)
+        )
+        this.addProperty(
+            'textBaseline',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasTextBaseline) =>
+                this.#textBaseline(block, opt)
+        )
+        this.addProperty(
+            'textRendering',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: CanvasTextRendering) =>
+                this.#textRendering(block, opt)
+        )
+        this.addProperty(
+            'blur',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) => this.#blur(block, opt)
+        )
+        this.addProperty(
+            'brightness',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#brightness(block, opt)
+        )
+        this.addProperty(
+            'contrast',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#contrast(block, opt)
+        )
+        this.addProperty(
+            'dropShadow',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: DropShadow) =>
+                this.#dropShadow(block, opt)
+        )
+        this.addProperty(
+            'grayscale',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#grayscale(block, opt)
+        )
+        this.addProperty(
+            'hueRotate',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#hueRotate(block, opt)
+        )
+        this.addProperty(
+            'saturate',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) =>
+                this.#saturate(block, opt)
+        )
+        this.addProperty(
+            'sepia',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: RelativeType) => this.#sepia(block, opt)
+        )
+        this.addProperty(
+            'drawImage',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: DrawImage) => this.#drawImage(block, opt)
+        )
+        this.addProperty(
+            'pattern',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: Pattern) => this.#pattern(block, opt)
+        )
+        this.addProperty(
+            'imageSmoothingEnabled',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: boolean) =>
+                this.#imageSmoothingEnabled(block, opt)
+        )
+        this.addProperty(
+            'imageSmoothingQuality',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: ImageSmoothingQuality) =>
+                this.#imageSmoothingQuality(block, opt)
+        )
+        this.addProperty(
+            'globalCompositeOperation',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: GlobalCompositeOperation) =>
+                this.#globalCompositeOperation(block, opt)
+        )
+        this.addProperty(
+            'globalAlpha',
+            undefined,
+            false,
+            (block: ShapeBlock, opt?: number) => this.#globalAlpha(block, opt)
+        )
     }
     render(): void {
-        this.__childClipping?.(this)
-        this.__childAdjustment?.(this)
-
-        this.position()
-
-        this.__clippingPath()
-        this.__adjustChildBlocks()
-
-        if (this.__isHidden) return
+        super.render()
+        const context = this.context
+        if (this.hidden() || !context) return
+        const centerX = this.rotationCenterX()
+        const centerY = this.rotationCenterY()
+        const verticalFlipRotate = this.verticalFlip() ? -1 : 1
+        const horizontalFlipRotate = this.horizontalFlip() ? -1 : 1
 
         this.beginPath()
-        this.context?.save()
-        this.context?.translate(this.rotationCenterX(), this.rotationCenterY())
-        this.context?.rotate(this.rotate())
-        // @TODO: add features for vertical or horizantal flipping
-        // this.context?.setTransform(
-        //     this.__isHorizontalFlipped ? -1 : 1,
-        //     0,
-        //     0,
-        //     this.__isVerticalFlipped ? -1 : 1,
-        //     !this.__isHorizontalFlipped ? this.rotationCenterX() : 0,
-        //     !this.__isVerticalFlipped ? this.rotationCenterY() : 0
-        // );
-
-        this.context?.translate(
-            -this.rotationCenterX(),
-            -this.rotationCenterY()
+        context.save()
+        // need to clip child before restore if its exist
+        this.__childClipping?.(this)
+        context.translate(centerX, centerY)
+        // vertical or horizantal flipping
+        context.scale(horizontalFlipRotate, verticalFlipRotate)
+        context.rotate(
+            this.rotate() * verticalFlipRotate * horizontalFlipRotate
         )
+        context.translate(-centerX, -centerY)
         this.#contextFilter()
-        if (this.ownOptions.lineDash) this.lineDash()
-        if (this.ownOptions.lineWidth) this.lineWidth()
-        if (this.ownOptions.lineCap) this.lineCap()
-        if (this.ownOptions.shadowBlur) this.shadowBlur()
-        if (this.ownOptions.shadowColor) this.shadowColor()
-        if (this.ownOptions.fillStyle) this.fillStyle()
-        if (this.ownOptions.fillRect) this.fillRect()
-        if (this.ownOptions.rect) this.rect()
-        if (this.ownOptions.imageSmoothingEnabled) this.imageSmoothingEnabled()
-        if (this.ownOptions.imageSmoothingQuality) this.imageSmoothingQuality()
-        if (this.ownOptions.strokeStyle) this.strokeStyle()
-        if (this.ownOptions.clip) this.clip()
-
+        this.#applyContexttStyles(context)
         this.draw()
+        context.restore()
+    }
 
-        if (this.ownOptions.fill) this.fill()
-        if (this.ownOptions.stroke) this.stroke()
-        this.context?.restore()
+    #applyContexttStyles(context: OffscreenCanvasRenderingContext2D) {
+        context.save()
+        context.translate(this.x(), this.y())
+        if (this.getOptionCurrent('globalAlpha') !== undefined)
+            this.globalAlpha()
+        if (this.getOptionCurrent('globalCompositeOperation') !== undefined)
+            this.globalCompositeOperation()
 
-        this.__isSelected()
-        this.onRender()?.()
+        if (this.getOptionCurrent('blur') !== undefined) this.blur()
+        if (this.getOptionCurrent('brightness') !== undefined) this.brightness()
+        if (this.getOptionCurrent('contrast') !== undefined) this.contrast()
+        if (this.getOptionCurrent('dropShadow') !== undefined) this.dropShadow()
+        if (this.getOptionCurrent('grayscale') !== undefined) this.grayscale()
+        if (this.getOptionCurrent('hueRotate') !== undefined) this.hueRotate()
+        if (this.getOptionCurrent('saturate') !== undefined) this.saturate()
+        if (this.getOptionCurrent('sepia') !== undefined) this.sepia()
+
+        if (this.getOptionCurrent('conicGradient') !== undefined)
+            this.conicGradient()
+        if (this.getOptionCurrent('radialGradient') !== undefined)
+            this.radialGradient()
+        if (this.getOptionCurrent('linearGradient') !== undefined)
+            this.linearGradient()
+        if (this.getOptionCurrent('colorStops') !== undefined)
+            this.colorStops()
+        if (this.getOptionCurrent('pattern') !== undefined) this.pattern()
+
+        if (this.getOptionCurrent('shadowBlur') !== undefined) this.shadowBlur()
+        if (this.getOptionCurrent('shadowColor') !== undefined)
+            this.shadowColor()
+        if (this.getOptionCurrent('shadowOffsetX') !== undefined)
+            this.shadowOffsetX()
+        if (this.getOptionCurrent('shadowOffsetY') !== undefined)
+            this.shadowOffsetY()
+        if (this.getOptionCurrent('fillStyle') !== undefined) this.fillStyle()
+
+        if (this.getOptionCurrent('lineWidth') !== undefined) this.lineWidth()
+        if (this.getOptionCurrent('lineCap') !== undefined) this.lineCap()
+        if (this.getOptionCurrent('lineJoin') !== undefined) this.lineJoin()
+        if (this.getOptionCurrent('miterLimit') !== undefined) this.miterLimit()
+        if (this.getOptionCurrent('lineDash') !== undefined) this.lineDash()
+        if (this.getOptionCurrent('lineDashOffset') !== undefined)
+            this.lineDashOffset()
+        if (this.getOptionCurrent('strokeStyle') !== undefined)
+            this.strokeStyle()
+
+        if (this.getOptionCurrent('imageSmoothingEnabled') !== undefined)
+            this.imageSmoothingEnabled()
+        if (this.getOptionCurrent('imageSmoothingQuality') !== undefined)
+            this.imageSmoothingQuality()
+
+        if (this.getOptionCurrent('font') !== undefined) this.font()
+        if (this.getOptionCurrent('fontStretch') !== undefined) this.fontStretch()
+        if (this.getOptionCurrent('fontKerning') !== undefined) this.fontKerning()
+        if (this.getOptionCurrent('fontVariantCaps') !== undefined)
+            this.fontVariantCaps()
+        if (this.getOptionCurrent('wordSpacing') !== undefined) this.wordSpacing()
+        if (this.getOptionCurrent('direction') !== undefined) this.direction()
+        if (this.getOptionCurrent('textAlign') !== undefined) this.textAlign()
+        if (this.getOptionCurrent('textBaseline') !== undefined) this.textBaseline()
+        if (this.getOptionCurrent('textRendering') !== undefined) this.textRendering()
+        if (this.getOptionCurrent('letterSpacing') !== undefined)
+            this.letterSpacing()
+
+        if (this.getOptionCurrent('moveTo') !== undefined) this.moveTo()
+        if (this.getOptionCurrent('lineTo') !== undefined) this.lineTo()
+        if (this.getOptionCurrent('quadraticCurveTo') !== undefined)
+            this.quadraticCurveTo()
+        if (this.getOptionCurrent('bezierCurveTo') !== undefined)
+            this.bezierCurveTo()
+        if (this.getOptionCurrent('arc') !== undefined) this.arc()
+        if (this.getOptionCurrent('arcTo') !== undefined) this.arcTo()
+        if (this.getOptionCurrent('ellipse') !== undefined) this.ellipse()
+        if (this.getOptionCurrent('rect') !== undefined) this.rect()
+        if (this.getOptionCurrent('roundRect') !== undefined) this.roundRect()
+        if (this.getOptionCurrent('fillRect') !== undefined) this.fillRect()
+        if (this.getOptionCurrent('strokeRect') !== undefined) this.strokeRect()
+
+        if (this.getOptionCurrent('fillText') !== undefined) this.fillText()
+        if (this.getOptionCurrent('strokeText') !== undefined) this.strokeText()
+        if (this.getOptionCurrent('drawImage') !== undefined) this.drawImage()
+
+        if (this.getOptionCurrent('clip') !== undefined) this.clip()
+
+        if (this.getOptionCurrent('fill') !== undefined) this.fill()
+        if (this.getOptionCurrent('stroke') !== undefined) this.stroke()
+        context.restore()
     }
 
     draw(_func?: DrawFunc) {
@@ -344,480 +753,277 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
     }
     closePath(): void {
         this.context?.closePath()
-        this.#dataPath?.closePath()
     }
-    clip(opt?: Clip) {
-        const { path, fillRule } = this.__valueHandler<Clip, Clip>(
-            opt,
-            'clip',
-            {
-                path: undefined,
-                fillRule: 'nonzero',
-            }
+    #clip(block: ShapeBlock, opt?: Clip) {
+        const context = block.context
+        if (!opt || !context) return
+        const fillRule = opt.fillRule || 'nonzero'
+        if (opt.path) block.context?.clip(opt.path, fillRule)
+        else block.context?.clip(fillRule)
+    }
+    #fill(block: ShapeBlock, opt?: Fill) {
+        const context = block.context
+        if (!opt || !opt.fill || !context) return
+        const fillRule = (opt.fillRule || 'nonzero') as CanvasFillRule
+        if (opt.path) context.fill(opt.path, fillRule)
+        else context.fill(fillRule)
+    }
+    #fillStyle(block: ShapeBlock, opt?: FillStyle) {
+        const context = block.context
+        if (!context || !opt) return
+        context.fillStyle = block.#gradient || block.#canvasPattern || opt
+    }
+
+    #conicGradient(block: ShapeBlock, opt?: ConicGradient) {
+        if (!opt) return
+        block.#gradient = block.context?.createConicGradient(
+            opt.angle,
+            opt.x,
+            opt.y
         )
-        if (path) return this.context?.clip(path, fillRule)
-        else return this.context?.clip(fillRule)
     }
-    fill(opt?: Fill) {
-        const fill = this.__valueHandler(opt, 'fill', false)
-        if (fill) {
-            this.context?.fill()
-            if (this.#dataPath) this.context?.fill(this.#dataPath)
+    #radialGradient(block: ShapeBlock, opt?: RadialGradient) {
+        if (!opt) return
+        block.#gradient = block.context?.createRadialGradient(
+            opt.x0,
+            opt.y0,
+            opt.r0,
+            opt.x1,
+            opt.y1,
+            opt.r1
+        )
+    }
+    #linearGradient(block: ShapeBlock, opt?: LinearGradient) {
+        if (!opt) return
+        block.#gradient = block.context?.createLinearGradient(
+            opt.x0,
+            opt.y0,
+            opt.x1,
+            opt.y1
+        )
+    }
+    #colorStops(block: ShapeBlock, opt?: GradientStops[]) {
+        if (!opt) return
+        for (let stop of opt) {
+            block.#gradient?.addColorStop(stop.stop, stop.color)
+            stop.gradient?.addColorStop(stop.stop, stop.color)
         }
-        return fill
     }
-    fillStyle(opt?: FillStyle) {
-        const fillStyle = this.__valueHandler(opt, 'fillStyle', 'black')
-        if (this.context) this.context.fillStyle = fillStyle
-        return fillStyle
+    #stroke(block: ShapeBlock, opt?: Stroke) {
+        const context = block.context
+        if (!opt || !opt.stroke || !context) return
+        if (opt.path) context.stroke(opt.path)
+        else context.stroke()
     }
-
-    conicGradient(opt?: ConicGradient) {
-        const { angle, x, y } = this.__valueHandler(opt, 'conicGradient', {
-            angle: 0,
-            x: 0,
-            y: 0,
-        })
-        this.#gradient = this.context?.createConicGradient(angle, x, y)
-        return this.#gradient
+    #strokeStyle(block: ShapeBlock, opt?: StrokeStyle) {
+        const context = block.context
+        if (!context || !opt) return
+        context.strokeStyle = block.#gradient || block.#canvasPattern || opt
     }
-    radialGradient(opt?: RadialGradient) {
-        const { x0, y0, r0, x1, y1, r1 } = this.__valueHandler(
-            opt,
-            'radialGradient',
-            {
-                x0: 0,
-                y0: 0,
-                r0: 0,
-                x1: 0,
-                y1: 0,
-                r1: 0,
-            }
-        )
-        this.#gradient = this.context?.createRadialGradient(
-            x0,
-            y0,
-            r0,
-            x1,
-            y1,
-            r1
-        )
-        return this.#gradient
+    #lineCap(block: ShapeBlock, opt?: CanvasLineCap) {
+        if (block.context && opt) block.context.lineCap = opt
     }
-    linearGradient(opt?: LinearGradient) {
-        const { x0, y0, x1, y1 } = this.__valueHandler(opt, 'linearGradient', {
-            x0: 0,
-            y0: 0,
-            x1: 0,
-            y1: 0,
-        })
-        this.#gradient = this.context?.createLinearGradient(x0, y0, x1, y1)
-        return this.#gradient
+    #lineWidth(block: ShapeBlock, opt?: RelativeType) {
+        if (block.context && opt !== undefined)
+            block.context.lineWidth = opt as number
     }
-    colorStops(opt?: GradientStops[]) {
-        const stops = this.__valueHandler<GradientStops[], GradientStops[]>(
-            opt,
-            'colorStops',
-            []
-        )
-        for (let stop of stops) {
-            this.#gradient?.addColorStop(stop.stop, stop.color)
-        }
-        return stops
+    #shadowBlur(block: ShapeBlock, opt?: RelativeType) {
+        if (block.context && opt !== undefined)
+            block.context.shadowBlur = opt as number
     }
-    stroke(opt?: Storke) {
-        const stroke = this.__valueHandler(opt, 'stroke', false)
-        if (stroke) {
-            this.context?.stroke()
-            if (this.#dataPath) this.context?.stroke(this.#dataPath)
-        }
-        return stroke
+    #shadowColor(block: ShapeBlock, opt?: string) {
+        if (block.context && opt) block.context.shadowColor = opt
     }
-    strokeStyle(opt?: strokeStyle) {
-        const strokeStyle = this.__valueHandler(opt, 'strokeStyle', 'black')
-        if (this.context) this.context.strokeStyle = strokeStyle
-        return strokeStyle
+    #shadowOffsetX(block: ShapeBlock, opt?: RelativeType) {
+        if (block.context && opt !== undefined)
+            block.context.shadowOffsetX = opt as number
     }
-    lineCap(opt?: LineCapOpt) {
-        const lineCap = this.__valueHandler(opt, 'lineCap', 'butt')
-        if (this.context) this.context.lineCap = lineCap
-        return lineCap
+    #shadowOffsetY(block: ShapeBlock, opt?: RelativeType) {
+        if (block.context && opt !== undefined)
+            block.context.shadowOffsetY = opt as number
     }
-
-    lineWidth(opt?: LineWidth) {
-        const lineWidth = this.__valueHandler(opt, 'lineWidth', 0)
-        if (this.context) this.context.lineWidth = lineWidth
-        return lineWidth
+    #lineDash(block: ShapeBlock, opt?: LineDash) {
+        if (opt) block.context?.setLineDash(opt)
     }
-    shadowBlur(opt?: number) {
-        const shadowBlur = this.__valueHandler(opt, 'shadowBlur', 0)
-        if (this.context) this.context.shadowBlur = shadowBlur
-        return shadowBlur
+    #lineDashOffset(
+        block: ShapeBlock,
+        opt?: CanvasPathDrawingStyles['lineDashOffset']
+    ) {
+        if (block.context && opt !== undefined)
+            block.context.lineDashOffset = opt
     }
-    shadowColor(opt?: string) {
-        const shadowColor = this.__valueHandler(opt, 'shadowColor', 'black')
-        if (this.context) this.context.shadowColor = shadowColor
-        return shadowColor
+    #lineTo(block: ShapeBlock, opt?: XY) {
+        if (opt) block.context?.lineTo(opt.x, opt.y)
     }
-    shadowOffsetX(opt?: number) {
-        const shadowOffsetX = this.__valueHandler(opt, 'shadowOffsetX', 0)
-        if (this.context) this.context.shadowOffsetX = shadowOffsetX
-        return shadowOffsetX
+    #quadraticCurveTo(block: ShapeBlock, opt?: QuadraticCurveToOpt) {
+        if (opt)
+            block.context?.quadraticCurveTo(
+                opt.cpx1,
+                opt.cpy1,
+                opt.endX,
+                opt.endY
+            )
     }
-    shadowOffsetY(opt?: number) {
-        const shadowOffsetY = this.__valueHandler(opt, 'shadowOffsetY', 0)
-        if (this.context) this.context.shadowOffsetY = shadowOffsetY
-        return shadowOffsetY
+    #bezierCurveTo(block: ShapeBlock, opt?: BezierCurveToOpt) {
+        if (opt)
+            block.context?.bezierCurveTo(
+                opt.cpx1,
+                opt.cpy1,
+                opt.cpx2,
+                opt.cpy2,
+                opt.endX,
+                opt.endY
+            )
     }
-    lineDash(opt?: LineDash) {
-        const lineDash = this.__valueHandler(opt, 'lineDash', [])
-        if (this.context) this.context.setLineDash(lineDash)
-        return lineDash
+    #fillRect(block: ShapeBlock, opt?: RectOpt) {
+        if (opt) block.context?.fillRect(opt.x, opt.y, opt.width, opt.height)
     }
-    lineDashOffset(opt?: LineDashOffset) {
-        const lineDash = this.__valueHandler(opt, 'lineDash', 0)
-        if (this.context) this.context.lineDashOffset = lineDash
-        return lineDash
+    #rect(block: ShapeBlock, opt?: RectOpt) {
+        if (opt) block.context?.rect(opt.x, opt.y, opt.width, opt.height)
+    }
+    #roundRect(block: ShapeBlock, opt?: RoundRectOpt) {
+        if (opt) block.context?.roundRect(opt.x, opt.y, opt.width, opt.height)
+    }
+    #strokeRect(block: ShapeBlock, opt?: RectOpt) {
+        if (opt) block.context?.strokeRect(opt.x, opt.y, opt.width, opt.height)
+    }
+    #arc(block: ShapeBlock, opt?: Arc) {
+        if (opt)
+            block.context?.arc(
+                opt.x,
+                opt.y,
+                opt.radius,
+                opt.startAngle,
+                opt.endAngle,
+                opt.counterclockwise
+            )
+    }
+    #arcTo(block: ShapeBlock, opt?: ArcTo) {
+        if (opt)
+            block.context?.arcTo(opt.x1, opt.y1, opt.x2, opt.y2, opt.radius)
     }
 
-    line(opt?: CursorPos) {
-        const { x, y } = this.__valueHandler(opt, 'line', { x: 0, y: 0 })
-        this.context?.lineTo(x, y)
-        this.#dataPath?.lineTo(x, y)
-        return { x, y }
+    #ellipse(block: ShapeBlock, opt?: Ellipse) {
+        if (opt)
+            block.context?.ellipse(
+                opt.x,
+                opt.y,
+                opt.radiusX,
+                opt.radiusY,
+                opt.rotation,
+                opt.startAngle,
+                opt.endAngle,
+                opt.counterclockwise || false
+            )
     }
 
-    quadraticCurveTo(opt?: QuadraticCurveToOpt): void {
-        const { cpx1, cpy1, endX, endY } = this.__valueHandler(
-            opt,
-            'quadraticCurveTo',
-            { cpx1: 0, cpy1: 0, endX: 0, endY: 0 }
-        )
-        this.context?.quadraticCurveTo(cpx1, cpy1, endX, endY)
-        this.#dataPath?.quadraticCurveTo(cpx1, cpy1, endX, endY)
+    #moveTo(block: ShapeBlock, opt?: XY) {
+        if (opt) block.context?.moveTo(opt.x, opt.y)
     }
-    bezierCurveTo(opt?: BezierCurveToOpt): void {
-        const { cpx1, cpy1, cpx2, cpy2, endX, endY } = this.__valueHandler(
-            opt,
-            'bezierCurveTo',
-            { cpx1: 0, cpy1: 0, cpx2: 0, cpy2: 0, endX: 0, endY: 0 }
-        )
-        this.context?.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY)
-        this.#dataPath?.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, endX, endY)
+    #lineJoin(block: ShapeBlock, opt?: CanvasLineJoin) {
+        if (block.context && opt) block.context.lineJoin = opt
     }
-    fillRect(opt?: RectOpt) {
-        const { x, y, width, height } = this.__valueHandler(opt, 'fillRect', {
-            x: this.x(),
-            y: this.y(),
-            width: this.width(),
-            height: this.height(),
-        })
-        this.context?.fillRect(
-            this.x() + x,
-            this.y() + y,
-            this.width() - width,
-            this.height() - height
-        )
-    }
-    rect(opt?: RectOpt): void {
-        const { x, y, width, height } = this.__valueHandler(opt, 'rect', {
-            x: this.x(),
-            y: this.y(),
-            width: this.width(),
-            height: this.height(),
-        })
-        this.context?.rect(
-            this.x() + x,
-            this.y() + y,
-            this.width() - width,
-            this.height() - height
-        )
-        this.#dataPath?.rect(
-            this.x() + x,
-            this.y() + y,
-            this.width() - width,
-            this.height() - height
-        )
-    }
-    roundRect(opt?: RoundRectOpt): void {
-        const { x, y, width, height, borderRadius } = this.__valueHandler(
-            opt,
-            'roundRect',
-            { x: 0, y: 0, width: 0, height: 0, borderRadius: [0] }
-        )
-        this.context?.roundRect(
-            this.x() + x,
-            this.y() + y,
-            this.width() - width,
-            this.height() - height,
-            borderRadius
-        )
-        this.#dataPath?.roundRect(
-            this.x() + x,
-            this.y() + y,
-            this.width() - width,
-            this.height() - height,
-            borderRadius
-        )
-    }
-    strokeRect(opt?: RectOpt): void {
-        const { x, y, width, height } = this.__valueHandler(opt, 'strokeRect', {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-        })
-        this.context?.strokeRect(
-            this.x() + x,
-            this.y() + y,
-            this.width() - width,
-            this.height() - height
-        )
-    }
-
-    arc(opt?: Arc) {
-        const arc = this.__valueHandler(opt, 'arc', {
-            x: 0,
-            y: 0,
-            radius: 0,
-            startAngle: 0,
-            endAngle: 0,
-            counterclockwise: false,
-        })
-        this.context?.arc(
-            arc.x,
-            arc.y,
-            arc.radius,
-            arc.startAngle,
-            arc.endAngle,
-            arc.counterclockwise
-        )
-        this.#dataPath?.arc(
-            arc.x,
-            arc.y,
-            arc.radius,
-            arc.startAngle,
-            arc.endAngle,
-            arc.counterclockwise
-        )
-        return
-    }
-
-    arcTo(opt?: ArcTo) {
-        const arcTo = this.__valueHandler(opt, 'arcTo', {
-            x1: 0,
-            y1: 0,
-            x2: 0,
-            y2: 0,
-            radius: 0,
-        })
-        this.context?.arcTo(
-            arcTo.x1,
-            arcTo.y1,
-            arcTo.x2,
-            arcTo.y2,
-            arcTo.radius
-        )
-        this.#dataPath?.arcTo(
-            arcTo.x1,
-            arcTo.y1,
-            arcTo.x2,
-            arcTo.y2,
-            arcTo.radius
-        )
-        return
-    }
-
-    ellipse(opt?: Ellipse) {
-        const ellipse = this.__valueHandler(opt, 'ellipse', {
-            x: 0,
-            y: 0,
-            radiusX: 0,
-            radiusY: 0,
-            rotation: 0,
-            startAngle: 0,
-            endAngle: 0,
-            counterclockwise: false,
-        })
-        this.context?.ellipse(
-            ellipse.x,
-            ellipse.y,
-            ellipse.radiusX,
-            ellipse.radiusY,
-            ellipse.rotation,
-            ellipse.startAngle,
-            ellipse.endAngle,
-            ellipse.counterclockwise
-        )
-        this.#dataPath?.ellipse(
-            ellipse.x,
-            ellipse.y,
-            ellipse.radiusX,
-            ellipse.radiusY,
-            ellipse.rotation,
-            ellipse.startAngle,
-            ellipse.endAngle,
-            ellipse.counterclockwise
-        )
-        return
-    }
-
-    moveTo(opt?: CursorPos): void {
-        const { x, y } = this.__valueHandler(opt, 'moveTo', {
-            x: 0,
-            y: 0,
-        })
-        this.context?.moveTo(this.x() + x, this.y() + y)
-        this.#dataPath?.moveTo(this.x() + x, this.y() + y)
-    }
-    lineJoin(opt?: LineJoinOpt) {
-        const lineJoin = this.__valueHandler(opt, 'lineJoin', 'miter')
-        if (this.context) this.context.lineJoin = lineJoin
-        return lineJoin
-    }
-    pointInPath(opt?: PointInPath): boolean {
-        const { path, x, y, fillRule } = this.__valueHandler(
-            opt,
-            'pointInPath',
-            {
-                path: undefined,
-                x: 0,
-                y: 0,
-                fillRule: undefined,
-            }
-        )
-        if (path)
+    pointInPath(point: PointInPath): boolean {
+        if (point.path)
             return (
                 this.context?.isPointInPath(
-                    path,
-                    x,
-                    y,
-                    fillRule || 'nonzero'
+                    point.path,
+                    point.x,
+                    point.y,
+                    point.fillRule || 'nonzero'
                 ) || false
             )
         else
             return (
-                this.context?.isPointInPath(x, y, fillRule || 'nonzero') ||
-                false
+                this.context?.isPointInPath(
+                    point.x,
+                    point.y,
+                    point.fillRule || 'nonzero'
+                ) || false
             )
     }
-    pointInStroke(opt: PointInStroke): boolean {
-        const { path, x, y } = this.__valueHandler(opt, 'pointInStroke', {
-            path: undefined,
-            x: 0,
-            y: 0,
-        })
-        if (path) return this.context?.isPointInStroke(path, x, y) || false
-        else return this.context?.isPointInStroke(x, y) || false
+    pointInStroke(point: PointInStroke): boolean | undefined {
+        if (point.path)
+            return (
+                this.context?.isPointInStroke(point.path, point.x, point.y) ||
+                false
+            )
+        else return this.context?.isPointInStroke(point.x, point.y) || false
     }
 
-    font(opt?: Font) {
-        const font = this.__valueHandler(opt, 'font', '')
-        if (this.context) this.context.font = font
-        return font
+    #font(block: ShapeBlock, opt?: Font) {
+        if (block.context && opt) block.context.font = opt
     }
 
-    fillText(opt?: DrawText) {
-        const { text, x, y, maxWidth } = this.__valueHandler(opt, 'fillText', {
-            text: '',
-            x: this.x(),
-            y: this.y(),
-            maxWidth: this.maxWidth(),
-        })
-        this.context?.fillText(text, x, y, maxWidth)
+    #fillText(block: ShapeBlock, opt?: DrawText) {
+        if (!opt) return
+        if (opt.maxWidth)
+            block.context?.fillText(opt.text, opt.x, opt.y, opt.maxWidth)
+        else block.context?.fillText(opt.text, opt.x, opt.y)
     }
 
-    strokeText(opt?: DrawText) {
-        const { text, x, y, maxWidth } = this.__valueHandler(
-            opt,
-            'strokeText',
-            {
-                text: '',
-                x: this.x(),
-                y: this.y(),
-                maxWidth: this.maxWidth(),
-            }
-        )
-        this.context?.strokeText(text, x, y, maxWidth)
+    #strokeText(block: ShapeBlock, opt?: DrawText) {
+        if (!opt) return
+        if (opt.maxWidth)
+            block.context?.strokeText(opt.text, opt.x, opt.y, opt.maxWidth)
+        else block.context?.strokeText(opt.text, opt.x, opt.y)
     }
 
-    fontStretch(opt?: FontStretch) {
-        const fontStretch = this.__valueHandler(opt, 'fontStretch', 'normal')
-        if (this.context) this.context.fontStretch = fontStretch
-        return fontStretch
+    #fontStretch(block: ShapeBlock, opt?: CanvasFontStretch) {
+        if (block.context && opt) block.context.fontStretch = opt
     }
 
-    fontKerning(opt?: FontKerning) {
-        const fontKerning = this.__valueHandler(opt, 'fontKerning', 'auto')
-        if (this.context) this.context.fontKerning = fontKerning
-        return fontKerning
+    #fontKerning(block: ShapeBlock, opt?: CanvasFontKerning) {
+        if (block.context && opt) block.context.fontKerning = opt
     }
 
-    fontVariantCaps(opt?: FontVariantCaps) {
-        const fontVariantCaps = this.__valueHandler(
-            opt,
-            'fontVariantCaps',
-            'normal'
-        )
-        if (this.context) this.context.fontVariantCaps = fontVariantCaps
-        return fontVariantCaps
+    #fontVariantCaps(block: ShapeBlock, opt?: CanvasFontVariantCaps) {
+        if (block.context && opt) block.context.fontVariantCaps = opt
     }
 
-    wordSpacing(opt?: string) {
-        const wordSpacing = this.__valueHandler(
-            `${opt}px`,
-            'wordSpacing',
-            '0px'
-        )
-        if (this.context) this.context.wordSpacing = wordSpacing
-        return wordSpacing
+    #wordSpacing(block: ShapeBlock, opt?: RelativeType) {
+        if (block.context && opt !== undefined)
+            block.context.wordSpacing = `${opt}px`
     }
 
-    direction(opt?: TextDirection) {
-        const direction = this.__valueHandler(opt, 'direction', 'ltr')
-        if (this.context) this.context.direction = direction
-        return direction
+    #direction(block: ShapeBlock, opt?: CanvasDirection) {
+        if (block.context && opt) block.context.direction = opt
     }
 
-    letterSpacing(opt?: string) {
-        const letterSpacing = this.__valueHandler(opt, 'letterSpacing', '0px')
-        if (this.context) this.context.letterSpacing = letterSpacing
-        return letterSpacing
+    #letterSpacing(block: ShapeBlock, opt?: RelativeType) {
+        if (block.context && opt !== undefined)
+            block.context.letterSpacing = `${opt}px`
     }
 
-    textAlign(opt?: TextAlign) {
-        const textAlign = this.__valueHandler(opt, 'textAlign', 'start')
-        if (this.context) this.context.textAlign = textAlign
-        return textAlign
+    #textAlign(block: ShapeBlock, opt?: CanvasTextAlign) {
+        if (block.context && opt !== undefined) block.context.textAlign = opt
     }
 
-    textBaseline(opt?: TextBaseline) {
-        const textBaseline = this.__valueHandler(
-            opt,
-            'textBaseline',
-            'alphabetic'
-        )
-        if (this.context) this.context.textBaseline = textBaseline
-        return textBaseline
+    #miterLimit(
+        block: ShapeBlock,
+        opt?: CanvasPathDrawingStyles['miterLimit']
+    ) {
+        if (block.context && opt !== undefined) block.context.miterLimit = opt
     }
 
-    textRendering(opt?: TextRendering) {
-        const textRendering = this.__valueHandler(opt, 'textRendering', 'auto')
-        if (this.context) this.context.textRendering = textRendering
-        return textRendering
+    #textBaseline(block: ShapeBlock, opt?: CanvasTextBaseline) {
+        if (block.context && opt) block.context.textBaseline = opt
     }
 
-    measureText(opt?: string) {
-        const text = this.__valueHandler(opt, 'measureText', '')
+    #textRendering(block: ShapeBlock, opt?: CanvasTextRendering) {
+        if (block.context && opt) block.context.textRendering = opt
+    }
+
+    measureText(text: string): TextMetrics | undefined {
         return this.context?.measureText(text)
     }
 
     #contextFilter() {
         if (!this.#filterStr) {
-            const entries = Object.entries(this.__filters)
+            const entries = Object.entries(this.#filters)
             if (entries.length !== 0) {
                 let allStr = ''
-                for (const [key, value] of Object.entries(this.__filters)) {
+                for (const [key, value] of Object.entries(this.#filters)) {
                     if (value) allStr += ` ${key + value}`
                 }
                 this.#filterStr = allStr
@@ -828,8 +1034,10 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
         }
     }
 
-    #filterHandler(filter?: BaseFilters, value?: string | number | number[]) {
-        if (value === undefined || filter == undefined) return
+    #filterHandler(
+        filter: keyof ShapeFilters,
+        value: string | number | number[]
+    ) {
         switch (filter) {
             case 'blur':
                 value = value + 'px'
@@ -867,124 +1075,95 @@ export class ShapeBlock<T> extends Block<T | IShapeOptions> {
                 value = value + '%'
                 break
         }
-        this.__filters[filter] = `(${value})`
+        this.#filters[filter] = `(${value})`
         this.#filterStr = undefined
     }
 
-    blur(opt?: number) {
-        const blur = this.__valueHandler(opt, 'blur', undefined)
-        this.#filterHandler('blur', blur)
-        return blur
+    #blur(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('blur', val)
+        else block.#filterHandler('blur', opt)
     }
-    brightness(opt?: number) {
-        const brightness = this.__valueHandler(opt, 'brightness', undefined)
-        this.#filterHandler('brightness', brightness)
-        return brightness
+    #brightness(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('brightness', val)
+        else block.#filterHandler('brightness', opt)
     }
-    contrast(opt?: number) {
-        const contrast = this.__valueHandler(opt, 'contrast', undefined)
-        this.#filterHandler('contrast', contrast)
-        return contrast
+    #contrast(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('contrast', val)
+        else block.#filterHandler('contrast', opt)
     }
-    dropShadow(opt?: [number, number, number, string][]) {
-        const dropShadow = this.__valueHandler(opt, 'dropShadow', undefined)
-        this.#filterHandler('drop-shadow', dropShadow)
-        return dropShadow
+    #dropShadow(block: ShapeBlock, opt?: DropShadow | DropShadow[]) {
+        if (!opt) return
+        if (opt[0] instanceof Array)
+            for (const val of opt)
+                block.#filterHandler('drop-shadow', val as any)
+        else block.#filterHandler('drop-shadow', opt as any)
     }
-    grayscale(opt?: number) {
-        const grayscale = this.__valueHandler(opt, 'grayscale', undefined)
-        this.#filterHandler('grayscale', grayscale)
-        return grayscale
+    #grayscale(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('grayscale', val)
+        else block.#filterHandler('grayscale', opt)
     }
-    hueRotate(opt?: number) {
-        const hueRotate = this.__valueHandler(opt, 'hueRotate', undefined)
-        this.#filterHandler('hue-rotate', hueRotate)
-        return hueRotate
+    #hueRotate(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('hue-rotate', val)
+        else block.#filterHandler('hue-rotate', opt)
     }
-    opacity(opt?: number) {
-        const opacity = this.__valueHandler(opt, 'opacity', undefined)
-        this.#filterHandler('opacity', opacity)
-        return opacity
+    #saturate(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('saturate', val)
+        else block.#filterHandler('saturate', opt)
     }
-    saturate(opt?: number) {
-        const saturate = this.__valueHandler(opt, 'saturate', undefined)
-
-        this.#filterHandler('saturate', saturate)
-        return saturate
+    #sepia(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
+        if (!opt) return
+        if (opt instanceof Array)
+            for (const val of opt) block.#filterHandler('sepia', val)
+        else block.#filterHandler('sepia', opt)
     }
-    sepia(opt?: number) {
-        const sepia = this.__valueHandler(opt, 'sepia', undefined)
-        this.#filterHandler('sepia', sepia)
-        return sepia
+    #drawImage(block: ShapeBlock, opt?: DrawImage) {
+        if (opt && opt.source)
+            block.context?.drawImage(
+                opt.source,
+                opt.clipX,
+                opt.clipY,
+                opt.clipWidth,
+                opt.clipHeight,
+                opt.x,
+                opt.y,
+                opt.width,
+                opt.height
+            )
     }
-    pathData(opt?: string) {
-        const data = this.__valueHandler(opt, 'pathData', undefined)
-        if (data !== undefined) this.#dataPath = new Path2D(data)
-        return data
-    }
-
-    drawImage(opt?: DrawImage) {
-        const {
-            source,
-            clipX,
-            clipY,
-            clipWidth,
-            clipHeight,
-            x,
-            y,
-            width,
-            height,
-        } = this.__valueHandler(opt, 'rect', {
-            source: undefined,
-            clipX: 0,
-            clipY: 0,
-            clipWidth: this.width(),
-            clipHeight: this.height(),
-            x: this.x(),
-            y: this.y(),
-            width: this.width(),
-            height: this.height(),
-        })
-        if (source)
-            this.context?.drawImage(
-                source,
-                clipX,
-                clipY,
-                clipWidth,
-                clipHeight,
-                x,
-                y,
-                width,
-                height
+    #pattern(block: ShapeBlock, opt?: Pattern) {
+        if (opt)
+            block.#canvasPattern = block.context?.createPattern(
+                opt.image,
+                opt.repetition
             )
     }
 
-    imageSmoothingEnabled(opt?: boolean) {
-        const enabled = this.__valueHandler(opt, 'smoothing', undefined)
-        if (this.context && enabled !== undefined)
-            this.context.imageSmoothingEnabled = enabled
-        return enabled
+    #imageSmoothingEnabled(block: ShapeBlock, opt?: boolean) {
+        if (block.context && opt !== undefined)
+            block.context.imageSmoothingEnabled = opt
     }
-    imageSmoothingQuality(opt?: ImageSmoothingQuality) {
-        const quality = this.__valueHandler(opt, 'smoothingQuality', undefined)
-        if (this.context && quality !== undefined)
-            this.context.imageSmoothingQuality = quality
-        return quality
+    #imageSmoothingQuality(block: ShapeBlock, opt?: ImageSmoothingQuality) {
+        if (block.context && opt) block.context.imageSmoothingQuality = opt
     }
-
-    globalCompositeOperation(opt?: GlobalCompositeOperation) {
-        const composite = this.__valueHandler(
-            opt,
-            'globalCompsiteOperation',
-            'source-out'
-        )
-        if (this.context && composite)
-            this.context.globalCompositeOperation = composite
-        return composite
+    #globalCompositeOperation(
+        block: ShapeBlock,
+        opt?: GlobalCompositeOperation
+    ) {
+        if (block.context && opt) block.context.globalCompositeOperation = opt
     }
-    globalAlpha(opt?: number) {
-        const alpha = this.__valueHandler(opt, 'globalCompsiteOperation', 1.0)
-        if (this.context && alpha) this.context.globalAlpha = alpha
-        return alpha
+    #globalAlpha(block: ShapeBlock, opt?: number) {
+        if (block.context && opt) block.context.globalAlpha = opt
     }
 }

@@ -1,58 +1,66 @@
 import {
     CubicBezier,
+    Easing,
     JumpPosition,
     LinearEasing,
+    RelativeType,
     RGBA,
+    ShortHandRelativeType,
     StepsEasing,
 } from './types'
 import { Node } from './Node'
 
-export function fromPercentage(from: number, parentS: number) {
-    return (from * parentS) / 100
+export function fromPercentage(from: number, parentSize: number) {
+    return (from * parentSize) / 100
 }
-export function fromVW(from: number, canvasW: number) {
-    return (from * canvasW) / 100
+export function fromVW(from: number, parentWidth: number) {
+    return (from * parentWidth) / 100
 }
-export function fromVH(from: number, canvasH: number) {
-    return (from * canvasH) / 100
+export function fromVH(from: number, parentHeight: number) {
+    return (from * parentHeight) / 100
 }
-//  root size shoold be cavnas fonts size via styleing or options passing value
-export function fromRem(from: number, parentS: number) {
-    return from * parentS
+export function fromRem(from: number, parentSize: number) {
+    return from * parentSize
 }
-export function fromEm(from: number, parentS: number) {
-    return from * parentS
+export function fromEm(from: number, parentSize: number) {
+    return from * parentSize
 }
 export function fromCm(from: number) {
-    return from * 2.54
+    return from * 37.8
 }
 export function fromMm(from: number) {
-    return fromCm(from) * 10
+    return (fromCm(1) / 10) * from
 }
 export function fromQ(from: number) {
-    return fromCm(from) * 40
+    return (fromCm(1) / 40) * from
 }
 export function fromIn(from: number) {
-    return fromCm(from) * 2.54
+    return fromCm(2.54) * from
 }
 export function fromPc(from: number) {
-    return fromIn(from) * 6
+    return (fromIn(1) / 6) * from
 }
 export function fromPt(from: number) {
-    return fromIn(from) * 72
+    return (fromIn(1) / 72) * from
 }
 
 export function xIntersect(
-    a: { left: number; right: number },
-    b: { left: number; right: number }
+    box1: { left: number; right: number },
+    box2: { left: number; right: number }
 ) {
-    return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+    return Math.max(
+        0,
+        Math.min(box1.right, box2.right) - Math.max(box1.left, box2.left)
+    )
 }
 export function yIntersect(
-    a: { top: number; bottom: number },
-    b: { top: number; bottom: number }
+    box1: { top: number; bottom: number },
+    box2: { top: number; bottom: number }
 ) {
-    return Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+    return Math.max(
+        0,
+        Math.min(box1.bottom, box2.bottom) - Math.max(box1.top, box2.top)
+    )
 }
 
 export function checkInBound(
@@ -81,15 +89,15 @@ export function checkInBound(
     return false
 }
 
-export function radianToDegree(rad: number): number {
-    return (rad * 180) / Math.PI
+export function radianToDegree(radian: number): number {
+    return (radian * 180) / Math.PI
 }
 
-export function degreeToRadian(rad: number): number {
-    return (rad * Math.PI) / 180
+export function degreeToRadian(degree: number): number {
+    return (degree * Math.PI) / 180
 }
 
-export function rotateCordinates(
+export function rotateCordinatesByRadian(
     x: number,
     y: number,
     centerX: number,
@@ -108,64 +116,63 @@ export function rotateCordinates(
     }
 }
 
-// This is based on `WebCore/platform/graphics/UnitBezier.h` in WebKit.
+/**
+ * Cubic Bezier solver adapted from https://github.com/gre/bezier-easing
+ * (c) 2014 Gaëtan Renaudeau
+ */
+const { cbrt, sqrt, PI } = Math
+
 export function bezierEasing(
-    p1x: number,
-    p1y: number,
-    p2x: number,
-    p2y: number
+    mX1: number,
+    mY1: number,
+    mX2: number,
+    mY2: number
 ): CubicBezier {
-    const cx = 3 * p1x,
-        bx = 3 * (p2x - p1x) - cx,
-        ax = 1 - cx - bx,
-        cy = 3 * p1y,
-        by = 3 * (p2y - p1y) - cy,
-        ay = 1 - cy - by
-    function sampleCurveX(t: number) {
-        return ((ax * t + bx) * t + cx) * t
+    if (mX1 === mY1 && mX2 === mY2) {
+        return ((x: number) => x) as CubicBezier
     }
 
-    function solveCurveX(x: number, epsilon: number) {
-        let t0, t1, t2, x2, d2, i
-        for (t2 = x, i = 0; i < 8; i++) {
-            x2 = sampleCurveX(t2) - x
-            if (Math.abs(x2) < epsilon) {
-                return t2
-            }
-            d2 = (3 * ax * t2 + 2 * bx) * t2 + cx
-            if (Math.abs(d2) < 1e-6) {
-                break
-            }
-            t2 = t2 - x2 / d2
-        }
-        t0 = 0
-        t1 = 1
-        t2 = x
-        if (t2 < t0) {
-            return t0
-        }
-        if (t2 > t1) {
-            return t1
-        }
-        while (t0 < t1) {
-            x2 = sampleCurveX(t2)
-            if (Math.abs(x2 - x) < epsilon) {
-                return t2
-            }
-            if (x > x2) {
-                t0 = t2
+    const a = 6 * (3 * mX1 - 3 * mX2 + 1)
+    const b = 6 * (mX2 - 2 * mX1)
+    const c = 3 * mX1
+    const a2 = a * a
+    const b2 = b * b
+    const d = b / a
+    const e = (3 * b * c) / a2 - (b2 * b) / (a2 * a)
+    const w1 = (2 * c) / a - b2 / a2
+    const w = w1 * w1 * w1
+    const o = 3 / a
+    const ay = 3 * mY1 - 3 * mY2 + 1
+    const by = mY2 - 2 * mY1
+    const cy = 3 * mY1
+
+    return ((x: number) => {
+        if (x === 0 || x === 1) return x
+        let t: number
+        if (a) {
+            const q = e + o * x
+            const s = q * q + w
+            if (s > 0) {
+                const root = sqrt(s)
+                t = cbrt(q + root) + cbrt(q - root) - d
             } else {
-                t1 = t2
+                const l = cbrt(sqrt(-w))
+                const angle = q ? Math.atan(sqrt(-s) / q) : -PI / 2
+                let phi: number
+                if (o < 0) {
+                    phi = (q > 0 ? 2 * PI : PI) - angle
+                } else if (d < 0) {
+                    phi = (q > 0 ? 2 * PI : -3 * PI) + angle
+                } else {
+                    phi = (q > 0 ? 0 : PI) + angle
+                }
+                t = 2 * l * Math.cos(phi / 3) - d
             }
-            t2 = (t1 - t0) / 2 + t0
+        } else {
+            t = x
         }
-        return t2
-    }
-
-    return (x: number, duration: number) => {
-        let t = solveCurveX(x, duration)
-        return ((ay * t + by) * t + cy) * t
-    }
+        return ((ay * t + 3 * by) * t + cy) * t
+    }) as CubicBezier
 }
 
 export function cubicBezier(
@@ -190,39 +197,34 @@ export function lerp(start: number, end: number, t: number) {
 export function linear(...args: number[]): LinearEasing {
     const nTimes = 1 / (args.length - 1)
     return (t: number) => {
-        const step = Math.ceil(t / nTimes)
-        const stepB = Math.floor(t / nTimes)
-
-        let x0 = stepB * nTimes
-        let x1 = step * nTimes
-        let y0 = args[stepB]
-        let y1 = args[stepB + 1]
-
-        if (typeof args[stepB] == 'string') {
-            const indicator = (args[stepB] as any).split(' ')
-            y0 = Number(indicator[0])
-            x0 = Number(indicator[1].split('%')[0]) / 100
-            if (indicator[2]) x0 = Number(indicator[2].split('%')[0]) / 100
-        }
-
-        if (typeof args[stepB + 1] == 'string') {
-            const indicator = (args[stepB + 1] as any).split(' ')
-            y1 = Number(indicator[0])
-            x1 = Number(indicator[1].split('%')[0]) / 100
-            if (indicator[3]) x1 = Number(indicator[3].split('%')[0]) / 100
-        }
-
-        const x = x0 + t * (x1 - x0)
-        const y = y0 + x * (y1 - y0)
-        return y
+        const c = Math.min(1, Math.max(0, t))
+        const stepB = Math.min(
+            args.length - 1,
+            Math.max(0, Math.floor(c / nTimes))
+        )
+        const x0 = stepB * nTimes
+        const x1 = Math.min(1, (stepB + 1) * nTimes)
+        const y0 = args[stepB]
+        const y1 = args[Math.min(stepB + 1, args.length - 1)]
+        const localT = x1 === x0 ? 0 : (c - x0) / (x1 - x0)
+        return y0 + localT * (y1 - y0)
     }
 }
 
 export function steps(step: number, position: JumpPosition): StepsEasing {
-    const x = 1 / step
     return (t: number) => {
-        const stepness = Math.ceil(t / x)
-        return x * t + x * stepness
+        const c = Math.min(1, Math.max(0, t))
+        switch (position) {
+            case 'jump-start':
+                return Math.min(1, (Math.floor(c * step) + 1) / step)
+            case 'jump-end':
+                return Math.floor(c * step) / step
+            case 'jump-none':
+                if (step <= 1) return c >= 1 ? 1 : 0
+                return Math.min(1, Math.floor(c * step) / (step - 1))
+            case 'jump-both':
+                return (Math.floor(c * step) + 1) / (step + 1)
+        }
     }
 }
 
@@ -249,57 +251,88 @@ export const namedColors: { [key: string]: string } = {
     aqua: '#00ffff',
 }
 export function hexToRgba(hex: string) {
-    hex = hex.substring(1)
-    let RR = hex.slice(0, 2) as any
-    let GG = hex.slice(2, 4) as any
-    let BB = hex.slice(4, 6) as any
-    let AA = 1
-    if (hex.length === 8) AA = parseInt(hex.slice(7, 9))
-    if (hex.length === 2) {
-        RR += RR
-        GG += GG
-        BB += BB
+    let value = hex.startsWith('#') ? hex.substring(1) : hex
+    // the shorthand form repeats every digit, so `#f00` becomes `#ff0000` and
+    // `#f008` becomes `#ff000088`, which then can be read as a regular one
+    if (value.length === 3 || value.length === 4) {
+        value = value
+            .split('')
+            .map((char) => char + char)
+            .join('')
     }
-    RR = parseInt(RR, 16)
-    GG = parseInt(GG, 16)
-    BB = parseInt(BB, 16)
-    return `rgba(${RR}, ${GG}, ${BB}, ${AA})`
+    const R = parseInt(value.slice(0, 2), 16)
+    const G = parseInt(value.slice(2, 4), 16)
+    const B = parseInt(value.slice(4, 6), 16)
+    const A =
+        value.length >= 8
+            ? Math.round((parseInt(value.slice(6, 8), 16) / 255) * 100) / 100
+            : 1
+    return rgbaRepresenter([R, G, B, A])
 }
 
 export function hslToRgba(hsl: string): string {
-    const colors = hsl.match(/\d+\.?\d*/g) || []
-    let H = 0
-    let S = 0
-    let L = 0
-    if (colors[0]) H = Number(colors[0])
-    if (colors[1]) S = Number(colors[1]) / 100
-    if (colors[2]) L = Number(colors[2]) / 100
+    const colors = hsl.match(/-?\d+\.?\d*/g) || []
+    const H = (((Number(colors[0]) || 0) % 360) + 360) % 360 // Normalize hue to 0-359
+    const S = Math.min(1, Math.max(0, (Number(colors[1]) || 0) / 100))
+    const L = Math.min(1, Math.max(0, (Number(colors[2]) || 0) / 100))
+    const A = colors[3] !== undefined ? Number(colors[3]) : 1
 
-    if (S === 0) return rgbaRepresenter([L, L, L])
-    const C = (1 - (2 * L - 1)) * S
+    if (S === 0) {
+        const val = Math.round(L * 255)
+        return rgbaRepresenter([val, val, val, A])
+    }
+
+    const C = (1 - Math.abs(2 * L - 1)) * S
     const Hd = H / 60
-    let RGB = { R: 0, G: 0, B: 0 }
     const X = C * (1 - Math.abs((Hd % 2) - 1))
-    if (0 < Hd && Hd < 1) RGB = { R: C, G: X, B: 0 }
-    else if (1 <= Hd && Hd <= 2) RGB = { R: X, G: C, B: 0 }
-    else if (2 <= Hd && Hd <= 3) RGB = { R: 0, G: C, B: X }
-    else if (3 <= Hd && Hd <= 4) RGB = { R: 0, G: X, B: C }
-    else if (4 <= Hd && Hd <= 5) RGB = { R: X, G: 0, B: C }
-    else if (5 <= Hd && Hd <= 6) RGB = { R: C, G: 0, B: X }
+
+    let r = 0,
+        g = 0,
+        b = 0
+
+    if (0 <= Hd && Hd < 1) {
+        r = C
+        g = X
+        b = 0
+    } else if (1 <= Hd && Hd < 2) {
+        r = X
+        g = C
+        b = 0
+    } else if (2 <= Hd && Hd < 3) {
+        r = 0
+        g = C
+        b = X
+    } else if (3 <= Hd && Hd < 4) {
+        r = 0
+        g = X
+        b = C
+    } else if (4 <= Hd && Hd < 5) {
+        r = X
+        g = 0
+        b = C
+    } else if (5 <= Hd && Hd <= 6) {
+        r = C
+        g = 0
+        b = X
+    }
+
     const m = L - C / 2
-    RGB.R = (RGB.R + m) * 255
-    RGB.G = (RGB.G + m) * 255
-    RGB.B = (RGB.B + m) * 255
-    return rgbaRepresenter([RGB.R, RGB.G, RGB.B])
+    const R = Math.round((r + m) * 255)
+    const G = Math.round((g + m) * 255)
+    const B = Math.round((b + m) * 255)
+
+    return rgbaRepresenter([R, G, B, A])
 }
 
 export function colorToRgba(color: string) {
     return hexToRgba(namedColors[color])
 }
 export function rgbaRepresenter(rgba: number[]): string {
-    return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${rgba[3] || 1})`
+    return `rgba(${rgba[0]}, ${rgba[1]}, ${rgba[2]}, ${
+        rgba[3] === undefined ? 1 : rgba[3]
+    })`
 }
-export function rgbaToArray(rgba: string):  RGBA {
+export function rgbaToArray(rgba: string): RGBA {
     const colors = rgba.match(/\d+\.?\d*/g) || []
     let R = 0
     let G = 0
@@ -334,4 +367,121 @@ export function getOwnPrototype(proto: any, key: string) {
 }
 export function inRange(value: number, great: number, less: number) {
     return value >= great && value <= less
+}
+
+export function easingParser(easing: Easing): (t: number) => number {
+    if (easing === 'linear') return linear(0, 1)
+    if (easing === 'step-start') return steps(1, 'jump-start')
+    if (easing === 'step-end') return steps(1, 'jump-end')
+    if (easing === 'ease') {
+        const b = bezierEasing(0.25, 0.1, 0.25, 1)
+        return (t: number) => b(t, 1e-6)
+    }
+    if (easing === 'ease-in') {
+        const b = bezierEasing(0.42, 0, 1, 1)
+        return (t: number) => b(t, 1e-6)
+    }
+    if (easing === 'ease-out') {
+        const b = bezierEasing(0, 0, 0.58, 1)
+        return (t: number) => b(t, 1e-6)
+    }
+    if (easing === 'ease-in-out') {
+        const b = bezierEasing(0.42, 0, 0.58, 1)
+        return (t: number) => b(t, 1e-6)
+    }
+    return easing as (t: number) => number
+}
+
+export function shortHandParser(shortHandValue: ShortHandRelativeType) {
+    if (typeof shortHandValue === 'number') {
+        return [shortHandValue, shortHandValue, shortHandValue, shortHandValue]
+    } else if (shortHandValue instanceof Array) {
+        switch (shortHandValue.length) {
+            case 1:
+                return [
+                    shortHandValue[0],
+                    shortHandValue[0],
+                    shortHandValue[0],
+                    shortHandValue[0],
+                ]
+            case 2:
+                return [
+                    shortHandValue[0],
+                    shortHandValue[1],
+                    shortHandValue[0],
+                    shortHandValue[1],
+                ]
+            case 3:
+                return [
+                    shortHandValue[0],
+                    shortHandValue[1],
+                    shortHandValue[2],
+                    shortHandValue[1],
+                ]
+        }
+    }
+    return shortHandValue
+}
+
+export function preOrderTraversal<T extends Node>(
+    head: T,
+    func: (node: T) => void
+) {
+    if (!head) return
+    func(head)
+    for (const child of head.childNodes) {
+        preOrderTraversal(child as T, func)
+    }
+}
+export function postOrderTraversal<T extends Node>(
+    head: T,
+    func: (node: T) => void
+) {
+    if (!head) return
+    for (const child of head.childNodes) {
+        postOrderTraversal(child as T, func)
+    }
+    func(head)
+}
+
+export function reversePostOrderTraversal<T extends Node>(
+    head: T,
+    func: (node: T) => void
+) {
+    if (!head) return
+    func(head)
+    const childs = [...head.childNodes]
+    for (let i = childs.length - 1; i >= 0; i--) {
+        reversePostOrderTraversal(childs[i] as T, func)
+    }
+}
+export function worldTileKey(worldCol: number, worldRow: number): string {
+    return `${worldCol},${worldRow}`
+}
+
+export function stationaryPoints(
+    p0: number,
+    p1: number,
+    p2: number,
+    p3: number
+) {
+    const a = 3 * (-p0 + 3 * p1 - 3 * p2 + p3)
+    const b = 6 * (p0 - 2 * p1 + p2)
+    const c = 3 * (p1 - p0)
+
+    const points = []
+    const D = Math.pow(b, 2) - 4 * a * c
+    if (D == 0) {
+        const t = -b / (2 * a)
+        if (t >= 0 && t <= 1) points.push(t)
+    } else if (D > 0) {
+        const base = Math.sqrt(D)
+        const t1 = (-b + base) / (2 * a)
+        const t2 = (-b - base) / (2 * a)
+        if (t1 >= 0 && t1 <= 1) points.push(t1)
+        if (t2 >= 0 && t2 <= 1) points.push(t2)
+    }
+    return points.map((i) => {
+        return cubicBezier(p0, p1, p2, p3, i)
+    })
 }

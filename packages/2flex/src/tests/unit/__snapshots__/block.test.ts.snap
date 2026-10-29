@@ -1,0 +1,232 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Block > block geometry > should change coordinates on horizontal and vertical flip 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": -80,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": -70,
+  },
+  {
+    "x": -80,
+    "y": -70,
+  },
+]
+`;
+
+exports[`Block > block geometry > should change coordinates on horizontal flip 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": -80,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": 130,
+  },
+  {
+    "x": -80,
+    "y": 130,
+  },
+]
+`;
+
+exports[`Block > block geometry > should change coordinates on vertical flip 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": 120,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": -70,
+  },
+  {
+    "x": 120,
+    "y": -70,
+  },
+]
+`;
+
+exports[`Block > block geometry > should change rotation center x 1`] = `
+[
+  {
+    "x": 130.36617885069396,
+    "y": -31.321796320556302,
+  },
+  {
+    "x": 166.6019542983613,
+    "y": 61.88211227616632,
+  },
+  {
+    "x": 37.162270253971315,
+    "y": 4.913979127111048,
+  },
+  {
+    "x": 73.3980457016387,
+    "y": 98.11788772383369,
+  },
+]
+`;
+
+exports[`Block > block geometry > should change rotation center y 1`] = `
+[
+  {
+    "x": 145.08602087288895,
+    "y": 47.162270253971315,
+  },
+  {
+    "x": 181.3217963205563,
+    "y": 140.36617885069396,
+  },
+  {
+    "x": 51.88211227616632,
+    "y": 83.3980457016387,
+  },
+  {
+    "x": 88.11788772383369,
+    "y": 176.6019542983613,
+  },
+]
+`;
+
+exports[`Block > block geometry > should change x coordinate 1`] = `
+[
+  {
+    "x": 120,
+    "y": 30,
+  },
+  {
+    "x": 220,
+    "y": 30,
+  },
+  {
+    "x": 120,
+    "y": 130,
+  },
+  {
+    "x": 220,
+    "y": 130,
+  },
+]
+`;
+
+exports[`Block > block geometry > should change y coordinate 1`] = `
+[
+  {
+    "x": 20,
+    "y": 20,
+  },
+  {
+    "x": 120,
+    "y": 20,
+  },
+  {
+    "x": 20,
+    "y": 120,
+  },
+  {
+    "x": 120,
+    "y": 120,
+  },
+]
+`;
+
+exports[`Block > block geometry > should resize height 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": 120,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": 80,
+  },
+  {
+    "x": 120,
+    "y": 80,
+  },
+]
+`;
+
+exports[`Block > block geometry > should resize width 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": 70,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": 130,
+  },
+  {
+    "x": 70,
+    "y": 130,
+  },
+]
+`;
+
+exports[`Block > block geometry > should rotate block 1`] = `
+[
+  {
+    "x": 98.48406657452763,
+    "y": 15.280157977805004,
+  },
+  {
+    "x": 134.719842022195,
+    "y": 108.48406657452763,
+  },
+  {
+    "x": 5.280157977805004,
+    "y": 51.51593342547237,
+  },
+  {
+    "x": 41.51593342547237,
+    "y": 144.719842022195,
+  },
+]
+`;
+
+exports[`Block > block geometry > should set initial coordinates 1`] = `
+[
+  {
+    "x": 20,
+    "y": 30,
+  },
+  {
+    "x": 120,
+    "y": 30,
+  },
+  {
+    "x": 20,
+    "y": 130,
+  },
+  {
+    "x": 120,
+    "y": 130,
+  },
+]
+`;

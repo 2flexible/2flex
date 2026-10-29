@@ -46,6 +46,5 @@
         "watch": "tsup --tsconfig tsconfig.json --watch",
         "compile": "tsc --build",
         "test": "vitest"
-    },
-    "devDependencies": {}
+    }
 }
