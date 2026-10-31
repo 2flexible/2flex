@@ -1,21 +1,30 @@
-import { VideoBlock, VideoBlockOptions } from './VideoBlock'
-import { CircleBlock, CircleBlockOptions } from './CircleBlock'
-import { ImageBlock, ImageBlockOptions } from './ImageBlock'
-import { RectangleBlock, RectangleBlockOptions } from './RectangleBlock'
-import { LineBlock, LineBlockOptions } from './LineBlock'
-import { TextBlock, TextBlockOptions } from './TextBlock'
+import { VideoBlock } from './VideoBlock'
+import { CircleBlock } from './CircleBlock'
+import { ImageBlock } from './ImageBlock'
+import { RectangleBlock } from './RectangleBlock'
+import { LineBlock } from './LineBlock'
+import { TextBlock } from './TextBlock'
+import type { VideoBlockOptions } from './VideoBlock'
+import type { CircleBlockOptions } from './CircleBlock'
+import type { ImageBlockOptions } from './ImageBlock'
+import type { RectangleBlockOptions } from './RectangleBlock'
+import type { LineBlockOptions } from './LineBlock'
+import type { TextBlockOptions } from './TextBlock'
 
 export {
     RectangleBlock,
-    RectangleBlockOptions,
     CircleBlock,
-    CircleBlockOptions,
     ImageBlock,
-    ImageBlockOptions,
     VideoBlock,
-    VideoBlockOptions,
     LineBlock,
-    LineBlockOptions,
     TextBlock,
+}
+
+export type {
+    RectangleBlockOptions,
+    CircleBlockOptions,
+    ImageBlockOptions,
+    VideoBlockOptions,
+    LineBlockOptions,
     TextBlockOptions,
 }

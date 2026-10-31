@@ -42,6 +42,7 @@ export class MediaLayoutBlock extends ShapeBlock {
         const mediaSource = this.mediaSource
         const context = this.context
         if (!mediaSource || !context) return
+        if (!this.#isDrawable(mediaSource)) return
         const fit = this.objectFit()
         const x = this.x()
         const y = this.y()
@@ -176,6 +177,13 @@ export class MediaLayoutBlock extends ShapeBlock {
         }
     }
 
+    // a broken image makes drawImage throw on every frame, which would break the whole render loop
+    #isDrawable(source: CanvasImageSource) {
+        if (source instanceof HTMLImageElement)
+            return source.naturalWidth > 0 && source.naturalHeight > 0
+        return true
+    }
+
     #getSourceDimensions(source: CanvasImageSource): {
         width: number
         height: number
@@ -196,6 +204,14 @@ export class MediaLayoutBlock extends ShapeBlock {
                 source.height.baseVal.value ||
                 source.getBoundingClientRect().height
             return { width, height }
+        }
+
+        // only the intrinsic size describes the image itself
+        if (source instanceof HTMLImageElement) {
+            return {
+                width: source.naturalWidth || source.width,
+                height: source.naturalHeight || source.height,
+            }
         }
 
         return { width: source.width, height: source.height }

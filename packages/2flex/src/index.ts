@@ -1,21 +1,26 @@
 import { Canvas } from './Canvas'
-import { Block, BlockOptions } from './Block'
+import { Block } from './Block'
 import {
     RectangleBlock,
-    RectangleBlockOptions,
     CircleBlock,
-    CircleBlockOptions,
     ImageBlock,
-    ImageBlockOptions,
     VideoBlock,
-    VideoBlockOptions,
     LineBlock,
-    LineBlockOptions,
     TextBlock,
+} from './shapes/index'
+import type {
+    RectangleBlockOptions,
+    CircleBlockOptions,
+    ImageBlockOptions,
+    VideoBlockOptions,
+    LineBlockOptions,
     TextBlockOptions,
 } from './shapes/index'
-import { LayoutBlock, LayoutBlockOptions } from './LayoutBlock'
-import { ShapeBlock, ShapeBlockOptions } from './ShapeBlock'
+import { LayoutBlock } from './LayoutBlock'
+import { ShapeBlock } from './ShapeBlock'
+import type { BlockOptions } from './Block'
+import type { LayoutBlockOptions } from './LayoutBlock'
+import type { ShapeBlockOptions } from './ShapeBlock'
 import {
     radianToDegree,
     degreeToRadian,
@@ -48,23 +53,14 @@ import {
 export {
     Canvas,
     Block,
-    BlockOptions,
     LayoutBlock,
-    LayoutBlockOptions,
     ShapeBlock,
-    ShapeBlockOptions,
     RectangleBlock,
-    RectangleBlockOptions,
     CircleBlock,
-    CircleBlockOptions,
     ImageBlock,
-    ImageBlockOptions,
     VideoBlock,
-    VideoBlockOptions,
     LineBlock,
-    LineBlockOptions,
     TextBlock,
-    TextBlockOptions,
     radianToDegree,
     degreeToRadian,
     rotateCordinatesByRadian,
@@ -92,4 +88,16 @@ export {
     hslToRgba,
     colorToRgba,
     inRange,
+}
+
+export type {
+    BlockOptions,
+    LayoutBlockOptions,
+    ShapeBlockOptions,
+    RectangleBlockOptions,
+    CircleBlockOptions,
+    ImageBlockOptions,
+    VideoBlockOptions,
+    LineBlockOptions,
+    TextBlockOptions,
 }
