@@ -5,7 +5,7 @@ type ObjectFit = 'contain' | 'cover' | 'fill' | 'scale-down'
 type Repeat = number | 'fill'
 
 export interface MediaLayoutBlockOptions extends ShapeBlockOptions {
-    source: CanvasImageSource
+    source: string | CanvasImageSource
     clipX?: RelativeType
     clipY?: RelativeType
     clipWidth?: RelativeType
