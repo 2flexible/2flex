@@ -186,6 +186,7 @@ export class BaseBlock extends Node {
 
     __childAdjustment?: (b: BaseBlock) => void
     __childsContainer: ChildsContainer
+    __parentHidden = false
 
     #zIndex?: number
     #order?: number
@@ -193,6 +194,7 @@ export class BaseBlock extends Node {
     #runningEvents: RunningEvents
     #bindOptions: BindOptions[]
     #dependendBlocks: Set<BaseBlock>
+    #lastHidden: boolean | undefined = false
 
     constructor(options: BaseBlockOptions) {
         super()
@@ -226,7 +228,7 @@ export class BaseBlock extends Node {
         }
     }
     render() {
-        if (this.hidden()) return
+        if (this.__isHidden()) return
         this.onRender()?.(this)
     }
     updateCords() {
@@ -345,7 +347,13 @@ export class BaseBlock extends Node {
             (block: BaseBlock, order: number) =>
                 this.#hasOrderChanged(block, order)
         )
-        this.addProperty('hidden', false)
+        this.addProperty(
+            'hidden',
+            false,
+            false,
+            (block: BaseBlock, opt?: boolean) =>
+                this.#onHiddenChanged(block, opt)
+        )
         this.addProperty('important', {})
         // this.addProperty('flex', [])
         // this.addProperty('alignSelf', 'auto')
@@ -368,6 +376,15 @@ export class BaseBlock extends Node {
             (block: BaseBlock, opt: Dependencies) =>
                 this.#dependency(block, opt)
         )
+    }
+    #onHiddenChanged(block: BaseBlock, opt?: boolean) {
+        const hidden = !!opt
+        if (block.#lastHidden === hidden) return
+        block.#lastHidden = hidden
+        block.__invokeChange()
+    }
+    __isHidden(): boolean {
+        return !!(this.hidden() || this.__parentHidden)
     }
     #updateOptionsCache() {
         const options = this.options
@@ -875,8 +892,12 @@ export class BaseBlock extends Node {
 
         this.listOnlyChilds((b: BaseBlock, currIdx, arrLen) => {
             const blockPosition = b.position()
-            if (blockPosition === 'absolute' || blockPosition === 'fixed')
+            b.__parentHidden = this.__isHidden()
+            if (blockPosition === 'absolute' || blockPosition === 'fixed') {
+                b.__childAdjustment = undefined
+                b.canvas?.demandInvoke(b)
                 return
+            }
 
             const blockMarginTop = b.marginTop() * verticalFlipSign
             const blockMarginBottom = b.marginBottom() * verticalFlipSign
@@ -937,7 +958,6 @@ export class BaseBlock extends Node {
             b.setOptionCurrent('rotate', pCurrentRotate)
             b.setOptionCache('rotate', pCacheRotate)
             b.__childAdjustment = (b: BaseBlock) => {
-                b.hidden(this.hidden())
                 if (b.rotationCenter() === 'parent') {
                     b.setOptionCurrent('rotationCenterX', centerX)
                     b.setOptionCurrent('rotationCenterY', centerY)
@@ -1356,6 +1376,7 @@ export class BaseBlock extends Node {
     }
     addChild(block: BaseBlock): void {
         super.addChild(block)
+        block.__parentHidden = this.__isHidden()
         if (this.canvas) this.canvas.demandAddBlock(block)
         else this.#pending['addedChilds'].push(block)
         this.__invokeHistory({ removeChild: block }, { addChild: block })
@@ -1363,6 +1384,7 @@ export class BaseBlock extends Node {
     removeChild(block: BaseBlock): void {
         super.removeChild(block)
         block.__childAdjustment = undefined
+        block.__parentHidden = false
         if (this.canvas) this.canvas.demandRemoveBlock(block)
         else this.#pending['removedChilds'].push(block)
         this.__invokeHistory({ addChild: block }, { removeChild: block })

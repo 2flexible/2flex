@@ -263,8 +263,10 @@ export class LayoutBlock extends Block {
         }
         this.listOnlyChilds((b: BaseBlock, currIdx, arrLen) => {
             const blockPosition = b.position()
+            b.__parentHidden = this.__isHidden()
             if (blockPosition === 'absolute' || blockPosition === 'fixed') {
                 b.__childAdjustment = undefined
+                b.canvas?.demandInvoke(b)
                 return
             }
 
@@ -444,7 +446,6 @@ export class LayoutBlock extends Block {
             b.setOptionCurrent('rotate', pCurrentRotate)
             b.setOptionCache('rotate', pCacheRotate)
             b.__childAdjustment = (b: BaseBlock) => {
-                b.hidden(this.hidden())
                 if (b.rotationCenter() === 'parent') {
                     b.setOptionCurrent('rotationCenterX', centerX)
                     b.setOptionCurrent('rotationCenterY', centerY)

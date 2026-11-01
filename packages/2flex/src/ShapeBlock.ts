@@ -627,7 +627,7 @@ export class ShapeBlock extends Block {
     render(): void {
         super.render()
         const context = this.context
-        if (this.hidden() || !context) return
+        if (this.__isHidden() || !context) return
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
         const verticalFlipRotate = this.verticalFlip() ? -1 : 1

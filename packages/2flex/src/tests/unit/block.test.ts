@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import { Block, Canvas } from '@2flexible/2flex'
+import {
+    Block,
+    Canvas,
+    LayoutBlock,
+    RectangleBlock,
+    TextBlock,
+} from '@2flexible/2flex'
 import {
     allowMouse,
     dispatchMouse,
@@ -509,7 +515,8 @@ describe('Block', () => {
             block.addChild(childBlock)
             canvas.add(block)
             await flush()
-            expect(childBlock.hidden()).toBe(true)
+            expect(childBlock.hidden()).toBe(false)
+            expect(childBlock.__isHidden()).toBe(true)
             // a hidden block is not painted at all
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'child-not-drawn-while-parent-is-hidden'
@@ -534,13 +541,14 @@ describe('Block', () => {
             canvas.add(block)
             await flush()
             expect(childBlock.hidden()).toBe(false)
+            expect(childBlock.__isHidden()).toBe(false)
             // the child is laid out by its parent and painted on top of it
             expect([childBlock.x(), childBlock.y()]).toStrictEqual([70, 90])
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'child-drawn-while-parent-is-visible'
             )
         })
-        it('should show a child which is hidden on its own', async () => {
+        it('should keep a child which is hidden on its own hidden', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 x: 70,
@@ -557,11 +565,159 @@ describe('Block', () => {
             block.addChild(childBlock)
             canvas.add(block)
             await flush()
-            // visibility always comes from the parent, so the child is drawn
-            expect(childBlock.hidden()).toBe(false)
+            expect(childBlock.hidden()).toBe(true)
+            expect(childBlock.__isHidden()).toBe(true)
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
-                'child-hidden-by-itself-is-drawn'
+                'child-hidden-by-itself-is-not-drawn'
             )
+        })
+        it('should hide the whole subtree of a hidden block', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 200,
+                height: 200,
+            })
+            const childBlock = new Block({ width: 100, height: 100 })
+            const grandChildBlock = new Block({ width: 50, height: 50 })
+            drawFilledBlock(childBlock)
+            drawFilledBlock(grandChildBlock)
+            childBlock.addChild(grandChildBlock)
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            expect(childBlock.__isHidden()).toBe(false)
+            expect(grandChildBlock.__isHidden()).toBe(false)
+            block.set({ hidden: true })
+            await flush()
+            expect(childBlock.__isHidden()).toBe(true)
+            expect(grandChildBlock.__isHidden()).toBe(true)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'subtree-not-drawn-while-ancestor-is-hidden'
+            )
+            block.set({ hidden: false })
+            await flush()
+            expect(childBlock.__isHidden()).toBe(false)
+            expect(grandChildBlock.__isHidden()).toBe(false)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'subtree-drawn-after-ancestor-is-shown'
+            )
+        })
+        it('should hide the subtree of an absolutely positioned block', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            const parentBlock = new Block({
+                x: 120,
+                y: 120,
+                width: 400,
+                height: 400,
+            })
+            const absoluteBlock = new Block({
+                x: 120,
+                y: 120,
+                width: 120,
+                height: 60,
+                position: 'absolute',
+            })
+            const childBlock = new Block({ width: 80, height: 30 })
+            drawFilledBlock(absoluteBlock)
+            drawFilledBlock(childBlock)
+            absoluteBlock.addChild(childBlock)
+            parentBlock.addChild(absoluteBlock)
+            canvas.add(parentBlock)
+            await flush()
+            expect(childBlock.__isHidden()).toBe(false)
+            absoluteBlock.set({ hidden: true })
+            await flush()
+            expect(absoluteBlock.__isHidden()).toBe(true)
+            expect(childBlock.__isHidden()).toBe(true)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'absolute-subtree-not-drawn-while-block-is-hidden'
+            )
+            absoluteBlock.set({ hidden: false })
+            await flush()
+            expect(childBlock.__isHidden()).toBe(false)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'absolute-subtree-drawn-after-block-is-shown'
+            )
+        })
+        it('should keep the own hidden state of a child when the parent is shown', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+            })
+            const childBlock = new Block({
+                width: 40,
+                height: 50,
+                hidden: true,
+            })
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            expect(childBlock.hidden()).toBe(true)
+            expect(childBlock.__isHidden()).toBe(true)
+            block.set({ hidden: true })
+            await flush()
+            block.set({ hidden: false })
+            await flush()
+            expect(childBlock.hidden()).toBe(true)
+            expect(childBlock.__isHidden()).toBe(true)
+        })
+        it('should hide the childs of a hidden block which is added to a parent block', async () => {
+            canvas = new Canvas('myCanvas', 600, 600)
+            const dummyBlock = new Block({
+                width: 400,
+                height: 400,
+                x: 120,
+                y: 120,
+            })
+            const customBlock = new RectangleBlock({
+                backgroundColor: 'blue',
+                width: 120,
+                height: 40,
+                x: 120,
+                y: 120,
+                position: 'absolute',
+            })
+            const layoutBlock = new LayoutBlock({
+                x: 120,
+                y: 120,
+                width: 120,
+                height: 60,
+                alignItems: 'center',
+                flexDirection: 'column',
+            })
+            const textBlock = new TextBlock({
+                text: 'volvo',
+                color: 'white',
+                fontSize: 12,
+                width: 80,
+                height: 30,
+            })
+            layoutBlock.addChild(textBlock)
+            customBlock.addChild(layoutBlock)
+            dummyBlock.addChild(customBlock)
+            canvas.add(dummyBlock)
+            await flush()
+            expect(textBlock.__isHidden()).toBe(false)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'absolute-shape-subtree-drawn-while-block-is-visible'
+            )
+            customBlock.set({ hidden: true })
+            await flush()
+            expect(customBlock.__isHidden()).toBe(true)
+            expect(layoutBlock.__isHidden()).toBe(true)
+            expect(textBlock.__isHidden()).toBe(true)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'absolute-shape-subtree-not-drawn-while-block-is-hidden'
+            )
+            customBlock.set({ hidden: false })
+            await flush()
+            expect(layoutBlock.__isHidden()).toBe(false)
+            expect(textBlock.__isHidden()).toBe(false)
         })
     })
     describe('child layout', () => {
@@ -778,10 +934,12 @@ describe('Block', () => {
             block.addChild(hiddenChild)
             canvas.add(block)
             await flush()
-            expect(hiddenChild.hidden()).toBe(true)
+            expect(hiddenChild.hidden()).toBe(false)
+            expect(hiddenChild.__isHidden()).toBe(true)
             block.set({ hidden: false })
             await flush()
             expect(hiddenChild.hidden()).toBe(false)
+            expect(hiddenChild.__isHidden()).toBe(false)
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'child-drawn-after-parent-is-shown'
             )
