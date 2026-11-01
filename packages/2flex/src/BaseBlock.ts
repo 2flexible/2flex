@@ -31,7 +31,7 @@ import {
     namedColors,
     hslToRgba,
     shortHandParser,
-    clamp,
+    clampSize,
     preOrderTraversal,
 } from './Utils'
 
@@ -397,8 +397,6 @@ export class BaseBlock extends Node {
         // calling some requried options to be initialized
         const x = this.x()
         const y = this.y()
-        let width = this.width()
-        let height = this.height()
         let scale: number | undefined = this.scale()
         const padding = this.padding()
         const margin = this.margin()
@@ -406,12 +404,12 @@ export class BaseBlock extends Node {
         if (padding !== undefined) this.#parsePadding(this, padding)
         if (margin !== undefined) this.#parseMargin(this, margin)
         scale = scale !== undefined ? scale : 1
-        width = this.width(
-            (width + this.paddingLeft() + this.paddingRight()) * scale
-        )
-        height = this.height(
-            (height + this.paddingTop() + this.paddingBottom()) * scale
-        )
+        const contentWidth = this.getOptionCurrent('width') ?? 0
+        const contentHeight = this.getOptionCurrent('height') ?? 0
+        this.width(contentWidth * scale)
+        this.height(contentHeight * scale)
+        const width = this.__boxWidth()
+        const height = this.__boxHeight()
         if (this.getOptionCurrent('cornerTopLeft') === undefined)
             this.setOptionCurrent('cornerTopLeft', {
                 x: x,
@@ -604,16 +602,10 @@ export class BaseBlock extends Node {
         }
     }
     #width(block: BaseBlock, value: number) {
-        block.setOptionCurrent(
-            'width',
-            value > 0 ? clamp(value, 1, 4096) : clamp(value, -4096, -1)
-        )
+        block.setOptionCurrent('width', clampSize(value))
     }
     #height(block: BaseBlock, value: number) {
-        block.setOptionCurrent(
-            'height',
-            value > 0 ? clamp(value, 1, 4096) : clamp(value, -4096, -1)
-        )
+        block.setOptionCurrent('height', clampSize(value))
     }
     #parseMargin(block: BaseBlock, margin: MarginType | undefined) {
         if (margin === undefined) return
@@ -678,16 +670,6 @@ export class BaseBlock extends Node {
         let currentHeight = this.getOptionCurrent('height')
         const cacheWidth = this.getOptionCache('width')
         const cacheHeight = this.getOptionCache('height')
-
-        const blockInitW = this.__valueConverter({
-            val: this.initWidth,
-            widthRelated: true,
-        }) as number
-        const blockInitH = this.__valueConverter({
-            val: this.initHeight,
-            widthRelated: false,
-        }) as number
-
         const minWidth = this.getOptionCurrent('minWidth')
         const maxWidth = this.getOptionCurrent('maxWidth')
         const minHeight = this.getOptionCurrent('minHeight')
@@ -712,37 +694,24 @@ export class BaseBlock extends Node {
             (this.getOptionCurrent('scale') || 0) -
             (this.getOptionCache('scale') || 0)
 
-        const diffPaddingTop =
-            this.getOptionCurrent('paddingTop') -
-            this.getOptionCache('paddingTop')
-        const diffPaddingBottom =
-            this.getOptionCurrent('paddingBottom') -
-            this.getOptionCache('paddingBottom')
-        const diffPaddingLeft =
-            this.getOptionCurrent('paddingLeft') -
-            this.getOptionCache('paddingLeft')
-        const diffPaddingRight =
-            this.getOptionCurrent('paddingRight') -
-            this.getOptionCache('paddingRight')
-
-        if (diffPaddingRight || diffPaddingLeft)
-            currentWidth = currentWidth + diffPaddingRight + diffPaddingLeft
-        if (diffPaddingTop || diffPaddingBottom)
-            currentHeight = currentHeight + diffPaddingTop + diffPaddingBottom
-
         if (diffScale) {
             currentWidth *= diffScale
             currentHeight *= diffScale
         }
         if (maxWidth !== undefined)
-            currentWidth = Math.min(blockInitW, maxWidth)
+            currentWidth = Math.min(currentWidth, maxWidth)
         if (minWidth !== undefined)
             currentWidth = Math.max(minWidth, currentWidth)
 
         if (maxHeight !== undefined)
-            currentHeight = Math.min(blockInitH, maxHeight)
+            currentHeight = Math.min(currentHeight, maxHeight)
         if (minHeight !== undefined)
             currentHeight = Math.max(minHeight, currentHeight)
+
+        const borderWidth =
+            currentWidth + this.paddingLeft() + this.paddingRight()
+        const borderHeight =
+            currentHeight + this.paddingTop() + this.paddingBottom()
 
         if (position === 'fixed' || position === 'absolute') {
             const tx = this.canvas?.view.tx ?? 0
@@ -752,7 +721,7 @@ export class BaseBlock extends Node {
             if (top !== undefined) currentY = (top - ty) * invScale
             else if (bottom !== undefined)
                 currentY =
-                    ((Math.abs((this.canvas?.height || 1) - currentHeight) -
+                    ((Math.abs((this.canvas?.height || 1) - borderHeight) -
                         bottom -
                         ty) *
                         invScale) /
@@ -760,7 +729,7 @@ export class BaseBlock extends Node {
             if (left !== undefined) currentX = (left - tx) * invScale
             else if (right !== undefined)
                 currentX =
-                    ((Math.abs((this.canvas?.width || 1) - currentWidth) -
+                    ((Math.abs((this.canvas?.width || 1) - borderWidth) -
                         right -
                         tx) *
                         invScale) /
@@ -776,19 +745,18 @@ export class BaseBlock extends Node {
                 currentY = (top - ty) * invScale
             } else if (
                 bottom !== undefined &&
-                (currentY + currentHeight) * scale + ty > canvasH - bottom
+                (currentY + borderHeight) * scale + ty > canvasH - bottom
             ) {
                 currentY =
-                    ((canvasH - currentHeight - bottom - ty) * invScale) / 1
+                    ((canvasH - borderHeight - bottom - ty) * invScale) / 1
             }
             if (left !== undefined && currentX * scale + tx < left) {
                 currentX = (left - tx) * invScale
             } else if (
                 right !== undefined &&
-                (currentX + currentWidth) * scale + tx > canvasW - right
+                (currentX + borderWidth) * scale + tx > canvasW - right
             ) {
-                currentX =
-                    ((canvasW - currentWidth - right - tx) * invScale) / 1
+                currentX = ((canvasW - borderWidth - right - tx) * invScale) / 1
             }
         } else if (position === 'relative' && !this.__hasParentBlock) {
             if (left !== undefined) currentX = left
@@ -798,8 +766,16 @@ export class BaseBlock extends Node {
         }
         const diffX = currentX - cacheX
         const diffY = currentY - cacheY
-        const diffW = currentWidth - cacheWidth
-        const diffH = currentHeight - cacheHeight
+        const diffW =
+            borderWidth -
+            (cacheWidth +
+                (this.getOptionCache('paddingLeft') ?? 0) +
+                (this.getOptionCache('paddingRight') ?? 0))
+        const diffH =
+            borderHeight -
+            (cacheHeight +
+                (this.getOptionCache('paddingTop') ?? 0) +
+                (this.getOptionCache('paddingBottom') ?? 0))
         const dX = diffX + diffW
         const dY = diffY + diffH
 
@@ -859,12 +835,7 @@ export class BaseBlock extends Node {
         const pHeight = this.height()
 
         const pPaddingLeft = this.paddingLeft()
-        const pPaddingRight = this.paddingRight()
         const pPaddingTop = this.paddingTop()
-        const pPaddingBottom = this.paddingBottom()
-
-        const pWidthSpaces = pWidth - (pPaddingLeft + pPaddingRight)
-        const pHeightSpaces = pHeight - (pPaddingTop + pPaddingBottom)
 
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
@@ -913,15 +884,15 @@ export class BaseBlock extends Node {
                 widthRelated: false,
             }) as number
 
-            let blockW = Math.abs(b.width())
-            let blockH = Math.abs(b.height())
+            let blockW = Math.abs(b.__boxWidth())
+            let blockH = Math.abs(b.__boxHeight())
 
             const blockWidthSpaces = blockW + blockMarginLeft + blockMarginRight
             const blockHeightSpaces =
                 blockH + blockMarginTop + blockMarginBottom
 
             wrapWidth += blockWidthSpaces
-            if (wrapWidth > pWidthSpaces) {
+            if (wrapWidth > pWidth) {
                 startX = 0
                 blocksContainerHeight += containerH
                 wrapWidth = blockWidthSpaces
@@ -964,10 +935,14 @@ export class BaseBlock extends Node {
                 }
                 b.x(blockXStart)
                 b.y(blockYStart)
-                if (blockHorizontalFlip) blockW = -blockW
-                if (blockVerticalFlip) blockH = -blockH
-                b.width(blockW)
-                b.height(blockH)
+                const childPaddingW = b.paddingLeft() + b.paddingRight()
+                const childPaddingH = b.paddingTop() + b.paddingBottom()
+                let borderW = blockW + childPaddingW
+                let borderH = blockH + childPaddingH
+                if (blockHorizontalFlip) borderW = -borderW
+                if (blockVerticalFlip) borderH = -borderH
+                b.width(borderW - childPaddingW)
+                b.height(borderH - childPaddingH)
             }
             b.canvas?.demandInvoke(b)
         })
@@ -1051,6 +1026,12 @@ export class BaseBlock extends Node {
             return true
         return false
     }
+    __boxWidth(): number {
+        return this.width() + this.paddingLeft() + this.paddingRight()
+    }
+    __boxHeight(): number {
+        return this.height() + this.paddingTop() + this.paddingBottom()
+    }
     get __parentWidth(): number {
         if (this.__hasParentBlock) return this.parentNode?.width?.() || 1
         return this.canvas?.width || 1
@@ -1058,24 +1039,6 @@ export class BaseBlock extends Node {
     get __parentHeight(): number {
         if (this.__hasParentBlock) return this.parentNode?.height?.() || 1
         return this.canvas?.height || 1
-    }
-    get __leftSpace() {
-        return this.marginLeft()
-    }
-    get __rightSpace() {
-        return this.paddingRight() + this.marginRight()
-    }
-    get __topSpace() {
-        return this.marginTop()
-    }
-    get __bottomSpace() {
-        return this.paddingBottom() + this.marginBottom()
-    }
-    get __widthSpaces() {
-        return this.__leftSpace + this.__rightSpace
-    }
-    get __heightSpaces() {
-        return this.__topSpace + this.__bottomSpace
     }
     __valueHandler<T, O>(
         opt: T | undefined,
@@ -1131,31 +1094,23 @@ export class BaseBlock extends Node {
     }
     __unitConverter(value: string, widthRelated?: boolean) {
         const size = widthRelated ? this.__parentWidth : this.__parentHeight
-        const space = widthRelated ? this.__widthSpaces : this.__heightSpaces
         if (value.endsWith('px')) return Number(value.split('px')[0])
-        else if (value.endsWith('%')) {
-            return (
-                fromPercentage(Number(value.split('%')[0]), size || 1) - space
+        else if (value.endsWith('%'))
+            return fromPercentage(Number(value.split('%')[0]), size || 1)
+        else if (value.endsWith('rem'))
+            return fromRem(
+                Number(value.split('rem')[0]),
+                this.canvas?.width || 1
             )
-        } else if (value.endsWith('rem'))
-            return (
-                fromRem(
-                    Number(value.split('rem')[0]),
-                    this.canvas?.width || 1
-                ) - space
-            )
-        else if (value.endsWith('em')) {
-            return fromEm(Number(value.split('em')[0]), size || 1) - space
-        } else if (value.endsWith('vh') && !widthRelated)
-            return (
-                fromVH(Number(value.split('vh')[0]), this.canvas?.height || 1) -
-                space
+        else if (value.endsWith('em'))
+            return fromEm(Number(value.split('em')[0]), size || 1)
+        else if (value.endsWith('vh') && !widthRelated)
+            return fromVH(
+                Number(value.split('vh')[0]),
+                this.canvas?.height || 1
             )
         else if (value.endsWith('vw') && widthRelated)
-            return (
-                fromVW(Number(value.split('vw')[0]), this.canvas?.width || 1) -
-                space
-            )
+            return fromVW(Number(value.split('vw')[0]), this.canvas?.width || 1)
         else if (value.endsWith('cm'))
             return fromCm(Number(value.split('cm')[0]))
         else if (value.endsWith('mm'))

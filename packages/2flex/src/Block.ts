@@ -74,12 +74,7 @@ export class Block extends OverflowBlock(
         const pHeight = Math.abs(this.height())
 
         const pPaddingLeft = this.paddingLeft()
-        const pPaddingRight = this.paddingRight()
         const pPaddingTop = this.paddingTop()
-        const pPaddingBottom = this.paddingBottom()
-
-        const pWidthSpaces = pWidth - (pPaddingLeft + pPaddingRight)
-        const pHeightSpaces = pHeight - (pPaddingTop + pPaddingBottom)
 
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
@@ -110,8 +105,8 @@ export class Block extends OverflowBlock(
                 b.canvas?.demandInvoke(b)
                 return
             }
-            let blockW = Math.abs(b.width())
-            let blockH = Math.abs(b.height())
+            let blockW = Math.abs(b.__boxWidth())
+            let blockH = Math.abs(b.__boxHeight())
 
             const blockInitW = b.__valueConverter({
                 val: b.initWidth,
@@ -137,7 +132,7 @@ export class Block extends OverflowBlock(
                 blockH + blockMarginTop + blockMarginBottom
 
             wrapWidth += blockWidthSpaces
-            if (wrapWidth > pWidthSpaces) {
+            if (wrapWidth > pWidth) {
                 startX = 0
                 blocksContainerHeight += containerH
                 wrapWidth = blockWidthSpaces
@@ -219,10 +214,14 @@ export class Block extends OverflowBlock(
                 }
                 b.x(x)
                 b.y(y)
-                if (blockHorizontalFlip) blockW = -blockW
-                if (blockVerticalFlip) blockH = -blockH
-                b.width(blockW)
-                b.height(blockH)
+                const childPaddingW = b.paddingLeft() + b.paddingRight()
+                const childPaddingH = b.paddingTop() + b.paddingBottom()
+                let borderW = blockW + childPaddingW
+                let borderH = blockH + childPaddingH
+                if (blockHorizontalFlip) borderW = -borderW
+                if (blockVerticalFlip) borderH = -borderH
+                b.width(borderW - childPaddingW)
+                b.height(borderH - childPaddingH)
             }
 
             b.__childClipping = (b: BaseBlock) => {

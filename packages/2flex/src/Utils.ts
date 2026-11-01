@@ -232,6 +232,12 @@ export function clamp(num: number, min: number, max: number) {
     return Math.min(Math.max(num, min), max)
 }
 
+export function clampSize(value: number) {
+    if (value > 0) return clamp(value, 1, 4096)
+    if (value < 0) return clamp(value, -4096, -1)
+    return 0
+}
+
 export const namedColors: { [key: string]: string } = {
     black: '#000000',
     silver: '#c0c0c0',

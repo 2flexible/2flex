@@ -1897,7 +1897,7 @@ describe('LayoutBlock', () => {
                     height: 50,
                 })
             })
-            it('should distribute the childs inside the whole width', async () => {
+            it('should distribute the childs inside the content box', async () => {
                 layout = new LayoutBlock({
                     width: 300,
                     height: 200,
@@ -1909,12 +1909,10 @@ describe('LayoutBlock', () => {
                 await flush()
                 layout.set({ justifyContent: 'end' })
                 await settle(layout)
-                // the free space is measured without the padding, so the last
-                // child reaches past the right edge of the layout block
                 expect(positions(childs)).toStrictEqual([
-                    [180, 10],
-                    [230, 10],
-                    [280, 10],
+                    [160, 10],
+                    [210, 10],
+                    [260, 10],
                 ])
             })
         })
@@ -1928,10 +1926,50 @@ describe('LayoutBlock', () => {
                 await flush()
                 // the padding makes the child wider than the layout block and
                 // it is kept as it is instead of being shrunk
-                expect([childs[0].width(), childs[0].height()]).toStrictEqual([
-                    70, 70,
-                ])
+                expect([
+                    childs[0].__boxWidth(),
+                    childs[0].__boxHeight(),
+                ]).toStrictEqual([70, 70])
                 expect([childs[1].x(), childs[1].y()]).toStrictEqual([70, 0])
+            })
+            it('should increase the size of a padded child', async () => {
+                layout = new LayoutBlock({ width: 300, height: 200 })
+                const childs = createChilds(1, 50, 50)
+                childs[0].set({ padding: [10] })
+                childs.forEach((child) => layout.addChild(child))
+                canvas.add(layout)
+                await flush()
+                expect([
+                    childs[0].__boxWidth(),
+                    childs[0].__boxHeight(),
+                ]).toStrictEqual([70, 70])
+            })
+            it('should not shrink a child with a relative size', async () => {
+                layout = new LayoutBlock({ width: 300, height: 200 })
+                const child = new Block({
+                    width: '100%',
+                    height: 50,
+                    padding: 10,
+                })
+                layout.addChild(child)
+                canvas.add(layout)
+                await flush()
+                expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual(
+                    [320, 70]
+                )
+            })
+            it('should resolve a relative size against the content box of the layout block', async () => {
+                layout = new LayoutBlock({
+                    width: 300,
+                    height: 200,
+                    padding: [10],
+                })
+                const child = new Block({ width: '100%', height: 50 })
+                layout.addChild(child)
+                canvas.add(layout)
+                await flush()
+                expect([child.width(), child.height()]).toStrictEqual([300, 50])
+                expect([child.x(), child.y()]).toStrictEqual([10, 10])
             })
             it('should add the margin of a child to a column', async () => {
                 layout = new LayoutBlock({

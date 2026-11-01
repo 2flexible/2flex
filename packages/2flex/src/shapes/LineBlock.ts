@@ -205,8 +205,8 @@ export class LineBlock extends ShapeBlock {
         super.updateCordinates()
         const currentX = this.getOptionCurrent('x')
         const currentY = this.getOptionCurrent('y')
-        const currentWidth = this.getOptionCurrent('width')
-        const currentHeight = this.getOptionCurrent('height')
+        const currentWidth = this.__boxWidth()
+        const currentHeight = this.__boxHeight()
 
         let prevEndX: number
         let prevEndY: number
@@ -375,8 +375,8 @@ export class LineBlock extends ShapeBlock {
 
         this.#cacheX = this.x()
         this.#cacheY = this.y()
-        this.#cacheWidth = this.width()
-        this.#cacheHeight = this.height()
+        this.#cacheWidth = this.__boxWidth()
+        this.#cacheHeight = this.__boxHeight()
     }
 
     updateCords(): void {
@@ -791,8 +791,22 @@ export class LineBlock extends ShapeBlock {
         const controlLineWidth = this.controlLineWidth() / 2
         this.setOptionCurrent('x', xMin - controlLineWidth)
         this.setOptionCurrent('y', yMin - controlLineWidth)
-        this.setOptionCurrent('width', xMax - xMin + controlLineWidth)
-        this.setOptionCurrent('height', yMax - yMin + controlLineWidth)
+        this.setOptionCurrent(
+            'width',
+            xMax -
+                xMin +
+                controlLineWidth -
+                this.paddingLeft() -
+                this.paddingRight()
+        )
+        this.setOptionCurrent(
+            'height',
+            yMax -
+                yMin +
+                controlLineWidth -
+                this.paddingTop() -
+                this.paddingBottom()
+        )
         this.setOptionCurrent('cornerTopLeft', {
             x: xMin - controlLineWidth,
             y: yMin - controlLineWidth,

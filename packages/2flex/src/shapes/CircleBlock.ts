@@ -55,8 +55,8 @@ export class CircleBlock extends ShapeBlock {
         const startAngle = this.startAngle()
         const endAngle = this.endAngle()
         const innerR = this.innerRadius()
-        const outerRX = this.width() / 2 - this.hotLineStrokeWidth()
-        const outerRY = this.height() / 2 - this.hotLineStrokeWidth()
+        const outerRX = this.__boxWidth() / 2 - this.hotLineStrokeWidth()
+        const outerRY = this.__boxHeight() / 2 - this.hotLineStrokeWidth()
 
         const path = new Path2D()
 
@@ -164,8 +164,8 @@ export class CircleBlock extends ShapeBlock {
         this.__clipPath?.ellipse(
             this.realCenterX,
             this.realCenterY,
-            this.width() / 2,
-            this.height() / 2,
+            this.__boxWidth() / 2,
+            this.__boxHeight() / 2,
             0,
             this.startAngle(),
             this.endAngle()

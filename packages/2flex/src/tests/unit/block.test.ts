@@ -1042,8 +1042,10 @@ describe('Block', () => {
                 paddingBottom: paddingBottom,
             })
             await flush()
-            expect(block.width()).toBe(paddingRight + blockWidth)
-            expect(block.height()).toBe(paddingBottom + blockHeight)
+            expect(block.__boxWidth()).toBe(paddingRight + blockWidth)
+            expect(block.__boxHeight()).toBe(paddingBottom + blockHeight)
+            expect(block.width()).toBe(blockWidth)
+            expect(block.height()).toBe(blockHeight)
         })
         it('padding should add spacing around itself', async () => {
             const padding = 30
@@ -1062,6 +1064,62 @@ describe('Block', () => {
             expect(childBlocks[2].x()).toBe(
                 childBlocks[1].width() + childBlocks[0].width() + padding
             )
+        })
+        it('padding should increase the size of a child', async () => {
+            const child = new Block({ width: 50, height: 50, padding: 10 })
+            block.addChild(child)
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                70, 70,
+            ])
+        })
+        it('padding should increase the size of a nested child', async () => {
+            const middle = new Block({ width: 200, height: 200 })
+            const child = new Block({ width: 50, height: 50, padding: 10 })
+            block.addChild(middle)
+            middle.addChild(child)
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                70, 70,
+            ])
+        })
+        it('padding should not shrink a child with a relative size', async () => {
+            const child = new Block({
+                width: '100%',
+                height: '100%',
+                padding: 10,
+            })
+            block.addChild(child)
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                420, 420,
+            ])
+        })
+        it('a relative size of a child should not change with its padding', async () => {
+            const child = new Block({ width: '100%', height: '100%' })
+            block.addChild(child)
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                400, 400,
+            ])
+            child.set({ padding: 10 })
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                420, 420,
+            ])
+            child.set({ padding: 20 })
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                440, 440,
+            ])
+        })
+        it('a relative size should be resolved against the content box of the parent', async () => {
+            block.set({ padding: 10 })
+            const child = new Block({ width: '100%', height: '100%' })
+            block.addChild(child)
+            await flush()
+            expect([child.width(), child.height()]).toStrictEqual([400, 400])
+            expect([child.x(), child.y()]).toStrictEqual([10, 10])
         })
         it('margin should parse values', () => {
             block.set({ margin: 20 })

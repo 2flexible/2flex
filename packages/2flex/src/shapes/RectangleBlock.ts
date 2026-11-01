@@ -95,8 +95,8 @@ export class RectangleBlock extends ShapeBlock {
         if (!context) return
         const x = this.x()
         const y = this.y()
-        const w = this.width()
-        const h = this.height()
+        const w = this.__boxWidth()
+        const h = this.__boxHeight()
         const radius = this.borderRadius()
 
         const rectPath = new Path2D()
@@ -236,15 +236,15 @@ export class RectangleBlock extends ShapeBlock {
 
     #sideLength(side: BorderSide): number {
         return side === 'left' || side === 'right'
-            ? this.height()
-            : this.width()
+            ? this.__boxHeight()
+            : this.__boxWidth()
     }
 
     #sidePath(side: BorderSide, borderWidth: number): Path2D {
         const x = this.x()
         const y = this.y()
-        const w = this.width()
-        const h = this.height()
+        const w = this.__boxWidth()
+        const h = this.__boxHeight()
         const r = this.#resolvedRadius()
         const path = new Path2D()
         const [tlR, trR, brR, blR] = r
@@ -339,8 +339,8 @@ export class RectangleBlock extends ShapeBlock {
             return [n, n, n, n]
         }
         let [tlR, trR, brR, blR] = parsed
-        const w = this.width()
-        const h = this.height()
+        const w = this.__boxWidth()
+        const h = this.__boxHeight()
         const topSum = tlR + trR
         if (topSum > 0 && topSum > w) {
             const f = w / topSum
@@ -400,8 +400,8 @@ export class RectangleBlock extends ShapeBlock {
         const maxLW = this.#maxBorderWidth()
         const x = this.x() - maxLW / 2
         const y = this.y() - maxLW / 2
-        const w = this.width() + maxLW
-        const h = this.height() + maxLW
+        const w = this.__boxWidth() + maxLW
+        const h = this.__boxHeight() + maxLW
         this.__clipPath?.rect(x, y, w, h)
     }
 

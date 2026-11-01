@@ -94,9 +94,9 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
         }
         #visualBounds() {
             const x0 = this.x()
-            const x1 = x0 + this.width()
+            const x1 = x0 + this.__boxWidth()
             const y0 = this.y()
-            const y1 = y0 + this.height()
+            const y1 = y0 + this.__boxHeight()
             return {
                 minX: Math.min(x0, x1),
                 maxX: Math.max(x0, x1),
@@ -170,15 +170,9 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             const beforeWidth = this.#overflowWidth
             const beforeHeight =
                 this.#overflowHeight || this.#overflowScrollYHeightCut
-            const visibleWidth =
-                Math.abs(this.width()) -
-                this.paddingLeft() -
-                this.paddingRight()
+            const visibleWidth = Math.abs(this.width())
             const visibleHeight =
-                Math.abs(this.height()) -
-                this.paddingTop() -
-                this.paddingBottom() -
-                this.#overflowScrollYHeightCut
+                Math.abs(this.height()) - this.#overflowScrollYHeightCut
 
             this.#overflowWidth = visibleWidth - this.__childsContainer.width
             this.#overflowHeight = visibleHeight - this.__childsContainer.height
@@ -226,8 +220,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.__clipPath?.rect(
                 this.x(),
                 this.y(),
-                this.width(),
-                this.height()
+                this.__boxWidth(),
+                this.__boxHeight()
             )
         }
         #clippingPath() {
@@ -300,7 +294,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             return this.__isOverflowXScrollable ? OVERFLOW_AREA_GAP : 0
         }
         get #overflowXScrollPer() {
-            const width = Math.abs(this.width())
+            const width = Math.abs(this.__boxWidth())
             const areaWidth = clamp(
                 width + this.#overflowWidth,
                 OVERFLOW_SCROLL_BAR_MIN_SIZE,
@@ -311,7 +305,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             return 1
         }
         get #overflowYScrollPer() {
-            const height = Math.abs(this.height())
+            const height = Math.abs(this.__boxHeight())
             const areaHeight = clamp(
                 height +
                     (this.#overflowHeight - this.#overflowScrollYHeightCut),
@@ -501,7 +495,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     )
                         return
 
-                    const width = Math.abs(block.width())
+                    const width = Math.abs(block.__boxWidth())
                     const areaWidth = clamp(
                         width + block.#overflowWidth,
                         OVERFLOW_SCROLL_BAR_MIN_SIZE,
@@ -668,7 +662,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     )
                         return
 
-                    const height = Math.abs(block.height())
+                    const height = Math.abs(block.__boxHeight())
                     const areaHeight = clamp(
                         height +
                             (block.#overflowHeight -

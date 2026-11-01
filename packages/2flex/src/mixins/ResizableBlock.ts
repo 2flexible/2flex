@@ -662,8 +662,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         const angle = block.rotate()
                         let currentX = block.x()
                         let currentY = block.y()
-                        let currentWidth = block.width()
-                        let currentHeight = block.height()
+                        let currentWidth = block.__boxWidth()
+                        let currentHeight = block.__boxHeight()
                         const maxWidth = block.maxWidth() ?? Infinity
                         const minWidth = block.minWidth() ?? 0
                         const maxHeight = block.maxHeight() ?? Infinity
@@ -799,10 +799,18 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         block.setOptionCurrent('y', currentY)
                         block.setOptionCache('x', currentX)
                         block.setOptionCache('y', currentY)
-                        block.setOptionCurrent('width', currentWidth)
-                        block.setOptionCurrent('height', currentHeight)
-                        block.setOptionCache('width', currentWidth)
-                        block.setOptionCache('height', currentHeight)
+                        const contentWidth =
+                            currentWidth -
+                            block.paddingLeft() -
+                            block.paddingRight()
+                        const contentHeight =
+                            currentHeight -
+                            block.paddingTop() -
+                            block.paddingBottom()
+                        block.setOptionCurrent('width', contentWidth)
+                        block.setOptionCurrent('height', contentHeight)
+                        block.setOptionCache('width', contentWidth)
+                        block.setOptionCache('height', contentHeight)
                         block.setOptionCurrent(
                             'rotationCenterX',
                             rotationCenterX
