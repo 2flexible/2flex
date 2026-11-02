@@ -77,4 +77,25 @@ describe('DraggableBlock', () => {
         dispatchMouse(element, 'mousemove', 100, 100, 1)
         expect(isDraggingOn).toBeTruthy()
     })
+    it('should drag an absolute block by the mouse distance at any scale', async () => {
+        canvas.view.scale = 2
+        block.set({
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            draggable: true,
+        })
+        await flush()
+        const targetLocator = page.elementLocator(canvas.canvas)
+        const element = (await targetLocator.element()) as HTMLElement
+
+        dispatchMouse(element, 'mousedown', 10, 10, 1)
+        dispatchMouse(element, 'mousemove', 110, 60, 1)
+        await flush()
+
+        // the mouse moved 100 pixels on the screen, which is 50 pixels of the
+        // canvas content while it is zoomed in
+        expect(block.x()).toBe(50)
+        expect(block.y()).toBe(25)
+    })
 })

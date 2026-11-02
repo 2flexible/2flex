@@ -713,7 +713,7 @@ export class BaseBlock extends Node {
         const borderHeight =
             currentHeight + this.paddingTop() + this.paddingBottom()
 
-        if (position === 'fixed' || position === 'absolute') {
+        if (position === 'fixed') {
             const tx = this.canvas?.view.tx ?? 0
             const ty = this.canvas?.view.ty ?? 0
             const scale = this.canvas?.view.scale ?? 1
@@ -734,6 +734,15 @@ export class BaseBlock extends Node {
                         tx) *
                         invScale) /
                     1
+        } else if (position === 'absolute') {
+            if (top !== undefined) currentY = top
+            else if (bottom !== undefined)
+                currentY =
+                    Math.abs((this.canvas?.height || 1) - borderHeight) - bottom
+            if (left !== undefined) currentX = left
+            else if (right !== undefined)
+                currentX =
+                    Math.abs((this.canvas?.width || 1) - borderWidth) - right
         } else if (position === 'sticky' && !this.__hasParentBlock) {
             const tx = this.canvas?.view.tx ?? 0
             const ty = this.canvas?.view.ty ?? 0

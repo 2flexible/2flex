@@ -1311,6 +1311,50 @@ describe('Block', () => {
             await flush()
             expect([block.x(), block.y()]).toStrictEqual([160, 350])
         })
+        it('should keep the absolute position when the view is moved', async () => {
+            block.set({
+                position: 'absolute',
+                left: 100,
+                top: 50,
+            })
+            await flush()
+            expect([block.x(), block.y()]).toStrictEqual([100, 50])
+
+            // an absolute block belongs to the content of the canvas, so it
+            // moves along with it when the view is panned or zoomed
+            canvas.view.tx = 200
+            canvas.view.ty = 100
+            canvas.view.scale = 2
+            await flush()
+
+            // every change re-invokes the block, which must not derive its
+            // position from the view transform again
+            block.set({ width: 130 })
+            await flush()
+            expect([block.x(), block.y()]).toStrictEqual([100, 50])
+        })
+        it('should not snap back to its initial absolute position when it is clicked', async () => {
+            block.set({
+                position: 'absolute',
+                left: 100,
+                top: 50,
+            })
+            await flush()
+            block.click(() => {})
+            allowMouse(canvas)
+
+            canvas.view.tx = 200
+            await flush()
+
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+            // the block sits at the world position 100,50 which is at the
+            // screen position 300,50 after the canvas was panned
+            dispatchMouse(element, 'click', 350, 100)
+            await flush()
+
+            expect([block.x(), block.y()]).toStrictEqual([100, 50])
+        })
         it('should set sticky position', async () => {
             block.set({
                 position: 'sticky',
