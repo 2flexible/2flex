@@ -35,6 +35,12 @@ export interface TextBlockOptions extends ShapeBlockOptions {
 }
 type WalkFunc = (letterNode: LetterNode) => void
 
+type LetterMetrics = {
+    width: number
+    ascent: number
+    descent: number
+}
+
 const TEXT_EDITABLE_RUNNING_EVENT = 'text-editable'
 const TEXT_EDITING_RUNNING_EVENT = 'text-editing'
 const TEXT_HIGHLIGHT_COLOR = 'rgba(0, 13, 255, 0.47)'
@@ -42,6 +48,8 @@ const CARET_LINE_HEIGHT_GAP = 10
 const CARET_LINE_COLOR = 'white'
 const CARET_LINE_WIDTH = 2
 const CARET_HOLD_DURATION = 500
+const FONT_METRICS_PROBE = 'Hxg'
+const DEFAULT_LINE_HEIGHT_RATIO = 1.2
 
 class LetterNode {
     prev?: LetterNode
@@ -70,10 +78,14 @@ export class TextBlock extends ShapeBlock {
     #selectionAnchor?: LetterNode
     #selectionFocus?: LetterNode
 
-    #words?: {
-        [key: string]: { width: number; height: number }
-    }
+    // the metrics of the letters, they are cleared when new text is inserted
+    #letterMetrics?: Map<string, LetterMetrics>
+    // the widths of the words of the text in the order they appear
+    #words?: number[]
     #wordsFontKey?: string
+    // the ascent of the ink of the text, it is the distance of the baseline
+    // of a line to the top of the text
+    #textAscent: number = 0
 
     #dbClickEvent?: CustomEvent<Event>
     #mousedownEvent?: CustomEvent<Event>
@@ -192,7 +204,6 @@ export class TextBlock extends ShapeBlock {
 
     draw(_func?: DrawFunc): void {
         this.#setFont()
-        this.#buildWords()
         this.#updateLetterNodeCordinates()
         const caret = this.getOptionCurrent('caret')
         if (caret) this.#drawCaret()
@@ -229,8 +240,18 @@ export class TextBlock extends ShapeBlock {
     get #formatedFont() {
         return `${this.fontStyle()} ${this.fontVariant()} ${this.fontWeight()} ${this.fontSize()}px ${this.fontFamily()}`
     }
-    get #lineHeightPx() {
-        return (this.fontSize() || 0) * (this.lineHeight() ?? 1)
+    // the height of a line box, the distance between the baselines of two
+    // lines of the text
+    get #lineBoxHeight(): number {
+        const lineHeight = this.lineHeight()
+        if (lineHeight !== undefined && lineHeight > 0)
+            return (this.fontSize() || 0) * lineHeight
+        // without a line height the natural line height of the font is used
+        const measure = this.measureText(FONT_METRICS_PROBE)
+        const ascent = measure?.fontBoundingBoxAscent ?? 0
+        const descent = measure?.fontBoundingBoxDescent ?? 0
+        if (ascent + descent > 0) return ascent + descent
+        return (this.fontSize() || 0) * DEFAULT_LINE_HEIGHT_RATIO
     }
     #parseLineHeight(val?: RelativeType): number | undefined {
         if (val === undefined) return undefined
@@ -252,7 +273,6 @@ export class TextBlock extends ShapeBlock {
         this.#constructDummyContext()
         super.init()
         this.#setFont()
-        this.#buildWords()
         this.#updateLetterNodeCordinates()
         this.#updateBoundingCords()
         this.#addCaretAnimation()
@@ -284,7 +304,7 @@ export class TextBlock extends ShapeBlock {
             minXs.push(node.x)
             minYs.push(node.y - node.height)
             maxXs.push(node.x + node.width)
-            maxYs.push(node.y + node.height)
+            maxYs.push(node.y + node.descent)
         })
 
         if (minXs.length === 0) {
@@ -354,7 +374,6 @@ export class TextBlock extends ShapeBlock {
     }
     #text(text?: string) {
         if (text === undefined) return text
-        this.#invalidateWords()
         this.#headLetterNode = undefined
         this.#tailLetterNode = undefined
         for (const letter of text.split(''))
@@ -362,10 +381,6 @@ export class TextBlock extends ShapeBlock {
         this.#selectionFocus = this.#tailLetterNode
         this.#selectionAnchor = this.#tailLetterNode
         return text
-    }
-    #invalidateWords() {
-        this.#words = undefined
-        this.#wordsFontKey = undefined
     }
     #insertLetter(letter: string, after?: LetterNode): LetterNode {
         const node = new LetterNode(letter)
@@ -381,6 +396,8 @@ export class TextBlock extends ShapeBlock {
             this.#headLetterNode = node
             if (!this.#tailLetterNode) this.#tailLetterNode = node
         }
+        // the new text is measured again
+        this.#letterMetrics = undefined
         this.#invalidateWords()
         return node
     }
@@ -393,37 +410,81 @@ export class TextBlock extends ShapeBlock {
         else this.#tailLetterNode = previous
         letterNode.prev = undefined
         letterNode.next = undefined
+        // the words of the text changed
         this.#invalidateWords()
     }
-    #buildWords() {
+    #invalidateWords() {
+        this.#words = undefined
+        this.#wordsFontKey = undefined
+    }
+    // the state of the context that has an influence on the metrics of a
+    // letter, it is part of the key of the cached metrics
+    #fontStateKey(): string {
+        const context = this.#activeContext as unknown as
+            | Record<string, unknown>
+            | null
+            | undefined
+        return [
+            this.#formatedFont,
+            this.letterSpacing() ?? 0,
+            context?.letterSpacing ?? '',
+            context?.fontStretch ?? '',
+            context?.fontKerning ?? '',
+            context?.fontVariantCaps ?? '',
+        ].join('|')
+    }
+    // the metrics of a letter are measured once per font state
+    #measureLetter(letter: string, fontState: string): LetterMetrics {
+        if (!this.#letterMetrics) this.#letterMetrics = new Map()
+        const metrics = this.#letterMetrics
+        const key = `${fontState}|${letter}`
+        const cached = metrics.get(key)
+        if (cached) return cached
         const letterSpacing = this.letterSpacing() ?? 0
-        const fontKey = `${this.#formatedFont}|${letterSpacing}`
-        if (this.#words !== undefined && this.#wordsFontKey === fontKey) return
-        this.#words = {}
-        this.#wordsFontKey = fontKey
-        const words = this.#words
-        const lineHeightPx = this.#lineHeightPx
-        let word = ''
-        this.#walkLetterNodes((letterNode) => {
-            word += letterNode.letter
-            if (
-                (word !== ' ' && letterNode.letter === ' ') ||
-                letterNode.next === undefined
-            ) {
-                const measure = this.measureText(word)
-                const wordWidth =
-                    (measure?.width ?? 0) + word.length * letterSpacing
-                const wordHeight =
-                    (measure?.actualBoundingBoxAscent ||
-                        measure?.fontBoundingBoxAscent ||
-                        0) + lineHeightPx
-                words[word] = {
-                    width: wordWidth,
-                    height: wordHeight,
-                }
-                word = ''
+        const measure = this.measureText(letter)
+        const result: LetterMetrics = {
+            width: (measure?.width ?? 0) + letterSpacing,
+            ascent:
+                measure?.actualBoundingBoxAscent ||
+                measure?.fontBoundingBoxAscent ||
+                0,
+            descent:
+                measure?.actualBoundingBoxDescent ||
+                measure?.fontBoundingBoxDescent ||
+                0,
+        }
+        metrics.set(key, result)
+        return result
+    }
+    // the letters of the text are measured and the words are collected, so
+    // the text can be placed with a single loop afterwards
+    #prepareText() {
+        const fontState = this.#fontStateKey()
+        if (this.#words !== undefined && this.#wordsFontKey === fontState)
+            return
+        const words: number[] = []
+        this.#words = words
+        this.#wordsFontKey = fontState
+        let wordWidth = 0
+        let ascent = 0
+        this.#walkLetterNodes((node: LetterNode) => {
+            if (!node.letter) return
+            const metrics = this.#measureLetter(node.letter, fontState)
+            node.width = metrics.width
+            node.height = metrics.ascent
+            node.descent = metrics.descent
+            if (node.letter === ' ') {
+                // the width of the word before the space
+                words.push(wordWidth)
+                wordWidth = 0
+                return
             }
+            wordWidth += node.width
+            if (node.height > ascent) ascent = node.height
         })
+        // the width of the last word
+        words.push(wordWidth)
+        this.#textAscent = ascent
     }
     #walkLetterNodes(_func: WalkFunc) {
         let letterNode: undefined | LetterNode = this.#headLetterNode
@@ -440,57 +501,52 @@ export class TextBlock extends ShapeBlock {
         }
     }
     #updateLetterNodeCordinates() {
+        this.#prepareText()
         const wrap = this.wrap()
-        const width = this.width()
-        const height = this.height()
-        const absoluteWidth = Math.abs(width)
+        const absoluteWidth = Math.abs(this.width())
         const x = this.x()
         const y = this.y()
-        const letterSpacing = this.letterSpacing() ?? 0
-        const lineHeightPx = this.#lineHeightPx
-        const addW = this.horizontalFlip() ? width : 0
-        const addH = this.verticalFlip() ? height : 0
-        const words = Object.entries(this.#words ?? {})
-        let wordIdx = 0
-        let currentWord = words[wordIdx]
+        const addW = this.horizontalFlip() ? this.width() : 0
+        const addH = this.verticalFlip() ? this.height() : 0
+        const lineBox = this.#lineBoxHeight
+        // every line of the text shares the same distance of its baseline to
+        // the top of the text, so all the letters of a line are on one line
+        const ascent = this.#textAscent
+        const words = this.#words ?? []
+        // without a width there is nothing to wrap the text into
+        const canWrap =
+            absoluteWidth > 0 && (wrap === 'letter' || wrap === 'word')
+        let wordIndex = 0
         let xPos = x
         let yPos = y
-        let wrapW = 0
-        let wrapH = 0
+        let lineWidth = 0
+        let line = 0
         let node: LetterNode | undefined = this.#headLetterNode
         while (node) {
             const letter = node
             node = node.next
             if (!letter.letter) continue
-            const measure = this.measureText(letter.letter)
-            letter.width = (measure?.width ?? 0) + letterSpacing
-            letter.height =
-                measure?.actualBoundingBoxAscent ||
-                measure?.fontBoundingBoxAscent ||
-                0
-            letter.descent =
-                measure?.actualBoundingBoxDescent ||
-                measure?.fontBoundingBoxDescent ||
-                0
-            wrapW += letter.width
-            if (
-                wrapW >= absoluteWidth &&
-                (wrap === 'letter' || wrap === 'word')
-            ) {
-                yPos += wrapH
+            lineWidth += letter.width
+            if (canWrap && lineWidth >= absoluteWidth) {
+                yPos += lineBox
                 xPos = x
-                wrapW = letter.width
+                lineWidth = letter.width
+                line++
             }
             if (letter.letter === ' ' && wrap === 'word') {
-                wordIdx += 1
-                currentWord = words[wordIdx]
-                if (currentWord && wrapW + currentWord[1].width > absoluteWidth)
-                    wrapW += currentWord[1].width
+                // the word behind the space moves to the next line when it
+                // does not fit onto the current one anymore
+                wordIndex++
+                const nextWord = words[wordIndex]
+                if (
+                    nextWord !== undefined &&
+                    lineWidth + nextWord > absoluteWidth
+                )
+                    lineWidth += nextWord
             }
-            if (letter.height > wrapH && letter.letter !== ' ')
-                wrapH = letter.height + lineHeightPx
+            letter.line = line
             letter.x = xPos + addW
-            letter.y = yPos + wrapH + addH
+            letter.y = yPos + ascent + addH
             xPos += letter.width
         }
     }
@@ -550,7 +606,7 @@ export class TextBlock extends ShapeBlock {
             return
 
         const node = focus.next
-        const ascent = node?.height || focus.height || 0
+        const ascent = this.#textAscent
         const y = (node?.y ?? focus.y) - ascent - CARET_LINE_HEIGHT_GAP
         const x = node?.x ?? focus.x + focus.width
         const height = y + ascent + CARET_LINE_HEIGHT_GAP * 2

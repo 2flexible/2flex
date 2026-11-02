@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas, ShapeBlock, TextBlock } from '@2flexible/2flex'
-import type { ITextOptions } from '../../shapes/TextBlock'
+import type { TextBlockOptions } from '@2flexible/2flex'
 import { SELECTABLE_RUNNING_EVENT } from '../../const'
 import { flush, removeCanvasElements, waitFor } from './helpers'
 
@@ -73,7 +73,7 @@ const keyDown = (key: string, options: KeyboardEventInit = {}) => {
     )
 }
 
-const createTextBlock = async (options: ITextOptions = {}) => {
+const createTextBlock = async (options: TextBlockOptions = {}) => {
     canvas = new Canvas('myCanvas', 400, 500)
     text = new TextBlock({
         x: 20,
@@ -523,6 +523,42 @@ describe('TextBlock', () => {
             const withLineHeight = letterCalls(fillText).at(-1)![2]
             expect(withLineHeight).toBeGreaterThan(withoutLineHeight)
         })
+        it('should draw the letters of a line on one baseline', async () => {
+            await createTextBlock({ text: 'volvo volv', fontSize: 28 })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            // the letters have different ascents, but they share the baseline
+            const baselines = new Set(calls.map((call) => call[2]))
+            expect(baselines.size).toBe(1)
+        })
+        it('should keep the distance of the lines at the line box height', async () => {
+            await createTextBlock({ text: 'aa bbbb', width: 60, wrap: 'word' })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            const starts = lineStarts(calls, text.x())
+            const first = calls[starts[0]]
+            const second = calls[starts[1]]
+            const metrics = context.measureText('Hxg')
+            const lineBox =
+                metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent
+            expect(second[2] - first[2]).toBeCloseTo(lineBox, 5)
+        })
+        it('should keep a repeated word together on a word wrap', async () => {
+            await createTextBlock({ text: 'aa aa', width: 30, wrap: 'word' })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            const starts = lineStarts(calls, text.x())
+            expect(starts).toHaveLength(2)
+            // the word is moved to the next line instead of being broken
+            expect(calls[starts[1] - 1][0]).toBe(' ')
+            expect(calls.length - starts[1]).toBe(2)
+        })
     })
 
     describe('bounding box', () => {
@@ -550,6 +586,19 @@ describe('TextBlock', () => {
             await createTextBlock({ text: undefined })
             expect(text.boundingBox.topLeft).toEqual({ x: 0, y: 0 })
             expect(text.boundingBox.bottomRight).toEqual({ x: 0, y: 0 })
+        })
+        it('should end at the descent of the letters', async () => {
+            await createTextBlock({ text: 'gp' })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            const last = calls[calls.length - 1]
+            const descent = context.measureText('g').actualBoundingBoxDescent
+            expect(text.boundingBox.bottomLeft.y).toBeCloseTo(
+                last[2] + descent,
+                5
+            )
         })
         it('should turn the bounding box of a rotated text', async () => {
             await createTextBlock()
@@ -821,7 +870,7 @@ describe('TextBlock', () => {
             canvas = new Canvas('myCanvas', 200, 120)
         })
 
-        const drawText = async (options: ITextOptions) => {
+        const drawText = async (options: TextBlockOptions) => {
             text = new TextBlock({
                 x: 20,
                 y: 20,
@@ -836,7 +885,7 @@ describe('TextBlock', () => {
         }
 
         // the drawings of a table are captured one by one
-        const capture = (drawings: [string, string, ITextOptions][]) => {
+        const capture = (drawings: [string, string, TextBlockOptions][]) => {
             for (const [label, name, options] of drawings)
                 it(`should draw ${label}`, async () => {
                     await drawText(options)
