@@ -529,7 +529,6 @@ describe('TextBlock', () => {
             const fillText = vi.spyOn(context, 'fillText')
             text.draw()
             const calls = letterCalls(fillText)
-            // the letters have different ascents, but they share the baseline
             const baselines = new Set(calls.map((call) => call[2]))
             expect(baselines.size).toBe(1)
         })
@@ -555,9 +554,98 @@ describe('TextBlock', () => {
             const calls = letterCalls(fillText)
             const starts = lineStarts(calls, text.x())
             expect(starts).toHaveLength(2)
-            // the word is moved to the next line instead of being broken
             expect(calls[starts[1] - 1][0]).toBe(' ')
             expect(calls.length - starts[1]).toBe(2)
+        })
+    })
+
+    describe('auto size', () => {
+        const lineBoxHeight = (context: OffscreenCanvasRenderingContext2D) => {
+            const metrics = context.measureText('Hxg')
+            return (
+                metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent
+            )
+        }
+
+        it('should calculate the width of the text when no width is given', async () => {
+            await createTextBlock({ text: 'hello world', width: undefined })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            const last = calls[calls.length - 1]
+            expect(text.width()).toBeCloseTo(
+                last[1] + (last[3] ?? 0) - text.x(),
+                5
+            )
+        })
+        it('should calculate the height of the text when no height is given', async () => {
+            await createTextBlock({ text: 'hello', height: undefined })
+            const context = prepareDrawing(text)
+            text.draw()
+            expect(text.height()).toBeCloseTo(lineBoxHeight(context), 5)
+        })
+        it('should calculate the height of the wrapped text', async () => {
+            await createTextBlock({
+                text: 'aa bbbb',
+                width: 60,
+                wrap: 'word',
+                height: undefined,
+            })
+            const context = prepareDrawing(text)
+            text.draw()
+            expect(text.height()).toBeCloseTo(lineBoxHeight(context) * 2, 5)
+        })
+        it('should keep the size that was given', async () => {
+            await createTextBlock({ width: 120, height: 40 })
+            expect(text.width()).toBe(120)
+            expect(text.height()).toBe(40)
+        })
+        it('should adjust the width when the text is changed', async () => {
+            await createTextBlock({ text: 'hi', width: undefined })
+            const width = text.width()
+            text.text('a much longer text')
+            await flush()
+            expect(text.width()).toBeGreaterThan(width)
+        })
+        it('should adjust the width while the text is edited', async () => {
+            await createTextBlock({
+                text: 'hi',
+                width: undefined,
+                editable: true,
+            })
+            const width = text.width()
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            expect(text.width()).toBeGreaterThan(width)
+        })
+        it('should adjust the height of the wrapped text when the text is changed', async () => {
+            await createTextBlock({
+                text: 'aa',
+                width: 60,
+                wrap: 'word',
+                height: undefined,
+            })
+            const height = text.height()
+            text.text('aa bb cc')
+            await flush()
+            expect(text.height()).toBeGreaterThan(height)
+        })
+        it('should stop the automatic width when the width is set', async () => {
+            await createTextBlock({ text: 'hi', width: undefined })
+            text.width(120)
+            text.text('a much longer text')
+            await flush()
+            expect(text.width()).toBe(120)
+        })
+        it('should stop the automatic size when the block is resized', async () => {
+            await createTextBlock({ text: 'hi', width: undefined })
+            text.setOptionCurrent('width', 120)
+            canvas.demandInvoke(text)
+            text.text('a much longer text')
+            await flush()
+            expect(text.width()).toBe(120)
         })
     })
 
