@@ -193,6 +193,17 @@ export class CanvasGrid {
         }
         for (const block of allBlocks) {
             const newKeys = this.tilesForBBox(block.boundingBox)
+            const oldKeys =
+                block.nodeId !== undefined
+                    ? this.#blockTiles.get(block.nodeId)
+                    : undefined
+            if (oldKeys) {
+                for (const key of oldKeys) {
+                    if (newKeys.has(key)) continue
+                    const tile = this.#tiles.get(key)
+                    if (tile && tile.blocks.delete(block)) tile.dirty = true
+                }
+            }
             for (const key of newKeys) {
                 const tile = this.#tiles.get(key)
                 if (tile && !tile.blocks.has(block)) {
@@ -254,8 +265,16 @@ export class CanvasGrid {
 
     addBlock(block: BaseBlock) {
         if (block.nodeId === undefined) return
+        const oldIds = this.#blockTiles.get(block.nodeId)
         this.expand(block.boundingBox)
         const ids = this.tilesForBBox(block.boundingBox)
+        if (oldIds) {
+            for (const key of oldIds) {
+                if (ids.has(key)) continue
+                const tile = this.#tiles.get(key)
+                if (tile && tile.blocks.delete(block)) tile.dirty = true
+            }
+        }
         this.#blockTiles.set(block.nodeId, ids)
         for (const key of ids) {
             const tile = this.#tiles.get(key)
@@ -281,16 +300,14 @@ export class CanvasGrid {
 
     updateBlock(block: BaseBlock) {
         if (block.nodeId === undefined) return
+        const oldIds = this.#blockTiles.get(block.nodeId)
         this.expand(block.boundingBox)
         const newIds = this.tilesForBBox(block.boundingBox)
-        const oldIds = this.#blockTiles.get(block.nodeId)
         if (oldIds) {
             for (const key of oldIds) {
+                if (newIds.has(key)) continue
                 const tile = this.#tiles.get(key)
-                if (tile) {
-                    tile.blocks.delete(block)
-                    tile.dirty = true
-                }
+                if (tile && tile.blocks.delete(block)) tile.dirty = true
             }
         }
         for (const key of newIds) {
