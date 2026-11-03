@@ -91,6 +91,11 @@ interface GridLayout {
 }
 type ILayout = 'flex' | 'inline-flex' | 'grid' | 'inline-grid'
 
+interface ChildSize {
+    width: number
+    height: number
+}
+
 export interface LayoutBlockOptions
     extends BlockOptions, GridLayout, FlexLayout {
     layout?: ILayout
@@ -123,6 +128,8 @@ export class LayoutBlock extends Block {
     #childs: BaseBlock[]
     #latestOrder: number
 
+    #childSizes: Map<BaseBlock, ChildSize>
+
     #invokerLayout?: () => void
     #justifyInvoker?: () => void
     #justifyItemsInvoker?: () => void
@@ -142,6 +149,7 @@ export class LayoutBlock extends Block {
         this.#layoutRows = []
         this.#childs = []
         this.#latestOrder = 1
+        this.#childSizes = new Map()
         this.layout()
     }
     updateCords(): void {
@@ -196,7 +204,116 @@ export class LayoutBlock extends Block {
         this.canvas?.demandInvoke(this)
     }
 
+    #childWidth(block: BaseBlock): number {
+        const size = this.#childSizes.get(block)
+        if (size) return size.width
+        return Math.abs(block.__boxWidth())
+    }
+
+    #childHeight(block: BaseBlock): number {
+        const size = this.#childSizes.get(block)
+        if (size) return size.height
+        return Math.abs(block.__boxHeight())
+    }
+
+    #resolveChildSizes(): void {
+        this.#childSizes.clear()
+
+        const realW = this.#contentW
+        const realH = this.#contentH
+
+        const widthSpaces = this.marginLeft() + this.marginRight()
+        const heightSpaces = this.marginTop() + this.marginBottom()
+
+        const overflowXSign = this.horizontalFlip() ? -1 : 1
+        const overflowYSign = this.verticalFlip() ? -1 : 1
+
+        const childs = this.#flowingChilds
+        for (let i = 0, len = childs.length; i < len; i++) {
+            const block = childs[i]
+
+            let width = Math.abs(block.__boxWidth())
+            let height = Math.abs(block.__boxHeight())
+
+            const blockWidthSpaces = block.marginLeft() + block.marginRight()
+            const blockHeightSpaces = block.marginTop() + block.marginBottom()
+
+            const blockWidthPaddings =
+                block.paddingLeft() + block.paddingRight()
+            const blockHeightPaddings =
+                block.paddingTop() + block.paddingBottom()
+
+            const blockInitW = block.__valueConverter({
+                val: block.initWidth,
+                widthRelated: true,
+            }) as number
+            const blockInitH = block.__valueConverter({
+                val: block.initHeight,
+                widthRelated: false,
+            }) as number
+
+            const availableW = realW - widthSpaces - blockWidthSpaces
+            const availableH = realH - heightSpaces - blockHeightSpaces
+
+            if (!this.#isGrid) {
+                if (block.flexBasis() !== 'auto') {
+                    if (this.#isFlexCol) height = block.flexBasis() as number
+                    else width = block.flexBasis() as number
+                }
+
+                if (this.#isFlexCol) {
+                    if (this.#isWrap) {
+                        if (
+                            blockInitH +
+                                blockHeightSpaces +
+                                blockHeightPaddings >=
+                            realH
+                        )
+                            height = availableH * overflowYSign
+                        // @TODO: need to adjust width
+                    } else {
+                        if (
+                            blockInitW +
+                                blockWidthSpaces +
+                                blockWidthPaddings >=
+                            realW
+                        )
+                            width = availableW * overflowXSign
+                        // @TODO: need to adjust height
+                    }
+                } else {
+                    if (this.#isWrap) {
+                        if (
+                            blockInitW +
+                                blockWidthSpaces +
+                                blockWidthPaddings >=
+                            realW
+                        )
+                            width = availableW * overflowXSign
+                        // @TODO: need to adjust height
+                    } else {
+                        // @TODO: need to adjust width
+
+                        if (
+                            blockInitH +
+                                blockHeightSpaces +
+                                blockHeightPaddings >=
+                            realH
+                        )
+                            height = availableH * overflowYSign
+                    }
+                }
+            }
+
+            if (height < 0 && !this.verticalFlip()) height = 0
+            if (width < 0 && !this.horizontalFlip()) width = 0
+
+            this.#childSizes.set(block, { width, height })
+        }
+    }
+
     updateChildsCordinate(): void {
+        this.#resolveChildSizes()
         this.#invokerLayout?.()
         this.#justifyInvoker?.()
         if (this.#isGrid) this.#justifyItemsInvoker?.()
@@ -274,17 +391,13 @@ export class LayoutBlock extends Block {
             const blockX = b.x()
             const blockY = b.y()
 
-            let blockW = Math.abs(b.__boxWidth())
-            let blockH = Math.abs(b.__boxHeight())
-
-            const blockInitW = b.__valueConverter({
-                val: b.initWidth,
-                widthRelated: true,
-            }) as number
-            const blockInitH = b.__valueConverter({
-                val: b.initHeight,
-                widthRelated: false,
-            }) as number
+            const childSize = this.#childSizes.get(b)
+            const blockW = childSize
+                ? childSize.width
+                : Math.abs(b.__boxWidth())
+            const blockH = childSize
+                ? childSize.height
+                : Math.abs(b.__boxHeight())
 
             const blockMarginTop = b.marginTop()
             const blockMarginBottom = b.marginBottom()
@@ -295,12 +408,6 @@ export class LayoutBlock extends Block {
             const blockPaddingBottom = b.paddingBottom()
             const blockPaddingLeft = b.paddingLeft()
             const blockPaddingRight = b.paddingRight()
-
-            const blockWidthSpaces = blockMarginLeft + blockMarginRight
-            const blockHeightSpaces = blockMarginTop + blockMarginBottom
-
-            const blockWidthPaddings = blockPaddingLeft + blockPaddingRight
-            const blockHeightPaddings = blockPaddingTop + blockPaddingBottom
 
             let blockXStart =
                 blockX +
@@ -362,68 +469,6 @@ export class LayoutBlock extends Block {
                     }
                 }
             }
-
-            let bWidthResize = 0
-            let bHeightResize = 0
-
-            const availableW = realW - widthSpaces - blockWidthSpaces
-            const availableH = realH - heightSpaces - blockHeightSpaces
-
-            if (this.#isGrid) {
-                // @TODO: need to adjust width and height
-            } else {
-                if (this.#isFlexCol) {
-                    if (this.#isWrap) {
-                        if (
-                            blockInitH +
-                                blockHeightSpaces +
-                                blockHeightPaddings >=
-                            realH
-                        ) {
-                            bHeightResize = availableH * overflowYSign - blockH
-                        }
-                        // @TODO: need to adjust width
-                    } else {
-                        if (
-                            blockInitW +
-                                blockWidthSpaces +
-                                blockWidthPaddings >=
-                            realW
-                        ) {
-                            bWidthResize = availableW * overflowXSign - blockW
-                        }
-                        // @TODO: need to adjust height
-                    }
-                } else {
-                    if (this.#isWrap) {
-                        if (
-                            blockInitW +
-                                blockWidthSpaces +
-                                blockWidthPaddings >=
-                            realW
-                        ) {
-                            bWidthResize = availableW * overflowXSign - blockW
-                        }
-                        // @TODO: need to adjust height
-                    } else {
-                        // @TODO: need to adjust width
-
-                        if (
-                            blockInitH +
-                                blockHeightSpaces +
-                                blockHeightPaddings >=
-                            realH
-                        ) {
-                            bHeightResize = availableH * overflowYSign - blockH
-                        }
-                    }
-                }
-            }
-
-            blockW += bWidthResize
-            blockH += bHeightResize
-            if (blockH < 0 && !blockVerticalFlip) blockH = 0
-            if (blockW < 0 && !blockHorizontalFlip) blockW = 0
 
             b.setOptionCurrent('rotate', pCurrentRotate)
             b.setOptionCache('rotate', pCacheRotate)
@@ -896,7 +941,7 @@ export class LayoutBlock extends Block {
             for (let i = 0, len = childs.length; i < len; i++) {
                 const col = colsCount ? i % colsCount : 0
                 this.#startXPos.push(
-                    (this.#blocksWidth[col] || 0) - childs[i].__boxWidth()
+                    (this.#blocksWidth[col] || 0) - this.#childWidth(childs[i])
                 )
             }
         }
@@ -907,7 +952,8 @@ export class LayoutBlock extends Block {
                 for (let i = 0, len = childs.length; i < len; i++) {
                     const row = Math.floor(i / colsCount)
                     this.#startYPos.push(
-                        (this.#blocksHeight[row] || 0) - childs[i].__boxHeight()
+                        (this.#blocksHeight[row] || 0) -
+                            this.#childHeight(childs[i])
                     )
                 }
             } else {
@@ -928,7 +974,7 @@ export class LayoutBlock extends Block {
                             this.#startXPos.push(
                                 colW +
                                     (this.#blocksWidth[i] -
-                                        childs[j + rows].__boxWidth())
+                                        this.#childWidth(childs[j + rows]))
                             )
                         }
                     }
@@ -949,7 +995,7 @@ export class LayoutBlock extends Block {
                             this.#startYPos.push(
                                 colH +
                                     (this.#blocksHeight[i] -
-                                        childs[l + cols].__boxHeight())
+                                        this.#childHeight(childs[l + cols]))
                             )
                         }
                     }
@@ -1025,7 +1071,7 @@ export class LayoutBlock extends Block {
                 const col = colsCount ? i % colsCount : 0
                 this.#startXPos.push(
                     (this.#blocksWidth[col] || 0) / 2 -
-                        childs[i].__boxWidth() / 2
+                        this.#childWidth(childs[i]) / 2
                 )
             }
         }
@@ -1037,7 +1083,7 @@ export class LayoutBlock extends Block {
                     const row = Math.floor(i / colsCount)
                     this.#startYPos.push(
                         (this.#blocksHeight[row] || 0) / 2 -
-                            childs[i].__boxHeight() / 2
+                            this.#childHeight(childs[i]) / 2
                     )
                 }
             } else {
@@ -1053,7 +1099,7 @@ export class LayoutBlock extends Block {
                         for (let j = 0; j < this.#layoutRows[i]; j++) {
                             this.#startXPos.push(
                                 (this.#blocksWidth[i] -
-                                    childs[j + row].__boxWidth()) /
+                                    this.#childWidth(childs[j + row])) /
                                     2
                             )
                         }
@@ -1071,7 +1117,7 @@ export class LayoutBlock extends Block {
                         for (let j = 0; j < this.#layoutCols[i]; j++) {
                             this.#startYPos.push(
                                 (this.#blocksHeight[i] -
-                                    childs[j + col].__boxHeight()) /
+                                    this.#childHeight(childs[j + col])) /
                                     2
                             )
                         }
@@ -1359,11 +1405,11 @@ export class LayoutBlock extends Block {
             const blockWidthSpaces = block.marginLeft() + block.marginRight()
             const blockHeightSpaces = block.marginTop() + block.marginBottom()
 
-            let blockW = block.__boxWidth()
-            let blockH = block.__boxHeight() + blockHeightSpaces
-
-            if (block.flexBasis() !== 'auto')
-                blockW = block.flexBasis() as number
+            const childSize = this.#childSizes.get(block)
+            const blockW = childSize ? childSize.width : block.__boxWidth()
+            const blockH =
+                (childSize ? childSize.height : block.__boxHeight()) +
+                blockHeightSpaces
 
             if (this.#isWrap) {
                 wrapWidth += blockW + blockWidthSpaces
@@ -1447,11 +1493,11 @@ export class LayoutBlock extends Block {
             const blockWidthSpaces = block.marginLeft() + block.marginRight()
             const blockHeightSpaces = block.marginTop() + block.marginBottom()
 
-            let blockH = block.__boxHeight()
-            let blockW = block.__boxWidth() + blockWidthSpaces
-
-            if (block.flexBasis() !== 'auto')
-                blockH = block.flexBasis() as number
+            const childSize = this.#childSizes.get(block)
+            const blockH = childSize ? childSize.height : block.__boxHeight()
+            const blockW =
+                (childSize ? childSize.width : block.__boxWidth()) +
+                blockWidthSpaces
 
             if (this.#isWrap) {
                 wrapHeight += blockH + blockHeightSpaces

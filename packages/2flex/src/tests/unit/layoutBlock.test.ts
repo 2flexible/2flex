@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { Block, Canvas, LayoutBlock } from '@2flexible/2flex'
+import { Block, Canvas, LayoutBlock, RectangleBlock } from '@2flexible/2flex'
 import { flush, removeCanvasElements } from './helpers'
 
 let canvas: Canvas
@@ -3024,6 +3024,94 @@ describe('LayoutBlock', () => {
             expect([cell.x(), cell.y()]).toStrictEqual([0, 0])
             // the deepest child is centered inside the cell of its own parent
             expect([block.x(), block.y()]).toStrictEqual([20, 20])
+        })
+        it('should not move a grandchild of a shrunk child', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            const root = new Block({ width: 400, height: 120, x: 0, y: 120 })
+            const frame = new RectangleBlock({ width: '100%', height: '100%' })
+            layout = new LayoutBlock({
+                width: '100%',
+                height: '100%',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+            })
+            const tall = new RectangleBlock({ width: 200, height: 200 })
+            const small = new RectangleBlock({ width: 120, height: 120 })
+            layout.addChild(tall)
+            layout.addChild(small)
+            frame.addChild(layout)
+            root.addChild(frame)
+            canvas.add(root)
+            await flush()
+            // the tall child is shrunk to the height of the layout block, so
+            // the small child is aligned with it right from the start
+            expect([tall.height(), small.y()]).toStrictEqual([120, 120])
+            const before = positions([tall, small])
+            await settle(layout)
+            expect(positions([tall, small])).toStrictEqual(before)
+        })
+    })
+
+    describe('shrunk childs', () => {
+        it('should align a child by the shrunk size of a taller child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                alignItems: 'center',
+            })
+            const tallChild = new Block({ width: 50, height: 300 })
+            const smallChild = new Block({ width: 50, height: 50 })
+            layout.addChild(tallChild)
+            layout.addChild(smallChild)
+            canvas.add(layout)
+            await flush()
+            // the tall child is shrunk to the height of the layout block, so
+            // the row is as high as the layout block and the small child is
+            // centered in it
+            expect([tallChild.height(), smallChild.y()]).toStrictEqual([
+                200, 75,
+            ])
+        })
+        it('should align a child by the shrunk size of a wider child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexDirection: 'column',
+                alignItems: 'center',
+            })
+            const wideChild = new Block({ width: 400, height: 50 })
+            const smallChild = new Block({ width: 50, height: 50 })
+            layout.addChild(wideChild)
+            layout.addChild(smallChild)
+            canvas.add(layout)
+            await flush()
+            // the wide child is shrunk to the width of the layout block, so
+            // the column is as wide as the layout block and the small child is
+            // centered in it
+            expect([wideChild.width(), smallChild.x()]).toStrictEqual([
+                300, 125,
+            ])
+        })
+        it('should not move the childs when the layout block is laid out again', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                alignItems: 'center',
+            })
+            const tallChild = new Block({ width: 50, height: 300 })
+            const smallChild = new Block({ width: 50, height: 50 })
+            layout.addChild(tallChild)
+            layout.addChild(smallChild)
+            canvas.add(layout)
+            await flush()
+            const before = positions([tallChild, smallChild])
+            await settle(layout)
+            // the childs keep their place, the layout block does not move them
+            // when it is laid out again
+            expect(positions([tallChild, smallChild])).toStrictEqual(before)
         })
     })
 })
