@@ -811,6 +811,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         block.setOptionCurrent('height', contentHeight)
                         block.setOptionCache('width', contentWidth)
                         block.setOptionCache('height', contentHeight)
+                        block.initWidth = contentWidth
+                        block.initHeight = contentHeight
                         block.setOptionCurrent(
                             'rotationCenterX',
                             rotationCenterX

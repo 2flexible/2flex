@@ -108,9 +108,9 @@ export interface BaseBlockOptions {
     // flex: Flex
     // alignSelf?: AlignSelf
     // justifySelf?: JustifySelf
-    // flexShrink?: FlexShrink
+    flexShrink?: number
     flexBasis?: FlexBasis
-    // flexGrow?: FlexGrow
+    flexGrow?: number
     // grid-row: grid-row-start / grid-row-end;
     // gridRow?: number[]
     // gridRowStart?: number
@@ -362,9 +362,9 @@ export class BaseBlock extends Node {
         // this.addProperty('flex', [])
         // this.addProperty('alignSelf', 'auto')
         // this.addProperty('justifySelf', 'auto')
-        // this.addProperty('flexShrink', 0)
+        this.addProperty('flexShrink', 1)
         this.addProperty('flexBasis', 'auto')
-        // this.addProperty('flexGrow', 0)
+        this.addProperty('flexGrow', 0)
         // this.addProperty('gridRow', [])
         // this.addProperty('gridRowStart', 0)
         // this.addProperty('gridRowEnd', 0)
@@ -1322,6 +1322,10 @@ export class BaseBlock extends Node {
                 key,
                 value === undefined ? undefined : handledVal
             )
+            // the size the block was asked for is kept, a layout uses it as
+            // the base size of the block
+            if (key === 'width') this.initWidth = value as RelativeType
+            else if (key === 'height') this.initHeight = value as RelativeType
             before[key] = beforeValue
             after[key] = value
         }

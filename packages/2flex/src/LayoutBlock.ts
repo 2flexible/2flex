@@ -96,6 +96,20 @@ interface ChildSize {
     height: number
 }
 
+// the sizes of a child which are needed to share the free space of the layout
+// block between the childs
+interface ChildData {
+    base: number
+    inner: number
+    padding: number
+    margin: number
+    min: number
+    max: number
+    grow: number
+    shrink: number
+    frozen: boolean
+}
+
 export interface LayoutBlockOptions
     extends BlockOptions, GridLayout, FlexLayout {
     layout?: ILayout
@@ -228,12 +242,25 @@ export class LayoutBlock extends Block {
         const overflowXSign = this.horizontalFlip() ? -1 : 1
         const overflowYSign = this.verticalFlip() ? -1 : 1
 
+        const isRow = !this.#isFlexCol
         const childs = this.#flowingChilds
+        const data: ChildData[] = []
+        let outerSize = 0
+        let hypotheticalSize = 0
+        let growFactor = 0
+        let shrinkFactor = 0
+
         for (let i = 0, len = childs.length; i < len; i++) {
             const block = childs[i]
 
-            let width = Math.abs(block.__boxWidth())
-            let height = Math.abs(block.__boxHeight())
+            const blockInitW = block.__valueConverter({
+                val: block.initWidth,
+                widthRelated: true,
+            }) as number | undefined
+            const blockInitH = block.__valueConverter({
+                val: block.initHeight,
+                widthRelated: false,
+            }) as number | undefined
 
             const blockWidthSpaces = block.marginLeft() + block.marginRight()
             const blockHeightSpaces = block.marginTop() + block.marginBottom()
@@ -243,28 +270,37 @@ export class LayoutBlock extends Block {
             const blockHeightPaddings =
                 block.paddingTop() + block.paddingBottom()
 
-            const blockInitW = block.__valueConverter({
-                val: block.initWidth,
-                widthRelated: true,
-            }) as number
-            const blockInitH = block.__valueConverter({
-                val: block.initHeight,
-                widthRelated: false,
-            }) as number
+            // the base size of a child is the size it was asked for, the size
+            // it was laid out with must not become its base size
+            const currentWidth = Math.abs(block.width())
+            const currentHeight = Math.abs(block.height())
+            const baseWidth =
+                blockInitW !== undefined ? Math.abs(blockInitW) : currentWidth
+            const baseHeight =
+                blockInitH !== undefined ? Math.abs(blockInitH) : currentHeight
+            let width = baseWidth + blockWidthPaddings
+            let height = baseHeight + blockHeightPaddings
+            let baseContentWidth = baseWidth
+            let baseContentHeight = baseHeight
 
             const availableW = realW - widthSpaces - blockWidthSpaces
             const availableH = realH - heightSpaces - blockHeightSpaces
 
             if (!this.#isGrid) {
                 if (block.flexBasis() !== 'auto') {
-                    if (this.#isFlexCol) height = block.flexBasis() as number
-                    else width = block.flexBasis() as number
+                    if (this.#isFlexCol) {
+                        height = block.flexBasis() as number
+                        baseContentHeight = height - blockHeightPaddings
+                    } else {
+                        width = block.flexBasis() as number
+                        baseContentWidth = width - blockWidthPaddings
+                    }
                 }
 
                 if (this.#isFlexCol) {
                     if (this.#isWrap) {
                         if (
-                            blockInitH +
+                            blockInitH! +
                                 blockHeightSpaces +
                                 blockHeightPaddings >=
                             realH
@@ -273,7 +309,7 @@ export class LayoutBlock extends Block {
                         // @TODO: need to adjust width
                     } else {
                         if (
-                            blockInitW +
+                            blockInitW! +
                                 blockWidthSpaces +
                                 blockWidthPaddings >=
                             realW
@@ -284,7 +320,7 @@ export class LayoutBlock extends Block {
                 } else {
                     if (this.#isWrap) {
                         if (
-                            blockInitW +
+                            blockInitW! +
                                 blockWidthSpaces +
                                 blockWidthPaddings >=
                             realW
@@ -292,10 +328,8 @@ export class LayoutBlock extends Block {
                             width = availableW * overflowXSign
                         // @TODO: need to adjust height
                     } else {
-                        // @TODO: need to adjust width
-
                         if (
-                            blockInitH +
+                            blockInitH! +
                                 blockHeightSpaces +
                                 blockHeightPaddings >=
                             realH
@@ -308,7 +342,82 @@ export class LayoutBlock extends Block {
             if (height < 0 && !this.verticalFlip()) height = 0
             if (width < 0 && !this.horizontalFlip()) width = 0
 
+            const base = isRow ? baseContentWidth : baseContentHeight
+            const child: ChildData = {
+                base,
+                inner: isRow ? width : height,
+                padding: isRow ? blockWidthPaddings : blockHeightPaddings,
+                margin: isRow ? blockWidthSpaces : blockHeightSpaces,
+                min: isRow ? (block.minWidth() ?? 0) : (block.minHeight() ?? 0),
+                max: isRow
+                    ? (block.maxWidth() ?? Infinity)
+                    : (block.maxHeight() ?? Infinity),
+                grow: block.flexGrow(),
+                shrink: block.flexShrink() * base,
+                frozen: false,
+            }
+
+            data.push(child)
+            outerSize += child.inner + child.margin
+            hypotheticalSize +=
+                Math.min(Math.max(base, child.min), child.max) +
+                child.padding +
+                child.margin
+            growFactor += child.grow
+            shrinkFactor += child.shrink
+
             this.#childSizes.set(block, { width, height })
+        }
+
+        if (this.#isGrid || this.#isWrap) return
+
+        // the childs share the free space of the layout block
+        const available = isRow ? realW - widthSpaces : realH - heightSpaces
+        // a distributed justify replaces the gap by the free space it shares,
+        // so the gap takes no part in the share
+        const gap = this.#isDistributingJustify
+            ? 0
+            : (isRow ? this.gapColumn() : this.gapRow()) * (childs.length - 1)
+
+        // the childs grow when they do not fill the layout block, they shrink
+        // when they are bigger than it
+        const growing = hypotheticalSize < available - gap
+        let remaining = available - gap - outerSize
+        let totalFactor = growing ? growFactor : shrinkFactor
+        let frozenSize = 0
+        let unfrozenSize = outerSize
+
+        // a child which is clamped by its min or max size can not use the space
+        // it was given, so the space is shared again by the other childs
+        let index = 0
+        while (index < childs.length) {
+            const child = data[index]
+            const factor = growing ? child.grow : child.shrink
+            if (!child.frozen && factor > 0) {
+                const share = growing ? remaining : -Math.abs(remaining)
+                const target = child.inner + (factor / totalFactor) * share
+                const clamped = Math.min(
+                    Math.max(target, child.min + child.padding),
+                    child.max + child.padding
+                )
+
+                const size = this.#childSizes.get(childs[index])
+                if (size) {
+                    if (isRow) size.width = clamped
+                    else size.height = clamped
+                }
+
+                if (clamped !== target) {
+                    child.frozen = true
+                    totalFactor -= factor
+                    frozenSize += clamped + child.margin
+                    unfrozenSize -= child.inner + child.margin
+                    remaining = available - gap - frozenSize - unfrozenSize
+                    index = 0
+                    continue
+                }
+            }
+            index++
         }
     }
 
@@ -781,6 +890,14 @@ export class LayoutBlock extends Block {
     }
     get #isWrap() {
         return this.flexWrap() === 'nowrap' ? false : true
+    }
+    get #isDistributingJustify() {
+        const justify = this.justifyContent()
+        return (
+            justify === 'space-between' ||
+            justify === 'space-around' ||
+            justify === 'space-evenly'
+        )
     }
     get #flowingChilds() {
         const childs: BaseBlock[] = []
