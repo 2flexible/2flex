@@ -6,6 +6,7 @@ import { IOverflowOptions, OverflowBlock } from './mixins/OverflowBlock'
 import { IResizableOptions, ResizableBlock } from './mixins/ResizableBlock'
 import { IRotatableOptions, RotatableBlock } from './mixins/RotatableBlock'
 import { SelectableBlock, ISelectableOptions } from './mixins/SelectableBlock'
+import { clampSize } from './Utils'
 
 export interface BlockOptions
     extends
@@ -108,14 +109,8 @@ export class Block extends OverflowBlock(
             let blockW = Math.abs(b.__boxWidth())
             let blockH = Math.abs(b.__boxHeight())
 
-            const blockInitW = b.__valueConverter({
-                val: b.initWidth,
-                widthRelated: true,
-            }) as number
-            const blockInitH = b.__valueConverter({
-                val: b.initHeight,
-                widthRelated: false,
-            }) as number
+            const blockInitW = b.__initResolved('width') as number
+            const blockInitH = b.__initResolved('height') as number
 
             const blockMarginTop = b.marginTop()
             const blockMarginBottom = b.marginBottom()
@@ -208,19 +203,19 @@ export class Block extends OverflowBlock(
             b.__parentRotate = pCurrentRotate
             b.__childAdjustment = (b: BaseBlock) => {
                 if (b.rotationCenter() === 'parent') {
-                    b.rotationCenterX(centerX)
-                    b.rotationCenterY(centerY)
+                    b.setOptionCurrent('rotationCenterX', centerX)
+                    b.setOptionCurrent('rotationCenterY', centerY)
                 }
-                b.x(x)
-                b.y(y)
+                b.setOptionCurrent('x', x)
+                b.setOptionCurrent('y', y)
                 const childPaddingW = b.paddingLeft() + b.paddingRight()
                 const childPaddingH = b.paddingTop() + b.paddingBottom()
                 let borderW = blockW + childPaddingW
                 let borderH = blockH + childPaddingH
                 if (blockHorizontalFlip) borderW = -borderW
                 if (blockVerticalFlip) borderH = -borderH
-                b.width(borderW - childPaddingW)
-                b.height(borderH - childPaddingH)
+                b.setOptionCurrent('width', clampSize(borderW - childPaddingW))
+                b.setOptionCurrent('height', clampSize(borderH - childPaddingH))
             }
 
             b.__childClipping = (b: BaseBlock) => {

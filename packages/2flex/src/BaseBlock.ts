@@ -1,6 +1,6 @@
 import type { Canvas } from './Canvas'
 import { Node } from './Node'
-import { initialCorners } from './const'
+import { initialCorners, RELATIVE_VALUE_PATTERN } from './const'
 import {
     RelativeType,
     ShortHandRelativeType,
@@ -163,6 +163,12 @@ export interface ChildsContainer {
 
 export type ValueConverterFunc<T, O> = (block: any, value: T) => O
 
+type PropertyFunc = {
+    (this: BaseBlock, opt?: any): any
+    valueConverter?: ValueConverterFunc<any, any>
+}
+
+
 export class BaseBlock extends Node {
     [key: string]: any
 
@@ -173,9 +179,8 @@ export class BaseBlock extends Node {
     context?: OffscreenCanvasRenderingContext2D | null
     options: OptionsMap
     cacheOptions: OptionsMap
+    initOptions: OptionsMap
 
-    initWidth?: RelativeType
-    initHeight?: RelativeType
     realWidth: number
     realHeight: number
     realCenterX: number
@@ -202,11 +207,10 @@ export class BaseBlock extends Node {
         super()
         this.options = new Map()
         this.cacheOptions = new Map()
+        this.initOptions = new Map()
         this.#buildOptions(options)
         this.#defineProperties()
 
-        this.initWidth = options.width
-        this.initHeight = options.height
         this.realWidth = 0
         this.realHeight = 0
         this.realCenterX = 0
@@ -240,6 +244,7 @@ export class BaseBlock extends Node {
         // reset rotation to before value
         if (currentRotate !== 0 || cacheRotate !== 0)
             this.rotateCordinates(-cacheRotate)
+        this.#resolveInitOptions()
         this.__childAdjustment?.(this)
         this.updateCordinates()
         this.updateChildsCordinate()
@@ -279,8 +284,10 @@ export class BaseBlock extends Node {
     }
     #buildOptions(options: BaseBlockOptions) {
         const ownOptions = this.options
+        const initOptions = this.initOptions
         for (const [key, value] of Object.entries(options)) {
             ownOptions.set(key, value)
+            initOptions.set(key, value)
         }
     }
     #defineProperties() {
@@ -313,19 +320,25 @@ export class BaseBlock extends Node {
             'padding',
             undefined,
             false,
-            (block: BaseBlock, opt?: PaddingType) =>
-                this.#parsePadding(block, opt)
+            undefined,
+            (block: BaseBlock, opt?: PaddingType) => {
+                block.#parsePadding(block, opt)
+                return opt
+            }
         )
         this.addProperty('paddingTop', 0, false)
         this.addProperty('paddingBottom', 0, false)
-        this.addProperty('paddingLeft', 0, false)
-        this.addProperty('paddingRight', 0, false)
+        this.addProperty('paddingLeft', 0, true)
+        this.addProperty('paddingRight', 0, true)
         this.addProperty(
             'margin',
             undefined,
             false,
-            (block: BaseBlock, opt?: MarginType) =>
-                this.#parseMargin(block, opt)
+            undefined,
+            (block: BaseBlock, opt?: MarginType) => {
+                block.#parseMargin(block, opt)
+                return opt
+            }
         )
         this.addProperty('marginTop', 0, false)
         this.addProperty('marginBottom', 0, false)
@@ -358,7 +371,16 @@ export class BaseBlock extends Node {
             (block: BaseBlock, opt?: boolean) =>
                 this.#onHiddenChanged(block, opt)
         )
-        this.addProperty('important', {})
+        this.addProperty(
+            'important',
+            {},
+            false,
+            (block: BaseBlock, opt?: BaseBlockOptions) => {
+                if (!opt) return
+                for (const [key, value] of Object.entries(opt))
+                    block.initOptions.set(key, value)
+            }
+        )
         // this.addProperty('flex', [])
         // this.addProperty('alignSelf', 'auto')
         // this.addProperty('justifySelf', 'auto')
@@ -397,6 +419,40 @@ export class BaseBlock extends Node {
             cacheOptions.set(key, value)
         }
     }
+    #resolveInitOptions() {
+        const scale = this.getOptionCurrent('scale') ?? 1
+        const scaleChanged =
+            (this.getOptionCurrent('scale') || 0) !==
+            (this.getOptionCache('scale') || 0)
+        for (const [key, value] of this.initOptions) {
+            if (!this.#isRelativeValue(value)) continue
+            if (key === 'width' || key === 'height') {
+                if (scaleChanged) continue
+                if (!this.#ownsItsSize()) continue
+            }
+            const resolved = this.__initResolved(key as string)
+            if (resolved === undefined) continue
+            if (key === 'width')
+                this.setOptionCurrent('width', clampSize(resolved * scale))
+            else if (key === 'height')
+                this.setOptionCurrent('height', clampSize(resolved * scale))
+        }
+    }
+    #isRelativeValue(value: any): boolean {
+        if (typeof value === 'string') return RELATIVE_VALUE_PATTERN.test(value)
+        if (value instanceof Array)
+            return value.some(
+                (item) =>
+                    typeof item === 'string' &&
+                    RELATIVE_VALUE_PATTERN.test(item)
+            )
+        return false
+    }
+    #ownsItsSize(): boolean {
+        if (!this.__hasParentBlock) return true
+        const position = this.position()
+        return position === 'absolute' || position === 'fixed'
+    }
     #initializeCordinates() {
         // calling some requried options to be initialized
         const x = this.x()
@@ -410,8 +466,8 @@ export class BaseBlock extends Node {
         scale = scale !== undefined ? scale : 1
         const contentWidth = this.getOptionCurrent('width') ?? 0
         const contentHeight = this.getOptionCurrent('height') ?? 0
-        this.width(contentWidth * scale)
-        this.height(contentHeight * scale)
+        this.setOptionCurrent('width', clampSize(contentWidth * scale))
+        this.setOptionCurrent('height', clampSize(contentHeight * scale))
         const width = this.__boxWidth()
         const height = this.__boxHeight()
         if (this.getOptionCurrent('cornerTopLeft') === undefined)
@@ -813,14 +869,14 @@ export class BaseBlock extends Node {
             cornerTopLeftCurrent.x > cornerTopRightCurrent.x ||
             cornerBottomLeftCurrent.x > cornerBottomRightCurrent.x
         )
-            this.horizontalFlip(true)
-        else this.horizontalFlip(false)
+            this.setOptionCurrent('horizontalFlip', true)
+        else this.setOptionCurrent('horizontalFlip', false)
         if (
             cornerTopLeftCurrent.y > cornerBottomLeftCurrent.y ||
             cornerTopRightCurrent.y > cornerBottomRightCurrent.y
         )
-            this.verticalFlip(true)
-        else this.verticalFlip(false)
+            this.setOptionCurrent('verticalFlip', true)
+        else this.setOptionCurrent('verticalFlip', false)
 
         const shouldTrackOwnCenter =
             this.rotationCenter() !== 'parent' || !this.__hasParentBlock
@@ -888,17 +944,11 @@ export class BaseBlock extends Node {
             const blockMarginLeft = b.marginLeft() * horiztionalFlipSign
             const blockMarginRight = b.marginRight() * horiztionalFlipSign
 
-            const blockInitW = b.__valueConverter({
-                val: b.initWidth,
-                widthRelated: true,
-            }) as number
-            const blockInitH = b.__valueConverter({
-                val: b.initHeight,
-                widthRelated: false,
-            }) as number
-
             let blockW = Math.abs(b.__boxWidth())
             let blockH = Math.abs(b.__boxHeight())
+
+            const blockInitW = b.__initResolved('width') as number
+            const blockInitH = b.__initResolved('height') as number
 
             const blockWidthSpaces = blockW + blockMarginLeft + blockMarginRight
             const blockHeightSpaces =
@@ -945,16 +995,16 @@ export class BaseBlock extends Node {
                     b.setOptionCurrent('rotationCenterX', centerX)
                     b.setOptionCurrent('rotationCenterY', centerY)
                 }
-                b.x(blockXStart)
-                b.y(blockYStart)
+                b.setOptionCurrent('x', blockXStart)
+                b.setOptionCurrent('y', blockYStart)
                 const childPaddingW = b.paddingLeft() + b.paddingRight()
                 const childPaddingH = b.paddingTop() + b.paddingBottom()
                 let borderW = blockW + childPaddingW
                 let borderH = blockH + childPaddingH
                 if (blockHorizontalFlip) borderW = -borderW
                 if (blockVerticalFlip) borderH = -borderH
-                b.width(borderW - childPaddingW)
-                b.height(borderH - childPaddingH)
+                b.setOptionCurrent('width', clampSize(borderW - childPaddingW))
+                b.setOptionCurrent('height', clampSize(borderH - childPaddingH))
             }
             b.canvas?.demandInvoke(b)
         })
@@ -992,18 +1042,19 @@ export class BaseBlock extends Node {
         func?: (block: any, opt?: any) => void,
         valueConverter?: ValueConverterFunc<any, any>
     ): void {
-        ;(this.constructor.prototype as Record<string, any>)[method] =
-            function (this: BaseBlock, opt?: any) {
-                const value = this.__valueHandler(
-                    opt,
-                    method,
-                    defaultValue,
-                    widthRelated,
-                    valueConverter
-                )
-                func?.(this, value)
-                return value
-            }
+        const property = function (this: BaseBlock, opt?: any) {
+            const value = this.__valueHandler(
+                opt,
+                method,
+                defaultValue,
+                widthRelated,
+                valueConverter
+            )
+            func?.(this, value)
+            return value
+        } as PropertyFunc
+        property.valueConverter = valueConverter
+        ;(this.constructor.prototype as Record<string, any>)[method] = property
     }
     removeProperty(method: string): void {
         delete (this.constructor.prototype as Record<string, any>)[method]
@@ -1063,6 +1114,7 @@ export class BaseBlock extends Node {
         const important = this.getOptionCurrent('important')
         if (important && Object.hasOwn(important, option))
             currentValue = important[option]
+        if (opt !== undefined) this.initOptions.set(option, currentValue)
         if (valueConverter === undefined) {
             currentValue = this.__valueConverter<T, O>({
                 val: currentValue,
@@ -1070,6 +1122,15 @@ export class BaseBlock extends Node {
             })
         } else currentValue = valueConverter?.(this, currentValue)
         return this.__cacheOption(currentValue, option, defaultOpt)
+    }
+    __initResolved(key: string): any {
+        const value = this.initOptions.get(key)
+        if (value === undefined) return undefined
+        const property = getPrototype(this, key)?.value as
+            | PropertyFunc
+            | undefined
+        if (!property || property.valueConverter) return undefined
+        return property.call(this, value)
     }
     __cacheOption<I, O>(opt: I, option: BlockOptionKeys, defaultOpt: O) {
         const value = this.getOptionCurrent(option)
@@ -1098,7 +1159,7 @@ export class BaseBlock extends Node {
         } else if (val instanceof Array) {
             const vals = []
             for (let i = 0, len = val.length; i < len; i++) {
-                vals.push(this.__valueConverter({ val: val[i] }))
+                vals.push(this.__valueConverter({ val: val[i], widthRelated }))
             }
             return vals as O
         }
@@ -1116,12 +1177,12 @@ export class BaseBlock extends Node {
             )
         else if (value.endsWith('em'))
             return fromEm(Number(value.split('em')[0]), size || 1)
-        else if (value.endsWith('vh') && !widthRelated)
+        else if (value.endsWith('vh'))
             return fromVH(
                 Number(value.split('vh')[0]),
                 this.canvas?.height || 1
             )
-        else if (value.endsWith('vw') && widthRelated)
+        else if (value.endsWith('vw'))
             return fromVW(Number(value.split('vw')[0]), this.canvas?.width || 1)
         else if (value.endsWith('cm'))
             return fromCm(Number(value.split('cm')[0]))
@@ -1316,16 +1377,13 @@ export class BaseBlock extends Node {
         let after: any = {}
         for (const [key, value] of Object.entries(options)) {
             const obj = getPrototype(this, key)
-            let beforeValue = obj?.value.call(this)
+            const beforeValue =
+                this.initOptions.get(key) ?? obj?.value.call(this)
             const handledVal = obj?.value.call(this, value)
             this.setOptionCurrent(
                 key,
                 value === undefined ? undefined : handledVal
             )
-            // the size the block was asked for is kept, a layout uses it as
-            // the base size of the block
-            if (key === 'width') this.initWidth = value as RelativeType
-            else if (key === 'height') this.initHeight = value as RelativeType
             before[key] = beforeValue
             after[key] = value
         }

@@ -1150,6 +1150,20 @@ describe('LayoutBlock', () => {
                 10, 20,
             ])
         })
+        it('should resolve a relative gap against the axis of its side', async () => {
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                gap: '10%',
+            })
+            canvas.add(layout)
+            await flush()
+            // the gap of the column is a part of the width of the containing
+            // block, the gap of the row a part of its height
+            expect([layout.gapColumn(), layout.gapRow()]).toStrictEqual([
+                40, 50,
+            ])
+        })
     })
 
     describe('grid layout', () => {
@@ -1970,6 +1984,27 @@ describe('LayoutBlock', () => {
                 await flush()
                 expect([child.width(), child.height()]).toStrictEqual([300, 50])
                 expect([child.x(), child.y()]).toStrictEqual([10, 10])
+            })
+            it('should share the free space with a child with a relative size', async () => {
+                layout = new LayoutBlock({
+                    width: 300,
+                    height: 200,
+                    flexDirection: 'row',
+                })
+                const child = new Block({
+                    width: '50%',
+                    height: 50,
+                    flexGrow: 1,
+                })
+                layout.addChild(child)
+                canvas.add(layout)
+                await flush()
+                // the size the child was asked for is its base size, so it
+                // grows into the free space of the layout
+                expect(child.width()).toBe(300)
+                layout.set({ width: 500 })
+                await flush()
+                expect(child.width()).toBe(500)
             })
             it('should add the margin of a child to a column', async () => {
                 layout = new LayoutBlock({

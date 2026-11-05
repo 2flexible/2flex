@@ -22,5 +22,7 @@ export const ROTATABLE_RUNNING_EVENT = 'rotating'
 export const OVERFLOW_X_SCROLL_RUNNING_EVENT = 'overflow-x-scrolling'
 export const OVERFLOW_Y_SCROLL_RUNNING_EVENT = 'overflow-y-scrolling'
 
+export const RELATIVE_VALUE_PATTERN = /^-?\d*\.?\d+(%|rem|em|vh|vw)$/
+
 
 

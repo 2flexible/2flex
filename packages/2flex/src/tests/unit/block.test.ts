@@ -93,6 +93,19 @@ describe('Block', () => {
                 100
             )
         })
+        it('should convert the viewport units on every axis', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            canvas.add(block)
+            await flush()
+            // a viewport unit is the viewport, it does not depend on the axis
+            // of the option it is used for
+            expect(block.__valueHandler('20vh', 'customValue', 0, true)).toBe(
+                100
+            )
+            expect(block.__valueHandler('20vw', 'customValue', 0, false)).toBe(
+                80
+            )
+        })
         it('should convert centimeters to pixel', () => {
             expect(block.__valueHandler('20cm', 'customValue', 0)).toBe(756)
         })
@@ -961,6 +974,63 @@ describe('Block', () => {
             // a relative size is resolved against the parent again
             expect(percentChild.width()).toBe(200)
         })
+        it('should resolve the margin of a child against the parent again', async () => {
+            block = new Block({ x: 0, y: 0, width: 200, height: 100 })
+            const percentChild = new Block({
+                width: 20,
+                height: 20,
+                margin: '10%',
+            })
+            block.addChild(percentChild)
+            canvas.add(block)
+            await flush()
+            // the horizontal margin is a part of the width of the parent, the
+            // vertical one a part of its height
+            expect(percentChild.marginLeft()).toBe(20)
+            expect(percentChild.marginTop()).toBe(10)
+            block.set({ width: 400, height: 200 })
+            await flush()
+            expect(percentChild.marginLeft()).toBe(40)
+            expect(percentChild.marginTop()).toBe(20)
+        })
+        it('should resolve the size of an absolute child against the parent again', async () => {
+            block = new Block({ x: 0, y: 0, width: 200, height: 100 })
+            const absoluteChild = new Block({
+                width: '50%',
+                height: '50%',
+                position: 'absolute',
+            })
+            block.addChild(absoluteChild)
+            canvas.add(block)
+            await flush()
+            expect(absoluteChild.width()).toBe(100)
+            expect(absoluteChild.height()).toBe(50)
+            block.set({ width: 400, height: 200 })
+            await flush()
+            // an absolute child is not given a size by its parent, so it
+            // resolves its own size again
+            expect(absoluteChild.width()).toBe(200)
+            expect(absoluteChild.height()).toBe(100)
+        })
+        it('should resolve the size of a child against the chain of its parents', async () => {
+            block = new Block({ x: 0, y: 0, width: 400, height: 300 })
+            const layout = new LayoutBlock({ width: '50%', height: '50%' })
+            const grandChild = new Block({ width: '50%', height: '50%' })
+            layout.addChild(grandChild)
+            block.addChild(layout)
+            canvas.add(block)
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([200, 150])
+            expect([grandChild.width(), grandChild.height()]).toStrictEqual([
+                100, 75,
+            ])
+            block.set({ width: 800, height: 600 })
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([400, 300])
+            expect([grandChild.width(), grandChild.height()]).toStrictEqual([
+                200, 150,
+            ])
+        })
         it('should give childs the rotation center of their parent', async () => {
             block = new Block({ x: 70, y: 90, width: 100, height: 100 })
             const centerChild = new Block({ width: 40, height: 50 })
@@ -1097,6 +1167,18 @@ describe('Block', () => {
             })
             canvas.add(block)
             await flush()
+        })
+        it('padding should resolve a relative value against the axis of its side', async () => {
+            const parent = new Block({ width: 200, height: 100 })
+            const child = new Block({ width: 20, height: 20, padding: '10%' })
+            parent.addChild(child)
+            canvas.add(parent)
+            await flush()
+            // the horizontal padding is a part of the width of the parent, the
+            // vertical one a part of its height
+            expect([child.paddingLeft(), child.paddingTop()]).toStrictEqual([
+                20, 10,
+            ])
         })
         it('padding should parse values', () => {
             block.set({ padding: 20 })

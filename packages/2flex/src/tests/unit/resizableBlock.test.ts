@@ -185,6 +185,41 @@ describe('ResizableBlock', () => {
             expect(block.y()).toBe(0)
             expect(block.height()).toBe(100)
         })
+        it('should keep the size of a resized block with a relative size', async () => {
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: '50%',
+                height: 100,
+                selectable: true,
+            })
+            canvas.add(block)
+            await flush()
+            // the relative size is a part of the width of the canvas
+            expect(block.width()).toBe(200)
+            block.set({ resizable: true })
+            await flush()
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+
+            // select the block so the resize handles become active
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
+
+            // hover the right resizable edge to arm the resize handle
+            dispatchMouse(element, 'mousemove', 200, 50)
+
+            dispatchMouse(element, 'mousedown', 200, 50, 1)
+
+            dispatchMouse(element, 'mousemove', 300, 50, 1)
+
+            dispatchMouse(element, 'mouseup', 300, 50)
+            await flush()
+            // the dragged size replaces the relative one, so the block does
+            // not fall back to the size it was asked for
+            expect(block.width()).toBe(300)
+        })
         it('should resize from specified corners', async () => {
             block.set({ resizable: true })
             await flush()

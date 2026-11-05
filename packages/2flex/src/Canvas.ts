@@ -531,7 +531,9 @@ export class Canvas {
                         )
                     }
                 }
-                this.demandInvoke(foundNode)
+                // the block and the parents of it are laid out again, so a
+                // restored value is used by the layout of its parent
+                foundNode.__invokeChange()
             }
         }
     }

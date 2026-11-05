@@ -13,7 +13,7 @@ import type {
     ShapeBlockOptions,
 } from '../ShapeBlock'
 import type { CustomEvent, HotCornerArea, RelativeType } from '../types'
-import { inRange } from '../Utils'
+import { clampSize, inRange } from '../Utils'
 
 type Wrap = 'letter' | 'word' | 'nowrap'
 
@@ -271,8 +271,8 @@ export class TextBlock extends ShapeBlock {
     }
     init(): void {
         this.#constructDummyContext()
-        this.#autoWidth = this.initWidth === undefined
-        this.#autoHeight = this.initHeight === undefined
+        this.#autoWidth = this.initOptions.get('width') === undefined
+        this.#autoHeight = this.initOptions.get('height') === undefined
         this.#applyAutoSize()
         this.#textChanged = false
         super.init()
@@ -509,11 +509,14 @@ export class TextBlock extends ShapeBlock {
         if (!this.#autoWidth && !this.#autoHeight) return
         this.#prepareText()
         if (this.#autoWidth) {
-            this.width(this.#textWidth)
+            this.setOptionCurrent('width', clampSize(this.#textWidth))
         }
         this.#updateLetterNodeCordinates()
         if (this.#autoHeight) {
-            this.height(this.#lineCount * this.#lineBoxHeight)
+            this.setOptionCurrent(
+                'height',
+                clampSize(this.#lineCount * this.#lineBoxHeight)
+            )
         }
         this.#calculatedWidth = this.getOptionCurrent('width')
         this.#calculatedHeight = this.getOptionCurrent('height')

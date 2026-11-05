@@ -390,6 +390,22 @@ describe('Canvas', () => {
             canvas.undo()
             expect(block.x()).toBe(0)
         })
+        it('should undo a change of a relative size', async () => {
+            const parent = new Block({ width: 400, height: 300 })
+            const child = new Block({ width: '50%', height: 50 })
+            parent.addChild(child)
+            canvas.add(parent)
+            await flush()
+            expect(child.width()).toBe(200)
+            child.set({ width: 100 })
+            await flush()
+            expect(child.width()).toBe(100)
+            canvas.undo()
+            await flush()
+            // the size the block was asked for is restored, so the relative
+            // one is resolved against the parent again
+            expect(child.width()).toBe(200)
+        })
         it('should redo an undone change', () => {
             canvas.undo()
             canvas.redo()

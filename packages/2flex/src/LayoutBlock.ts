@@ -1,6 +1,7 @@
 import { BaseBlock } from './BaseBlock'
 import { Block, BlockOptions } from './Block'
 import { RelativeType } from './types'
+import { clampSize } from './Utils'
 
 type JustifyContent =
     | 'normal'
@@ -253,14 +254,12 @@ export class LayoutBlock extends Block {
         for (let i = 0, len = childs.length; i < len; i++) {
             const block = childs[i]
 
-            const blockInitW = block.__valueConverter({
-                val: block.initWidth,
-                widthRelated: true,
-            }) as number | undefined
-            const blockInitH = block.__valueConverter({
-                val: block.initHeight,
-                widthRelated: false,
-            }) as number | undefined
+            const blockInitW = block.__initResolved('width') as
+                | number
+                | undefined
+            const blockInitH = block.__initResolved('height') as
+                | number
+                | undefined
 
             const blockWidthSpaces = block.marginLeft() + block.marginRight()
             const blockHeightSpaces = block.marginTop() + block.marginBottom()
@@ -585,16 +584,16 @@ export class LayoutBlock extends Block {
                     b.setOptionCurrent('rotationCenterX', centerX)
                     b.setOptionCurrent('rotationCenterY', centerY)
                 }
-                b.x(blockXStart)
-                b.y(blockYStart)
+                b.setOptionCurrent('x', blockXStart)
+                b.setOptionCurrent('y', blockYStart)
                 const childPaddingW = blockPaddingLeft + blockPaddingRight
                 const childPaddingH = blockPaddingTop + blockPaddingBottom
                 let borderW = blockW
                 let borderH = blockH
                 if (blockHorizontalFlip) borderW = -borderW
                 if (blockVerticalFlip) borderH = -borderH
-                b.width(borderW - childPaddingW)
-                b.height(borderH - childPaddingH)
+                b.setOptionCurrent('width', clampSize(borderW - childPaddingW))
+                b.setOptionCurrent('height', clampSize(borderH - childPaddingH))
             }
             b.__childClipping = (b: BaseBlock) => {
                 const context = b.context
@@ -648,17 +647,23 @@ export class LayoutBlock extends Block {
             const heights = this.#childs.map((child) => child.__boxHeight())
 
             if (!this.getOptionCurrent('width'))
-                this.width(
-                    isFlexCol
-                        ? Math.max(...widths)
-                        : widths.reduce((prev, curr) => prev + curr, 0)
+                this.setOptionCurrent(
+                    'width',
+                    clampSize(
+                        isFlexCol
+                            ? Math.max(...widths)
+                            : widths.reduce((prev, curr) => prev + curr, 0)
+                    )
                 )
 
             if (!this.getOptionCurrent('height'))
-                this.height(
-                    isFlexCol
-                        ? heights.reduce((prev, curr) => prev + curr, 0)
-                        : Math.max(...heights)
+                this.setOptionCurrent(
+                    'height',
+                    clampSize(
+                        isFlexCol
+                            ? heights.reduce((prev, curr) => prev + curr, 0)
+                            : Math.max(...heights)
+                    )
                 )
         }
         return layout
@@ -715,14 +720,15 @@ export class LayoutBlock extends Block {
     }
     gap(opt?: Gap) {
         const gap = this.__valueHandler<Gap, Gap>(opt, 'gap', 0)
+        const initGap = (this.initOptions.get('gap') ?? gap) as Gap
         let gapRow, gapColumn
-        gapRow = gapColumn = gap
-        if (typeof gap === 'object') {
-            gapRow = gap[0]
-            gapColumn = gap[1]
+        gapRow = gapColumn = initGap
+        if (typeof initGap === 'object') {
+            gapRow = initGap[0]
+            gapColumn = initGap[1]
         }
-        this.gapRow(gapRow as number)
-        this.gapColumn(gapColumn as number)
+        this.gapRow(gapRow as RelativeType)
+        this.gapColumn(gapColumn as RelativeType)
         return gap
     }
     gridTemplate(opt?: GridTemplate) {
@@ -741,10 +747,10 @@ export class LayoutBlock extends Block {
         return this.__valueHandler(opt, 'gridTemplateRows', [])
     }
     gapColumn(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'gapColumn', 0)
+        return this.__valueHandler(opt, 'gapColumn', 0, true)
     }
     gapRow(opt?: RelativeType) {
-        return this.__valueHandler(opt, 'gapRow', 0)
+        return this.__valueHandler(opt, 'gapRow', 0, false)
     }
     columnStart(opt?: number) {
         return this.__valueHandler(opt, 'columnStart', 1)
@@ -1559,9 +1565,14 @@ export class LayoutBlock extends Block {
             if (containerH < blockH) containerH = blockH
 
             block.__childAdjustment = (b: BaseBlock) => {
-                b.x(x)
-                b.y(y)
-                b.width(blockW - block.paddingLeft() - block.paddingRight())
+                b.setOptionCurrent('x', x)
+                b.setOptionCurrent('y', y)
+                b.setOptionCurrent(
+                    'width',
+                    clampSize(
+                        blockW - block.paddingLeft() - block.paddingRight()
+                    )
+                )
             }
             wrapWidth += gapCol
             startX += gapCol + blockW + blockWidthSpaces
@@ -1649,9 +1660,14 @@ export class LayoutBlock extends Block {
             if (containerW < blockW) containerW = blockW
 
             block.__childAdjustment = (b: BaseBlock) => {
-                b.x(x)
-                b.y(y)
-                b.height(blockH - block.paddingTop() - block.paddingBottom())
+                b.setOptionCurrent('x', x)
+                b.setOptionCurrent('y', y)
+                b.setOptionCurrent(
+                    'height',
+                    clampSize(
+                        blockH - block.paddingTop() - block.paddingBottom()
+                    )
+                )
             }
             wrapHeight += gapRow
             startY += gapRow + blockH + blockHeightSpaces
@@ -1789,10 +1805,20 @@ export class LayoutBlock extends Block {
                 const y = startY + (this.#startYPos[idx] || 0)
 
                 block.__childAdjustment = (b: BaseBlock) => {
-                    b.width(endX - block.paddingLeft() - block.paddingRight())
-                    b.height(endY - block.paddingTop() - block.paddingBottom())
-                    b.x(x)
-                    b.y(y)
+                    b.setOptionCurrent(
+                        'width',
+                        clampSize(
+                            endX - block.paddingLeft() - block.paddingRight()
+                        )
+                    )
+                    b.setOptionCurrent(
+                        'height',
+                        clampSize(
+                            endY - block.paddingTop() - block.paddingBottom()
+                        )
+                    )
+                    b.setOptionCurrent('x', x)
+                    b.setOptionCurrent('y', y)
                 }
 
                 startX += colStart + this.gapColumn()

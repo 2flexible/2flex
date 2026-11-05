@@ -401,6 +401,19 @@ export function easingParser(easing: Easing): (t: number) => number {
 export function shortHandParser(shortHandValue: ShortHandRelativeType) {
     if (typeof shortHandValue === 'number') {
         return [shortHandValue, shortHandValue, shortHandValue, shortHandValue]
+    } else if (typeof shortHandValue === 'string') {
+        if (!/\d/.test(shortHandValue)) return shortHandValue
+        const parts = shortHandValue.trim().split(/\s+/)
+        switch (parts.length) {
+            case 1:
+                return [parts[0], parts[0], parts[0], parts[0]]
+            case 2:
+                return [parts[0], parts[1], parts[0], parts[1]]
+            case 3:
+                return [parts[0], parts[1], parts[2], parts[1]]
+            default:
+                return [parts[0], parts[1], parts[2], parts[3]]
+        }
     } else if (shortHandValue instanceof Array) {
         switch (shortHandValue.length) {
             case 1:
