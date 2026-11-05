@@ -229,5 +229,41 @@ describe('RotatableBlock', () => {
 
             expect(isRotatingOn).toBeTruthy()
         })
+        it('should rotate a child and keep the rotation of its parent', async () => {
+            const parent = new Block({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 200,
+                rotate: 0.5,
+            })
+            const child = new Block({
+                width: 50,
+                height: 50,
+                selectable: true,
+                rotatable: true,
+            })
+            parent.addChild(child)
+            canvas.add(parent)
+            await flush()
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousedown', 70, -2)
+            dispatchMouse(element, 'mouseup', 70, -2)
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 83, 42)
+
+            dispatchMouse(element, 'mousedown', 83, 42, 1)
+
+            dispatchMouse(element, 'mousemove', 120, 60, 1)
+
+            dispatchMouse(element, 'mouseup', 120, 60)
+
+            await flush()
+            expect(child.rotate()).not.toBe(0)
+            expect(child.__rotation() - child.rotate()).toBeCloseTo(0.5)
+        })
     })
 })

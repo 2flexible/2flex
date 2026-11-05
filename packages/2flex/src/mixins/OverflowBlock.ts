@@ -121,7 +121,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#overflowXscrollBarBlock.rotationCenterY(
                 this.rotationCenterY()
             )
-            this.#overflowXscrollBarBlock.rotate(this.rotate())
+            this.#overflowXscrollBarBlock.rotate(this.__rotation())
             this.#overflowXscrollBarBlock.left(left)
             this.#overflowXscrollBarBlock.top(top)
             this.#overflowXscrollBarBlock.width(maxX - minX)
@@ -155,7 +155,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#overflowYscrollBarBlock.rotationCenterY(
                 this.rotationCenterY()
             )
-            this.#overflowYscrollBarBlock.rotate(this.rotate())
+            this.#overflowYscrollBarBlock.rotate(this.__rotation())
             this.#overflowYscrollBarBlock.left(left)
             this.#overflowYscrollBarBlock.top(top)
             this.#overflowYscrollBarBlock.width(OVERFLOW_AREA_GAP)
@@ -339,7 +339,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             // need to clip overflow area too
             block.__childClipping?.(hotLineBlock)
             context.translate(block.rotationCenterX(), block.rotationCenterY())
-            context.rotate(block.rotate())
+            context.rotate(block.__rotation())
             context.translate(
                 -block.rotationCenterX(),
                 -block.rotationCenterY()
@@ -446,7 +446,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     if (diffX !== 0 || diffY !== 0) {
                         const dxX = diffX - beforeCords.x
                         const dxY = diffY - beforeCords.y
-                        const angle = block.rotate()
+                        const angle = block.__rotation()
 
                         const signX = block.horizontalFlip() ? -1 : 1
                         const scrollDeltaX =
@@ -613,7 +613,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     if (diffY !== 0 || diffX !== 0) {
                         const dxX = diffX - beforeCords.x
                         const dxY = diffY - beforeCords.y
-                        const angle = block.rotate()
+                        const angle = block.__rotation()
 
                         const signY = block.verticalFlip() ? -1 : 1
                         const scrollDeltaY =

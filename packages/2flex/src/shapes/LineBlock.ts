@@ -651,7 +651,7 @@ export class LineBlock extends ShapeBlock {
         return `${name}-${id}`
     }
     #adjsutBoundingBox() {
-        const rotate = this.rotate() || 0
+        const rotate = this.__rotation() || 0
         const rot = (x: number, y: number) =>
             this.__rotateCordiantesByCenter(x, y, rotate)
 
@@ -1084,7 +1084,7 @@ export class LineBlock extends ShapeBlock {
         const centerY = this.rotationCenterY()
         context.save()
         context.translate(centerX, centerY)
-        context.rotate(this.rotate())
+        context.rotate(this.__rotation())
         context.translate(-centerX, -centerY)
         context.lineWidth = lineWidth ?? this.lineWidth()
         const inStroke = context.isPointInStroke(path, x, y)
@@ -1200,7 +1200,7 @@ export class LineBlock extends ShapeBlock {
                     const incX = diffX - beforeCords.x
                     const incY = diffY - beforeCords.y
                     if (incX !== 0 || incY !== 0) {
-                        const angle = -block.rotate()
+                        const angle = -block.__rotation()
                         const cos = Math.cos(angle)
                         const sin = Math.sin(angle)
                         const pointIncX = incX * cos - incY * sin

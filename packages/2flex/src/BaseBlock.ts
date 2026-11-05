@@ -187,6 +187,8 @@ export class BaseBlock extends Node {
     __childAdjustment?: (b: BaseBlock) => void
     __childsContainer: ChildsContainer
     __parentHidden = false
+    __parentRotate = 0
+    __rotateCache = 0
 
     #zIndex?: number
     #order?: number
@@ -232,8 +234,8 @@ export class BaseBlock extends Node {
         this.onRender()?.(this)
     }
     updateCords() {
-        const currentRotate = this.getOptionCurrent('rotate') || 0
-        const cacheRotate = this.getOptionCache('rotate') || 0
+        const currentRotate = this.__rotation()
+        const cacheRotate = this.__rotationCache()
         const diffR = currentRotate - cacheRotate
         // reset rotation to before value
         if (currentRotate !== 0 || cacheRotate !== 0)
@@ -244,6 +246,7 @@ export class BaseBlock extends Node {
         // after cordiantes calculated restore rotation
         if (currentRotate !== 0 || cacheRotate !== 0)
             this.rotateCordinates(cacheRotate + diffR)
+        this.__rotateCache = currentRotate
         this.#calculateBoundingBox()
         this.#calculateRealWidth()
         this.#calculateRealHeight()
@@ -256,7 +259,8 @@ export class BaseBlock extends Node {
         this.#initializeCordinates()
         this.#updateOptionsCache()
         this.updateCordinates()
-        this.rotateCordinates(this.rotate())
+        this.rotateCordinates(this.__rotation())
+        this.__rotateCache = this.__rotation()
         // need to again take cache after updating cordiantes
         this.#updateOptionsCache()
         this.#calculateBoundingBox()
@@ -849,8 +853,7 @@ export class BaseBlock extends Node {
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
 
-        const pCurrentRotate = this.getOptionCurrent('rotate')
-        const pCacheRotate = this.getOptionCache('rotate')
+        const pCurrentRotate = this.__rotation()
 
         const cornerLeftX = this.cornerTopLeft().x
         const cornerTopY = this.cornerTopLeft().y
@@ -875,6 +878,7 @@ export class BaseBlock extends Node {
             b.__parentHidden = this.__isHidden()
             if (blockPosition === 'absolute' || blockPosition === 'fixed') {
                 b.__childAdjustment = undefined
+                b.__resetParentRotation()
                 b.canvas?.demandInvoke(b)
                 return
             }
@@ -935,8 +939,7 @@ export class BaseBlock extends Node {
             blockW = blockInitW
             blockH = blockInitH
 
-            b.setOptionCurrent('rotate', pCurrentRotate)
-            b.setOptionCache('rotate', pCacheRotate)
+            b.__parentRotate = pCurrentRotate
             b.__childAdjustment = (b: BaseBlock) => {
                 if (b.rotationCenter() === 'parent') {
                     b.setOptionCurrent('rotationCenterX', centerX)
@@ -1202,6 +1205,7 @@ export class BaseBlock extends Node {
     __removeChildInternal(block: BaseBlock): void {
         super.removeChild(block)
         block.__childAdjustment = undefined
+        block.__resetParentRotation()
     }
     __invokeChange() {
         if (this.__hasParentBlock) {
@@ -1254,6 +1258,15 @@ export class BaseBlock extends Node {
             this.rotationCenterY(),
             radian
         )
+    }
+    __rotation(): number {
+        return this.rotate() + this.__parentRotate
+    }
+    __rotationCache(): number {
+        return this.__rotateCache
+    }
+    __resetParentRotation() {
+        this.__parentRotate = 0
     }
     checkInBound(event: MouseEvent): boolean {
         const { x, y } = this.canvas?.getCursorPosition(event)!
@@ -1348,6 +1361,7 @@ export class BaseBlock extends Node {
     removeChild(block: BaseBlock): void {
         super.removeChild(block)
         block.__childAdjustment = undefined
+        block.__resetParentRotation()
         block.__parentHidden = false
         if (this.canvas) this.canvas.demandRemoveBlock(block)
         else this.#pending['removedChilds'].push(block)

@@ -435,7 +435,7 @@ describe('Block', () => {
                 childBlocks[0].y(),
                 childBlocks[0].width(),
                 childBlocks[0].height(),
-                childBlocks[0].rotate(),
+                childBlocks[0].__rotation(),
             ]).toEqual([
                 expect.closeTo(70),
                 expect.closeTo(90),
@@ -449,7 +449,7 @@ describe('Block', () => {
                 childBlocks[1].y(),
                 childBlocks[1].width(),
                 childBlocks[1].height(),
-                childBlocks[0].rotate(),
+                childBlocks[0].__rotation(),
             ]).toEqual([
                 expect.closeTo(110),
                 expect.closeTo(90),
@@ -463,7 +463,7 @@ describe('Block', () => {
                 childBlocks[2].y(),
                 childBlocks[2].width(),
                 childBlocks[2].height(),
-                childBlocks[0].rotate(),
+                childBlocks[0].__rotation(),
             ]).toEqual([
                 expect.closeTo(70),
                 expect.closeTo(140),
@@ -495,6 +495,95 @@ describe('Block', () => {
                 childBlock.rotationCenterX(),
                 childBlock.rotationCenterY(),
             ]).toStrictEqual([90, 115])
+        })
+        it('should rotate a child around the rotation center of its parent', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 200,
+            })
+            const childBlock = new Block({
+                width: 50,
+                height: 30,
+                rotate: Math.PI,
+            })
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            expect(childBlock.__rotation()).toBeCloseTo(Math.PI)
+            expect(childBlock.horizontalFlip()).toBe(false)
+            expect(childBlock.verticalFlip()).toBe(false)
+            expect(childBlock.cornerTopLeft().x).toBeCloseTo(200)
+            expect(childBlock.cornerTopLeft().y).toBeCloseTo(200)
+            expect(childBlock.cornerBottomRight().x).toBeCloseTo(150)
+            expect(childBlock.cornerBottomRight().y).toBeCloseTo(170)
+            expect(childBlock.boundingBox.topLeft.x).toBeCloseTo(150)
+            expect(childBlock.boundingBox.topLeft.y).toBeCloseTo(170)
+            expect(childBlock.boundingBox.bottomRight.x).toBeCloseTo(200)
+            expect(childBlock.boundingBox.bottomRight.y).toBeCloseTo(200)
+        })
+        it('should keep the painted area of a rotated child inside its bounding box when the parent is moved', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 200,
+            })
+            const childBlock = new Block({
+                width: 50,
+                height: 30,
+                rotate: Math.PI,
+            })
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            block.set({ x: 100, y: 60 })
+            await flush()
+            expect(childBlock.cornerTopLeft().x).toBeCloseTo(300)
+            expect(childBlock.cornerTopLeft().y).toBeCloseTo(260)
+            expect(childBlock.boundingBox.topLeft.x).toBeCloseTo(250)
+            expect(childBlock.boundingBox.topLeft.y).toBeCloseTo(230)
+            expect(childBlock.boundingBox.bottomRight.x).toBeCloseTo(300)
+            expect(childBlock.boundingBox.bottomRight.y).toBeCloseTo(260)
+        })
+        it('should draw the selection of a rotated child around the child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new RectangleBlock({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 200,
+                backgroundColor: 'red',
+                selectable: true,
+                draggable: true,
+                hotLines: true,
+                rotatable: true,
+            })
+            const childBlock = new RectangleBlock({
+                width: 50,
+                height: 30,
+                rotate: Math.PI,
+                backgroundColor: 'blue',
+                selectable: true,
+                draggable: true,
+                hotLines: true,
+            })
+            block.addChild(childBlock)
+            canvas.add(block)
+            allowMouse(canvas)
+            await flush()
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 175, 185, 1)
+            dispatchMouse(element, 'mouseup', 175, 185)
+            await flush()
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'rotated-child-selection'
+            )
         })
         it('should hide child block', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
@@ -896,13 +985,35 @@ describe('Block', () => {
             block.addChild(rotatedChild)
             canvas.add(block)
             await flush()
-            expect(rotatedChild.rotate()).toBeCloseTo(0.6)
-            expect(rotatedChild.getOptionCurrent('rotate')).toBeCloseTo(0.6)
-            expect(rotatedChild.getOptionCache('rotate')).toBeCloseTo(0.6)
+            expect(rotatedChild.rotate()).toBe(0)
+            expect(rotatedChild.getOptionCurrent('rotate')).toBe(0)
+            expect(rotatedChild.getOptionCache('rotate')).toBe(0)
+            expect(rotatedChild.__rotation()).toBeCloseTo(0.6)
+            expect(rotatedChild.__rotationCache()).toBeCloseTo(0.6)
             block.set({ rotate: 1.2 })
             await flush()
-            expect(rotatedChild.getOptionCurrent('rotate')).toBeCloseTo(1.2)
-            expect(rotatedChild.getOptionCache('rotate')).toBeCloseTo(1.2)
+            expect(rotatedChild.rotate()).toBe(0)
+            expect(rotatedChild.__rotation()).toBeCloseTo(1.2)
+            expect(rotatedChild.__rotationCache()).toBeCloseTo(1.2)
+        })
+        it('should keep the own rotation of a child and add the rotation of its parent to it', async () => {
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                rotate: 0.6,
+            })
+            const rotatedChild = new Block({
+                width: 40,
+                height: 50,
+                rotate: 0.3,
+            })
+            block.addChild(rotatedChild)
+            canvas.add(block)
+            await flush()
+            expect(rotatedChild.rotate()).toBeCloseTo(0.3)
+            expect(rotatedChild.__rotation()).toBeCloseTo(0.9)
         })
         it('should move already laid out childs when parent changes', async () => {
             block = new Block({ x: 0, y: 0, width: 200, height: 100 })

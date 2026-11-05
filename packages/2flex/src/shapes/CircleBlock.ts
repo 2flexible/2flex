@@ -146,7 +146,7 @@ export class CircleBlock extends ShapeBlock {
         const centerY = this.rotationCenterY()
         context.save()
         context.translate(centerX, centerY)
-        context.rotate(this.rotate())
+        context.rotate(this.__rotation())
         context.translate(-centerX, -centerY)
         context.lineWidth = this.borderWidth()
         const inStroke = context.isPointInStroke(path, x, y)

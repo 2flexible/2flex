@@ -414,7 +414,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         y - block.rotationCenterY(),
                         x - block.rotationCenterX()
                     )
-                    let currentRotate = block.getOptionCurrent('rotate')
+                    let currentRotate = block.__rotation()
                     if (topMove && leftMove) {
                         const topLeftCorner = block.cornerTopLeft()
                         const topLeft = block.__rotateCordiantesByCenter(
@@ -468,7 +468,10 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                                 bottomLeft.x - block.realCenterX
                             )
                     }
-                    block.setOptionCurrent('rotate', currentRotate)
+                    block.setOptionCurrent(
+                        'rotate',
+                        currentRotate - block.__parentRotate
+                    )
                     block.onRotatable()?.(block)
                     block.__invokeChange()
                 }

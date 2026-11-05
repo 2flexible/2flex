@@ -631,7 +631,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         }
                         cursor = block.#chooseBoxCursorInAgle(
                             cursor,
-                            block.rotate()
+                            block.__rotation()
                         )
                         block.__registerZIndex()
                         block.__selectCursor(cursor)
@@ -656,10 +656,10 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
                     if (diffX !== 0 || diffY !== 0) {
-                        const cacheRotate = block.getOptionCache('rotate')
+                        const cacheRotate = block.__rotationCache()
                         const diffW = diffX - beforeCords.x
                         const diffH = diffY - beforeCords.y
-                        const angle = block.rotate()
+                        const angle = block.__rotation()
                         let currentX = block.x()
                         let currentY = block.y()
                         let currentWidth = block.__boxWidth()

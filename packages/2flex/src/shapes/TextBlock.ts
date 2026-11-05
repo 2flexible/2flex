@@ -367,7 +367,7 @@ export class TextBlock extends ShapeBlock {
         const horizontalFlip = this.horizontalFlip()
         const fx = horizontalFlip ? -1 : 1
         const fy = verticalFlip ? -1 : 1
-        const rotate = this.rotate() || 0
+        const rotate = this.__rotation() || 0
         const rotSign = verticalFlip !== horizontalFlip ? -1 : 1
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
@@ -583,7 +583,7 @@ export class TextBlock extends ShapeBlock {
     }
     #checkLetterInBound(event: MouseEvent) {
         let { x, y } = this.canvas?.getCursorPosition(event)!
-        const rotate = this.rotate() || 0
+        const rotate = this.__rotation() || 0
         const verticalFlip = this.verticalFlip()
         const horizontalFlip = this.horizontalFlip()
         const centerX = this.rotationCenterX()

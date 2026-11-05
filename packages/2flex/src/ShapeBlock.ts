@@ -641,7 +641,7 @@ export class ShapeBlock extends Block {
         // vertical or horizantal flipping
         context.scale(horizontalFlipRotate, verticalFlipRotate)
         context.rotate(
-            this.rotate() * verticalFlipRotate * horizontalFlipRotate
+            this.__rotation() * verticalFlipRotate * horizontalFlipRotate
         )
         context.translate(-centerX, -centerY)
         this.#contextFilter()

@@ -79,8 +79,7 @@ export class Block extends OverflowBlock(
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
 
-        const pCurrentRotate = this.getOptionCurrent('rotate')
-        const pCacheRotate = this.getOptionCache('rotate')
+        const pCurrentRotate = this.__rotation()
 
         const cornerLeftX = this.cornerTopLeft().x
         const cornerTopY = this.cornerTopLeft().y
@@ -102,6 +101,7 @@ export class Block extends OverflowBlock(
             b.__parentHidden = this.__isHidden()
             if (blockPosition === 'absolute' || blockPosition === 'fixed') {
                 b.__childAdjustment = undefined
+                b.__resetParentRotation()
                 b.canvas?.demandInvoke(b)
                 return
             }
@@ -205,8 +205,7 @@ export class Block extends OverflowBlock(
             blockW = blockInitW
             blockH = blockInitH
 
-            b.setOptionCurrent('rotate', pCurrentRotate)
-            b.setOptionCache('rotate', pCacheRotate)
+            b.__parentRotate = pCurrentRotate
             b.__childAdjustment = (b: BaseBlock) => {
                 if (b.rotationCenter() === 'parent') {
                     b.rotationCenterX(centerX)

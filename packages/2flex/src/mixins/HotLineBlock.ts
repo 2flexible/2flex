@@ -126,7 +126,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.rotationCenterX(),
                     block.rotationCenterY()
                 )
-                context.rotate(block.rotate())
+                context.rotate(block.__rotation())
                 context.translate(
                     -block.rotationCenterX(),
                     -block.rotationCenterY()
