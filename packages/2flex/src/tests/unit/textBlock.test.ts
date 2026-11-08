@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
-import { Block, Canvas, ShapeBlock, TextBlock } from '@2flexible/2flex'
+import {
+    Block,
+    Canvas,
+    LayoutBlock,
+    RectangleBlock,
+    ShapeBlock,
+    TextBlock,
+} from '@2flexible/2flex'
 import type { TextBlockOptions } from '@2flexible/2flex'
 import { SELECTABLE_RUNNING_EVENT } from '../../const'
 import { flush, removeCanvasElements, waitFor } from './helpers'
@@ -949,6 +956,67 @@ describe('TextBlock', () => {
                     3000
                 )
             ).toBe(true)
+        })
+    })
+
+    describe('bounding box', () => {
+        // the bounding box of a text block is derived from the positions of
+        // its letters, which are placed relative to the position of the block
+        // itself, so the box has to be up to date as soon as the block moved
+        // into place, otherwise the block is sorted into the wrong tiles of
+        // the canvas grid and it is painted clipped
+        it('should match the position of the block right after it was placed', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            const box = new RectangleBlock({
+                position: 'absolute',
+                top: 200,
+                left: 200,
+                width: 120,
+                height: 320,
+            })
+            const layout = new LayoutBlock({
+                width: '100%',
+                height: '100%',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'space-evenly',
+            })
+            const texts = ['volvo', 'geely', 'bmw', 'mercedes'].map(
+                (value) =>
+                    new TextBlock({
+                        text: value,
+                        color: 'white',
+                        fontSize: 12,
+                        height: 20,
+                    })
+            )
+            texts.forEach((item) => layout.addChild(item))
+            box.addChild(layout)
+            canvas.add(box)
+            await flush()
+            for (const item of texts) {
+                expect(item.boundingBox.topLeft.x).toBeCloseTo(item.x())
+                expect(item.boundingBox.topLeft.y).toBeCloseTo(item.y())
+            }
+        })
+
+        it('should follow the block when it was moved', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            text = new TextBlock({
+                x: 20,
+                y: 20,
+                width: 200,
+                height: 60,
+                fontSize: 20,
+                color: 'black',
+                text: 'hello',
+            })
+            canvas.add(text)
+            await flush()
+            text.set({ x: 120, y: 140 })
+            await flush()
+            expect(text.boundingBox.topLeft.x).toBeCloseTo(120)
+            expect(text.boundingBox.topLeft.y).toBeCloseTo(140)
         })
     })
 

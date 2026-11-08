@@ -295,6 +295,7 @@ export class TextBlock extends ShapeBlock {
             this.#applyAutoSize()
         }
         super.updateCords()
+        this.#updateLetterNodeCordinates()
         this.#updateBoundingCords()
     }
     #setFont() {
