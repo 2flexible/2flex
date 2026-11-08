@@ -654,6 +654,91 @@ describe('TextBlock', () => {
             await flush()
             expect(text.width()).toBe(120)
         })
+
+        // a text without a size measures it for itself, the parent has to
+        // keep that size
+        const createTextInParent = async (
+            parent: Block | LayoutBlock,
+            options: TextBlockOptions = {}
+        ) => {
+            const child = new TextBlock({
+                text: 'hello',
+                color: 'white',
+                fontSize: 12,
+                height: 20,
+                ...options,
+            })
+            parent.addChild(child)
+            await flush(4)
+            return child
+        }
+
+        it('should keep the automatic width inside a block', async () => {
+            const parent = new RectangleBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent)
+            expect(child.width()).toBeGreaterThan(0)
+        })
+        it('should keep the automatic width inside a layout block', async () => {
+            const parent = new LayoutBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent)
+            expect(child.width()).toBeGreaterThan(0)
+        })
+        it('should adjust the width of a text in a block when the text is changed', async () => {
+            const parent = new RectangleBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent, { text: 'hi' })
+            const width = child.width()
+            child.text('a much longer text')
+            await flush(4)
+            expect(child.width()).toBeGreaterThan(width)
+        })
+        it('should adjust the width of a text in a layout block when the text is changed', async () => {
+            const parent = new LayoutBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent, { text: 'hi' })
+            const width = child.width()
+            child.text('a much longer text')
+            await flush(4)
+            expect(child.width()).toBeGreaterThan(width)
+        })
+        it('should keep the width of a text in a block which was given', async () => {
+            const parent = new RectangleBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent, { width: 60 })
+            expect(child.width()).toBe(60)
+        })
     })
 
     describe('bounding box', () => {

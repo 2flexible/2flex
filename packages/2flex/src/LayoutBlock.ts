@@ -506,6 +506,9 @@ export class LayoutBlock extends Block {
             const blockH = childSize
                 ? childSize.height
                 : Math.abs(b.__boxHeight())
+            // a child without a size keeps the size it measured for itself
+            const blockOwnsWidth = b.__initResolved('width') === undefined
+            const blockOwnsHeight = b.__initResolved('height') === undefined
 
             const blockMarginTop = b.marginTop()
             const blockMarginBottom = b.marginBottom()
@@ -588,8 +591,18 @@ export class LayoutBlock extends Block {
                 b.setOptionCurrent('y', blockYStart)
                 const childPaddingW = blockPaddingLeft + blockPaddingRight
                 const childPaddingH = blockPaddingTop + blockPaddingBottom
-                let borderW = blockW
-                let borderH = blockH
+                // the size of the child is read again, it may have measured
+                // itself after the layout measured it
+                const childW = blockOwnsWidth
+                    ? Math.abs(b.width()) + blockPaddingLeft + blockPaddingRight
+                    : blockW
+                const childH = blockOwnsHeight
+                    ? Math.abs(b.height()) +
+                      blockPaddingTop +
+                      blockPaddingBottom
+                    : blockH
+                let borderW = childW
+                let borderH = childH
                 if (blockHorizontalFlip) borderW = -borderW
                 if (blockVerticalFlip) borderH = -borderH
                 b.setOptionCurrent('width', clampSize(borderW - childPaddingW))

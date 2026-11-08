@@ -949,6 +949,9 @@ export class BaseBlock extends Node {
 
             const blockInitW = b.__initResolved('width') as number
             const blockInitH = b.__initResolved('height') as number
+            // a child without a size keeps the size it measured for itself
+            const blockOwnsWidth = blockInitW === undefined
+            const blockOwnsHeight = blockInitH === undefined
 
             const blockWidthSpaces = blockW + blockMarginLeft + blockMarginRight
             const blockHeightSpaces =
@@ -986,8 +989,8 @@ export class BaseBlock extends Node {
 
             if (currIdx == arrLen - 1) blocksContainerHeight += containerH
 
-            blockW = blockInitW
-            blockH = blockInitH
+            blockW = blockInitW !== undefined ? blockInitW : blockW
+            blockH = blockInitH !== undefined ? blockInitH : blockH
 
             b.__parentRotate = pCurrentRotate
             b.__childAdjustment = (b: BaseBlock) => {
@@ -999,8 +1002,12 @@ export class BaseBlock extends Node {
                 b.setOptionCurrent('y', blockYStart)
                 const childPaddingW = b.paddingLeft() + b.paddingRight()
                 const childPaddingH = b.paddingTop() + b.paddingBottom()
-                let borderW = blockW + childPaddingW
-                let borderH = blockH + childPaddingH
+                // the size of the child is read again, it may have measured
+                // itself after the parent measured it
+                const childW = blockOwnsWidth ? Math.abs(b.width()) : blockW
+                const childH = blockOwnsHeight ? Math.abs(b.height()) : blockH
+                let borderW = childW + childPaddingW
+                let borderH = childH + childPaddingH
                 if (blockHorizontalFlip) borderW = -borderW
                 if (blockVerticalFlip) borderH = -borderH
                 b.setOptionCurrent('width', clampSize(borderW - childPaddingW))
