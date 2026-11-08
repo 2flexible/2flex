@@ -616,6 +616,7 @@ export class LayoutBlock extends Block {
                 context.rotate(-pCurrentRotate)
                 context.translate(-centerX, -centerY)
             }
+            b.__childAdjustment(b)
             b.canvas?.demandInvoke(b)
         })
 

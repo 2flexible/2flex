@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { Block, Canvas, LayoutBlock, RectangleBlock } from '@2flexible/2flex'
+import {
+    Block,
+    Canvas,
+    LayoutBlock,
+    RectangleBlock,
+    TextBlock,
+} from '@2flexible/2flex'
 import { flush, removeCanvasElements } from './helpers'
 
 let canvas: Canvas
@@ -3456,6 +3462,94 @@ describe('LayoutBlock', () => {
                 [0, 100],
             ])
             expect([first.height(), second.height()]).toStrictEqual([100, 100])
+        })
+    })
+
+    describe('invoked childs', () => {
+        // a layout block hands out the coordinates of its childs in two steps,
+        // first the offset inside its own box and then the absolute position
+        // on the canvas, so a child which is invoked before its parent keeps
+        // the offset of the layout instead of its own position
+        let rectBlock: RectangleBlock
+        let innerLayout: LayoutBlock
+        let textBlock: TextBlock
+        let imageBlock: Block
+
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            rectBlock = new RectangleBlock({
+                width: 120,
+                height: 20,
+                x: 120,
+                y: 200,
+            })
+            innerLayout = new LayoutBlock({
+                alignItems: 'center',
+                width: '100%',
+                height: '100%',
+                justifyContent: 'space-between',
+            })
+            textBlock = new TextBlock({
+                text: 'dfdsf',
+                width: '100%',
+                height: '100%',
+            })
+            imageBlock = new Block({
+                width: '100%',
+                height: '100%',
+            })
+            innerLayout.addChild(textBlock)
+            innerLayout.addChild(imageBlock)
+            rectBlock.addChild(innerLayout)
+            canvas.add(rectBlock)
+            await flush()
+        })
+
+        it('should lay the childs of the layout out inside the rectangle', () => {
+            // the 120 wide rectangle shares its space between the 2 childs
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
+        })
+        it('should keep a child which is invoked before its layout in place', async () => {
+            // the child is invoked first, so the layout of its parent writes
+            // the offset of the child over its own coordinates
+            canvas.demandInvoke(imageBlock)
+            canvas.demandInvoke(innerLayout)
+            await flush()
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
+            expect(imageBlock.cornerTopLeft()).toStrictEqual({ x: 180, y: 200 })
+        })
+        it('should keep a child which is invoked before the root of its layout in place', async () => {
+            // the root block invokes the layout of the child, so the child is
+            // invoked before the layout which owns it
+            canvas.demandInvoke(imageBlock)
+            canvas.demandInvoke(rectBlock)
+            await flush()
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
+        })
+        it('should keep the childs in place when the layout is invoked', async () => {
+            canvas.demandInvoke(innerLayout)
+            await flush()
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
+        })
+        it('should keep the childs in place when the root block is invoked', async () => {
+            canvas.demandInvoke(rectBlock)
+            await flush()
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
         })
     })
 })
