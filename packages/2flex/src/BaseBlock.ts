@@ -1506,10 +1506,14 @@ export class BaseBlock extends Node {
         const enter = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
-                if (this.__ImFirst() && !isMouseEnter) {
-                    _func(event)
-                    this.__invokeChange()
-                    isMouseEnter = true
+                if (this.__ImFirst()) {
+                    if (!isMouseEnter) {
+                        _func(event)
+                        this.__invokeChange()
+                        isMouseEnter = true
+                    }
+                } else {
+                    this.__unregisterZIndex()
                 }
             } else {
                 isMouseEnter = false
@@ -1522,16 +1526,14 @@ export class BaseBlock extends Node {
         let isMouseLeave = false
         const leave = (event: MouseEvent) => {
             if (!this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex()
-
-                if (!this.__ImFirst() && !isMouseLeave) {
+                this.__unregisterZIndex()
+                if (!isMouseLeave) {
                     _func(event)
                     this.__invokeChange()
                     isMouseLeave = true
                 }
             } else {
                 isMouseLeave = false
-                this.__unregisterZIndex()
             }
         }
         this.__addEvent<MouseEvent>('mousemove', leave)

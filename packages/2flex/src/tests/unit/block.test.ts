@@ -1873,6 +1873,223 @@ describe('Block', () => {
 
             expect(isMouseLeave).toBeTruthy()
         })
+        it('should trigger enter and leave for every row of a list', async () => {
+            const rows: Block[] = []
+            const events: string[] = []
+
+            for (let i = 0; i < 4; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                rows.push(row)
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            // walk down the rows, every row has to report that it was entered
+            for (let i = 0; i < rows.length; i++) {
+                dispatchMouse(element, 'mousemove', 50, i * 50 + 25)
+                await flush()
+            }
+
+            expect(events).toContain('enter:0')
+            expect(events).toContain('enter:1')
+            expect(events).toContain('enter:2')
+            expect(events).toContain('enter:3')
+        })
+        it('should trigger leave for the row the pointer came from', async () => {
+            const events: string[] = []
+
+            for (let i = 0; i < 4; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 75)
+            await flush()
+
+            expect(events).toContain('enter:0')
+            expect(events).toContain('leave:0')
+            expect(events).toContain('enter:1')
+        })
+        it('should release the z index of a row once it is left', async () => {
+            const rows: Block[] = []
+
+            for (let i = 0; i < 4; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => {})
+                row.mouseleave(() => {})
+                rows.push(row)
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 75)
+            await flush()
+
+            // the row the pointer left must not keep the first place, otherwise
+            // the rows underneath it can never be hovered again
+            expect(canvas.whoIsTheFirst(rows[0].nodeId!)).toBe(false)
+        })
+        it('should allow hovering the same row again after another row was hovered', async () => {
+            const events: string[] = []
+
+            for (let i = 0; i < 3; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 75)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 125)
+            await flush()
+            // back to the first row
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+
+            expect(events.filter((e) => e === 'enter:0')).toHaveLength(2)
+        })
+        it('should keep the hovered row in the first place while it is hovered', async () => {
+            const rows: Block[] = []
+
+            for (let i = 0; i < 3; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => {})
+                row.mouseleave(() => {})
+                rows.push(row)
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+
+            // the row under the pointer owns the first place
+            expect(canvas.whoIsTheFirst(rows[0].nodeId!)).toBe(true)
+        })
+        it('should not trigger enter again while the pointer stays on the row', async () => {
+            const events: string[] = []
+
+            for (let i = 0; i < 3; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 60, 30)
+            await flush()
+            dispatchMouse(element, 'mousemove', 70, 35)
+            await flush()
+
+            expect(events.filter((e) => e === 'enter:0')).toHaveLength(1)
+            expect(events.filter((e) => e === 'leave:0')).toHaveLength(0)
+        })
+        it('should trigger leave once after the pointer left the row', async () => {
+            const events: string[] = []
+
+            for (let i = 0; i < 3; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 75)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 125)
+            await flush()
+
+            expect(events.filter((e) => e === 'leave:0')).toHaveLength(1)
+        })
         it.todo('should trigger mouseover event', async () => {})
         it.todo('should trigger mouseout event', async () => {})
         it('should trigger keyup event', async () => {
