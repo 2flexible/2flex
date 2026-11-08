@@ -382,7 +382,7 @@ export class TextBlock extends ShapeBlock {
         return { x: rx * fx + centerX, y: ry * fy + centerY }
     }
     #text(text?: string) {
-        if (text === undefined) return text
+        if (text === undefined) return this.#currentText()
         this.#headLetterNode = undefined
         this.#tailLetterNode = undefined
         for (const letter of text.split(''))
@@ -391,6 +391,28 @@ export class TextBlock extends ShapeBlock {
         this.#selectionAnchor = this.#tailLetterNode
         this.__invokeChange()
         return text
+    }
+    // the letters are the source of truth, the option only mirrors them
+    #currentText(): string | undefined {
+        // a block which never had a text keeps the default of the option
+        if (!this.initOptions.has('text')) return this.getOptionCurrent('text')
+        let out = ''
+        this.#walkLetterNodes((node: LetterNode) => {
+            out += node.letter ?? ''
+        })
+        return out
+    }
+    // the option mirrors the letters, so it is exported and undoable
+    #syncTextOption() {
+        // an edited text is known, even when every letter was removed
+        if (!this.initOptions.has('text')) this.initOptions.set('text', '')
+        const current = this.#currentText()
+        if (current === undefined) return
+        const before = this.getOptionCurrent('text')
+        if (before === current) return
+        this.setOptionCurrent('text', current)
+        this.initOptions.set('text', current)
+        this.__invokeHistory({ text: before }, { text: current })
     }
     #insertLetter(letter: string, after?: LetterNode): LetterNode {
         const node = new LetterNode(letter)
@@ -886,6 +908,8 @@ export class TextBlock extends ShapeBlock {
     #pasteFromClipboard() {
         navigator.clipboard?.readText().then((text) => {
             this.#insertText(text)
+            // the text is pasted asynchronously, so it is synced here
+            this.#syncTextOption()
             this.onEditable()?.(this)
             this.__invokeChange()
         })
@@ -1083,6 +1107,8 @@ export class TextBlock extends ShapeBlock {
                 if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
                     event.preventDefault()
                     block.#keyMappingBehaviors(event)
+                    // synced before the callback reads the value
+                    block.#syncTextOption()
                     block.onEditable()?.(block)
                     block.#markEditing()
                     block.__invokeChange()

@@ -1040,6 +1040,95 @@ describe('TextBlock', () => {
         })
     })
 
+    describe('the text option while editing', () => {
+        beforeEach(async () => {
+            await createTextBlock({ editable: true })
+        })
+
+        it('should reflect an inserted character', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            expect(text.text()).toBe('hellox')
+        })
+        it('should reflect a deleted character', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('Backspace')
+            expect(text.text()).toBe('hell')
+        })
+        it('should reflect a replaced selection', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('a', { ctrlKey: true })
+            keyDown('x')
+            expect(text.text()).toBe('x')
+        })
+        it('should reflect an empty text after every letter was removed', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('a', { ctrlKey: true })
+            keyDown('Delete')
+            expect(text.text()).toBe('')
+        })
+        it('should be up to date inside the onEditable callback', async () => {
+            const seen: (string | undefined)[] = []
+            await createTextBlock({
+                editable: true,
+                onEditable: (block: TextBlock) => seen.push(block.text()),
+            })
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            expect(seen).toEqual(['hellox'])
+        })
+        it('should export the edited text', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            const payload = JSON.parse(canvas.export())
+            expect(payload.blocks[0].options.text).toBe('hellox')
+        })
+        it('should restore the edited text on another canvas', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+
+            const target = new Canvas('otherCanvas', 400, 500)
+            target.load(canvas.export())
+            await flush()
+
+            const loaded = target.find({ nodeId: text.nodeId })[0] as TextBlock
+            expect(loaded.text()).toBe('hellox')
+        })
+        it('should undo a single keystroke', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            canvas.undo()
+            await flush()
+            expect(text.text()).toBe('hello')
+        })
+        it('should undo every single keystroke', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            keyDown('y')
+            await flush()
+            canvas.undo()
+            await flush()
+            expect(text.text()).toBe('hellox')
+            canvas.undo()
+            await flush()
+            expect(text.text()).toBe('hello')
+        })
+        it('should redo an undone keystroke', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            canvas.undo()
+            await flush()
+            canvas.redo()
+            await flush()
+            expect(text.text()).toBe('hellox')
+        })
+    })
+
     describe('caret animation', () => {
         it('should blink the caret while the text is editable', async () => {
             await createTextBlock({ editable: true })
