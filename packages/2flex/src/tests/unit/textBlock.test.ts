@@ -1009,6 +1009,28 @@ describe('TextBlock', () => {
                 text.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)
             ).toBe(false)
         })
+        it('should release the z index registration on escape', async () => {
+            clickOnLetter(0, 'dblclick')
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(true)
+            keyDown('Escape')
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(false)
+        })
+        it('should release the z index registration on a click outside of the letters', async () => {
+            clickOnLetter(0, 'dblclick')
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(true)
+            canvas.canvas.dispatchEvent(mouseAt('mousedown', 5, 5))
+            expect(
+                text.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)
+            ).toBe(false)
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(false)
+        })
+        it('should release the z index registration when it is not editable anymore', async () => {
+            clickOnLetter(0, 'dblclick')
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(true)
+            text.editable(false)
+            await flush()
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(false)
+        })
         it('should call the onEditable callback with the block', async () => {
             const onEditable = vi.fn()
             await createTextBlock({ editable: true, onEditable })

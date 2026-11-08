@@ -912,6 +912,7 @@ export class TextBlock extends ShapeBlock {
             this.#selectionAnchor = undefined
             this.#selectionFocus = undefined
             this.__resetCursor('auto')
+            this.__unregisterZIndex()
             return
         }
 
@@ -975,6 +976,7 @@ export class TextBlock extends ShapeBlock {
             block.#clearEditing()
             block.#isDraggingSelection = false
             block.__resetCursor('auto')
+            block.__unregisterZIndex()
             block.#dbClickEvent = undefined
             block.#mousedownEvent = undefined
             block.#mouseMoveEvent = undefined
@@ -1025,6 +1027,7 @@ export class TextBlock extends ShapeBlock {
                         block.#selectionFocus = undefined
                         block.#isDraggingSelection = false
                         block.__resetCursor('auto')
+                        block.__unregisterZIndex()
                         block.__invokeChange()
                         return
                     }
