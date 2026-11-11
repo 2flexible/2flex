@@ -168,7 +168,6 @@ type PropertyFunc = {
     valueConverter?: ValueConverterFunc<any, any>
 }
 
-
 export class BaseBlock extends Node {
     [key: string]: any
 
@@ -186,7 +185,6 @@ export class BaseBlock extends Node {
     realCenterX: number
     realCenterY: number
     boundingBox: HotCornerArea
-    #higestChildZIndex?: number
     #higestChildOrder?: number
 
     __childAdjustment?: (b: BaseBlock) => void
@@ -355,7 +353,8 @@ export class BaseBlock extends Node {
             undefined,
             false,
             (block: BaseBlock, zIndex: number) =>
-                this.#hasZIndexChanged(block, zIndex)
+                this.#hasZIndexChanged(block, zIndex),
+            (block: any, value: any) => this.#zIndexConverter(value)
         )
         this.addProperty(
             'order',
@@ -572,20 +571,16 @@ export class BaseBlock extends Node {
             }
         }
     }
-    __getHighestChildZIndex() {
-        if (this.#higestChildZIndex === undefined) {
-            this.#higestChildZIndex = this.zIndex() ?? 0
-            this.listAllChilds((block: BaseBlock) => {
-                const bZIndex = block.zIndex()
-                if (
-                    bZIndex !== undefined &&
-                    bZIndex > this.#higestChildZIndex!
-                ) {
-                    this.#higestChildZIndex = bZIndex
-                }
-            })
-        }
-        return this.#higestChildZIndex
+    #zIndexConverter(value: any) {
+        if (value === undefined || value === null) return undefined
+        const numeric = typeof value === 'number' ? value : Number(value)
+        return Number.isNaN(numeric) ? undefined : numeric
+    }
+    __zIndex() {
+        return this.#zIndexConverter(this.getOptionCurrent('zIndex'))
+    }
+    __opensStackingContext() {
+        return this.__zIndex() !== undefined
     }
     __getdHighestChildOrder() {
         if (this.#higestChildOrder === undefined) {
@@ -1082,7 +1077,6 @@ export class BaseBlock extends Node {
     }
     __refreshHeadBlock() {
         if (this.__hasParentBlock) this.parentNode?.__refreshHeadBlock()
-        this.#higestChildZIndex = undefined
         this.#higestChildOrder = undefined
     }
     get isMouseEventAllowed() {

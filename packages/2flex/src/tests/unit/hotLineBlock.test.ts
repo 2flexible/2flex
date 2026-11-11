@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { page } from 'vitest/browser'
-import { Block, Canvas } from '@2flexible/2flex'
+import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
 import { HOT_LINE_BLOCK_NAME } from '../../const'
 import {
     allowMouse,
@@ -58,10 +58,13 @@ describe('HotLineBlock', () => {
             block.hotLines()
             expect(canvas.find({ name: HOT_LINE_BLOCK_NAME })).toHaveLength(1)
         })
-        it('should keep the hot line block out of the child nodes', () => {
+        it('should keep the hot line block inside the child nodes', () => {
             block.set({ hotLines: true })
             block.hotLines()
-            expect([...block.childNodes]).toHaveLength(0)
+            // the hot line block is a child of its owner, so it shares the
+            // stacking context of the owner and cannot paint above a block
+            // which is above the owner
+            expect([...block.childNodes]).toHaveLength(1)
             expect(canvas.find({ name: HOT_LINE_BLOCK_NAME })).toHaveLength(1)
         })
         it('should size the hot line block by hotCornerSize and hotCornerStrokeWidth', async () => {
@@ -152,10 +155,59 @@ describe('HotLineBlock', () => {
             )
         })
         it('should accept a numeric hotCornerRadius', async () => {
-            block.set({ hotCornerRadius: 6 })
+            block.hotCornerRadius(6)
             await selectBlock()
             block.hotLines()
             expect(() => hotLineBlock().render()).not.toThrow()
+        })
+        it('should paint the hot lines below a block which is above the owner', async () => {
+            // the hot line block is a child of its owner, so it shares the
+            // stacking context of the owner and stays below a block which
+            // was added after the owner
+            const upper = new RectangleBlock({
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 100,
+                backgroundColor: 'blue',
+            })
+            canvas.add(upper)
+            block.set({ hotLines: true })
+            block.hotLines()
+            await selectBlock()
+            await flush()
+            // the blue block covers the whole red one including its lines
+            const pixel = Array.from(
+                canvas.context!.getImageData(100, 100, 1, 1).data
+            )
+            expect(pixel).toEqual([0, 0, 255, 255])
+        })
+        it('should paint the hot lines above the scroll bars of the owner', async () => {
+            const owner = new RectangleBlock({
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 100,
+                backgroundColor: 'red',
+                selectable: true,
+                hotLines: true,
+                overflow: 'scroll',
+            })
+            canvas.add(owner)
+            allowMouse(canvas)
+            await flush()
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 100, 100, 1)
+            dispatchMouse(element, 'mouseup', 100, 100)
+            await flush(4)
+            // the corner square of the hot lines sits over the scroll bar,
+            // so it has to be painted above it
+            const pixel = Array.from(
+                canvas.context!.getImageData(145, 145, 1, 1).data
+            )
+            expect(pixel).toEqual([0, 0, 255, 255])
         })
         it('should stop drawing hot lines after hotLines is turned off', async () => {
             await selectBlock()

@@ -1,11 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { page } from 'vitest/browser'
-import { Block, Canvas } from '@2flexible/2flex'
+import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
 import {
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
 } from '../../const'
-import { drawFilledBlock, flush, removeCanvasElements } from './helpers'
+import {
+    allowMouse,
+    dispatchMouse,
+    drawFilledBlock,
+    flush,
+    removeCanvasElements,
+} from './helpers'
 
 let block: Block
 let childBlock: Block
@@ -280,6 +286,88 @@ describe('OverflowBlock', () => {
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'child-clipped-by-ancestors'
             )
+        })
+        it('should keep the scroll bars inside the child nodes of their owner', async () => {
+            const owner = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                overflow: 'scroll',
+            })
+            canvas.add(owner)
+            await flush()
+            // the scroll bars are children of the owner, so they share its
+            // stacking context and cannot paint above a block which is
+            // above the owner
+            expect([...owner.childNodes]).toHaveLength(2)
+            expect(
+                canvas.find({ name: OVERFLOW_X_SCROLL_BAR_BLOCK_NAME })
+            ).toHaveLength(1)
+            expect(
+                canvas.find({ name: OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME })
+            ).toHaveLength(1)
+        })
+        it('should paint the scroll bars below the hot lines of their owner', async () => {
+            const owner = new RectangleBlock({
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 100,
+                backgroundColor: 'red',
+                selectable: true,
+                hotLines: true,
+                overflow: 'scroll',
+            })
+            canvas.add(owner)
+            allowMouse(canvas)
+            await flush()
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 100, 100, 1)
+            dispatchMouse(element, 'mouseup', 100, 100)
+            await flush(4)
+            // the corner square of the hot lines sits over the scroll bar,
+            // so it has to be painted above it
+            const pixel = Array.from(
+                canvas.context!.getImageData(145, 145, 1, 1).data
+            )
+            expect(pixel).toEqual([0, 0, 255, 255])
+        })
+        it('should paint the scroll bars of an owner below a block above it', async () => {
+            const owner = new RectangleBlock({
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 100,
+                backgroundColor: 'red',
+                selectable: true,
+                hotLines: true,
+                overflow: 'scroll',
+            })
+            const upper = new RectangleBlock({
+                x: 50,
+                y: 50,
+                width: 120,
+                height: 120,
+                backgroundColor: 'blue',
+            })
+            canvas.add(owner, upper)
+            allowMouse(canvas)
+            await flush()
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 100, 100, 1)
+            dispatchMouse(element, 'mouseup', 100, 100)
+            await flush(4)
+            // the scroll bars and the hot lines belong to the owner, so the
+            // block above the owner covers them
+            const pixel = Array.from(
+                canvas.context!.getImageData(145, 145, 1, 1).data
+            )
+            expect(pixel).toEqual([0, 0, 255, 255])
         })
     })
 })

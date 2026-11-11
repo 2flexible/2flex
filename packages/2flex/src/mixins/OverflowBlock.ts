@@ -76,7 +76,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 !block.#overflowXscrollBarBlock
             ) {
                 const scrollBar = block.#overflowXScrollBar(block)
-                block.canvas?.add(scrollBar)
+                block.addChild(scrollBar)
             }
         }
         #overflowY(block: any) {
@@ -85,7 +85,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 !block.#overflowYscrollBarBlock
             ) {
                 const scrollBar = block.#overflowYScrollBar(block)
-                block.canvas?.add(scrollBar)
+                block.addChild(scrollBar)
             }
         }
         #overflowXY(block: any) {
@@ -126,12 +126,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#overflowXscrollBarBlock.top(top)
             this.#overflowXscrollBarBlock.width(maxX - minX)
             this.#overflowXscrollBarBlock.height(OVERFLOW_AREA_GAP)
-            // Showing overflow scroll bar block on top of the child blocks
-            this.#overflowXscrollBarBlock.zIndex(
-                1 +
-                    (this.__getHighestChildZIndex() ?? 0) +
-                    (this.#overflowYscrollBarBlock ? 1 : 0)
-            )
         }
         #updateOverflowYBlockParameters() {
             if (!this.#overflowYscrollBarBlock) return
@@ -160,10 +154,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#overflowYscrollBarBlock.top(top)
             this.#overflowYscrollBarBlock.width(OVERFLOW_AREA_GAP)
             this.#overflowYscrollBarBlock.height(coverHeight)
-            // Showing overflow scroll bar block on top of the child blocks
-            this.#overflowYscrollBarBlock.zIndex(
-                1 + (this.__getHighestChildZIndex() ?? 0)
-            )
         }
         #updateOverflowCordinates() {
             if (this.__isOverflowVisible) return

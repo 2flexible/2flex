@@ -96,8 +96,9 @@ export class Block extends OverflowBlock(
 
         let blocksContainerWidth = 0
         let blocksContainerHeight = 0
+        let laidOutCount = 0
 
-        this.listOnlyChilds((b: BaseBlock, currIdx, arrLen) => {
+        this.listOnlyChilds((b: BaseBlock) => {
             const blockPosition = b.position()
             b.__parentHidden = this.__isHidden()
             if (blockPosition === 'absolute' || blockPosition === 'fixed') {
@@ -106,6 +107,7 @@ export class Block extends OverflowBlock(
                 b.canvas?.demandInvoke(b)
                 return
             }
+            laidOutCount++
             let blockW = Math.abs(b.__boxWidth())
             let blockH = Math.abs(b.__boxHeight())
 
@@ -198,8 +200,6 @@ export class Block extends OverflowBlock(
             if (containerW > blocksContainerWidth)
                 blocksContainerWidth = containerW
 
-            if (currIdx == arrLen - 1) blocksContainerHeight += containerH
-
             blockW = blockInitW !== undefined ? blockInitW : blockW
             blockH = blockInitH !== undefined ? blockInitH : blockH
 
@@ -248,6 +248,7 @@ export class Block extends OverflowBlock(
             }
             b.canvas?.demandInvoke(b)
         })
+        if (laidOutCount > 0) blocksContainerHeight += containerH
         this.__childsContainer = {
             width: blocksContainerWidth,
             height: blocksContainerHeight,

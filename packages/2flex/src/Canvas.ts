@@ -120,9 +120,7 @@ export class Canvas {
 
     isFocused: boolean
     isMouseEventAllowed: boolean
-    #latestBlockZIndex: number
-    #highestZIndex?: number
-    #registeredZIndexes: Map<number, number>
+    #registeredZIndexes: Map<number, number | undefined>
     #registeredCursors: Map<number, string[]>
     #registeredBlocks: (typeof BaseBlock)[]
 
@@ -157,7 +155,6 @@ export class Canvas {
 
         this.#canvasEvents = {}
         this.#canvasAnimations = {}
-        this.#latestBlockZIndex = 1
         this.#registeredZIndexes = new Map()
         this.#registeredCursors = new Map()
         this.isFocused = false
@@ -429,7 +426,6 @@ export class Canvas {
     #refreshHead() {
         const isRefresh = this.#queue['canvas:refresh:head']
         if (isRefresh) {
-            this.#buildBlocksZIndex()
             this.#scene.sortBlocksByZIndex()
             this.#sortAllDomEventsByZIndex()
             this.#registerDomEvents()
@@ -546,11 +542,12 @@ export class Canvas {
     #sortDomEventsByZIndex(eventName: string) {
         this.#canvasEvents[eventName].events = this.#canvasEvents[
             eventName
-        ].events.sort(
-            (a, b) =>
-                b.block.getOptionCurrent('zIndex') -
-                a.block.getOptionCurrent('zIndex')
-        )
+        ].events.sort((a, b) => {
+            const aIndex = this.#scene.getPaintIndex(a.block.nodeId!)
+            const bIndex = this.#scene.getPaintIndex(b.block.nodeId!)
+            if (aIndex === bIndex) return 0
+            return bIndex - aIndex
+        })
     }
     #buildDomEventFunc(eventName: string) {
         this.#canvasEvents[eventName].func = (e: Event) => {
@@ -628,7 +625,6 @@ export class Canvas {
             }
             this.#scene.buildSceneGraph()
             for (const block of addedBlocks) this.#grid.addBlock(block)
-            this.#buildBlocksZIndex()
             this.demandRefreshHead()
         }
     }
@@ -645,19 +641,8 @@ export class Canvas {
                 this.#scene.removeBlock(block)
             }
             this.#scene.buildSceneGraph()
-            this.#buildBlocksZIndex()
             this.demandRefreshHead()
         }
-    }
-    #buildBlocksZIndex() {
-        this.#latestBlockZIndex = 0
-        this.#scene.reversePostOrderTraversal((block: BaseBlock) => {
-            const zIndex = block.getOptionCurrent('zIndex')
-            if (zIndex === undefined) {
-                block.setOptionCurrent('zIndex', this.#latestBlockZIndex)
-                this.#latestBlockZIndex += 1
-            }
-        })
     }
     #buildDemandedHistory() {
         if (!this.#defaultOptions.history) return
@@ -867,10 +852,20 @@ export class Canvas {
     }
     #resolveCursor() {
         let cursor: string | undefined
-        let highZIndex = -Infinity
+        let highPaintIndex = -1
+        let highZIndex: number | undefined = undefined
         for (const [id, cur] of this.#registeredCursors) {
+            const paintIndex = this.#scene.getPaintIndex(id)
+            if (paintIndex >= 0) {
+                if (paintIndex > highPaintIndex) {
+                    highPaintIndex = paintIndex
+                    cursor = cur[0]
+                }
+                continue
+            }
             const zIndex = this.#registeredZIndexes.get(id)
-            if (zIndex !== undefined && zIndex > highZIndex) {
+            if (zIndex === undefined) continue
+            if (highZIndex === undefined || zIndex > highZIndex) {
                 highZIndex = zIndex
                 cursor = cur[0]
             }
@@ -878,29 +873,31 @@ export class Canvas {
         this.#domCanvas.changeStyle({ cursor: cursor })
     }
     whoIsTheFirst(nodeId: number) {
-        const zIndex = this.#registeredZIndexes.get(nodeId)
-        return zIndex !== undefined && zIndex === this.#highestZIndex
-    }
-    registerZIndex(nodeId: number, zIndex: number) {
-        this.#registeredZIndexes.set(nodeId, zIndex)
-        if (this.#highestZIndex === undefined || zIndex > this.#highestZIndex) {
-            this.#highestZIndex = zIndex
+        if (!this.#registeredZIndexes.has(nodeId)) return false
+        let highPaintIndex = -1
+        let highZIndex: number | undefined = undefined
+        for (const id of this.#registeredZIndexes.keys()) {
+            const paintIndex = this.#scene.getPaintIndex(id)
+            if (paintIndex >= 0) {
+                if (paintIndex > highPaintIndex) highPaintIndex = paintIndex
+                continue
+            }
+            const zIndex = this.#registeredZIndexes.get(id)
+            if (zIndex === undefined) continue
+            if (highZIndex === undefined || zIndex > highZIndex)
+                highZIndex = zIndex
         }
+        const paintIndex = this.#scene.getPaintIndex(nodeId)
+        if (paintIndex >= 0) return paintIndex === highPaintIndex
+        const zIndex = this.#registeredZIndexes.get(nodeId)
+        if (zIndex === undefined || highZIndex === undefined) return false
+        return zIndex === highZIndex
+    }
+    registerZIndex(nodeId: number, zIndex?: number) {
+        this.#registeredZIndexes.set(nodeId, zIndex)
     }
     unregisterZIndex(nodeId: number) {
-        const current = this.#registeredZIndexes.get(nodeId)
-        if (current === undefined) return
         this.#registeredZIndexes.delete(nodeId)
-        if (
-            this.#highestZIndex !== undefined &&
-            current === this.#highestZIndex
-        ) {
-            let max: number | undefined = undefined
-            for (const z of this.#registeredZIndexes.values()) {
-                if (max === undefined || z > max) max = z
-            }
-            this.#highestZIndex = max
-        }
     }
     demandInvoke(block: BaseBlock) {
         const set = (this.#queue['block:cache'] ??= new Set())

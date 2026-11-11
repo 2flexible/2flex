@@ -56,20 +56,10 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 bottomRight: this.cornerBottomRight(),
             }
         }
-        #getHigherZindex() {
-            let higherZindex = 0
-            if (this.__isOverflowExists) higherZindex = 2
-            else {
-                if (this.__isOverflowXExists) higherZindex += 1
-                if (this.__isOverflowYExists) higherZindex += 1
-            }
-            return 1 + (this.__getHighestChildZIndex() ?? 0) + higherZindex
-        }
-
         #hotLines(block: any, opt?: boolean) {
             if (!block.#hotLineBlock && opt) {
                 const hotLineBlock = block.#buildHotLines(block)
-                block.canvas?.add(hotLineBlock)
+                block.addChild(hotLineBlock)
             }
         }
         #updateHotLineBlockParameters() {
@@ -88,13 +78,13 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#hotLineBlock.y(y - (size + strokeWidth) / 2)
             this.#hotLineBlock.width(w + size + strokeWidth)
             this.#hotLineBlock.height(h + size + strokeWidth)
-
-            this.#hotLineBlock.zIndex(this.#getHigherZindex())
         }
 
         #buildHotLines(block: any) {
             block.#hotLineBlock = new BaseBlock({
                 name: HOT_LINE_BLOCK_NAME,
+                // absolute so the flexbox of the parent does not lay it out
+                position: 'absolute',
                 x: 0,
                 y: 0,
                 width: 0,
@@ -102,7 +92,6 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 rotate: 0,
                 rotationCenterX: block.rotationCenterX(),
                 rotationCenterY: block.rotationCenterY(),
-                zIndex: block.#getHigherZindex(),
             })
             block.#hotLineBlock.onRender((hotLineBlock: BaseBlock) => {
                 if (

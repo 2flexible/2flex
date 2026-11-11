@@ -1372,14 +1372,15 @@ describe('ShapeBlock', () => {
                 ],
             ])
             it('should draw the shape with the global composite operation', async () => {
-                // the canvas paints the block which was added first on top, so
-                // the blended shape has to be added first to blend with the one
-                // below it
+                // the canvas paints the block which was added last on top, so
+                // the blended shape needs a higher z index to blend with the
+                // one below it
                 const blended = new ShapeBlock({
                     x: 50,
                     y: 30,
                     width: 60,
                     height: 40,
+                    zIndex: 1,
                     globalCompositeOperation: 'multiply',
                     ...fillOf('blue'),
                     rect,
