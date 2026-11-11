@@ -706,11 +706,64 @@ export class LineBlock extends ShapeBlock {
                 }
             }
         })
+        if (xs.length === 0 || ys.length === 0) {
+            this.boundingBox = this.#boundingBoxFromCorners()
+            return
+        }
+        const minX = Math.min(...xs)
+        const minY = Math.min(...ys)
+        const maxX = Math.max(...xs)
+        const maxY = Math.max(...ys)
+        if (
+            !Number.isFinite(minX) ||
+            !Number.isFinite(minY) ||
+            !Number.isFinite(maxX) ||
+            !Number.isFinite(maxY)
+        ) {
+            this.boundingBox = this.#boundingBoxFromCorners()
+            return
+        }
         this.boundingBox = {
-            topLeft: { x: Math.min(...xs), y: Math.min(...ys) },
-            topRight: { x: Math.max(...xs), y: Math.min(...ys) },
-            bottomLeft: { x: Math.min(...xs), y: Math.max(...ys) },
-            bottomRight: { x: Math.max(...xs), y: Math.max(...ys) },
+            topLeft: { x: minX, y: minY },
+            topRight: { x: maxX, y: minY },
+            bottomLeft: { x: minX, y: maxY },
+            bottomRight: { x: maxX, y: maxY },
+        }
+    }
+    #boundingBoxFromCorners() {
+        const cornerTopLeft = this.getOptionCurrent('cornerTopLeft')
+        const cornerTopRight = this.getOptionCurrent('cornerTopRight')
+        const cornerBottomLeft = this.getOptionCurrent('cornerBottomLeft')
+        const cornerBottomRight = this.getOptionCurrent('cornerBottomRight')
+        const corners = [
+            cornerTopLeft,
+            cornerTopRight,
+            cornerBottomLeft,
+            cornerBottomRight,
+        ]
+        const valid = corners.filter(
+            (corner): corner is { x: number; y: number } =>
+                !!corner &&
+                Number.isFinite(corner.x) &&
+                Number.isFinite(corner.y)
+        )
+        if (valid.length === 0) {
+            return {
+                topLeft: { x: 0, y: 0 },
+                topRight: { x: 0, y: 0 },
+                bottomLeft: { x: 0, y: 0 },
+                bottomRight: { x: 0, y: 0 },
+            }
+        }
+        const minX = Math.min(...valid.map((corner) => corner.x))
+        const minY = Math.min(...valid.map((corner) => corner.y))
+        const maxX = Math.max(...valid.map((corner) => corner.x))
+        const maxY = Math.max(...valid.map((corner) => corner.y))
+        return {
+            topLeft: { x: minX, y: minY },
+            topRight: { x: maxX, y: minY },
+            bottomLeft: { x: minX, y: maxY },
+            bottomRight: { x: maxX, y: maxY },
         }
     }
     #adjustBlockCordinates() {
@@ -784,10 +837,23 @@ export class LineBlock extends ShapeBlock {
             if (startY !== undefined) this.#points.y.push(startY)
             if (endY !== undefined) this.#points.y.push(endY)
         })
+        if (this.#points.x.length === 0 || this.#points.y.length === 0) {
+            this.#keepBlockCordinatesWithoutPoints()
+            return
+        }
         const xMin = Math.min(...this.#points.x)
         const yMin = Math.min(...this.#points.y)
         const xMax = Math.max(...this.#points.x)
         const yMax = Math.max(...this.#points.y)
+        if (
+            !Number.isFinite(xMin) ||
+            !Number.isFinite(yMin) ||
+            !Number.isFinite(xMax) ||
+            !Number.isFinite(yMax)
+        ) {
+            this.#keepBlockCordinatesWithoutPoints()
+            return
+        }
         const controlLineWidth = this.controlLineWidth() / 2
         this.setOptionCurrent('x', xMin - controlLineWidth)
         this.setOptionCurrent('y', yMin - controlLineWidth)
@@ -822,6 +888,34 @@ export class LineBlock extends ShapeBlock {
         this.setOptionCurrent('cornerBottomRight', {
             x: xMax + controlLineWidth,
             y: yMax + controlLineWidth,
+        })
+    }
+
+    #keepBlockCordinatesWithoutPoints() {
+        const x = this.getOptionCurrent('x')
+        const y = this.getOptionCurrent('y')
+        const width = this.getOptionCurrent('width')
+        const height = this.getOptionCurrent('height')
+        const safeX = Number.isFinite(x) ? x : 0
+        const safeY = Number.isFinite(y) ? y : 0
+        const safeWidth = Number.isFinite(width) ? width : 0
+        const safeHeight = Number.isFinite(height) ? height : 0
+        this.setOptionCurrent('x', safeX)
+        this.setOptionCurrent('y', safeY)
+        this.setOptionCurrent('width', safeWidth)
+        this.setOptionCurrent('height', safeHeight)
+        this.setOptionCurrent('cornerTopLeft', { x: safeX, y: safeY })
+        this.setOptionCurrent('cornerTopRight', {
+            x: safeX + safeWidth,
+            y: safeY,
+        })
+        this.setOptionCurrent('cornerBottomLeft', {
+            x: safeX,
+            y: safeY + safeHeight,
+        })
+        this.setOptionCurrent('cornerBottomRight', {
+            x: safeX + safeWidth,
+            y: safeY + safeHeight,
         })
     }
 

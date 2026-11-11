@@ -51,4 +51,33 @@ describe('CanvasGrid', () => {
         expect(tileAt(grid, 0, 0)!.blocks.has(block)).toBe(false)
         expect(tileAt(grid, 3, 3)!.blocks.has(block)).toBe(true)
     })
+    it('should not grow endlessly when a block has infinite bounds', () => {
+        const grid = new CanvasGrid(400, 400, 256)
+        const block = makeBlock(1, 10, 10)
+        block.boundingBox = {
+            topLeft: { x: -Infinity, y: -Infinity },
+            topRight: { x: Infinity, y: -Infinity },
+            bottomLeft: { x: -Infinity, y: Infinity },
+            bottomRight: { x: Infinity, y: Infinity },
+        }
+
+        // the grid must not hang on the infinite range
+        grid.addBlock(block)
+
+        expect(grid.allTiles.length).toBeGreaterThan(0)
+    })
+    it('should not grow endlessly when a block has nan bounds', () => {
+        const grid = new CanvasGrid(400, 400, 256)
+        const block = makeBlock(1, 10, 10)
+        block.boundingBox = {
+            topLeft: { x: NaN, y: NaN },
+            topRight: { x: NaN, y: NaN },
+            bottomLeft: { x: NaN, y: NaN },
+            bottomRight: { x: NaN, y: NaN },
+        }
+
+        grid.addBlock(block)
+
+        expect(grid.allTiles.length).toBeGreaterThan(0)
+    })
 })

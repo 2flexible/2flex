@@ -395,6 +395,72 @@ describe('LineBlock', () => {
             expect(line.boundingBox.topLeft).toEqual({ x: 0, y: 0 })
             expect(line.boundingBox.bottomRight).toEqual({ x: 100, y: 100 })
         })
+        it('should keep finite coordinates when the line has no control points', async () => {
+            await createLine({
+                x: 10,
+                y: 20,
+                width: 30,
+                height: 40,
+            })
+            expect(line.x()).toBe(10)
+            expect(line.y()).toBe(20)
+            expect(line.width()).toBe(30)
+            expect(line.height()).toBe(40)
+            expect(Number.isFinite(line.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.bottomRight.y)).toBe(true)
+        })
+        it('should not hang the canvas when the points are given as top level options', async () => {
+            // the points are only read from the control points, so top level
+            // ones leave the line without any, which used to produce infinite
+            // bounds and hang the tile grid of the canvas
+            canvas = new Canvas('myCanvas', 800, 900, {
+                backgroundColor: 'black',
+                zoomType: 'point',
+            })
+            line = new LineBlock({
+                width: 10,
+                height: 10,
+                startX: 0,
+                startY: 0,
+                endX: 10,
+                endY: 10,
+                lineColor: 'white',
+                lineWidth: 2,
+            } as ILineOptions)
+            canvas.add(line)
+            await flush(5)
+
+            expect(Number.isFinite(line.x())).toBe(true)
+            expect(Number.isFinite(line.y())).toBe(true)
+            expect(Number.isFinite(line.width())).toBe(true)
+            expect(Number.isFinite(line.height())).toBe(true)
+        })
+        it('should keep finite coordinates when the points are not numeric', async () => {
+            await createLine({
+                x: 10,
+                y: 20,
+                width: 30,
+                height: 40,
+                controlPoints: [
+                    {
+                        startX: NaN,
+                        startY: NaN,
+                        endX: NaN,
+                        endY: NaN,
+                    },
+                ],
+            })
+            expect(Number.isFinite(line.x())).toBe(true)
+            expect(Number.isFinite(line.y())).toBe(true)
+            expect(Number.isFinite(line.width())).toBe(true)
+            expect(Number.isFinite(line.height())).toBe(true)
+            expect(Number.isFinite(line.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.bottomRight.y)).toBe(true)
+        })
         it('should start the line at the position of the block', async () => {
             await createLine({
                 x: 20,

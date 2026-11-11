@@ -159,6 +159,14 @@ export class CanvasGrid {
     }
 
     #expandRange(cMin: number, cMax: number, rMin: number, rMax: number) {
+        if (
+            !Number.isFinite(cMin) ||
+            !Number.isFinite(cMax) ||
+            !Number.isFinite(rMin) ||
+            !Number.isFinite(rMax)
+        ) {
+            return
+        }
         const newOriginCol = Math.min(this.originCol, cMin)
         const newOriginRow = Math.min(this.originRow, rMin)
         const newEndCol = Math.max(this.originCol + this.cols - 1, cMax)
@@ -255,6 +263,14 @@ export class CanvasGrid {
         const r1 = Math.floor(maxY / this.tileSize)
 
         const ids: Set<string> = new Set()
+        if (
+            !Number.isFinite(c0) ||
+            !Number.isFinite(c1) ||
+            !Number.isFinite(r0) ||
+            !Number.isFinite(r1)
+        ) {
+            return ids
+        }
         for (let r = r0; r <= r1; r++) {
             for (let c = c0; c <= c1; c++) {
                 ids.add(worldTileKey(c, r))
