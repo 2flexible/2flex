@@ -379,7 +379,7 @@ export class RectangleBlock extends ShapeBlock {
     #maxBorderWidth(): number {
         const candidates: number[] = []
         const bw = this.getOptionCurrent('borderWidth')
-        if (typeof bw === 'number') candidates.push(bw)
+        if (typeof bw === 'number' && Number.isFinite(bw)) candidates.push(bw)
         for (const key of [
             'borderTop',
             'borderRight',
@@ -388,11 +388,13 @@ export class RectangleBlock extends ShapeBlock {
         ] as const) {
             const v = this.getOptionCurrent(key)
             if (Array.isArray(v) && typeof v[0] === 'number') {
-                candidates.push(v[0])
+                if (Number.isFinite(v[0])) candidates.push(v[0])
             }
         }
         const b = this.getOptionCurrent('border')
-        if (Array.isArray(b) && typeof b[0] === 'number') candidates.push(b[0])
+        if (Array.isArray(b) && typeof b[0] === 'number') {
+            if (Number.isFinite(b[0])) candidates.push(b[0])
+        }
         return candidates.length > 0 ? Math.max(...candidates) : 0
     }
 
@@ -410,7 +412,13 @@ export class RectangleBlock extends ShapeBlock {
         this.#adjustBoundingBox()
     }
     #adjustBoundingBox(): void {
-        const extra = (this.hotLineStrokeWidth() + this.#maxBorderWidth()) / 2
+        const strokeWidth = this.hotLineStrokeWidth()
+        const borderWidth = this.#maxBorderWidth()
+        // a width which is not finite would spread into the whole box
+        const extra =
+            Number.isFinite(strokeWidth) && Number.isFinite(borderWidth)
+                ? (strokeWidth + borderWidth) / 2
+                : 0
         const { topLeft, topRight, bottomLeft, bottomRight } = this.boundingBox
         this.boundingBox = {
             topLeft: { x: topLeft.x - extra, y: topLeft.y - extra },

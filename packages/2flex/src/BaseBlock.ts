@@ -469,22 +469,30 @@ export class BaseBlock extends Node {
         this.setOptionCurrent('height', clampSize(contentHeight * scale))
         const width = this.__boxWidth()
         const height = this.__boxHeight()
-        if (this.getOptionCurrent('cornerTopLeft') === undefined)
+        // a corner which was given by the user can be malformed, so it is only
+        // kept when both of its coordinates are finite
+        const isValidCorner = (corner: any) =>
+            !!corner &&
+            typeof corner.x === 'number' &&
+            typeof corner.y === 'number' &&
+            Number.isFinite(corner.x) &&
+            Number.isFinite(corner.y)
+        if (!isValidCorner(this.getOptionCurrent('cornerTopLeft')))
             this.setOptionCurrent('cornerTopLeft', {
                 x: x,
                 y: y,
             })
-        if (this.getOptionCurrent('cornerTopRight') === undefined)
+        if (!isValidCorner(this.getOptionCurrent('cornerTopRight')))
             this.setOptionCurrent('cornerTopRight', {
                 x: x + width,
                 y: y,
             })
-        if (this.getOptionCurrent('cornerBottomLeft') === undefined)
+        if (!isValidCorner(this.getOptionCurrent('cornerBottomLeft')))
             this.setOptionCurrent('cornerBottomLeft', {
                 x: x,
                 y: y + height,
             })
-        if (this.getOptionCurrent('cornerBottomRight') === undefined)
+        if (!isValidCorner(this.getOptionCurrent('cornerBottomRight')))
             this.setOptionCurrent('cornerBottomRight', {
                 x: x + width,
                 y: y + height,
@@ -494,9 +502,15 @@ export class BaseBlock extends Node {
         this.#calculateRealHeight()
         this.#calculateRealCenterX()
         this.#calculateRealCenterY()
-        if (this.getOptionCurrent('rotationCenterX') === undefined)
+        if (
+            this.getOptionCurrent('rotationCenterX') === undefined ||
+            !Number.isFinite(this.getOptionCurrent('rotationCenterX'))
+        )
             this.setOptionCurrent('rotationCenterX', this.realCenterX)
-        if (this.getOptionCurrent('rotationCenterY') === undefined)
+        if (
+            this.getOptionCurrent('rotationCenterY') === undefined ||
+            !Number.isFinite(this.getOptionCurrent('rotationCenterY'))
+        )
             this.setOptionCurrent('rotationCenterY', this.realCenterY)
     }
     #collectQueueAddEvents() {
@@ -637,6 +651,16 @@ export class BaseBlock extends Node {
             bottomLeftCorner.y,
             bottomRightCorner.y
         )
+        // a corner which is not finite would spread into the whole box, so the
+        // last box which was calculated is kept instead
+        if (
+            !Number.isFinite(minCordX) ||
+            !Number.isFinite(minCordY) ||
+            !Number.isFinite(maxCordX) ||
+            !Number.isFinite(maxCordY)
+        ) {
+            return
+        }
         this.boundingBox = {
             topLeft: {
                 x: minCordX,
@@ -732,6 +756,13 @@ export class BaseBlock extends Node {
 
         const rotationCenterX = this.getOptionCurrent('rotationCenterX')
         const rotationCenterY = this.getOptionCurrent('rotationCenterY')
+
+        // a position which is not finite would spread into every corner of the
+        // block, so it falls back to the last known finite position
+        if (!Number.isFinite(currentX))
+            currentX = Number.isFinite(cacheX) ? cacheX : 0
+        if (!Number.isFinite(currentY))
+            currentY = Number.isFinite(cacheY) ? cacheY : 0
 
         const position = this.getOptionCurrent('position')
         const top = this.getOptionCurrent('top')
@@ -876,13 +907,19 @@ export class BaseBlock extends Node {
         const shouldTrackOwnCenter =
             this.rotationCenter() !== 'parent' || !this.__hasParentBlock
         if (shouldTrackOwnCenter) {
+            const centerX = Number.isFinite(rotationCenterX)
+                ? rotationCenterX
+                : currentX + currentWidth / 2
+            const centerY = Number.isFinite(rotationCenterY)
+                ? rotationCenterY
+                : currentY + currentHeight / 2
             this.setOptionCurrent(
                 'rotationCenterX',
-                rotationCenterX + diffX + diffW / 2
+                centerX + diffX + diffW / 2
             )
             this.setOptionCurrent(
                 'rotationCenterY',
-                rotationCenterY + diffY + diffH / 2
+                centerY + diffY + diffH / 2
             )
         }
         this.setOptionCurrent('x', currentX)

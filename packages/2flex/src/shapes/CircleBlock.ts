@@ -114,7 +114,12 @@ export class CircleBlock extends ShapeBlock {
     #adjustBoundingBox(): void {
         const borderWidth =
             (this.getOptionCurrent('borderWidth') as number) ?? 0
-        const extra = (this.hotLineStrokeWidth() + borderWidth) / 2
+        const strokeWidth = this.hotLineStrokeWidth()
+        // a width which is not finite would spread into the whole box
+        const extra =
+            Number.isFinite(borderWidth) && Number.isFinite(strokeWidth)
+                ? (strokeWidth + borderWidth) / 2
+                : 0
 
         const { topLeft, topRight, bottomLeft, bottomRight } = this.boundingBox
 

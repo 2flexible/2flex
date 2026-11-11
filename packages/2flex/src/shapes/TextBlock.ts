@@ -327,6 +327,17 @@ export class TextBlock extends ShapeBlock {
         const minY = Math.min(...minYs)
         const maxY = Math.max(...maxYs)
 
+        // a coordinate which is not finite would spread into the whole box, so
+        // the last box which was calculated is kept instead
+        if (
+            !Number.isFinite(minX) ||
+            !Number.isFinite(maxX) ||
+            !Number.isFinite(minY) ||
+            !Number.isFinite(maxY)
+        ) {
+            return
+        }
+
         this.#localBoundingBox = {
             topLeft: { x: minX, y: minY },
             topRight: { x: maxX, y: minY },
@@ -355,6 +366,15 @@ export class TextBlock extends ShapeBlock {
         const worldMaxX = Math.max(...xs)
         const worldMinY = Math.min(...ys)
         const worldMaxY = Math.max(...ys)
+
+        if (
+            !Number.isFinite(worldMinX) ||
+            !Number.isFinite(worldMaxX) ||
+            !Number.isFinite(worldMinY) ||
+            !Number.isFinite(worldMaxY)
+        ) {
+            return
+        }
 
         this.boundingBox = {
             topLeft: { x: worldMinX, y: worldMinY },

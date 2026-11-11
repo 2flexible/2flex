@@ -202,6 +202,32 @@ describe('Block', () => {
                 block.cornerBottomRight(),
             ]).toMatchSnapshot()
         })
+        it('should keep a finite box when the position is not finite', async () => {
+            block.set({ x: NaN, y: NaN })
+            await flush()
+            expect(Number.isFinite(block.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.y)).toBe(true)
+        })
+        it('should keep a finite box when the rotation center is not finite', async () => {
+            block.set({ rotationCenterX: NaN, rotationCenterY: NaN })
+            await flush()
+            expect(Number.isFinite(block.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.y)).toBe(true)
+        })
+        it('should keep a finite box when a corner is not finite', async () => {
+            block.set({
+                cornerTopLeft: { x: NaN, y: NaN },
+            } as any)
+            await flush()
+            expect(Number.isFinite(block.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.y)).toBe(true)
+        })
         it('should change x coordinate', async () => {
             block.set({ x: 120 })
             await flush()

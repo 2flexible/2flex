@@ -427,6 +427,32 @@ describe('RectangleBlock', () => {
                 y: 126.25,
             })
         })
+        it('should keep a finite box when the border width is not finite', async () => {
+            rectangle.set({ borderWidth: NaN })
+            canvas.demandInvoke(rectangle)
+            await flush()
+            expect(Number.isFinite(rectangle.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(rectangle.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(rectangle.boundingBox.bottomRight.x)).toBe(
+                true
+            )
+            expect(Number.isFinite(rectangle.boundingBox.bottomRight.y)).toBe(
+                true
+            )
+        })
+        it('should keep a finite box when the hot line stroke width is not finite', async () => {
+            rectangle.set({ hotLineStrokeWidth: NaN })
+            canvas.demandInvoke(rectangle)
+            await flush()
+            expect(Number.isFinite(rectangle.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(rectangle.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(rectangle.boundingBox.bottomRight.x)).toBe(
+                true
+            )
+            expect(Number.isFinite(rectangle.boundingBox.bottomRight.y)).toBe(
+                true
+            )
+        })
     })
 
     describe('clip shape', () => {

@@ -767,6 +767,23 @@ describe('TextBlock', () => {
             expect(text.boundingBox.topLeft).toEqual({ x: 0, y: 0 })
             expect(text.boundingBox.bottomRight).toEqual({ x: 0, y: 0 })
         })
+        it('should keep a finite box when the position is not finite', async () => {
+            await createTextBlock({ x: NaN, y: NaN })
+            expect(Number.isFinite(text.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.bottomRight.y)).toBe(true)
+        })
+        it('should keep a finite box when the rotation center is not finite', async () => {
+            await createTextBlock({
+                rotationCenterX: NaN,
+                rotationCenterY: NaN,
+            })
+            expect(Number.isFinite(text.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.bottomRight.y)).toBe(true)
+        })
         it('should end at the descent of the letters', async () => {
             await createTextBlock({ text: 'gp' })
             const context = prepareDrawing(text)

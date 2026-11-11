@@ -1533,6 +1533,36 @@ describe('LayoutBlock', () => {
                 height: 50,
             })
         })
+        it('should lay the childs out in one column without columns', async () => {
+            const childs = await setupGrid(
+                {
+                    width: 200,
+                    height: 200,
+                    layout: 'grid' as const,
+                    gridTemplateColumns: [],
+                },
+                3
+            )
+            // without columns the childs are stacked in a single column
+            expect(positions(childs)).toStrictEqual([
+                [0, 0],
+                [0, 50],
+                [0, 100],
+            ])
+        })
+        it('should not throw when the grid has no columns and no childs', async () => {
+            await expect(
+                setupGrid(
+                    {
+                        width: 200,
+                        height: 200,
+                        layout: 'grid' as const,
+                        gridTemplateColumns: [],
+                    },
+                    0
+                )
+            ).resolves.toBeDefined()
+        })
         it('should not measure a column which is not used', async () => {
             const childs = await setupGrid(
                 {

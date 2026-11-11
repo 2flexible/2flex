@@ -1712,21 +1712,29 @@ export class LayoutBlock extends Block {
         const cols = this.gridTemplateColumns()
         const rows = this.gridTemplateRows()
 
-        const autoWidths = cols.filter((item: any) => item !== 'auto')
+        // a grid without columns has no tracks to lay the childs out on, the
+        // division by the amount of columns would not be finite and the
+        // amount of rows would not be a valid array length
+        const gridCols = cols.length > 0 ? cols : [0]
+
+        const autoWidths = gridCols.filter((item: any) => item !== 'auto')
         let rWidth = (autoWidths as number[]).reduce(
             (p: number, c: number) => p + c,
             0
         )
 
-        const diffCol = Math.abs(cols.length - autoWidths.length)
+        const diffCol = Math.abs(gridCols.length - autoWidths.length)
 
         if (diffCol) rWidth = (this.#contentW - rWidth) / diffCol
-        else rWidth = this.#contentW / cols.length
+        else rWidth = this.#contentW / gridCols.length
 
         const autoHeights = this.gridTemplateRows().filter(
             (item: any) => item !== 'auto'
         )
-        const nRows = Math.ceil(childNodes.length / cols.length)
+        const nRows = Math.max(
+            1,
+            Math.ceil(childNodes.length / gridCols.length)
+        )
 
         let rHeight = (autoHeights as number[]).reduce(
             (p: number, c: number) => p + c,
@@ -1738,11 +1746,11 @@ export class LayoutBlock extends Block {
 
         const maxColWidths: number[] = []
         const maxRowHeights: number[] = []
-        const colTrackWidths: number[] = new Array(cols.length)
+        const colTrackWidths: number[] = new Array(gridCols.length)
         const rowTrackHeights: number[] = new Array(nRows)
 
         this.#layoutRows = [nRows]
-        this.#layoutCols = [cols.length]
+        this.#layoutCols = [gridCols.length]
 
         let startY = this.#containerY || 0
         let rowCount = 0
@@ -1789,11 +1797,11 @@ export class LayoutBlock extends Block {
                 } else maxRowHeights.push(blockH || 0)
 
                 let endX = blockW
-                if (cols[colIdx] === 'auto' || !cols[colIdx]) {
+                if (gridCols[colIdx] === 'auto' || !gridCols[colIdx]) {
                     if (endX) colStart = maxColWidths[colIdx]
                     else colStart = endX = rWidth
                 } else {
-                    colStart = cols[colIdx] as number
+                    colStart = gridCols[colIdx] as number
                     if (!endX) endX = colStart
                 }
 

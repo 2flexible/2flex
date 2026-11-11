@@ -407,6 +407,15 @@ describe('CircleBlock', () => {
                 y: 126.25,
             })
         })
+        it('should keep a finite box when the border width is not finite', async () => {
+            circle.set({ borderWidth: NaN })
+            canvas.demandInvoke(circle)
+            await flush()
+            expect(Number.isFinite(circle.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(circle.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(circle.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(circle.boundingBox.bottomRight.y)).toBe(true)
+        })
     })
 
     describe('clip shape', () => {
