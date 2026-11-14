@@ -2301,4 +2301,170 @@ describe('Block', () => {
             expect(isClicked).toBeTruthy()
         })
     })
+    describe('dependencies', () => {
+        let target: Block
+        let dependent: Block
+
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            target = new Block({ x: 20, y: 30, width: 100, height: 100 })
+            dependent = new Block({ x: 0, y: 0, width: 50, height: 50 })
+            canvas.add(target)
+            canvas.add(dependent)
+            await flush()
+        })
+
+        it('should invoke the dependent when the block it depends on changes', async () => {
+            dependent.addDependency(target)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            target.set({ x: 200 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+        })
+        it('should not invoke the dependent when another block changes', async () => {
+            dependent.addDependency(target)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            const other = new Block({ x: 0, y: 0, width: 10, height: 10 })
+            canvas.add(other)
+            await flush()
+            other.set({ x: 50 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should not invoke the dependent after the dependency was removed', async () => {
+            dependent.addDependency(target)
+            dependent.removeDependency(target)
+            // the pending work of the canvas is flushed before the spy is
+            // placed, so only the work of the change is counted
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            target.set({ x: 200 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should not throw when a dependency which does not exist is removed', () => {
+            expect(() => dependent.removeDependency(target)).not.toThrow()
+        })
+        it('should ignore a dependency on itself', async () => {
+            dependent.addDependency(dependent)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            dependent.set({ x: 200 })
+            await flush()
+
+            // the block does not depend on itself, so it is not invoked twice
+            expect(spy.mock.calls.length).toBeLessThanOrEqual(1)
+        })
+        it('should invoke the dependent of a nested block when it changes', async () => {
+            const child = new Block({ x: 0, y: 0, width: 20, height: 20 })
+            target.addChild(child)
+            dependent.addDependency(child)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            child.set({ x: 150 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+        })
+        it('should invoke every dependent of a block', async () => {
+            const second = new Block({ x: 0, y: 0, width: 50, height: 50 })
+            canvas.add(second)
+            await flush()
+            dependent.addDependency(target)
+            second.addDependency(target)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            const secondSpy = vi.spyOn(second, 'updateCords')
+            target.set({ x: 220 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+            expect(secondSpy).toHaveBeenCalled()
+        })
+        it('should apply the dependencies given by the set method', async () => {
+            const source = new Block({ x: 5, y: 5, width: 20, height: 20 })
+            canvas.add(source)
+            await flush()
+            // the listed blocks depend on the block which lists them, so they
+            // are invoked when the block which lists them changes
+            target.set({ dependencies: [source] })
+            await flush()
+            const spy = vi.spyOn(source, 'updateCords')
+            target.set({ x: 200 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+        })
+        it('should apply the dependencies given in the constructor', async () => {
+            const source = new Block({ x: 5, y: 5, width: 20, height: 20 })
+            const watcher = new Block({
+                width: 10,
+                height: 10,
+                dependencies: [source],
+            })
+            canvas.add(source)
+            canvas.add(watcher)
+            await flush()
+            const spy = vi.spyOn(source, 'updateCords')
+            watcher.set({ x: 90 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+        })
+        it('should release the dependencies which are no longer listed', async () => {
+            const source = new Block({ x: 5, y: 5, width: 20, height: 20 })
+            canvas.add(source)
+            await flush()
+            target.set({ dependencies: [source] })
+            await flush()
+            const spy = vi.spyOn(source, 'updateCords')
+            target.set({ x: 200 })
+            await flush()
+            expect(spy).toHaveBeenCalled()
+
+            target.set({ dependencies: [] })
+            await flush()
+            spy.mockClear()
+            target.set({ x: 260 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should replace the dependencies instead of adding them to them', async () => {
+            const source = new Block({ x: 5, y: 5, width: 20, height: 20 })
+            const other = new Block({ x: 6, y: 6, width: 20, height: 20 })
+            canvas.add(source)
+            canvas.add(other)
+            await flush()
+            target.set({ dependencies: [source, other] })
+            await flush()
+            const sourceSpy = vi.spyOn(source, 'updateCords')
+            const otherSpy = vi.spyOn(other, 'updateCords')
+
+            // the block which is not listed anymore is not invoked anymore
+            target.set({ dependencies: [other] })
+            await flush()
+            sourceSpy.mockClear()
+            otherSpy.mockClear()
+            target.set({ x: 240 })
+            await flush()
+
+            expect(sourceSpy).not.toHaveBeenCalled()
+            expect(otherSpy).toHaveBeenCalled()
+        })
+        it('should not hang the canvas when two blocks depend on each other', async () => {
+            target.addDependency(dependent)
+            dependent.addDependency(target)
+            await flush()
+            target.set({ x: 220 })
+            await flush()
+
+            expect(target.x()).toBe(220)
+        })
+    })
 })

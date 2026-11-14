@@ -1307,11 +1307,11 @@ export class BaseBlock extends Node {
         block.__resetParentRotation()
     }
     __invokeChange() {
+        this.#invokeDependencies()
         if (this.__hasParentBlock) {
             this.parentNode?.__invokeChange()
             return
         }
-        this.#invokeDependencies()
         this.canvas?.demandInvoke(this)
     }
     __selectCursor(cursor: string) {
@@ -1430,11 +1430,14 @@ export class BaseBlock extends Node {
             this.__invokeChange()
         }
     }
-    addDependecy(block: BaseBlock) {
-        this.#dependendBlocks.add(block)
+    addDependency(target: BaseBlock) {
+        if (!target || target === this) return
+        target.#dependendBlocks.add(this)
+        this.__invokeChange()
     }
-    removeDependency(block: BaseBlock) {
-        this.#dependendBlocks.delete(block)
+    removeDependency(target: BaseBlock) {
+        if (!target) return
+        target.#dependendBlocks.delete(this)
     }
     bindTo(block: BaseBlock, options: BlockOptionKeys[]) {
         this.#bindOptions.push({ block, options })
