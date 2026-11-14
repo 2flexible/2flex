@@ -1446,7 +1446,7 @@ export class BaseBlock extends Node {
         let blocks: BaseBlock[] = []
         this.listAllChilds((block: BaseBlock) => {
             for (const [k, v] of Object.entries(queries)) {
-                if (this.getOptionCurrent(k) === v) blocks.push(block)
+                if (block.getOptionCurrent(k) === v) blocks.push(block)
             }
         })
         return blocks

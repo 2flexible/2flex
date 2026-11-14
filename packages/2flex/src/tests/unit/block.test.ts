@@ -450,6 +450,103 @@ describe('Block', () => {
             })
             expect(currIdx).toBe(childBlocks.length)
         })
+        it('should find child blocks by their own options', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            const otherChildBlock = new Block({ name: 'other' })
+            block.addChild(childBlock)
+            block.addChild(otherChildBlock)
+            // the query is matched against the option of the child and not
+            // against the option of the block the search started from
+            expect(block.findChilds({ name: 'child' })).toStrictEqual([
+                childBlock,
+            ])
+            expect(block.findChilds({ name: 'other' })).toStrictEqual([
+                otherChildBlock,
+            ])
+        })
+        it('should find child blocks in the whole subtree', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            const grandChildBlock = new Block({ name: 'grandchild' })
+            childBlock.addChild(grandChildBlock)
+            block.addChild(childBlock)
+            expect(block.findChilds({ name: 'grandchild' })).toStrictEqual([
+                grandChildBlock,
+            ])
+        })
+        it('should not find blocks which do not match the query', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            block.addChild(childBlock)
+            expect(block.findChilds({ name: 'missing' })).toStrictEqual([])
+        })
+        it('should find child blocks by an option which is not a name', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child', zIndex: 5 })
+            const otherChildBlock = new Block({ name: 'other', zIndex: 1 })
+            block.addChild(childBlock)
+            block.addChild(otherChildBlock)
+            expect(block.findChilds({ zIndex: 5 })).toStrictEqual([childBlock])
+            expect(block.findChilds({ zIndex: 1 })).toStrictEqual([
+                otherChildBlock,
+            ])
+        })
+        it('should include the block the search started from', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            block.addChild(childBlock)
+            // the traversal starts from the block itself, so a query which
+            // matches the block itself returns it as well
+            expect(block.findChilds({ name: 'parent' })).toStrictEqual([block])
+        })
+        it('should find child blocks after they are added to a canvas', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            expect(block.findChilds({ name: 'child' })).toStrictEqual([
+                childBlock,
+            ])
+        })
         it('should adjust coordinates of child blocks', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
