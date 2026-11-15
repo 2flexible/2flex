@@ -71,8 +71,8 @@ export class Block extends OverflowBlock(
         const overflowXSign = blockHorizontalFlip ? -1 : 1
         const overflowYSign = blockVerticalFlip ? -1 : 1
 
-        const pWidth = Math.abs(this.width())
-        const pHeight = Math.abs(this.height())
+        const pWidth = Math.abs(this.width()) - this.__overflowRightGap
+        const pHeight = Math.abs(this.height()) - this.__overflowBottomGap
 
         const pPaddingLeft = this.paddingLeft()
         const pPaddingTop = this.paddingTop()

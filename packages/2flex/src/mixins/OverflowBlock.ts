@@ -1,6 +1,7 @@
 import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
+    OVERFLOW_AREA_GAP,
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
     OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
@@ -23,7 +24,6 @@ export interface IOverflowOptions extends BaseBlockOptions {
 
 // these const values should be customizable options
 const OVERFLOW_SCROLL_BAR_MIN_SIZE = 15
-const OVERFLOW_AREA_GAP = 15
 const OVERFLOW_INNER_AREA_GAP = 3
 const OVERFLOW_INNER_AREA_SIZE = 10
 const OVERFLOW_INNER_AREA_RADIUS = 10
@@ -251,6 +251,12 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
         }
         get __isOverflowYScrollable() {
             return this.__isOverflowYScroll || this.__isOverflowYAutoAllowScrool
+        }
+        get __overflowRightGap(): number {
+            return this.__isOverflowYScrollable ? OVERFLOW_AREA_GAP : 0
+        }
+        get __overflowBottomGap(): number {
+            return this.__isOverflowXScrollable ? OVERFLOW_AREA_GAP : 0
         }
         get __isOverflowExists() {
             const overflow = this.getOptionCurrent('overflow') || 'visible'

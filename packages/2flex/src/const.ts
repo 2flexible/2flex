@@ -14,6 +14,9 @@ export const HOT_LINE_BLOCK_NAME = '__hot_line_hidden'
 export const OVERFLOW_X_SCROLL_BAR_BLOCK_NAME = '__overflow_x_scroll_bar_hidden'
 
 export const OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME = '__overflow_y_scroll_bar_hidden'
+
+export const OVERFLOW_AREA_GAP = 15
+
 export const HELPER_BLOCK_NAMES = [
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,

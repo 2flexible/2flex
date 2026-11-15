@@ -930,10 +930,10 @@ export class LayoutBlock extends Block {
     }
 
     get #contentW() {
-        return Math.abs(this.width())
+        return Math.abs(this.width()) - this.__overflowRightGap
     }
     get #contentH() {
-        return Math.abs(this.height())
+        return Math.abs(this.height()) - this.__overflowBottomGap
     }
 
     get #containerW() {

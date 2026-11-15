@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { page } from 'vitest/browser'
-import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
+import { Block, Canvas, LayoutBlock, RectangleBlock } from '@2flexible/2flex'
 import {
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
@@ -368,6 +368,114 @@ describe('OverflowBlock', () => {
                 canvas.context!.getImageData(145, 145, 1, 1).data
             )
             expect(pixel).toEqual([0, 0, 255, 255])
+        })
+        it('should reserve the scroll bar strip from the right axis of the layout', async () => {
+            const owner = new LayoutBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                overflow: 'scroll',
+                justifyContent: 'end',
+            })
+            const child = new RectangleBlock({
+                width: 50,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            canvas.add(owner)
+            await flush()
+            // the vertical scroll bar takes the last 15px of the right axis,
+            // so the child has to end before it
+            expect(child.x() + child.width()).toBe(285)
+        })
+        it('should reserve the scroll bar strip from the bottom axis of the layout', async () => {
+            const owner = new LayoutBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                overflow: 'scroll',
+                alignItems: 'end',
+            })
+            const child = new RectangleBlock({
+                width: 50,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            canvas.add(owner)
+            await flush()
+            expect(child.y() + child.height()).toBe(285)
+        })
+        it('should not lay a child of a scrolled block under the scroll bar', async () => {
+            const owner = new RectangleBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                backgroundColor: 'white',
+                overflow: 'scroll',
+            })
+            const child = new RectangleBlock({
+                width: 100,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            const second = new RectangleBlock({
+                width: 100,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            owner.addChild(second)
+            canvas.add(owner)
+            await flush()
+            // two children of 100px fit the 200px block, but not the 185px
+            // which are left by the vertical scroll bar, so the second one
+            // has to wrap
+            expect([child.x(), child.y()]).toStrictEqual([100, 100])
+            expect([second.x(), second.y()]).toStrictEqual([100, 150])
+        })
+        it('should not reserve a scroll bar strip when there is no scroll bar', async () => {
+            const owner = new RectangleBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                backgroundColor: 'white',
+            })
+            const child = new RectangleBlock({
+                width: 100,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            canvas.add(owner)
+            await flush()
+            expect(child.x() + child.width()).toBe(200)
+        })
+        it('should not reserve a scroll bar strip of an auto block which does not overflow', async () => {
+            const owner = new RectangleBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                backgroundColor: 'white',
+                overflow: 'auto',
+            })
+            const child = new RectangleBlock({
+                width: 100,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            canvas.add(owner)
+            await flush()
+            // the content fits, so no scroll bar is painted and no strip is
+            // reserved
+            expect(child.x() + child.width()).toBe(200)
         })
     })
 })
