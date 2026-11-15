@@ -78,28 +78,59 @@ export class CanvasScene {
         return block.__opensStackingContext()
     }
     #orderedParticipants(context: StackingContext) {
-        const negatives: BaseBlock[] = []
-        const inFlow: BaseBlock[] = []
-        const positives: BaseBlock[] = []
-        for (const block of context.participants) {
+        const groups: Record<'negative' | 'inFlow' | 'positive', BaseBlock[]> =
+            { negative: [], inFlow: [], positive: [] }
+        const groupOf = (block: BaseBlock) => {
             const zIndex = block.__zIndex()
-            // the helper blocks belong to the layer of their owner, so they
-            // never paint above a block which is above the owner
-            if (zIndex === undefined || this.#isHelperBlock(block))
-                inFlow.push(block)
-            else if (zIndex < 0) negatives.push(block)
-            else positives.push(block)
+            if (zIndex === undefined) return groups.inFlow
+            if (zIndex < 0) return groups.negative
+            return groups.positive
         }
-        negatives.sort((a, b) => this.#compareByZIndex(a, b))
-        positives.sort((a, b) => this.#compareByZIndex(a, b))
-        inFlow.sort((a, b) => this.#compareByTreeOrder(a, b))
-        return [...negatives, ...inFlow, ...positives]
+        for (const block of context.participants) {
+            // a helper paints above the content of its owner, so it moves
+            // with a content which has a positive z index
+            if (this.#isHelperBlock(block)) {
+                const zIndex = this.#ownerContent(block, context).__zIndex()
+                if (zIndex !== undefined && zIndex > 0)
+                    groups.positive.push(block)
+                else groups.inFlow.push(block)
+            } else groupOf(block).push(block)
+        }
+        groups.negative.sort((a, b) => this.#compareByZIndex(a, b))
+        groups.positive.sort((a, b) => this.#compareByZIndex(a, b))
+        groups.inFlow.sort((a, b) => this.#compareByTreeOrder(a, b))
+        return [...groups.negative, ...groups.inFlow, ...groups.positive]
+    }
+    // the content of the owner of a helper block, the owner itself when it
+    // has no content in the context
+    #ownerContent(helper: BaseBlock, context: StackingContext) {
+        const owner = helper.parentNode
+        if (!owner) return helper
+        const content = context.participants.find(
+            (participant) =>
+                participant !== owner &&
+                participant !== helper &&
+                this.#isDescendantOf(participant, owner)
+        )
+        return content ?? owner
+    }
+    #isDescendantOf(block: BaseBlock, ancestor: BaseBlock) {
+        let parent = block.parentNode
+        while (parent) {
+            if (parent === ancestor) return true
+            parent = parent.parentNode
+        }
+        return false
     }
     // the blocks with the same z index keep their tree order
     #compareByZIndex(a: BaseBlock, b: BaseBlock) {
-        const diff = a.__zIndex()! - b.__zIndex()!
-        if (diff !== 0) return diff
-        return this.#compareByTreeOrder(a, b)
+        // a helper has no z index, it follows the content of its owner
+        const aZIndex = a.__zIndex()
+        const bZIndex = b.__zIndex()
+        if (aZIndex === bZIndex) return this.#compareByTreeOrder(a, b)
+        if (aZIndex === undefined) return 1
+        if (bZIndex === undefined) return -1
+        return aZIndex - bZIndex
     }
     #compareByTreeOrder(a: BaseBlock, b: BaseBlock) {
         if (this.#isHelperBlock(a) && this.#isHelperBlock(b)) {

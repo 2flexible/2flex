@@ -209,6 +209,50 @@ describe('HotLineBlock', () => {
             )
             expect(pixel).toEqual([0, 0, 255, 255])
         })
+        it('should paint the hot lines above a child which has a z index', async () => {
+            const owner = new RectangleBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                backgroundColor: 'green',
+                selectable: true,
+                hotLines: true,
+                overflow: 'scroll',
+            })
+            const child = new RectangleBlock({
+                x: 100,
+                y: 100,
+                width: 250,
+                height: 50,
+                backgroundColor: 'red',
+                zIndex: 999,
+            })
+            owner.addChild(child)
+            canvas.add(owner)
+            allowMouse(canvas)
+            await flush()
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 150, 150, 1)
+            dispatchMouse(element, 'mouseup', 150, 150)
+            await flush(6)
+            // the hot lines of the owner cross the child
+            const topLine = Array.from(
+                canvas.context!.getImageData(150, 100, 1, 1).data
+            )
+            expect(topLine).toEqual([0, 0, 255, 255])
+            const leftLine = Array.from(
+                canvas.context!.getImageData(100, 120, 1, 1).data
+            )
+            expect(leftLine).toEqual([0, 0, 255, 255])
+            // the child reaches over the vertical scroll bar
+            const scrollBar = Array.from(
+                canvas.context!.getImageData(292, 150, 1, 1).data
+            )
+            expect(scrollBar).not.toEqual([255, 0, 0, 255])
+        })
         it('should stop drawing hot lines after hotLines is turned off', async () => {
             await selectBlock()
             block.set({ hotLines: false })
