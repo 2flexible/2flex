@@ -124,7 +124,15 @@ describe('LayoutBlock', () => {
             childs.forEach((child) => layout.addChild(child))
             canvas.add(layout)
             await flush()
-            expect([layout.width(), layout.height()]).toStrictEqual([150, 40])
+            // a grid without a template lays its childs out in a single
+            // column, so it takes the width of the widest child and the
+            // height of all of them
+            expect([layout.width(), layout.height()]).toStrictEqual([50, 120])
+            expect(positions(childs)).toStrictEqual([
+                [0, 0],
+                [0, 40],
+                [0, 80],
+            ])
         })
         it('should lay out a grid back as a row', async () => {
             layout = new LayoutBlock({
@@ -199,6 +207,104 @@ describe('LayoutBlock', () => {
             canvas.add(layout)
             await flush()
             expect([layout.width(), layout.height()]).toStrictEqual([300, 200])
+        })
+    })
+
+    describe('self sizing', () => {
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            await flush()
+        })
+        it('should size a flex row from its childs', async () => {
+            layout = new LayoutBlock({ layout: 'flex' })
+            layout.addChild(new Block({ width: 150, height: 50 }))
+            layout.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(layout)
+            await flush()
+
+            // a row sums up the widths and takes the biggest height
+            expect([layout.width(), layout.height()]).toStrictEqual([200, 80])
+        })
+        it('should size a flex column from its childs', async () => {
+            layout = new LayoutBlock({
+                layout: 'flex',
+                flexDirection: 'column',
+            })
+            layout.addChild(new Block({ width: 150, height: 50 }))
+            layout.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(layout)
+            await flush()
+
+            // a column sums up the heights and takes the biggest width
+            expect([layout.width(), layout.height()]).toStrictEqual([150, 130])
+        })
+        it('should size an inline-flex from its childs', async () => {
+            layout = new LayoutBlock({ layout: 'inline-flex' })
+            const childs = createChilds(3, 50, 40)
+            childs.forEach((child) => layout.addChild(child))
+            canvas.add(layout)
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([150, 40])
+        })
+        it('should size a grid from the tracks of its template', async () => {
+            layout = new LayoutBlock({
+                layout: 'grid',
+                gridTemplateColumns: [100, 100],
+            })
+            const childs = createChilds(4, 50, 50)
+            childs.forEach((child) => layout.addChild(child))
+            canvas.add(layout)
+            await flush()
+
+            expect(layout.width()).toBe(200)
+        })
+        it('should follow a child which is resized', async () => {
+            layout = new LayoutBlock({ layout: 'inline-flex' })
+            const child = new Block({ width: 150, height: 50 })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([150, 50])
+
+            child.set({ width: 300 })
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([300, 50])
+        })
+        it('should follow a child which is added', async () => {
+            layout = new LayoutBlock({ layout: 'inline-flex' })
+            layout.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(layout)
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([150, 50])
+
+            layout.addChild(new Block({ width: 50, height: 80 }))
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([200, 80])
+        })
+        it('should follow a child which is removed', async () => {
+            layout = new LayoutBlock({ layout: 'inline-flex' })
+            const child = new Block({ width: 150, height: 50 })
+            layout.addChild(child)
+            layout.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(layout)
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([200, 80])
+
+            layout.removeChild(child)
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([50, 80])
+        })
+        it('should keep an explicit size of a flex layout block', async () => {
+            layout = new LayoutBlock({ layout: 'flex', width: 300 })
+            layout.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(layout)
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([300, 50])
         })
     })
 

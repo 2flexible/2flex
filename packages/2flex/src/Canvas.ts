@@ -619,7 +619,6 @@ export class Canvas {
         if (addedBlocks) {
             for (const block of addedBlocks) {
                 block.canvas = this
-                this.#handleBlockOptions(block)
                 block.init()
                 this.demandInvoke(block)
             }
@@ -666,11 +665,6 @@ export class Canvas {
             if (tailData) this.#history.updateTail(tailData)
             else this.#history.add(initTail)
             this.#history.add(nextData)
-        }
-    }
-    #handleBlockOptions(block: BaseBlock) {
-        for (const [key, value] of block.options) {
-            getPrototype(block, key as string)?.value.call(block, value)
         }
     }
     add(...blocks: BaseBlock[]) {

@@ -654,32 +654,6 @@ export class LayoutBlock extends Block {
             'layout',
             'flex'
         )
-        if (layout == 'inline-flex' || layout == 'inline-grid') {
-            if (!this.#childs.length) return layout
-            const isFlexCol = this.#isFlexCol
-            const widths = this.#childs.map((child) => child.__boxWidth())
-            const heights = this.#childs.map((child) => child.__boxHeight())
-
-            if (!this.getOptionCurrent('width'))
-                this.setOptionCurrent(
-                    'width',
-                    clampSize(
-                        isFlexCol
-                            ? Math.max(...widths)
-                            : widths.reduce((prev, curr) => prev + curr, 0)
-                    )
-                )
-
-            if (!this.getOptionCurrent('height'))
-                this.setOptionCurrent(
-                    'height',
-                    clampSize(
-                        isFlexCol
-                            ? heights.reduce((prev, curr) => prev + curr, 0)
-                            : Math.max(...heights)
-                    )
-                )
-        }
         return layout
     }
     #updateLayout() {
@@ -927,6 +901,144 @@ export class LayoutBlock extends Block {
             childs.push(child)
         }
         return childs
+    }
+    // a grid is sized by its tracks, a flex by the space its childs need
+    __deriveSizeFromChilds(): boolean {
+        const needsWidth = this.__initResolved('width') === undefined
+        const needsHeight = this.__initResolved('height') === undefined
+        if (!needsWidth && !needsHeight) return false
+
+        const paddingW = this.paddingLeft() + this.paddingRight()
+        const paddingH = this.paddingTop() + this.paddingBottom()
+
+        if (this.#isGrid) {
+            const cols = this.gridTemplateColumns()
+            const rows = this.gridTemplateRows()
+            // a grid without a template lays its childs out in a single
+            // column, so it takes the width of the widest child and the height
+            // of all of them
+            if (!this.__initResolved('gridTemplateColumns')) {
+                let width = 0
+                let height = 0
+                for (const child of this.#flowingChilds) {
+                    const childW =
+                        Math.abs(child.__boxWidth()) +
+                        child.marginLeft() +
+                        child.marginRight()
+                    const childH =
+                        Math.abs(child.__boxHeight()) +
+                        child.marginTop() +
+                        child.marginBottom()
+                    if (childW > width) width = childW
+                    height += childH
+                }
+                const widthChanged = needsWidth
+                    ? this.__setDerivedWidth(width + paddingW)
+                    : false
+                const heightChanged = needsHeight
+                    ? this.__setDerivedHeight(height + paddingH)
+                    : false
+                return widthChanged || heightChanged
+            }
+
+            const trackWidth = cols.reduce(
+                (sum: number, col: any) =>
+                    sum + (typeof col === 'number' ? col : 0),
+                0
+            )
+            const trackHeight = rows.reduce(
+                (sum: number, row: any) =>
+                    sum + (typeof row === 'number' ? row : 0),
+                0
+            )
+            // a track of auto takes the space its childs need
+            const autoCols = cols.filter((col: any) => col === 'auto').length
+            // without a template of rows the rows are auto as well
+            const autoRows =
+                rows.filter((row: any) => row === 'auto').length ||
+                (this.__initResolved('gridTemplateRows') ? 0 : 1)
+            const childCount = this.#flowingChilds.length
+
+            const widthChanged = needsWidth
+                ? this.__setDerivedWidth(
+                      trackWidth +
+                          this.#autoTrackSize(autoCols, childCount, 'w') +
+                          paddingW
+                  )
+                : false
+            const heightChanged = needsHeight
+                ? this.__setDerivedHeight(
+                      trackHeight +
+                          this.#autoTrackSize(
+                              autoRows,
+                              autoRows > 0 ? autoRows : 1,
+                              'h',
+                              cols.length
+                          ) +
+                          paddingH
+                  )
+                : false
+            return widthChanged || heightChanged
+        }
+        // a flex takes the space its childs need along the main axis and the
+        // space of the biggest child along the cross axis
+        let mainSize = 0
+        let crossSize = 0
+        for (const child of this.#flowingChilds) {
+            const childMain =
+                (this.#isFlexCol
+                    ? Math.abs(child.__boxHeight())
+                    : Math.abs(child.__boxWidth())) +
+                (this.#isFlexCol
+                    ? child.marginTop() + child.marginBottom()
+                    : child.marginLeft() + child.marginRight())
+            const childCross =
+                (this.#isFlexCol
+                    ? Math.abs(child.__boxWidth())
+                    : Math.abs(child.__boxHeight())) +
+                (this.#isFlexCol
+                    ? child.marginLeft() + child.marginRight()
+                    : child.marginTop() + child.marginBottom())
+            mainSize += childMain
+            if (childCross > crossSize) crossSize = childCross
+        }
+
+        const widthChanged = needsWidth
+            ? this.__setDerivedWidth(
+                  (this.#isFlexCol ? crossSize : mainSize) + paddingW
+              )
+            : false
+        const heightChanged = needsHeight
+            ? this.__setDerivedHeight(
+                  (this.#isFlexCol ? mainSize : crossSize) + paddingH
+              )
+            : false
+        return widthChanged || heightChanged
+    }
+    // the size an auto track takes from the childs which are put on it
+    #autoTrackSize(
+        autoCount: number,
+        childCount: number,
+        axis: 'w' | 'h',
+        perRow = 0
+    ): number {
+        if (autoCount === 0) return 0
+        const childs = this.#flowingChilds
+        if (childs.length === 0) return 0
+        // a row of a grid holds the childs of its columns, so only the childs
+        // of the first row decide the height of the row
+        const perTrack =
+            perRow > 0 ? perRow : Math.ceil(childCount / autoCount)
+        let size = 0
+        for (let i = 0; i < Math.min(perTrack, childs.length); i++) {
+            const child = childs[i]
+            const childSize =
+                axis === 'w'
+                    ? Math.abs(child.__boxWidth())
+                    : Math.abs(child.__boxHeight())
+            if (childSize > size) size = childSize
+        }
+        return size * autoCount
     }
 
     get #contentW() {

@@ -192,6 +192,7 @@ export class BaseBlock extends Node {
     __parentHidden = false
     __parentRotate = 0
     __rotateCache = 0
+    __applyOptionsOnly = false
 
     #zIndex?: number
     #order?: number
@@ -243,6 +244,7 @@ export class BaseBlock extends Node {
         if (currentRotate !== 0 || cacheRotate !== 0)
             this.rotateCordinates(-cacheRotate)
         this.#resolveInitOptions()
+        const sizeChanged = this.__deriveSizeFromChilds()
         this.__childAdjustment?.(this)
         this.updateCordinates()
         this.updateChildsCordinate()
@@ -257,8 +259,13 @@ export class BaseBlock extends Node {
         this.#calculateRealCenterY()
         this.#updateOptionsCache()
         this.#handleBindOptions()
+        if (sizeChanged) {
+            this.__hasParentBlock &&
+                this.parentNode?.__invokeDerivedSizeChanged()
+        }
     }
     init() {
+        this.__applyOptions()
         this.#initializeCordinates()
         this.#updateOptionsCache()
         this.updateCordinates()
@@ -1052,6 +1059,64 @@ export class BaseBlock extends Node {
             height: blocksContainerHeight,
         }
     }
+    __deriveSizeFromChilds(): boolean {
+        const needsWidth = this.__initResolved('width') === undefined
+        const needsHeight = this.__initResolved('height') === undefined
+        if (!needsWidth && !needsHeight) return false
+
+        const extent = this.#childsExtent()
+        const paddingW = this.paddingLeft() + this.paddingRight()
+        const paddingH = this.paddingTop() + this.paddingBottom()
+
+        const widthChanged = needsWidth
+            ? this.__setDerivedWidth(extent.width + paddingW)
+            : false
+        const heightChanged = needsHeight
+            ? this.__setDerivedHeight(extent.height + paddingH)
+            : false
+        return widthChanged || heightChanged
+    }
+    #childsExtent(): { width: number; height: number } {
+        let width = 0
+        let height = 0
+        this.listOnlyChilds((b: BaseBlock) => {
+            const position = b.position()
+            if (position === 'absolute' || position === 'fixed') return
+            const childW =
+                Math.abs(b.__boxWidth()) + b.marginLeft() + b.marginRight()
+            const childH =
+                Math.abs(b.__boxHeight()) + b.marginTop() + b.marginBottom()
+            if (childW > width) width = childW
+            if (childH > height) height = childH
+        })
+        return { width, height }
+    }
+    __setDerivedWidth(width: number): boolean {
+        const clamped = clampSize(this.#clampWidth(width))
+        if (this.getOptionCurrent('width') === clamped) return false
+        this.setOptionCurrent('width', clamped)
+        return true
+    }
+    __setDerivedHeight(height: number): boolean {
+        const clamped = clampSize(this.#clampHeight(height))
+        if (this.getOptionCurrent('height') === clamped) return false
+        this.setOptionCurrent('height', clamped)
+        return true
+    }
+    #clampWidth(width: number): number {
+        const min = this.minWidth()
+        const max = this.maxWidth()
+        if (min !== undefined && width < min) return min
+        if (max !== undefined && width > max) return max
+        return width
+    }
+    #clampHeight(height: number): number {
+        const min = this.minHeight()
+        const max = this.maxHeight()
+        if (min !== undefined && height < min) return min
+        if (max !== undefined && height > max) return max
+        return height
+    }
     #rotateCornerCordinates(corner: string, diffR: number) {
         const cordsAreaCurrent = this.getOptionCurrent(corner)
         const cordsAreaCache = this.getOptionCache(corner)
@@ -1152,7 +1217,8 @@ export class BaseBlock extends Node {
         const important = this.getOptionCurrent('important')
         if (important && Object.hasOwn(important, option))
             currentValue = important[option]
-        if (opt !== undefined) this.initOptions.set(option, currentValue)
+        if (opt !== undefined && !this.__applyOptionsOnly)
+            this.initOptions.set(option, currentValue)
         if (valueConverter === undefined) {
             currentValue = this.__valueConverter<T, O>({
                 val: currentValue,
@@ -1314,6 +1380,20 @@ export class BaseBlock extends Node {
         }
         this.canvas?.demandInvoke(this)
     }
+    __invokeDerivedSizeChanged() {
+        this.__deriveSizeFromChilds()
+        // the childs are laid out against the new size
+        this.updateChildsCordinate()
+        this.__hasParentBlock &&
+            this.parentNode?.__invokeDerivedSizeChanged()
+    }
+    __applyOptions() {
+        this.__applyOptionsOnly = true
+        for (const [key, value] of this.options) {
+            getPrototype(this, key as string)?.value.call(this, value)
+        }
+        this.__applyOptionsOnly = false
+    }
     __selectCursor(cursor: string) {
         if (this.nodeId !== undefined)
             this.canvas?.registerCursor(this.nodeId, cursor)
@@ -1460,6 +1540,7 @@ export class BaseBlock extends Node {
         if (this.canvas) this.canvas.demandAddBlock(block)
         else this.#pending['addedChilds'].push(block)
         this.__invokeHistory({ removeChild: block }, { addChild: block })
+        this.canvas?.demandInvoke(this)
     }
     removeChild(block: BaseBlock): void {
         super.removeChild(block)
@@ -1469,6 +1550,7 @@ export class BaseBlock extends Node {
         if (this.canvas) this.canvas.demandRemoveBlock(block)
         else this.#pending['removedChilds'].push(block)
         this.__invokeHistory({ addChild: block }, { removeChild: block })
+        this.canvas?.demandInvoke(this)
     }
     contextMenu(_func: (event: MouseEvent) => void) {
         const out = (event: MouseEvent) => {

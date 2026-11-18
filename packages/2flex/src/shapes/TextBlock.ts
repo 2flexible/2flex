@@ -298,6 +298,11 @@ export class TextBlock extends ShapeBlock {
         this.#updateLetterNodeCordinates()
         this.#updateBoundingCords()
     }
+    // a text block sizes itself from its glyphs, so it does not take the size
+    // of its childs
+    __deriveSizeFromChilds(): boolean {
+        return false
+    }
     #setFont() {
         const context = this.#activeContext
         if (!context) return

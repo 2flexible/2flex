@@ -3,6 +3,7 @@ import { page, userEvent } from 'vitest/browser'
 import {
     Block,
     Canvas,
+    CircleBlock,
     LayoutBlock,
     RectangleBlock,
     TextBlock,
@@ -2465,6 +2466,149 @@ describe('Block', () => {
             await flush()
 
             expect(target.x()).toBe(220)
+        })
+    })
+
+    describe('self sizing', () => {
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            await flush()
+        })
+        it('should take the size of its childs when no size was given', async () => {
+            block = new Block({ x: 0, y: 0 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 50])
+        })
+        it('should take the size of its childs when its size was read before it was added', async () => {
+            block = new Block({ x: 0, y: 0 })
+            // reading the size must not turn it into a size which was given
+            block.width()
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 50])
+        })
+        it('should take the width of the widest of its childs', async () => {
+            block = new Block({ x: 0, y: 0 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            block.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 80])
+        })
+        it('should keep a width which was given and derive the height', async () => {
+            block = new Block({ x: 0, y: 0, width: 200 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([200, 50])
+        })
+        it('should keep a height which was given and derive the width', async () => {
+            block = new Block({ x: 0, y: 0, height: 200 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 200])
+        })
+        it('should keep a size of zero which was given', async () => {
+            block = new Block({ x: 0, y: 0, width: 0, height: 0 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([0, 0])
+        })
+        it('should include the margins of its childs and its own padding', async () => {
+            block = new Block({ x: 0, y: 0, padding: 10 })
+            block.addChild(new Block({ width: 150, height: 50, margin: 5 }))
+            canvas.add(block)
+            await flush()
+
+            // the child takes 150 plus its margins, the padding is added on top
+            expect([block.width(), block.height()]).toStrictEqual([180, 80])
+        })
+        it('should not take the size of a child which is out of the flow', async () => {
+            block = new Block({ x: 0, y: 0 })
+            block.addChild(
+                new Block({ width: 150, height: 50, position: 'absolute' })
+            )
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([0, 0])
+        })
+        it('should grow when a child is added', async () => {
+            block = new Block({ x: 0, y: 0 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+            expect([block.width(), block.height()]).toStrictEqual([150, 50])
+
+            block.addChild(new Block({ width: 50, height: 80 }))
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 80])
+        })
+        it('should shrink when a child is removed', async () => {
+            block = new Block({ x: 0, y: 0 })
+            const child = new Block({ width: 150, height: 50 })
+            block.addChild(child)
+            block.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(block)
+            await flush()
+            expect([block.width(), block.height()]).toStrictEqual([150, 80])
+
+            block.removeChild(child)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([50, 80])
+        })
+        it('should follow a child which is resized', async () => {
+            block = new Block({ x: 0, y: 0 })
+            const child = new Block({ width: 150, height: 50 })
+            block.addChild(child)
+            canvas.add(block)
+            await flush()
+            expect([block.width(), block.height()]).toStrictEqual([150, 50])
+
+            child.set({ width: 300, height: 90 })
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([300, 90])
+        })
+        it('should size a shape block from its childs', async () => {
+            const shape = new RectangleBlock({ x: 0, y: 0 })
+            shape.addChild(new RectangleBlock({ width: 120, height: 40 }))
+            canvas.add(shape)
+            await flush()
+
+            expect([shape.width(), shape.height()]).toStrictEqual([120, 40])
+        })
+        it('should size a circle block from its childs', async () => {
+            const circle = new CircleBlock({ x: 0, y: 0 })
+            circle.addChild(new RectangleBlock({ width: 120, height: 40 }))
+            canvas.add(circle)
+            await flush()
+
+            expect([circle.width(), circle.height()]).toStrictEqual([120, 40])
+        })
+        it('should size a nested block from the childs of its childs', async () => {
+            const outer = new Block({ x: 0, y: 0 })
+            const inner = new Block({ x: 0, y: 0 })
+            inner.addChild(new Block({ width: 150, height: 50 }))
+            outer.addChild(inner)
+            canvas.add(outer)
+            await flush()
+
+            expect([inner.width(), inner.height()]).toStrictEqual([150, 50])
+            expect([outer.width(), outer.height()]).toStrictEqual([150, 50])
         })
     })
 })
