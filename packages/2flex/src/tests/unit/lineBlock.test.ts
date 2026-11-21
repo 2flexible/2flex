@@ -95,6 +95,24 @@ const createLine = async (options: ILineOptions = {}) => {
     return line
 }
 
+const createLineWithTarget = async (
+    target: RectangleBlock,
+    options: ILineOptions = {}
+) => {
+    canvas = new Canvas('myCanvas', 400, 500)
+    canvas.add(target)
+    line = new LineBlock({
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        ...options,
+    })
+    canvas.add(line)
+    await flush()
+    return line
+}
+
 describe('LineBlock', () => {
     afterEach(() => {
         vi.restoreAllMocks()
@@ -144,8 +162,6 @@ describe('LineBlock', () => {
     describe('option defaults', () => {
         const defaults: [string, unknown][] = [
             ['controlPoints', []],
-            ['stickyStart', undefined],
-            ['stickyEnd', undefined],
             ['controlPointsSize', 5],
             ['controlLineWidth', 2],
             ['controlPointBackgroundColor', 'white'],
@@ -837,6 +853,174 @@ describe('LineBlock', () => {
             await flush()
             expect(line.getOptionCurrent('startX-0')).toBe(105)
             expect(line.getOptionCurrent('startY-0')).toBe(65)
+        })
+        it('should depend on the block it is stuck to', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 100 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-0')).toBe(105)
+        })
+        it('should not depend on a block it is not stuck to', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                    },
+                ],
+            })
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 100 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should keep the dependency when both ends are stuck to the same block', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                        stickyEnd: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            target.set({ x: 100 })
+            await flush()
+            expect(line.getOptionCurrent('startX-0')).toBe(105)
+            expect(line.getOptionCurrent('endX-0')).toBe(105)
+        })
+        it('should move the dependency to the block it is stuck to now', async () => {
+            const other = new RectangleBlock({
+                x: 10,
+                y: 20,
+                width: 20,
+                height: 20,
+            })
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            canvas.add(other)
+            await flush()
+            line.set({ 'stickyStart-0': { block: other, x: 5, y: 5 } })
+            await flush()
+
+            expect(line.getOptionCurrent('startX-0')).toBe(15)
+
+            const oldSpy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 300 })
+            await flush()
+            expect(oldSpy).not.toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-0')).toBe(15)
+
+            const newSpy = vi.spyOn(line, 'updateCords')
+            other.set({ x: 200 })
+            await flush()
+            expect(newSpy).toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-0')).toBe(205)
+        })
+        it('should release the dependency when the control points are reset', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            line.controlPoints([])
+            await flush()
+
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 300 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-0')).toBeUndefined()
+        })
+        it('should release the dependency when a control point is removed', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            line.removeControlPoint(0)
+            await flush()
+
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 300 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should keep the dependency when only one of two points is removed', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 50,
+                        endY: 50,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                    {
+                        startX: 50,
+                        startY: 50,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            line.removeControlPoint(0)
+            await flush()
+
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 300 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-1')).toBe(305)
         })
     })
 

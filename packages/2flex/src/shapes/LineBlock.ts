@@ -127,6 +127,8 @@ export class LineBlock extends ShapeBlock {
 
     #points: { x: number[]; y: number[] } = { x: [], y: [] }
 
+    #stickyDependencies: Map<Block, number> = new Map()
+
     constructor(options: LineBlockOptions) {
         super(options)
         this.#controlPointEvents = {}
@@ -142,8 +144,6 @@ export class LineBlock extends ShapeBlock {
             (block: LineBlock, opt: ControlPoint[]) =>
                 this.#controlPoints(block, opt)
         )
-        this.addProperty('stickyStart', undefined)
-        this.addProperty('stickyEnd', undefined)
         this.addProperty('controlPointsSize', CONTROLS_POINT_SIZE)
         this.addProperty('controlLineWidth', CONTROLS_LINE_WIDTH)
         this.addProperty(
@@ -383,6 +383,10 @@ export class LineBlock extends ShapeBlock {
         super.updateCords()
         this.#adjsutBoundingBox()
     }
+    // a line sizes itself from its points, so it does not take the size of its childs
+    __deriveSizeFromChilds(): boolean {
+        return false
+    }
     addControlPoint(point: ControlPoint, index: number) {
         let foundPoint = this.#findPointNode((p) => p.id == index)
         if (!foundPoint) foundPoint = this.#tailPointNode
@@ -417,14 +421,17 @@ export class LineBlock extends ShapeBlock {
         let node = this.#headPointNode
         this.#headPointNode = undefined
         this.#tailPointNode = undefined
+        const blocks = new Set<Block>()
         while (node) {
             const next = node.next
+            if (node.stickyStart?.block) blocks.add(node.stickyStart.block)
+            if (node.stickyEnd?.block) blocks.add(node.stickyEnd.block)
             this.#removePointProperties(node.id!)
-            this.#removeStickyDependentBlock(node)
             node.prev = undefined
             node.next = undefined
             node = next
         }
+        for (const block of blocks) this.removeDependency(block)
     }
     #removePointProperties(id: number) {
         for (const key of CONTROLPOINT_PROPERTY_NAMES) {
@@ -432,21 +439,53 @@ export class LineBlock extends ShapeBlock {
             this.removeProperty(propertyName)
         }
     }
-    #removeStickyDependentBlock(point: PointNode) {
-        const stickyStart = point.stickyStart
-        const stickyEnd = point.stickyEnd
-        if (stickyStart) stickyStart.block.removeDependency(this)
-        if (stickyEnd) stickyEnd.block.removeDependency(this)
+    #holdStickyDependency(block: Block) {
+        const held = (this.#stickyDependencies.get(block) ?? 0) + 1
+        this.#stickyDependencies.set(block, held)
+        this.addDependency(block)
     }
-    #stickyDependentBlocks(point: ControlPoint) {
-        const stickyStart = point.stickyStart
-        const stickyEnd = point.stickyEnd
-        if (stickyStart) stickyStart.block.addDependecy(this)
-        if (stickyEnd) stickyEnd.block.addDependecy(this)
+    #releaseStickyDependency(block: Block) {
+        const held = this.#stickyDependencies.get(block) ?? 0
+        if (held <= 1) {
+            this.#stickyDependencies.delete(block)
+            this.removeDependency(block)
+            return
+        }
+        this.#stickyDependencies.set(block, held - 1)
+    }
+    #releasePointStickyDependencies(point: PointNode) {
+        const blocks = new Set(
+            [point.stickyStart?.block, point.stickyEnd?.block].filter(
+                (block): block is Block => block !== undefined
+            )
+        )
+        for (const block of blocks) this.#releaseStickyDependency(block)
+    }
+    #restickDependentBlock(
+        block: LineBlock,
+        pointId: number,
+        property: 'stickyStart' | 'stickyEnd',
+        opt?: StickTo
+    ) {
+        const point = this.#findPointNode((p) => p.id === pointId)
+        const previous =
+            property === 'stickyStart'
+                ? point?.stickyStart?.block
+                : point?.stickyEnd?.block
+        const next = opt?.block
+        if (point) {
+            if (property === 'stickyStart') point.stickyStart = opt
+            else point.stickyEnd = opt
+        }
+        if (previous === next) return
+        if (previous) block.#releaseStickyDependency(previous)
+        if (next) block.#holdStickyDependency(next)
     }
     #createPointNode(id: number, point: ControlPoint): PointNode {
         const controlPoint = new PointNode(id)
         this.#addPointProperties(id)
+        controlPoint.stickyStart = point.stickyStart
+        controlPoint.stickyEnd = point.stickyEnd
         this.#initPoints(id, point)
         controlPoint.startX = point.startX
         controlPoint.startY = point.startY
@@ -460,9 +499,6 @@ export class LineBlock extends ShapeBlock {
         controlPoint.endDraggable = point.endDraggable
         controlPoint.startControllable = point.startControllable
         controlPoint.endControllable = point.endControllable
-        controlPoint.stickyStart = point.stickyStart
-        controlPoint.stickyEnd = point.stickyEnd
-        this.#stickyDependentBlocks(point)
         return controlPoint
     }
     #nextPointId(): number {
@@ -578,8 +614,20 @@ export class LineBlock extends ShapeBlock {
                     endControllablePath
                 )
         )
-        this.addProperty(stickyStart, undefined)
-        this.addProperty(stickyEnd, undefined)
+        this.addProperty(
+            stickyStart,
+            undefined,
+            false,
+            (block: LineBlock, opt: StickTo) =>
+                this.#restickDependentBlock(block, id, 'stickyStart', opt)
+        )
+        this.addProperty(
+            stickyEnd,
+            undefined,
+            false,
+            (block: LineBlock, opt: StickTo) =>
+                this.#restickDependentBlock(block, id, 'stickyEnd', opt)
+        )
     }
     #addPointAfter(point: PointNode, tail?: PointNode) {
         if (tail) {
@@ -615,8 +663,7 @@ export class LineBlock extends ShapeBlock {
             if (nextHead) nextHead.prev = undefined
             this.#headPointNode = nextHead
             if (this.#tailPointNode === point) this.#tailPointNode = undefined
-            point.prev = undefined
-            point.next = undefined
+            this.#detachPoint(point)
             return
         }
         while (head && head !== point) {
@@ -628,6 +675,12 @@ export class LineBlock extends ShapeBlock {
         if (nextLetter) nextLetter.prev = previusLetter
         if (previusLetter) previusLetter.next = nextLetter
         if (this.#tailPointNode === point) this.#tailPointNode = previusLetter
+        this.#detachPoint(point)
+    }
+    #detachPoint(point: PointNode) {
+        const pointId = point.id
+        if (pointId !== undefined) this.#releasePointStickyDependencies(point)
+        if (pointId !== undefined) this.#removePointProperties(pointId)
         point.prev = undefined
         point.next = undefined
     }
