@@ -414,8 +414,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         cornerBottomLeft.y,
                         cornerBottomRight.x,
                         cornerBottomRight.y
-                    ) &&
-                    !(block.__isOverflowXAuto && block.#overflowWidth < 0)
+                    )
                 ) {
                     beforeCords = { x: 0, y: 0 }
                     beforeValues = {
@@ -426,6 +425,10 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT,
                         true
                     )
+
+                    block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
+                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                    block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
                 } else scrollBar.__unregisterZIndex()
             }
             const mousemove = (event: MouseEvent) => {
@@ -488,10 +491,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             scrollBar.__addEvent('mouseup', mouseup)
             scrollBar.onRender(
                 (overflowXScrollBar: BaseBlock) => {
-                    if (
-                        (block.__isOverflowXAuto && block.#overflowWidth > 0) ||
-                        !overflowXScrollBar
-                    )
+                    if (!block.__isOverflowXScrollable || !overflowXScrollBar)
                         return
 
                     const width = Math.abs(block.__boxWidth())
@@ -569,8 +569,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         cornerBottomLeft.y,
                         cornerBottomRight.x,
                         cornerBottomRight.y
-                    ) &&
-                    !(block.__isOverflowYAuto && block.#overflowHeight < 0)
+                    )
                 ) {
                     beforeCords = { x: 0, y: 0 }
                     beforeValues = {
@@ -645,11 +644,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             scrollBar.__addEvent('mouseup', mouseup)
             scrollBar.onRender(
                 (overflowYScrollBar: BaseBlock) => {
-                    if (
-                        (block.__isOverflowYAuto &&
-                            block.#overflowHeight > 0) ||
-                        !overflowYScrollBar
-                    )
+                    if (!block.__isOverflowYScrollable || !overflowYScrollBar)
                         return
 
                     const height = Math.abs(block.__boxHeight())

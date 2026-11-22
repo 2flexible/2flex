@@ -141,6 +141,73 @@ describe('OverflowBlock', () => {
             await flush()
             expect(childBlock.y()).toBe(-20)
         })
+        it('should scroll on mouse drag when overflowX is auto', async () => {
+            const childBlock = new Block({ width: 300, height: 50 })
+            block.addChild(childBlock)
+            block.set({ overflowX: 'auto' })
+            allowMouse(canvas)
+            await flush()
+
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+
+            // horizontal scrollbar is at the bottom 15px (y: 85..100)
+            dispatchMouse(element, 'mousedown', 20, 92, 1)
+            dispatchMouse(element, 'mousemove', 50, 92, 1)
+            dispatchMouse(element, 'mouseup', 50, 92)
+            await flush()
+
+            expect(block.overflowPositionX()).toBeLessThan(0)
+            expect(childBlock.x()).toBeLessThan(0)
+        })
+        it('should scroll on mouse drag when overflowY is auto', async () => {
+            const childBlock = new Block({ width: 50, height: 300 })
+            block.addChild(childBlock)
+            block.set({ overflowY: 'auto' })
+            allowMouse(canvas)
+            await flush()
+
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+
+            // vertical scrollbar is at the right 15px (x: 85..100)
+            dispatchMouse(element, 'mousedown', 92, 20, 1)
+            dispatchMouse(element, 'mousemove', 92, 50, 1)
+            dispatchMouse(element, 'mouseup', 92, 50)
+            await flush()
+
+            expect(block.overflowPositionY()).toBeLessThan(0)
+            expect(childBlock.y()).toBeLessThan(0)
+        })
+        it('should scroll on mouse drag along both axes when overflow is auto', async () => {
+            const childBlock = new Block({ width: 300, height: 300 })
+            block.addChild(childBlock)
+            block.set({ overflow: 'auto' })
+            allowMouse(canvas)
+            await flush()
+
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+
+            dispatchMouse(element, 'mousedown', 20, 92, 1)
+            dispatchMouse(element, 'mousemove', 50, 92, 1)
+            dispatchMouse(element, 'mouseup', 50, 92)
+            await flush()
+
+            expect(block.overflowPositionX()).toBeLessThan(0)
+            expect(childBlock.x()).toBeLessThan(0)
+
+            dispatchMouse(element, 'mousedown', 92, 20, 1)
+            dispatchMouse(element, 'mousemove', 92, 50, 1)
+            dispatchMouse(element, 'mouseup', 92, 50)
+            await flush()
+
+            expect(block.overflowPositionY()).toBeLessThan(0)
+            expect(childBlock.y()).toBeLessThan(0)
+        })
     })
     describe('overflow translation', () => {
         // translating only stores the new offset, the canvas clamps it back on
