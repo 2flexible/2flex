@@ -232,6 +232,9 @@ export class BaseBlock<
     #bindOptions: BindOptions[]
     #dependendBlocks: Set<BaseBlock>
     #lastHidden: boolean | undefined = false
+    // every handler keeps its own state
+    #isMouseOver = false
+    #isMouseOut = false
 
     constructor(options: BaseBlockOptions) {
         super()
@@ -1549,6 +1552,16 @@ export class BaseBlock<
             bottomRight.y
         )
     }
+    // the pointer is inside of this block or of one of its descendants
+    __isInBoundTree(event: MouseEvent): boolean {
+        if (this.checkInBound(event)) return true
+        let isInside = false
+        this.listAllChilds((b: BaseBlock) => {
+            if (isInside) return
+            if (b.checkInBound(event)) isInside = true
+        })
+        return isInside
+    }
     listOnlyChilds<T extends BaseBlock>(
         _func: (block: T, currIdx: number, arrLen: number) => void
     ): void {
@@ -1731,78 +1744,62 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('mousemove', leave)
     }
-    /** @Todo
-        mouseover and mouseout has little bug when two chidls cross each other there are isMouse over happens to be true but one is under so check in bound checks it under the higher z index element
-    */
     mouseover(_func: (event: MouseEvent) => void) {
-        const mouseOver: Record<number, boolean> = {}
-        let isMouseOver = false
-        let inBound = false
         const over = (event: MouseEvent) => {
-            this.listAllChilds((b: BaseBlock) => {
-                if (mouseOver[b.nodeId!] == undefined)
-                    mouseOver[b.nodeId!] = b.checkInBound(event)
-
-                if (!b.checkInBound(event)) {
-                    if (mouseOver[b.nodeId!]) {
-                        mouseOver[b.nodeId!] = false
-                        isMouseOver = false
-                    }
-                } else if (mouseOver[b.nodeId!] === false) {
-                    mouseOver[b.nodeId!] = true
-                    isMouseOver = true
-                }
-            })
-            if (this.checkInBound(event)) {
-                if (!inBound) {
-                    inBound = true
-                    isMouseOver = true
-                }
-            } else {
-                inBound = false
-                isMouseOver = false
+            if (!this.isMouseEventAllowed) return
+            if (!this.__isInBoundTree(event)) {
+                this.#isMouseOver = false
+                return
             }
-
-            if (isMouseOver) {
+            this.__registerZIndex()
+            // the block above this one is visited first, so a covered block
+            // is not reported as hovered
+            if (!this.__ImFirst()) {
+                this.__unregisterZIndex()
+                this.#isMouseOver = false
+                return
+            }
+            if (!this.#isMouseOver) {
+                this.#isMouseOver = true
                 _func(event)
                 this.__invokeChange()
-                isMouseOver = false
             }
         }
         this.__addEvent<MouseEvent>('mousemove', over)
     }
     mouseout(_func: (event: MouseEvent) => void) {
-        const mouseLeave: Record<number, boolean> = {}
-        let isMouseLeave = false
-        let outBound = false
         const out = (event: MouseEvent) => {
-            if (!this.checkInBound(event)) {
-                if (!outBound) {
-                    outBound = true
-                    isMouseLeave = true
+            if (!this.isMouseEventAllowed) {
+                // the pointer left the canvas
+                if (this.#isMouseOut) {
+                    this.#isMouseOut = false
+                    _func(event)
+                    this.__invokeChange()
                 }
-            } else {
-                outBound = false
-                isMouseLeave = false
+                return
             }
-            this.listAllChilds((b: BaseBlock) => {
-                if (mouseLeave[b.nodeId!] == undefined)
-                    mouseLeave[b.nodeId!] = b.checkInBound(event)
-                if (b.checkInBound(event)) {
-                    if (mouseLeave[b.nodeId!]) {
-                        mouseLeave[b.nodeId!] = false
-                        isMouseLeave = true
+            if (this.__isInBoundTree(event)) {
+                this.__registerZIndex()
+                // the block is still the topmost one, so it is not left, a
+                // covered block is left
+                if (this.__ImFirst()) {
+                    this.#isMouseOut = false
+                } else {
+                    this.__unregisterZIndex()
+                    if (!this.#isMouseOut) {
+                        this.#isMouseOut = true
+                        _func(event)
+                        this.__invokeChange()
                     }
-                } else if (mouseLeave[b.nodeId!] == false) {
-                    mouseLeave[b.nodeId!] = true
-                    isMouseLeave = true
                 }
-            })
-
-            if (isMouseLeave) {
+                return
+            }
+            // the pointer is not inside of this block
+            this.__unregisterZIndex()
+            if (!this.#isMouseOut) {
+                this.#isMouseOut = true
                 _func(event)
                 this.__invokeChange()
-                isMouseLeave = false
             }
         }
         this.__addEvent<MouseEvent>('mousemove', out)

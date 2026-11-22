@@ -2214,8 +2214,232 @@ describe('Block', () => {
 
             expect(events.filter((e) => e === 'leave:0')).toHaveLength(1)
         })
-        it.todo('should trigger mouseover event', async () => {})
-        it.todo('should trigger mouseout event', async () => {})
+        it('should trigger mouseover event', async () => {
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            let overCount = 0
+            block.mouseover(() => {
+                overCount++
+            })
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+
+            expect(overCount).toBe(1)
+        })
+        it('should trigger mouseout event', async () => {
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            let outCount = 0
+            block.mouseover(() => {})
+            block.mouseout(() => {
+                outCount++
+            })
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+            // the pointer leaves the block
+            dispatchMouse(element, 'mousemove', 300, 300)
+            await flush()
+
+            expect(outCount).toBe(1)
+        })
+        it('should not trigger mouseover again while the pointer stays', async () => {
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            let overCount = 0
+            block.mouseover(() => {
+                overCount++
+            })
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+            dispatchMouse(element, 'mousemove', 20, 20)
+            await flush()
+            dispatchMouse(element, 'mousemove', 30, 30)
+            await flush()
+
+            expect(overCount).toBe(1)
+        })
+        it('should not trigger mouseover for a block which is covered', async () => {
+            const lower = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 1,
+            })
+            const upper = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 2,
+            })
+
+            const lowerOver = vi.fn()
+            const upperOver = vi.fn()
+            lower.mouseover(lowerOver)
+            upper.mouseover(upperOver)
+            canvas.add(lower, upper)
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            // the pointer is inside of both blocks, the upper one is above
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+
+            expect(upperOver).toHaveBeenCalledTimes(1)
+            expect(lowerOver).not.toHaveBeenCalled()
+        })
+        it('should trigger mouseout for a block which gets covered', async () => {
+            const lower = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 1,
+            })
+            const lowerOut = vi.fn()
+            lower.mouseover(() => {})
+            lower.mouseout(lowerOut)
+            canvas.add(lower)
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+            expect(lowerOut).not.toHaveBeenCalled()
+
+            // the upper block covers the lower one
+            const upper = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 2,
+            })
+            upper.mouseover(() => {})
+            canvas.add(upper)
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+
+            expect(lowerOut).toHaveBeenCalledTimes(1)
+        })
+        it('should trigger mouseover again when the block is uncovered', async () => {
+            const lower = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 1,
+            })
+            const lowerOver = vi.fn()
+            lower.mouseover(lowerOver)
+            canvas.add(lower)
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+            expect(lowerOver).toHaveBeenCalledTimes(1)
+
+            // the upper block covers the lower one
+            const upper = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 2,
+            })
+            upper.mouseover(() => {})
+            canvas.add(upper)
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+            expect(lowerOver).toHaveBeenCalledTimes(1)
+
+            // the upper block is removed
+            canvas.remove(upper)
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+
+            expect(lowerOver).toHaveBeenCalledTimes(2)
+        })
+        it('should not trigger mouseout when the pointer moves onto a child', async () => {
+            const parent = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+            })
+            const child = new Block({
+                x: 50,
+                y: 50,
+                width: 50,
+                height: 50,
+            })
+            parent.addChild(child)
+
+            const parentOut = vi.fn()
+            const parentOver = vi.fn()
+            parent.mouseover(parentOver)
+            parent.mouseout(parentOut)
+            canvas.add(parent)
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            // the pointer enters the parent
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+            expect(parentOver).toHaveBeenCalledTimes(1)
+
+            // the pointer moves onto the child, the parent is still hovered
+            dispatchMouse(element, 'mousemove', 75, 75)
+            await flush()
+
+            expect(parentOut).not.toHaveBeenCalled()
+        })
+        it('should not trigger mouseover while the pointer is outside the canvas', async () => {
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            let overCount = 0
+            block.mouseover(() => {
+                overCount++
+            })
+            await flush()
+
+            // the pointer is not inside of the canvas
+            canvas.isMouseEventAllowed = false
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+
+            expect(overCount).toBe(0)
+        })
         it('should trigger keyup event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
             const element = (await currentCanvas.element()) as HTMLElement
