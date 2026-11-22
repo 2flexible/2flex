@@ -302,6 +302,16 @@ describe('ShapeBlock', () => {
         beforeEach(() => {
             shape = new ShapeBlock({ x: 0, y: 0, width: 100, height: 100 })
         })
+        it('should reject a missing point before checking the path', () => {
+            expect(() => shape.pointInPath(undefined as never)).toThrow(
+                /ShapeBlock\.pointInPath\(\).*point/
+            )
+        })
+        it('should reject an invalid drawing callback', () => {
+            expect(() => shape.draw(10 as never)).toThrow(
+                /ShapeBlock\.draw\(\).*function/
+            )
+        })
         it('should not find a point in the path', () => {
             expect(shape.pointInPath({ x: 0, y: 0 })).toBe(false)
         })

@@ -529,3 +529,429 @@ export function extendBlock<TOptions extends BaseBlockOptions>() {
         } & OwnOptionAccessors<TOptions, BlockOptionsOf<InstanceType<TBase>>>) &
             Omit<TBase, 'prototype'>
 }
+
+export function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export function invalidArgument(
+    method: string,
+    field: string,
+    expected: string,
+    value: unknown
+): never {
+    let received: string = typeof value
+    if (value === null) received = 'null'
+    else if (Array.isArray(value)) received = 'an array'
+    else if (typeof value === 'number' || typeof value === 'boolean')
+        received = String(value)
+    else if (typeof value === 'string')
+        received = JSON.stringify(
+            value.length > 60 ? value.slice(0, 60) + '…' : value
+        )
+    throw new TypeError(
+        `[2flex] ${method} expected ${expected} at ${field}, but received ${received}.`
+    )
+}
+
+export function requireRecord(method: string, field: string, value: unknown) {
+    if (!isRecord(value)) invalidArgument(method, field, 'an object', value)
+}
+
+export function requireCallback(method: string, field: string, value: unknown) {
+    if (typeof value !== 'function')
+        invalidArgument(method, field, 'a function', value)
+}
+
+const relativeValuePattern =
+    /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?:px|%|rem|em|vh|vw|cm|mm|q|in|pc|pt)?$/i
+
+export function isRelativeValue(value: unknown) {
+    // Non-finite numbers are handled by the existing block geometry fallbacks.
+    return (
+        typeof value === 'number' ||
+        (typeof value === 'string' && relativeValuePattern.test(value.trim()))
+    )
+}
+
+const relativeOptions = new Set([
+    'x',
+    'y',
+    'width',
+    'height',
+    'minWidth',
+    'minHeight',
+    'maxWidth',
+    'maxHeight',
+    'scale',
+    'top',
+    'bottom',
+    'left',
+    'right',
+    'rotate',
+    'marginTop',
+    'marginRight',
+    'marginBottom',
+    'marginLeft',
+    'paddingTop',
+    'paddingRight',
+    'paddingBottom',
+    'paddingLeft',
+    'rotationCenterX',
+    'rotationCenterY',
+    'flexBasis',
+    'gapRow',
+    'gapColumn',
+])
+
+const enumOptions = new Map<string, string[]>([
+    ['layout', ['flex', 'inline-flex', 'grid', 'inline-grid']],
+    ['flexDirection', ['row', 'row-reverse', 'column', 'column-reverse']],
+    ['flexWrap', ['nowrap', 'wrap', 'wrap-reverse']],
+    ['overflow', ['visible', 'hidden', 'scroll', 'auto']],
+    ['objectFit', ['contain', 'cover', 'fill', 'scale-down']],
+    ['wrap', ['letter', 'word', 'nowrap']],
+    ['position', ['relative', 'absolute', 'sticky', 'fixed']],
+    ['rotationCenter', ['self', 'parent']],
+])
+
+export function validateBlockOption(
+    method: string,
+    field: string,
+    key: string,
+    value: unknown,
+    blockClass: typeof BaseBlock
+) {
+    if (value === undefined) return
+    if (relativeOptions.has(key)) {
+        if (
+            !isRelativeValue(value) &&
+            !(key === 'flexBasis' && value === 'auto')
+        )
+            invalidArgument(
+                method,
+                field,
+                key === 'flexBasis'
+                    ? 'a number, length, or "auto"'
+                    : 'a number or supported length',
+                value
+            )
+        return
+    }
+
+    const accepted = enumOptions.get(key)
+    if (accepted) {
+        if (typeof value !== 'string' || !accepted.includes(value))
+            invalidArgument(
+                method,
+                field,
+                accepted.map((item) => JSON.stringify(item)).join(' or '),
+                value
+            )
+        return
+    }
+
+    switch (key) {
+        case 'flexFlow':
+            if (
+                !Array.isArray(value) ||
+                value.length !== 2 ||
+                value[0] === undefined ||
+                value[1] === undefined
+            )
+                invalidArgument(
+                    method,
+                    field,
+                    'a [flexDirection, flexWrap] pair',
+                    value
+                )
+            validateBlockOption(
+                method,
+                field + '[0]',
+                'flexDirection',
+                value[0],
+                blockClass
+            )
+            validateBlockOption(
+                method,
+                field + '[1]',
+                'flexWrap',
+                value[1],
+                blockClass
+            )
+            break
+        case 'gap':
+            if (
+                !isRelativeValue(value) &&
+                (!Array.isArray(value) ||
+                    value.length !== 2 ||
+                    !value.every(isRelativeValue))
+            )
+                invalidArgument(
+                    method,
+                    field,
+                    'a length or a pair of lengths',
+                    value
+                )
+            break
+        case 'drawFunc':
+        case 'onEditable':
+        case 'onRender':
+            requireCallback(method, field, value)
+            break
+        case 'text':
+        case 'name':
+            if (typeof value !== 'string')
+                invalidArgument(method, field, 'a string', value)
+            break
+        case 'horizontalFlip':
+        case 'verticalFlip':
+        case 'hidden':
+        case 'editable':
+        case 'imageSmoothingEnabled':
+            if (typeof value !== 'boolean')
+                invalidArgument(method, field, 'a boolean', value)
+            break
+        case 'order':
+        case 'flexGrow':
+        case 'flexShrink':
+            if (typeof value !== 'number')
+                invalidArgument(method, field, 'a number', value)
+            break
+        case 'controlPoints':
+            if (!Array.isArray(value) || !value.every(isRecord))
+                invalidArgument(
+                    method,
+                    field,
+                    'an array of control point objects',
+                    value
+                )
+            break
+        case 'cornerTopLeft':
+        case 'cornerTopRight':
+        case 'cornerBottomLeft':
+        case 'cornerBottomRight':
+            if (
+                !isRecord(value) ||
+                typeof value.x !== 'number' ||
+                typeof value.y !== 'number'
+            )
+                invalidArgument(
+                    method,
+                    field,
+                    'a point with numeric x and y',
+                    value
+                )
+            break
+        case 'margin':
+        case 'padding': {
+            const parts =
+                typeof value === 'string' ? value.trim().split(/\s+/) : value
+            if (
+                typeof value !== 'number' &&
+                (!Array.isArray(parts) ||
+                    parts.length < 1 ||
+                    parts.length > 4 ||
+                    !parts.every(isRelativeValue))
+            )
+                invalidArgument(
+                    method,
+                    field,
+                    'one to four numbers or supported lengths',
+                    value
+                )
+            break
+        }
+        case 'dependencies':
+            if (
+                !Array.isArray(value) ||
+                !value.every((block) => block instanceof blockClass)
+            )
+                invalidArgument(method, field, 'an array of BaseBlocks', value)
+            break
+        case 'important':
+            if (!isRecord(value))
+                invalidArgument(method, field, 'an object', value)
+            for (const [option, override] of Object.entries(value)) {
+                if (option !== 'important')
+                    validateBlockOption(
+                        method,
+                        field + '.' + option,
+                        option,
+                        override,
+                        blockClass
+                    )
+            }
+            break
+    }
+}
+
+export function validateCanvasSettings(
+    method: string,
+    path: string,
+    canvasId: unknown,
+    width: unknown,
+    height: unknown,
+    options: unknown
+) {
+    if (typeof canvasId !== 'string' || !canvasId.trim())
+        invalidArgument(
+            method,
+            path + 'canvasId',
+            'a nonempty string',
+            canvasId
+        )
+    for (const [field, value] of Object.entries({ width, height })) {
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+            invalidArgument(
+                method,
+                path + field,
+                'a finite nonnegative number',
+                value
+            )
+    }
+    if (typeof document === 'undefined')
+        throw new Error(`[2flex] ${method} requires a browser document.`)
+    const element = document.getElementById(canvasId)
+    if (element && !(element instanceof HTMLCanvasElement))
+        throw new TypeError(
+            `[2flex] ${method} expected a <canvas> for ${path}canvasId "${canvasId}", but found <${element.localName}>.`
+        )
+
+    if (options === undefined) return
+    if (!isRecord(options))
+        invalidArgument(method, path + 'options', 'an object', options)
+    for (const [key, value] of Object.entries(options)) {
+        if (value === undefined) continue
+        const field = path + 'options.' + key
+        switch (key) {
+            case 'zoomSpeed':
+            case 'zoomInvSpeed':
+            case 'positionZ':
+            case 'fps':
+            case 'tileSize':
+                if (
+                    typeof value !== 'number' ||
+                    !Number.isFinite(value) ||
+                    value <= 0
+                )
+                    invalidArgument(
+                        method,
+                        field,
+                        'a finite positive number',
+                        value
+                    )
+                break
+            case 'positionX':
+            case 'positionY':
+            case 'moveSpeed':
+                if (typeof value !== 'number' || !Number.isFinite(value))
+                    invalidArgument(method, field, 'a finite number', value)
+                break
+            case 'historySize':
+                if (
+                    typeof value !== 'number' ||
+                    !Number.isInteger(value) ||
+                    value < 0
+                )
+                    invalidArgument(
+                        method,
+                        field,
+                        'a nonnegative integer',
+                        value
+                    )
+                break
+            case 'history':
+            case 'keyboardMovement':
+            case 'mouseMovement':
+                if (typeof value !== 'boolean')
+                    invalidArgument(method, field, 'a boolean', value)
+                break
+            case 'zoomType':
+                if (value !== 'center' && value !== 'point')
+                    invalidArgument(method, field, '"center" or "point"', value)
+                break
+        }
+    }
+}
+
+export function validateBlockArguments(
+    method: string,
+    blocks: readonly unknown[],
+    blockClass: typeof BaseBlock
+) {
+    for (const [index, block] of blocks.entries()) {
+        if (!(block instanceof blockClass))
+            invalidArgument(
+                method,
+                `argument ${index + 1}`,
+                'a BaseBlock',
+                block
+            )
+    }
+}
+
+export function validateLoadBlocks(
+    value: unknown,
+    path: string,
+    ids: Set<number>
+) {
+    const method = 'Canvas.load()'
+    if (!Array.isArray(value))
+        invalidArgument(method, path, 'an array of blocks', value)
+    for (const [index, block] of value.entries()) {
+        const field = `${path}[${index}]`
+        if (!isRecord(block))
+            invalidArgument(method, field, 'a block object', block)
+        if (typeof block.name !== 'string' || !block.name.trim())
+            invalidArgument(
+                method,
+                field + '.name',
+                'a nonempty string',
+                block.name
+            )
+        if (block.nodeId !== undefined) {
+            if (
+                typeof block.nodeId !== 'number' ||
+                !Number.isInteger(block.nodeId)
+            )
+                invalidArgument(
+                    method,
+                    field + '.nodeId',
+                    'an integer',
+                    block.nodeId
+                )
+            if (ids.has(block.nodeId))
+                throw new TypeError(
+                    `[2flex] ${method} found duplicate nodeId ${block.nodeId} at ${field}.nodeId.`
+                )
+            ids.add(block.nodeId)
+        }
+        if (block.options !== undefined)
+            requireRecord(method, field + '.options', block.options)
+        if (block.cacheOptions !== undefined)
+            requireRecord(method, field + '.cacheOptions', block.cacheOptions)
+        validateLoadBlocks(block.childs, field + '.childs', ids)
+    }
+}
+
+export function validateBlockConstructors(
+    blocks: readonly unknown[],
+    blockClass: typeof BaseBlock
+) {
+    for (const [index, block] of blocks.entries()) {
+        if (
+            block !== blockClass &&
+            !(
+                typeof block === 'function' &&
+                block.prototype instanceof blockClass
+            )
+        )
+            invalidArgument(
+                'Canvas.registerBlocks()',
+                `argument ${index + 1}`,
+                'a BaseBlock class',
+                block
+            )
+    }
+}

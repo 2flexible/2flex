@@ -53,6 +53,10 @@ import {
     shortHandParser,
     clampSize,
     preOrderTraversal,
+    invalidArgument,
+    requireCallback,
+    requireRecord,
+    validateBlockOption,
 } from './Utils'
 
 export type AlignSelf =
@@ -322,9 +326,18 @@ export class BaseBlock<
         this.__refreshHeadBlock()
     }
     #buildOptions(options: BaseBlockOptions) {
+        const method = `new ${this.constructor.name}()`
+        requireRecord(method, 'options (pass {} for defaults)', options)
         const ownOptions = this.options
         const initOptions = this.initOptions
         for (const [key, value] of Object.entries(options)) {
+            validateBlockOption(
+                method,
+                'options.' + key,
+                key,
+                value,
+                BaseBlock
+            )
             ownOptions.set(key, value)
             initOptions.set(key, value)
         }
@@ -1282,6 +1295,14 @@ export class BaseBlock<
         widthRelated?: boolean,
         valueConverter?: ValueConverterFunc<T, O>
     ): O {
+        if (opt !== undefined)
+            validateBlockOption(
+                `${this.constructor.name}.${option}()`,
+                'value',
+                option,
+                opt,
+                BaseBlock
+            )
         let rawValue: T | undefined = opt
         const important = this.getOptionCurrent('important')
         if (important && Object.hasOwn(important, option))
@@ -1565,18 +1586,51 @@ export class BaseBlock<
     listOnlyChilds<T extends BaseBlock>(
         _func: (block: T, currIdx: number, arrLen: number) => void
     ): void {
+        requireCallback(
+            `${this.constructor.name}.listOnlyChilds()`,
+            'callback',
+            _func
+        )
         const childNodes = [...this.childNodes]
         for (let i = 0, len = childNodes.length; i < len; i++) {
             _func(childNodes[i] as T, i, len)
         }
     }
     listAllChilds(_func: (block: BaseBlock) => void): void {
+        requireCallback(
+            `${this.constructor.name}.listAllChilds()`,
+            'callback',
+            _func
+        )
         preOrderTraversal(this, _func)
     }
+    __isOption(key: string): boolean {
+        const property = getPrototype(this, key)?.value
+        return (
+            typeof property === 'function' &&
+            Object.hasOwn(property, 'valueConverter')
+        )
+    }
     set(options: T): void {
+        const method = `${this.constructor.name}.set()`
+        requireRecord(method, 'options', options)
+        const entries = Object.entries(options)
+        for (const [key, value] of entries) {
+            if (!this.__isOption(key))
+                throw new TypeError(
+                    `[2flex] ${method} does not recognize option "${key}".`
+                )
+            validateBlockOption(
+                method,
+                'options.' + key,
+                key,
+                value,
+                BaseBlock
+            )
+        }
         const before: Record<string, unknown> = {}
         const after: Record<string, unknown> = {}
-        for (const [key, value] of Object.entries(options)) {
+        for (const [key, value] of entries) {
             const obj = getPrototype(this, key)
             const beforeValue =
                 this.initOptions.get(key) ?? obj?.value.call(this)
@@ -1594,21 +1648,47 @@ export class BaseBlock<
         }
     }
     addDependency(target: BaseBlock) {
-        if (!target || target === this) return
+        const method = `${this.constructor.name}.addDependency()`
+        if (!(target instanceof BaseBlock))
+            invalidArgument(method, 'target', 'a BaseBlock', target)
+        if (target === this) return
         target.#dependendBlocks.add(this)
         this.__invokeChange()
     }
     removeDependency(target: BaseBlock) {
-        if (!target) return
+        const method = `${this.constructor.name}.removeDependency()`
+        if (!(target instanceof BaseBlock))
+            invalidArgument(method, 'target', 'a BaseBlock', target)
         target.#dependendBlocks.delete(this)
     }
     bindTo(block: BaseBlock, options: string[]) {
+        const method = `${this.constructor.name}.bindTo()`
+        if (!(block instanceof BaseBlock))
+            invalidArgument(method, 'block', 'a BaseBlock', block)
+        if (
+            !Array.isArray(options) ||
+            !options.every((key) => typeof key === 'string' && key.trim())
+        )
+            invalidArgument(
+                method,
+                'options',
+                'an array of nonempty option names',
+                options
+            )
         this.#bindOptions.push({ block, options })
     }
     unbind(block: BaseBlock) {
+        const method = `${this.constructor.name}.unbind()`
+        if (!(block instanceof BaseBlock))
+            invalidArgument(method, 'block', 'a BaseBlock', block)
         this.#bindOptions = this.#bindOptions.filter((i) => i.block !== block)
     }
     findChilds<TQuery extends Partial<BaseBlockOptions>>(queries: TQuery) {
+        requireRecord(
+            `${this.constructor.name}.findChilds()`,
+            'queries',
+            queries
+        )
         let blocks: BaseBlock[] = []
         this.listAllChilds((block: BaseBlock) => {
             for (const [k, v] of Object.entries(queries)) {
@@ -1618,6 +1698,19 @@ export class BaseBlock<
         return blocks
     }
     addChild(block: BaseBlock): void {
+        const method = `${this.constructor.name}.addChild()`
+        if (!(block instanceof BaseBlock))
+            invalidArgument(method, 'block', 'a BaseBlock', block)
+        for (
+            let ancestor: Node | undefined = this;
+            ancestor;
+            ancestor = ancestor.parentNode
+        ) {
+            if (ancestor === block)
+                throw new TypeError(
+                    `[2flex] ${method} cannot add itself or an ancestor as a child.`
+                )
+        }
         super.addChild(block)
         block.__parentHidden = this.__isHidden()
         if (this.canvas) this.canvas.demandAddBlock(block)
@@ -1626,6 +1719,9 @@ export class BaseBlock<
         this.canvas?.demandInvoke(this)
     }
     removeChild(block: BaseBlock): void {
+        const method = `${this.constructor.name}.removeChild()`
+        if (!(block instanceof BaseBlock))
+            invalidArgument(method, 'block', 'a BaseBlock', block)
         super.removeChild(block)
         block.__childAdjustment = undefined
         block.__resetParentRotation()
@@ -1636,6 +1732,11 @@ export class BaseBlock<
         this.canvas?.demandInvoke(this)
     }
     contextMenu(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.contextMenu()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1648,6 +1749,7 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('contextmenu', out)
     }
     click(_func: (event: MouseEvent) => void) {
+        requireCallback(`${this.constructor.name}.click()`, 'callback', _func)
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1660,6 +1762,11 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('click', out)
     }
     dblclick(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.dblclick()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1672,6 +1779,11 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('dblclick', out)
     }
     mousedown(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mousedown()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1684,6 +1796,7 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('mousedown', out)
     }
     mouseup(_func: (event: MouseEvent) => void) {
+        requireCallback(`${this.constructor.name}.mouseup()`, 'callback', _func)
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1696,6 +1809,11 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('mouseup', out)
     }
     mousemove(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mousemove()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1708,6 +1826,11 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('mousemove', out)
     }
     mouseenter(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mouseenter()`,
+            'callback',
+            _func
+        )
         let isMouseEnter = false
         const enter = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
@@ -1729,6 +1852,11 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('mousemove', enter)
     }
     mouseleave(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mouseleave()`,
+            'callback',
+            _func
+        )
         let isMouseLeave = false
         const leave = (event: MouseEvent) => {
             if (!this.checkInBound(event) && this.isMouseEventAllowed) {
@@ -1745,6 +1873,11 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('mousemove', leave)
     }
     mouseover(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mouseover()`,
+            'callback',
+            _func
+        )
         const over = (event: MouseEvent) => {
             if (!this.isMouseEventAllowed) return
             if (!this.__isInBoundTree(event)) {
@@ -1768,6 +1901,11 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('mousemove', over)
     }
     mouseout(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mouseout()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
             if (!this.isMouseEventAllowed) {
                 // the pointer left the canvas
@@ -1805,6 +1943,7 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('mousemove', out)
     }
     keydown(_func: (event: KeyboardEvent) => void) {
+        requireCallback(`${this.constructor.name}.keydown()`, 'callback', _func)
         const down = (event: KeyboardEvent) => {
             if (this.canvas?.isFocused) {
                 event.preventDefault()
@@ -1815,6 +1954,7 @@ export class BaseBlock<
         this.__addEvent<KeyboardEvent>('keydown', down)
     }
     keyup(_func: (event: KeyboardEvent) => void) {
+        requireCallback(`${this.constructor.name}.keyup()`, 'callback', _func)
         const up = (event: KeyboardEvent) => {
             if (this.canvas?.isFocused) {
                 event.preventDefault()
@@ -1825,6 +1965,7 @@ export class BaseBlock<
         this.__addEvent<KeyboardEvent>('keyup', up)
     }
     wheel(_func: (event: WheelEvent) => void) {
+        requireCallback(`${this.constructor.name}.wheel()`, 'callback', _func)
         const wheel = (event: WheelEvent) => {
             if (this.canvas?.isFocused) {
                 event.preventDefault()

@@ -49,6 +49,11 @@ describe('LayoutBlock', () => {
             canvas = new Canvas('myCanvas', 400, 500)
             await flush()
         })
+        it('should reject an unsupported layout type at construction', () => {
+            expect(() => new LayoutBlock({ layout: 'stack' as never })).toThrow(
+                /new LayoutBlock\(\).*options\.layout/
+            )
+        })
         it('should lay out childs in a row by default', async () => {
             layout = new LayoutBlock({ width: 300, height: 200 })
             const [first, second] = createChilds(2, 50, 50)

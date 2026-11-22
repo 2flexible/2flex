@@ -1,3 +1,4 @@
+import { invalidArgument, isRecord, requireCallback } from './Utils'
 import { Block, BlockOptions } from './Block'
 import type {
     ColorType,
@@ -755,6 +756,12 @@ export class ShapeBlock<
     }
 
     draw(_func?: DrawFunc) {
+        if (_func !== undefined)
+            requireCallback(
+                `${this.constructor.name}.draw()`,
+                'callback',
+                _func
+            )
         const func = this.__valueHandler<DrawFunc, DrawFunc | undefined>(
             _func,
             'drawFunc',
@@ -939,6 +946,17 @@ export class ShapeBlock<
         if (block.context && opt) block.context.lineJoin = opt
     }
     pointInPath(point: PointInPath): boolean {
+        if (
+            !isRecord(point) ||
+            typeof point.x !== 'number' ||
+            typeof point.y !== 'number'
+        )
+            invalidArgument(
+                `${this.constructor.name}.pointInPath()`,
+                'point',
+                'a point with numeric x and y',
+                point
+            )
         if (point.path)
             return (
                 this.context?.isPointInPath(
@@ -958,6 +976,17 @@ export class ShapeBlock<
             )
     }
     pointInStroke(point: PointInStroke): boolean | undefined {
+        if (
+            !isRecord(point) ||
+            typeof point.x !== 'number' ||
+            typeof point.y !== 'number'
+        )
+            invalidArgument(
+                `${this.constructor.name}.pointInStroke()`,
+                'point',
+                'a point with numeric x and y',
+                point
+            )
         if (point.path)
             return (
                 this.context?.isPointInStroke(point.path, point.x, point.y) ||
@@ -1030,6 +1059,13 @@ export class ShapeBlock<
     }
 
     measureText(text: string): TextMetrics | undefined {
+        if (typeof text !== 'string')
+            invalidArgument(
+                `${this.constructor.name}.measureText()`,
+                'text',
+                'a string',
+                text
+            )
         return this.context?.measureText(text)
     }
 

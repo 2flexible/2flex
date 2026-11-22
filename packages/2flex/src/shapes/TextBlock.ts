@@ -14,7 +14,7 @@ import type {
     ShapeBlockOptions,
 } from '../ShapeBlock'
 import type { HotCornerArea, RelativeType } from '../types'
-import { clampSize, inRange } from '../Utils'
+import { clampSize, inRange, invalidArgument } from '../Utils'
 
 type Wrap = 'letter' | 'word' | 'nowrap'
 
@@ -306,6 +306,13 @@ export class TextBlock<
         this.#dummyContext = dummyCanvas.context
     }
     measureText(text: string) {
+        if (typeof text !== 'string')
+            invalidArgument(
+                `${this.constructor.name}.measureText()`,
+                'text',
+                'a string',
+                text
+            )
         const context = this.#activeContext
         return context?.measureText(text)
     }

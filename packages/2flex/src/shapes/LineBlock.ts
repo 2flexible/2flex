@@ -5,7 +5,12 @@ import {
     ShapeBlockOptions,
     ShapeBlock,
 } from '../ShapeBlock'
-import { getPrototype, stationaryPoints } from '../Utils'
+import {
+    getPrototype,
+    invalidArgument,
+    requireRecord,
+    stationaryPoints,
+} from '../Utils'
 import type { RelativeType } from '../types'
 import type { Block } from '../Block'
 import {
@@ -418,20 +423,49 @@ export class LineBlock<
         return false
     }
     addControlPoint(point: ControlPoint, index: number) {
+        requireRecord(
+            `${this.constructor.name}.addControlPoint()`,
+            'point',
+            point
+        )
+        if (!Number.isInteger(index))
+            invalidArgument(
+                `${this.constructor.name}.addControlPoint()`,
+                'index',
+                'an integer',
+                index
+            )
         let foundPoint = this.#findPointNode((p) => p.id == index)
         if (!foundPoint) foundPoint = this.#tailPointNode
         const newPoint = this.#createPointNode(this.#nextPointId(), point)
         this.#addPointAfter(newPoint, foundPoint)
     }
     removeControlPoint(index: number) {
+        if (!Number.isInteger(index))
+            invalidArgument(
+                `${this.constructor.name}.removeControlPoint()`,
+                'index',
+                'an integer',
+                index
+            )
         const foundPoint = this.#findPointNode((p) => p.id == index)
         if (foundPoint) this.#removePoint(foundPoint)
     }
     addControlPointToTail(point: ControlPoint) {
+        requireRecord(
+            `${this.constructor.name}.addControlPointToTail()`,
+            'point',
+            point
+        )
         const newPoint = this.#createPointNode(this.#nextPointId(), point)
         this.#addPointAfter(newPoint, this.#tailPointNode)
     }
     addControlPointToHead(point: ControlPoint) {
+        requireRecord(
+            `${this.constructor.name}.addControlPointToHead()`,
+            'point',
+            point
+        )
         const newPoint = this.#createPointNode(this.#nextPointId(), point)
         this.#addPointBefore(newPoint, this.#headPointNode)
     }

@@ -1,7 +1,7 @@
 import { BaseBlock } from './BaseBlock'
 import { Block, BlockOptions } from './Block'
 import { RelativeType } from './types'
-import { clampSize } from './Utils'
+import { clampSize, requireCallback } from './Utils'
 
 type JustifyContent =
     | 'normal'
@@ -124,6 +124,28 @@ export interface LayoutBlockOptions
     gapRow?: RelativeType
 }
 
+const layoutAccessors = new Set([
+    'layout',
+    'flexFlow',
+    'flexDirection',
+    'flexWrap',
+    'placeContent',
+    'placeItems',
+    'gap',
+    'gridTemplate',
+    'gridAutoFlow',
+    'gridTemplateColumns',
+    'gridTemplateRows',
+    'gapColumn',
+    'gapRow',
+    'columnStart',
+    'columnEnd',
+    'justifyContent',
+    'justifyItems',
+    'alignContent',
+    'alignItems',
+])
+
 export class LayoutBlock<
     T extends LayoutBlockOptions = LayoutBlockOptions,
 > extends Block<T> {
@@ -169,6 +191,9 @@ export class LayoutBlock<
         this.#childSizes = new Map()
         this.layout()
     }
+    __isOption(key: string): boolean {
+        return layoutAccessors.has(key) || super.__isOption(key)
+    }
     set(options: T): void {
         super.set(options)
     }
@@ -211,6 +236,11 @@ export class LayoutBlock<
     listOnlyChilds<T extends BaseBlock>(
         _func: (block: T, currIdx: number, arrLen: number) => void
     ): void {
+        requireCallback(
+            `${this.constructor.name}.listOnlyChilds()`,
+            'callback',
+            _func
+        )
         const childNodes = this.#childs
         for (let i = 0, len = childNodes.length; i < len; i++) {
             _func(childNodes[i] as T, i, len)

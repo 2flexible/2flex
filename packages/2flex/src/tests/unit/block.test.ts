@@ -34,6 +34,14 @@ describe('Block', () => {
             })
             expect(block).toBeDefined()
         })
+        it('should reject a missing options object or an invalid width', () => {
+            expect(() => new Block(undefined as never)).toThrow(
+                /new Block\(\).*options.*undefined/
+            )
+            expect(() => new Block({ width: '12unknown' })).toThrow(
+                /new Block\(\).*supported length.*options\.width/
+            )
+        })
         it('does not throw when creating with options', () => {
             expect(
                 () => new Block({ x: 100, y: 100, width: 300, height: 500 })
@@ -149,6 +157,21 @@ describe('Block', () => {
                 block.__valueHandler(['20px', '10', 'white'], 'customValue', 0)
             ).toEqual([20, 10, 'rgba(255, 255, 255, 1)'])
         })
+        it('should reject invalid options before applying any changes', () => {
+            block.x(10)
+            expect(() => block.set({ x: 20, hidden: 'false' as never })).toThrow(
+                /Block\.set\(\).*boolean.*options\.hidden/
+            )
+            expect(() => block.set({ x: 20, widht: 10 } as never)).toThrow(
+                /Block\.set\(\).*widht/
+            )
+            expect(block.x()).toBe(10)
+        })
+        it('should reject an invalid value passed to a setter', () => {
+            expect(() => block.width(null as never)).toThrow(
+                /Block\.width\(\).*null/
+            )
+        })
         it('should use set method for setting option value', () => {
             expect(() => block.set({ x: 20 })).not.toThrow()
             expect(block.x()).toBe(20)
@@ -173,6 +196,11 @@ describe('Block', () => {
         it('should set method set options of block', () => {
             block.set({ x: 10 })
             expect(block.x()).toBe(10)
+        })
+        it('should reject a binding without option names', () => {
+            expect(() => block.bindTo(new Block({}), undefined as never)).toThrow(
+                /Block\.bindTo\(\).*options.*undefined/
+            )
         })
         it('should bind options of block', async () => {
             block.set({ x: 100 })
@@ -365,6 +393,16 @@ describe('Block', () => {
             block.addChild(childBlock)
             canvas.add(block)
             expect([...block.childNodes][0]).toBe(childBlock)
+        })
+        it('should reject adding an ancestor as a child', () => {
+            const parent = new Block({})
+            const child = new Block({})
+            parent.addChild(child)
+            expect(() => child.addChild(parent)).toThrow(
+                /Block\.addChild\(\).*ancestor/
+            )
+            expect(child.childNodes.size).toBe(0)
+            expect(parent.childNodes.has(child)).toBe(true)
         })
         it('should add child blocks after canvas init', () => {
             canvas = new Canvas('myCanvas', 400, 500)
@@ -1882,6 +1920,11 @@ describe('Block', () => {
             canvas.add(block)
             allowMouse(canvas)
             await flush()
+        })
+        it('should reject a missing click callback when registering it', () => {
+            expect(() => block.click(undefined as never)).toThrow(
+                /Block\.click\(\).*function.*callback/
+            )
         })
         it('should trigger click event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)

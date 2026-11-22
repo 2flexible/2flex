@@ -15,7 +15,17 @@ import {
     AnimationId,
     ScrollableBlock,
 } from './types'
-import { getPrototype } from './Utils'
+import {
+    getPrototype,
+    invalidArgument,
+    isRecord,
+    requireRecord,
+    validateBlockArguments,
+    validateBlockConstructors,
+    validateBlockOption,
+    validateCanvasSettings,
+    validateLoadBlocks,
+} from './Utils'
 import {
     HOT_LINE_BLOCK_NAME,
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
@@ -131,6 +141,14 @@ export class Canvas {
         height: number,
         options?: CanvasOptions & ICssProperties
     ) {
+        validateCanvasSettings(
+            'new Canvas()',
+            '',
+            canvasId,
+            width,
+            height,
+            options
+        )
         this.canvasId = canvasId
         this.options = options
         this.width = width
@@ -179,8 +197,8 @@ export class Canvas {
         this.#scheduler = new RenderScheduler(this.options?.fps, (timestmap) =>
             this.#render(timestmap)
         )
-        this.#scheduler.start()
         this.#init()
+        this.#scheduler.start()
     }
 
     #setOptions(options: CanvasOptions) {
@@ -669,6 +687,7 @@ export class Canvas {
         }
     }
     add(...blocks: BaseBlock[]) {
+        validateBlockArguments('Canvas.add()', blocks, BaseBlock)
         for (let i = 0, len = blocks.length; i < len; i++) {
             const block = blocks[i]
             this.#scene.addBlock(block)
@@ -676,6 +695,7 @@ export class Canvas {
         }
     }
     remove(...blocks: BaseBlock[]) {
+        validateBlockArguments('Canvas.remove()', blocks, BaseBlock)
         for (let i = 0, len = blocks.length; i < len; i++) {
             const block = blocks[i]
             this.#scene.removeBlock(block)
@@ -698,9 +718,106 @@ export class Canvas {
         return JSON.stringify(payload)
     }
     load(payload: string) {
-        const parsedPayload = JSON.parse(payload) as Payload
+        const method = 'Canvas.load()'
+        if (typeof payload !== 'string')
+            invalidArgument(method, 'payload', 'a JSON string', payload)
+        let parsed: unknown
+        try {
+            parsed = JSON.parse(payload)
+        } catch (cause) {
+            throw new SyntaxError(
+                '[2flex] Canvas.load() expected valid JSON at payload.',
+                { cause }
+            )
+        }
+        if (!isRecord(parsed))
+            invalidArgument(method, 'payload', 'an object', parsed)
+        const settings = parsed.canvas
+        if (!isRecord(settings))
+            invalidArgument(method, 'canvas', 'an object', settings)
+        validateCanvasSettings(
+            method,
+            'canvas.',
+            settings.canvasId,
+            settings.width,
+            settings.height,
+            settings.options
+        )
+        validateLoadBlocks(parsed.blocks, 'blocks', new Set())
+        const parsedPayload = parsed as unknown as Payload
         const canvasOpt = parsedPayload.canvas
         const blocksPayload = parsedPayload.blocks
+
+        interface PreparedBlock {
+            block: BaseBlock
+            options: BlockPayload['options']
+            children: PreparedBlock[]
+        }
+
+        const unregistered = new Map<string, string>()
+        const prepareBlock = (
+            payload: BlockPayload,
+            path: string
+        ): PreparedBlock | undefined => {
+            const existing =
+                payload.nodeId === undefined
+                    ? undefined
+                    : this.#scene.find({ nodeId: payload.nodeId })[0]
+            const blockClass = this.#registeredBlocks.find(
+                (block) => block.name === payload.name
+            )
+            if (!existing && !blockClass) {
+                if (!unregistered.has(payload.name))
+                    unregistered.set(payload.name, path)
+                return
+            }
+
+            const options = payload.options ?? {}
+            for (const [key, value] of Object.entries(options))
+                validateBlockOption(
+                    method,
+                    `${path}.options.${key}`,
+                    key,
+                    value,
+                    BaseBlock
+                )
+            let block = existing
+            if (!block && blockClass) {
+                try {
+                    block = new blockClass(options as BaseBlockOptions)
+                } catch (cause) {
+                    throw new Error(
+                        `[2flex] ${method} could not construct "${payload.name}" at ${path}.`,
+                        { cause }
+                    )
+                }
+            }
+            if (!block) return
+
+            const children: PreparedBlock[] = []
+            for (const [index, child] of payload.childs.entries()) {
+                const childPath = `${path}.childs[${index}]`
+                const prepared = prepareBlock(child, childPath)
+                if (!prepared) continue
+                for (
+                    let ancestor: BaseBlock | undefined = block;
+                    ancestor;
+                    ancestor = ancestor.parentNode
+                ) {
+                    if (ancestor === prepared.block)
+                        throw new TypeError(
+                            `[2flex] ${method} cannot add an ancestor as a child at ${childPath}.`
+                        )
+                }
+                children.push(prepared)
+            }
+            return { block, options, children }
+        }
+        const preparedBlocks: PreparedBlock[] = []
+        for (const [index, payload] of blocksPayload.entries()) {
+            const prepared = prepareBlock(payload, `blocks[${index}]`)
+            if (prepared) preparedBlocks.push(prepared)
+        }
 
         this.canvasId = canvasOpt.canvasId
         this.options = canvasOpt.options
@@ -716,56 +833,25 @@ export class Canvas {
         this.#scheduler.stop()
         this.#scheduler.start()
 
-        const constructedBlocks: BaseBlock[] = []
-
-        const checkBlock = (blockPaylaod: BlockPayload) => {
-            const exists = this.#scene.find({
-                nodeId: blockPaylaod.nodeId,
-            })?.[0]
-            let foundBlock: BaseBlock | undefined
-            // first need to check if this block already in our tree
-            // otherwise construct new block
-            if (exists) {
-                foundBlock = exists
-            } else {
-                const foundClass = this.#registeredBlocks.filter(
-                    (b) => b.name === blockPaylaod.name
-                )?.[0]
-
-                if (foundClass) {
-                    foundBlock = new foundClass(
-                        (blockPaylaod.options || {}) as BaseBlockOptions
-                    )
-                }
-            }
-            if (foundBlock) {
-                for (const [key, value] of Object.entries(
-                    blockPaylaod.options || {}
-                ))
-                    foundBlock.options.set(key, value)
-                for (
-                    let i = 0, len = blockPaylaod.childs.length;
-                    i < len;
-                    i++
-                ) {
-                    const childBlock = checkBlock(blockPaylaod.childs[i])
-                    if (childBlock) foundBlock.addChild(childBlock)
-                }
-            }
-            return foundBlock
+        const applyBlock = ({ block, options, children }: PreparedBlock) => {
+            for (const [key, value] of Object.entries(options))
+                block.options.set(key, value)
+            for (const child of children) block.addChild(applyBlock(child))
+            return block
         }
-
-        for (let i = 0, len = blocksPayload.length; i < len; i++) {
-            const b = checkBlock(blocksPayload[i])
-            if (b) constructedBlocks.push(b)
+        this.add(...preparedBlocks.map(applyBlock))
+        for (const [name, path] of unregistered) {
+            console.warn(
+                `[2flex] Canvas.load() skipped unregistered block "${name}" at ${path}. Register its class with Canvas.registerBlocks() before loading.`
+            )
         }
-
-        this.add(...constructedBlocks)
     }
     registerBlocks(...blocks: (typeof BaseBlock)[]) {
+        validateBlockConstructors(blocks, BaseBlock)
         this.#registeredBlocks.push(...blocks)
     }
     find(queries: BlockQuery): BaseBlock[] {
+        requireRecord('Canvas.find()', 'queries', queries)
         return this.#scene.find(queries)
     }
     undo() {
@@ -798,6 +884,17 @@ export class Canvas {
         return { x: this.view.tx, y: this.view.ty, z: this.view.scale }
     }
     getCursorPosition(event: MouseEvent | WheelEvent) {
+        if (
+            !event ||
+            typeof event.pageX !== 'number' ||
+            typeof event.pageY !== 'number'
+        )
+            invalidArgument(
+                'Canvas.getCursorPosition()',
+                'event',
+                'an event with numeric pageX and pageY',
+                event
+            )
         const r = this.boundingClientRect
         const px = (event as MouseEvent).pageX - r.left
         const py = (event as MouseEvent).pageY - r.top
@@ -811,6 +908,8 @@ export class Canvas {
         this.context?.clearRect(0, 0, clientRect.width, clientRect.height)
     }
     changeCursor(cur?: string) {
+        if (cur !== undefined && typeof cur !== 'string')
+            invalidArgument('Canvas.changeCursor()', 'cursor', 'a string', cur)
         return this.#domCanvas.changeStyle({
             cursor: cur,
         })

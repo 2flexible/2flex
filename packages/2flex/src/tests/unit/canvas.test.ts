@@ -97,7 +97,7 @@ const BLUE = [0, 0, 255, 255]
 
 describe('Canvas', () => {
     afterEach(() => {
-        canvas.isFocused = false
+        if (canvas) canvas.isFocused = false
         removeCanvasElements()
     })
 
@@ -131,6 +131,27 @@ describe('Canvas', () => {
             document.body.appendChild(existing)
             canvas = new Canvas('myCanvas', 400, 500)
             expect(canvas.canvas).toBe(existing)
+        })
+        it('validates Canvas settings before creating an element', () => {
+            expect(
+                () => new Canvas('invalid-dimensions', undefined as never, 100)
+            ).toThrow(/new Canvas\(\).*width.*undefined/)
+            expect(
+                () => new Canvas('invalid-dimensions', 100, 100, { tileSize: 0 })
+            ).toThrow(/new Canvas\(\).*positive number.*options\.tileSize/)
+            expect(document.getElementById('invalid-dimensions')).toBeNull()
+        })
+        it('identifies an element that cannot be used as a canvas', () => {
+            const element = document.createElement('div')
+            element.id = 'canvas-id-collision'
+            document.body.append(element)
+            try {
+                expect(() => new Canvas(element.id, 100, 100)).toThrow(
+                    /new Canvas\(\).*canvas-id-collision.*<div>/
+                )
+            } finally {
+                element.remove()
+            }
         })
         it('should start with an identity view', () => {
             canvas = new Canvas('myCanvas', 400, 500)
@@ -282,6 +303,18 @@ describe('Canvas', () => {
             expect(found).toHaveLength(1)
             expect(found[0]).toBe(child)
         })
+        it('should reject an entire add or remove batch with an invalid entry', () => {
+            const target = new Block({ name: 'batch-block' })
+            expect(() => canvas.add(target, undefined as never)).toThrow(
+                /Canvas\.add\(\).*BaseBlock.*argument 2.*undefined/
+            )
+            expect(canvas.find({ name: 'batch-block' })).toEqual([])
+            canvas.add(target)
+            expect(() => canvas.remove(target, null as never)).toThrow(
+                /Canvas\.remove\(\).*argument 2.*null/
+            )
+            expect(canvas.find({ name: 'batch-block' })).toEqual([target])
+        })
         it('should remove a block from the scene', async () => {
             canvas.remove(block)
             await flush()
@@ -356,6 +389,36 @@ describe('Canvas', () => {
             expect(loadedParent[0].x()).toBe(10)
             expect(found).toBeDefined()
         })
+        it('should reject an invalid payload before changing the canvas', () => {
+            expect(() => canvas.load('{')).toThrow(/Canvas\.load\(\).*valid JSON/)
+            const payload = (childBlock: object) =>
+                JSON.stringify({
+                    canvas: {
+                        canvasId: 'invalid-load-target',
+                        width: 200,
+                        height: 200,
+                    },
+                    blocks: [{ name: 'Block', childs: [childBlock] }],
+                })
+            expect(() => canvas.load(payload({ name: 'Block' }))).toThrow(
+                /Canvas\.load\(\).*blocks\[0\]\.childs\[0\]\.childs/
+            )
+            expect(() =>
+                canvas.load(
+                    payload({
+                        name: 'Block',
+                        options: { width: 'wide' },
+                        childs: [],
+                    })
+                )
+            ).toThrow(
+                /Canvas\.load\(\).*blocks\[0\]\.childs\[0\]\.options\.width/
+            )
+            expect(canvas.canvasId).toBe('myCanvas')
+            expect(canvas.width).toBe(400)
+            expect(canvas.find({ nodeId: parent.nodeId })).toEqual([parent])
+            expect(document.getElementById('invalid-load-target')).toBeNull()
+        })
         it('should skip blocks of an unregistered name', async () => {
             const payload = JSON.stringify({
                 canvas: { canvasId: 'myCanvas', width: 400, height: 500 },
@@ -372,6 +435,12 @@ describe('Canvas', () => {
             await flush()
 
             expect(canvas.find({ nodeId: 7 })).toHaveLength(0)
+        })
+        it('should reject a registration batch with an invalid class', () => {
+            class CustomBlock extends Block {}
+            expect(() =>
+                canvas.registerBlocks(CustomBlock, {} as never)
+            ).toThrow(/Canvas\.registerBlocks\(\).*BaseBlock class.*argument 2/)
         })
         it('should construct registered custom block classes', async () => {
             class MyBlock extends Block {
@@ -394,6 +463,37 @@ describe('Canvas', () => {
             expect(found).toHaveLength(1)
             expect(found[0]).toBeInstanceOf(MyBlock)
             expect(found[0].x()).toBe(5)
+        })
+        it('warns once per missing class and loads registered blocks', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+            try {
+                canvas.load(
+                    JSON.stringify({
+                        canvas: {
+                            canvasId: 'myCanvas',
+                            width: 400,
+                            height: 500,
+                        },
+                        blocks: [
+                            { name: 'MissingBlock', childs: [] },
+                            { name: 'MissingBlock', childs: [] },
+                            {
+                                name: 'Block',
+                                options: { name: 'loaded' },
+                                childs: [],
+                            },
+                        ],
+                    })
+                )
+                expect(warn).toHaveBeenCalledExactlyOnceWith(
+                    expect.stringMatching(
+                        /Canvas\.load\(\).*MissingBlock.*blocks\[0\].*registerBlocks/
+                    )
+                )
+                expect(canvas.find({ name: 'loaded' })).toHaveLength(1)
+            } finally {
+                warn.mockRestore()
+            }
         })
         it('should take the canvas size and options from the payload', async () => {
             const target = new Canvas('otherCanvas', 400, 500)

@@ -21,6 +21,16 @@ describe('AnimationBlock', () => {
         canvas.add(block)
         await flush()
     })
+    it('should reject keyframes without a breakpoint array', () => {
+        expect(() => block.animate({ x: 10 })).toThrow(
+            /Block\.animate\(\).*breakpoints.*keyframes\.x/
+        )
+    })
+    it('should report an unknown animation when starting it', () => {
+        expect(() => block.animationStart('missing')).toThrow(
+            /Block\.animationStart\(\).*missing/
+        )
+    })
     it('should generate a unique id for every animation', () => {
         const first = block.animate({ id: undefined, x: [0, 100] })
         const second = block.animate({ id: undefined, x: [0, 100] })
