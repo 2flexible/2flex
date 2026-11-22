@@ -291,54 +291,47 @@ export class LayoutBlock<
             const availableH = realH - heightSpaces - blockHeightSpaces
 
             if (!this.#isGrid) {
-                if (block.flexBasis() !== 'auto') {
+                // a basis replaces the size the child was asked for
+                const basis = block.flexBasis()
+                const hasBasis = basis !== 'auto' && typeof basis === 'number'
+                const basisSize = hasBasis ? Math.abs(basis) : 0
+                if (hasBasis) {
                     if (this.#isFlexCol) {
-                        height = block.flexBasis() as number
+                        height = basisSize
                         baseContentHeight = height - blockHeightPaddings
                     } else {
-                        width = block.flexBasis() as number
+                        width = basisSize
                         baseContentWidth = width - blockWidthPaddings
                     }
                 }
 
-                if (this.#isFlexCol) {
-                    if (this.#isWrap) {
-                        if (
-                            blockInitH! +
-                                blockHeightSpaces +
-                                blockHeightPaddings >=
-                            realH
-                        )
-                            height = availableH * overflowYSign
-                        // @TODO: need to adjust width
+                // a child without a size keeps the size it measured for itself
+                const wantedW =
+                    hasBasis && !this.#isFlexCol ? basisSize : baseWidth
+                const wantedH =
+                    hasBasis && this.#isFlexCol ? basisSize : baseHeight
+
+                // the outer size of the child, the spaces around it included
+                const outerW = wantedW + blockWidthPaddings + blockWidthSpaces
+                const outerH = wantedH + blockHeightPaddings + blockHeightSpaces
+
+                // the cross axis is the axis the childs are aligned on
+                const isMainVertical = this.#isFlexCol
+                const outerCross = isMainVertical ? outerW : outerH
+                const spaceCross = isMainVertical ? realW : realH
+
+                // a child which does not fit into the cross axis is scaled
+                // down to the space of the layout block
+                if (!this.#isWrap && outerCross >= spaceCross) {
+                    if (isMainVertical) {
+                        const minWidth = block.minWidth() ?? 0
+                        width = Math.max(availableW * overflowXSign, minWidth)
                     } else {
-                        if (
-                            blockInitW! +
-                                blockWidthSpaces +
-                                blockWidthPaddings >=
-                            realW
+                        const minHeight = block.minHeight() ?? 0
+                        height = Math.max(
+                            availableH * overflowYSign,
+                            minHeight
                         )
-                            width = availableW * overflowXSign
-                        // @TODO: need to adjust height
-                    }
-                } else {
-                    if (this.#isWrap) {
-                        if (
-                            blockInitW! +
-                                blockWidthSpaces +
-                                blockWidthPaddings >=
-                            realW
-                        )
-                            width = availableW * overflowXSign
-                        // @TODO: need to adjust height
-                    } else {
-                        if (
-                            blockInitH! +
-                                blockHeightSpaces +
-                                blockHeightPaddings >=
-                            realH
-                        )
-                            height = availableH * overflowYSign
                     }
                 }
             }
@@ -459,36 +452,9 @@ export class LayoutBlock<
         const containerW = this.#containerW
         const containerH = this.#containerH
 
-        const widthSpaces = this.marginLeft() + this.marginRight()
-        const heightSpaces = this.marginTop() + this.marginBottom()
-
         const overflowPositionX = this.overflowPositionX()
         const overflowPositionY = this.overflowPositionY()
 
-        let adjustedW = 0
-        let adjustedH = 0
-
-        if (this.#isGrid) {
-            adjustedW =
-                (realW - containerW) / (this.#layoutCols[0] || 1) -
-                    (widthSpaces + this.gapColumn()) /
-                        (this.#layoutCols[0] || 1) || 1
-
-            adjustedH =
-                (realH - containerH) / (this.#layoutRows[0] || 1) -
-                    (heightSpaces + this.gapRow()) /
-                        (this.#layoutRows[0] || 1) || 1
-        } else {
-            // @TODO: need to fix adjustW and adjustH for gaps
-            const childsCount = this.#flowingChilds.length
-            adjustedW =
-                (realW - containerW) / childsCount -
-                (widthSpaces + this.gapColumn() * (childsCount - 1)) /
-                    childsCount
-            adjustedH =
-                (realH - containerH) / childsCount -
-                (heightSpaces + this.gapRow() * (childsCount - 1)) / childsCount
-        }
         this.listOnlyChilds((b: BaseBlock, currIdx, arrLen) => {
             const blockPosition = b.position()
             b.__parentHidden = this.__isHidden()

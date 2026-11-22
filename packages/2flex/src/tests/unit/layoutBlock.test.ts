@@ -540,6 +540,264 @@ describe('LayoutBlock', () => {
         })
     })
 
+    describe('cross axis', () => {
+        // a child which does not fit into the layout block on the axis it is
+        // aligned on is scaled down to the space of the layout block. a
+        // wrapped layout grows its lines instead, like it does in css
+        const setup = async (
+            direction: 'row' | 'column',
+            wrap: boolean,
+            child: Block
+        ) => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexDirection: direction,
+                flexWrap: wrap ? 'wrap' : 'nowrap',
+            })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+        }
+
+        it('should scale down a child which is taller than a row', async () => {
+            const child = new Block({ width: 50, height: 400 })
+            await setup('row', false, child)
+            expect(child.height()).toBe(200)
+        })
+
+        it('should scale down a child which is wider than a column', async () => {
+            const child = new Block({ width: 400, height: 50 })
+            await setup('column', false, child)
+            expect(child.width()).toBe(300)
+        })
+
+        it('should keep the padding of a scaled down child out of it', async () => {
+            const child = new Block({ width: 50, height: 400, padding: 10 })
+            await setup('row', false, child)
+            // the padding is part of the size of the child
+            expect(child.height()).toBe(180)
+        })
+
+        it('should not scale a child below its minimum height', async () => {
+            const child = new Block({ width: 50, height: 400, minHeight: 350 })
+            await setup('row', false, child)
+            expect(child.height()).toBe(350)
+        })
+
+        it('should not scale a child below its minimum width', async () => {
+            const child = new Block({ width: 400, height: 50, minWidth: 350 })
+            await setup('column', false, child)
+            expect(child.width()).toBe(350)
+        })
+
+        it('should keep a child which fits into the layout block', async () => {
+            const child = new Block({ width: 100, height: 50 })
+            await setup('row', false, child)
+            expect([child.width(), child.height()]).toStrictEqual([100, 50])
+        })
+
+        it('should keep a child which fits into a wrapped column', async () => {
+            const child = new Block({ width: 100, height: 50 })
+            await setup('column', true, child)
+            expect([child.width(), child.height()]).toStrictEqual([100, 50])
+        })
+
+        it('should keep the cross axis of a child with a flex basis', async () => {
+            const child = new Block({ width: 100, height: 50, flexBasis: 400 })
+            await setup('column', true, child)
+            // the basis is the size on the main axis, the width is the cross
+            // axis and it is kept
+            expect(child.width()).toBe(100)
+        })
+
+        it('should scale down the cross axis of a child with a flex basis', async () => {
+            const child = new Block({ width: 400, height: 50, flexBasis: 100 })
+            await setup('column', false, child)
+            // the basis is the size on the main axis, the width is the cross
+            // axis and it is scaled down
+            expect(child.width()).toBe(300)
+        })
+
+        it('should scale down a child of a flipped layout block', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexDirection: 'column',
+                horizontalFlip: true,
+            })
+            const child = new Block({ width: 400, height: 50 })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+            // the width is the cross axis of a column, so it is scaled down
+            expect(child.width()).toBe(300)
+        })
+
+        it('should scale down a child of a vertically flipped layout block', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                verticalFlip: true,
+            })
+            const child = new Block({ width: 50, height: 400 })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+            // the height is the cross axis of a row, so it is scaled down
+            expect(child.height()).toBe(200)
+        })
+
+        it('should let a child of a wrapped row reach out of the layout block', async () => {
+            const child = new Block({ width: 50, height: 400 })
+            await setup('row', true, child)
+            // a wrapped layout grows its lines instead of scaling its childs
+            // down, so the child keeps its size
+            expect(child.height()).toBe(400)
+            expect(layout.__childsContainer).toStrictEqual({
+                width: 50,
+                height: 400,
+            })
+        })
+
+        it('should let a child of a wrapped column reach out of the layout block', async () => {
+            const child = new Block({ width: 400, height: 50 })
+            await setup('column', true, child)
+            expect(child.width()).toBe(400)
+            expect(layout.__childsContainer).toStrictEqual({
+                width: 400,
+                height: 50,
+            })
+        })
+
+        it('should grow the line of a wrapped row to its tallest child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexWrap: 'wrap',
+            })
+            // the two childs do not fit into one row, so the second one is
+            // placed below the first line
+            const first = new Block({ width: 200, height: 400 })
+            const second = new Block({ width: 200, height: 50 })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            expect([first.y(), second.y()]).toStrictEqual([0, 400])
+            expect(layout.__childsContainer).toStrictEqual({
+                width: 200,
+                height: 450,
+            })
+        })
+
+        it('should grow the column of a wrapped column to its widest child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexDirection: 'column',
+                flexWrap: 'wrap',
+            })
+            // the two childs do not fit into one column, so the second one is
+            // placed beside the first column
+            const first = new Block({ width: 400, height: 100 })
+            const second = new Block({ width: 100, height: 100 })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            expect([first.x(), second.x()]).toStrictEqual([0, 0])
+            expect([first.y(), second.y()]).toStrictEqual([0, 100])
+            expect(layout.__childsContainer).toStrictEqual({
+                width: 400,
+                height: 200,
+            })
+        })
+
+        it('should align a child of a grown line on its cross axis', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+            })
+            const tall = new Block({ width: 200, height: 400 })
+            const small = new Block({ width: 100, height: 50 })
+            layout.addChild(tall)
+            layout.addChild(small)
+            canvas.add(layout)
+            await flush()
+            // the line is as tall as its tallest child, so the smaller one is
+            // centered in it
+            expect(small.y()).toBe(175)
+        })
+
+        it('should not spread the lines of a wrapped layout which overflows', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexWrap: 'wrap',
+                alignContent: 'space-between',
+            })
+            const tall = new Block({ width: 200, height: 400 })
+            const second = new Block({ width: 200, height: 50 })
+            layout.addChild(tall)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // there is no free space to spread the lines into
+            expect(second.y()).toBe(400)
+        })
+
+        it('should keep the measured size of a text child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({ width: 300, height: 200 })
+            // a text block measures itself, so it has a size on its own
+            const child = new TextBlock({
+                text: 'hello world',
+                fontSize: 20,
+            })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+            expect(child.width()).toBeGreaterThan(0)
+            expect(child.height()).toBeGreaterThan(0)
+        })
+
+        it('should lay a text child with a relative size out', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            const rectBlock = new RectangleBlock({
+                width: 120,
+                height: 20,
+                x: 120,
+                y: 200,
+            })
+            const innerLayout = new LayoutBlock({
+                width: '100%',
+                height: '100%',
+            })
+            // a relative size is resolved after the block is initialized, so
+            // the block has no size while it measures itself
+            const child = new TextBlock({
+                text: 'dfdsf',
+                width: '100%',
+                height: '100%',
+            })
+            innerLayout.addChild(child)
+            rectBlock.addChild(innerLayout)
+            canvas.add(rectBlock)
+            await flush()
+            expect([child.width(), child.height()]).toStrictEqual([120, 20])
+        })
+    })
+
     describe('reversed directions', () => {
         // the reverse directions are accepted but not reversed yet, they lay
         // their childs out like their normal counterparts do
