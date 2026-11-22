@@ -574,6 +574,29 @@ describe('TextBlock', () => {
             )
         }
 
+        it('should calculate the size of the text without a drawing context', async () => {
+            await createTextBlock({
+                text: 'hello world',
+                width: undefined,
+                height: undefined,
+            })
+            // the text measures itself, so it has a size before it is drawn
+            expect(text.width()).toBeGreaterThan(0)
+            expect(text.height()).toBeGreaterThan(0)
+        })
+
+        it('should measure the text with a relative size', async () => {
+            await createTextBlock({
+                text: 'dfdsf',
+                width: '100%',
+                height: '100%',
+            })
+            // a relative size is resolved after the initialization, so the
+            // block has no size while it measures itself
+            expect(text.width()).toBe(400)
+            expect(text.height()).toBe(500)
+        })
+
         it('should calculate the width of the text when no width is given', async () => {
             await createTextBlock({ text: 'hello world', width: undefined })
             const context = prepareDrawing(text)

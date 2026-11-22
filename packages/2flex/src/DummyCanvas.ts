@@ -6,9 +6,15 @@ export class DummyCanvas {
 
     constructor(width: number, height: number) {
         this.#context = null
-        this.width = width
-        this.height = height
-        this.#offscreenCanvas = new OffscreenCanvas(width, height)
+        // an offscreen canvas needs at least a pixel in every dimension
+        this.width = DummyCanvas.#dimension(width)
+        this.height = DummyCanvas.#dimension(height)
+        this.#offscreenCanvas = new OffscreenCanvas(this.width, this.height)
+    }
+    static #dimension(size: number): number {
+        if (!Number.isFinite(size)) return 1
+        const rounded = Math.floor(size)
+        return rounded > 0 ? rounded : 1
     }
     get context() {
         if (!this.#context)

@@ -61,6 +61,8 @@ const DEFAULT_FONT_WEIGHT = 'normal'
 const DEFAULT_FONT_VARIANT = 'normal'
 const DEFAULT_FONT_STYLE = 'normal'
 const DEFAULT_WRAP = 'nowrap'
+// the size of the canvas the glyphs are measured on
+const MEASUREMENT_CANVAS_SIZE = 1
 
 class LetterNode {
     prev?: LetterNode
@@ -296,7 +298,11 @@ export class TextBlock<
         this.#addCaretAnimation()
     }
     #constructDummyContext() {
-        const dummyCanvas = new DummyCanvas(this.width(), this.height())
+        // the context only measures the glyphs, so it needs no pixels
+        const dummyCanvas = new DummyCanvas(
+            MEASUREMENT_CANVAS_SIZE,
+            MEASUREMENT_CANVAS_SIZE
+        )
         this.#dummyContext = dummyCanvas.context
     }
     measureText(text: string) {
