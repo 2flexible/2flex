@@ -21,7 +21,7 @@ interface DraggableBlockAccessors extends OwnOptionAccessors<
     BaseBlockOptions
 > {}
 
-export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
+export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
 ) => {
     class DraggableBlock extends Base {
@@ -35,13 +35,14 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 'draggable',
                 false,
                 false,
-                (block: any, opt?: boolean) => this.#draggable(block, opt)
+                (block: DraggableBlock, opt?: boolean) =>
+                    this.#draggable(block, opt)
             )
             this.addProperty('onDraggable', undefined)
             this.addProperty('draggableX', true)
             this.addProperty('draggableY', true)
         }
-        #draggable(block: any, opt?: boolean) {
+        #draggable(block: DraggableBlock, opt?: boolean) {
             if (opt === undefined || block.#isDraggable === opt) return
             block.#isDraggable = opt
             if (!opt) {
@@ -55,7 +56,10 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             let beforeCords = { x: 0, y: 0 }
             let beforeValues = {}
             const mouseDownEvent = (event: MouseEvent) => {
-                if (!block.#isDraggable || !block.selectable()) return
+                const isSelectable =
+                    (block as { selectable?: () => boolean }).selectable?.() ??
+                    true
+                if (!block.#isDraggable || !isSelectable) return
                 if (block.checkInBound(event) && block.isMouseEventAllowed) {
                     block.__registerZIndex()
                     if (block.__ImFirst()) {
@@ -103,7 +107,7 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                         block.__translateY(diff)
                         beforeCords.y = diffY
                     }
-                    block.onDraggable()?.(block)
+                    block.onDraggable()?.(event)
                     block.__invokeChange()
                 }
             }
@@ -116,7 +120,7 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     block.__unregisterZIndex()
                     block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                        const after: any = {
+                        const after: Record<string, unknown> = {
                             x: block.x(),
                             y: block.y(),
                         }

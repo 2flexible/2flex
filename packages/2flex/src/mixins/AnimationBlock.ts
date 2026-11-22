@@ -26,7 +26,9 @@ export type Duration = number
 export type IterationStart = number
 export type PlaybackRate = number
 export type AutoStart = boolean
-export type IteratableOpts = { [key: string]: any }
+export type IteratableOpts = {
+    [key: string]: KeyframeValue | KeyframeBreakpoints | undefined
+}
 
 // a single breakpoint of an animated option. options that hold arrays or plain
 // objects are animated by nesting them, which the value compiler walks through
@@ -67,7 +69,7 @@ export interface KeyframesConfig {
     currentVal: unknown
     breakPoints: CompiledValue[]
     iterDirection: number
-    invoker: any
+    invoker: PropertyDescriptor
     category: ValueKind
     underlyingValue: CompiledValue
     accumulator: CompiledValue
@@ -105,7 +107,7 @@ type CompiledValue =
 
 let animationIdCounter = 0
 
-export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
+export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
 ) =>
     class extends Base {
@@ -437,12 +439,13 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
 
                 const currentObjValue = obj.value.call(this)
 
-                const breakPoints = keyframe.map((frameValue: any) =>
+                if (!Array.isArray(keyframe)) continue
+                const breakPoints = keyframe.map((frameValue: KeyframeValue) =>
                     obj.value.call(this, frameValue)
                 )
                 obj.value.call(this, currentObjValue)
 
-                const compiled = breakPoints.map((value: any) =>
+                const compiled = breakPoints.map((value: unknown) =>
                     this.#compileValue(value)
                 )
                 this.#normalizeBreakpointArity(compiled)

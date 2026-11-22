@@ -31,7 +31,7 @@ const DEFAULT_HOT_CORNER_STROKE_WIDTH = 2.5
 const DEFAULT_HOT_CORNER_STROKE_COLOR = 'blue'
 const DEFAULT_HOT_LINE_STROKE_COLOR = 'blue'
 
-export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
+export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
 ) => {
     class HotLineBlock extends Base {
@@ -46,7 +46,8 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 'hotLines',
                 false,
                 false,
-                (block: any, opt?: boolean) => this.#hotLines(block, opt)
+                (block: HotLineBlock, opt?: boolean) =>
+                    this.#hotLines(block, opt)
             )
             this.addProperty('hotCornerSize', DEFAULT_HOT_CORNER_SIZE)
             this.addProperty('hotCornerRadius', DEFAULT_HOT_CORNER_RADIUS)
@@ -85,7 +86,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 bottomRight: this.cornerBottomRight(),
             }
         }
-        #hotLines(block: any, opt?: boolean) {
+        #hotLines(block: HotLineBlock, opt?: boolean) {
             if (!block.#hotLineBlock && opt) {
                 const hotLineBlock = block.#buildHotLines(block)
                 block.addChild(hotLineBlock)
@@ -109,7 +110,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             this.#hotLineBlock.height(h + size + strokeWidth)
         }
 
-        #buildHotLines(block: any) {
+        #buildHotLines(block: HotLineBlock) {
             block.#hotLineBlock = new BaseBlock({
                 name: HOT_LINE_BLOCK_NAME,
                 // absolute so the flexbox of the parent does not lay it out

@@ -1,4 +1,4 @@
-import { BaseBlock, BlockPayload } from './BaseBlock'
+import { BaseBlock, BaseBlockOptions, BlockPayload } from './BaseBlock'
 import { CanvasScene } from './CanvasScene'
 import type { BlockQuery } from './CanvasScene'
 import { defaultBlocks } from './defaultBlocks'
@@ -86,8 +86,8 @@ export type QueuePayloadMap = {
     'block:cache': Set<BaseBlock>
     'block:history': {
         [nodeId: number]: {
-            before: any
-            after: any
+            before: Record<string, unknown>
+            after: Record<string, unknown>
         }
     }
     'animation:add': { [animationId: AnimationId]: Animator }
@@ -733,8 +733,9 @@ export class Canvas {
                 )?.[0]
 
                 if (foundClass) {
-                    // @TODO: fix any issue
-                    foundBlock = new foundClass(blockPaylaod.options || {})
+                    foundBlock = new foundClass(
+                        (blockPaylaod.options || {}) as BaseBlockOptions
+                    )
                 }
             }
             if (foundBlock) {
@@ -906,7 +907,11 @@ export class Canvas {
         const set = (this.#queue['block:remove'] ??= new Set())
         set.add(block)
     }
-    demandHistory(nodeId: number, before: any, after: any) {
+    demandHistory(
+        nodeId: number,
+        before: Record<string, unknown>,
+        after: Record<string, unknown>
+    ) {
         const historyObj = (this.#queue['block:history'] ??= {})
         historyObj[nodeId] = { before: before, after: after }
     }

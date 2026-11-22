@@ -353,7 +353,10 @@ export function rgbaToArray(rgba: string): RGBA {
     if (colors[3]) A = Number(colors[3])
     return [R, G, B, A]
 }
-export function getPrototype(obj: any, key: string) {
+export function getPrototype(
+    obj: object,
+    key: string
+): PropertyDescriptor | null | undefined {
     let proto = Object.getPrototypeOf(obj)
     if (!getOwnPrototype(proto, key)) {
         return getPrototypeInChain(
@@ -363,7 +366,10 @@ export function getPrototype(obj: any, key: string) {
     }
     return getOwnPrototype(proto, key)
 }
-export function getPrototypeInChain(proto: any, key: string) {
+export function getPrototypeInChain(
+    proto: object | null,
+    key: string
+): PropertyDescriptor | null | undefined {
     if (!proto) return proto
     let p = getOwnPrototype(proto, key)
     if (p) return p
@@ -371,7 +377,10 @@ export function getPrototypeInChain(proto: any, key: string) {
         return getPrototypeInChain(Object.getPrototypeOf(proto), key)
     }
 }
-export function getOwnPrototype(proto: any, key: string) {
+export function getOwnPrototype(
+    proto: object,
+    key: string
+): PropertyDescriptor | undefined {
     return Object.getOwnPropertyDescriptor(proto, key)
 }
 export function inRange(value: number, great: number, less: number) {
@@ -510,7 +519,7 @@ export function stationaryPoints(
 
 // Extends a block class with typed option accessors and set() for TOptions
 export function extendBlock<TOptions extends BaseBlockOptions>() {
-    return <TBase extends abstract new (...args: any[]) => BaseBlock<any>>(
+    return <TBase extends abstract new (...args: never[]) => BaseBlock>(
         BaseClass: TBase
     ) =>
         BaseClass as unknown as (new (

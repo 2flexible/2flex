@@ -22,7 +22,7 @@ interface StickTo {
 }
 
 interface ControlPoint {
-    [key: string]: any
+    [key: string]: number | boolean | StickTo | undefined
     startX?: number
     startY?: number
     endX?: number
@@ -76,7 +76,11 @@ export interface LineBlockOptions extends ShapeBlockOptions {
     editable?: boolean
     // every control point registers its own options, which are named after
     // the point they belong to, so the keys of the options are dynamic
-    [key: `${(typeof CONTROLPOINT_PROPERTY_NAMES)[number]}-${number}`]: any
+    [key: `${(typeof CONTROLPOINT_PROPERTY_NAMES)[number]}-${number}`]:
+        | number
+        | boolean
+        | StickTo
+        | undefined
 }
 
 interface LineBlockAccessors extends OwnOptionAccessors<
@@ -202,13 +206,13 @@ export class LineBlock<
         this.hotLines(!isEditable)
         if (isEditable) this.__selectCursor('auto')
     }
-    #getCurrentPoint(point: string, pointId: number) {
+    #getCurrentPoint<V = number>(point: string, pointId: number) {
         const pointName = this.#formatPointName(point, pointId)
-        return this.getOptionCurrent(pointName)
+        return this.getOptionCurrent<V>(pointName)
     }
-    #getCachePoint(point: string, pointId: number) {
+    #getCachePoint<V = number>(point: string, pointId: number) {
         const pointName = this.#formatPointName(point, pointId)
-        return this.getOptionCache(pointName)
+        return this.getOptionCache<V>(pointName)
     }
     #setCurrentPoint(point: string, pointId: number, value: number) {
         const pointName = this.#formatPointName(point, pointId)
@@ -220,8 +224,8 @@ export class LineBlock<
     }
     updateCordinates(): void {
         super.updateCordinates()
-        const currentX = this.getOptionCurrent('x')
-        const currentY = this.getOptionCurrent('y')
+        const currentX = this.getOptionCurrent('x') ?? 0
+        const currentY = this.getOptionCurrent('y') ?? 0
         const currentWidth = this.__boxWidth()
         const currentHeight = this.__boxHeight()
 
@@ -231,17 +235,23 @@ export class LineBlock<
         let endDiffY: number
         this.#walkPointNodes((point: PointNode) => {
             const pointId = point.id!
-            const stickyStart = this.#getCurrentPoint('stickyStart', pointId)
-            const sticktEnd = this.#getCurrentPoint('stickyEnd', pointId)
+            const stickyStart = this.#getCurrentPoint<StickTo>(
+                'stickyStart',
+                pointId
+            )
+            const sticktEnd = this.#getCurrentPoint<StickTo>(
+                'stickyEnd',
+                pointId
+            )
 
             let startX = this.#getCurrentPoint('startX', pointId)
-            let cacheStartX = this.#getCachePoint('startX', pointId)
+            let cacheStartX = this.#getCachePoint('startX', pointId) ?? 0
             let startY = this.#getCurrentPoint('startY', pointId)
-            let cacheStartY = this.#getCachePoint('startY', pointId)
+            let cacheStartY = this.#getCachePoint('startY', pointId) ?? 0
             let endX = this.#getCurrentPoint('endX', pointId)
-            let cacheEndX = this.#getCachePoint('endX', pointId)
+            let cacheEndX = this.#getCachePoint('endX', pointId) ?? 0
             let endY = this.#getCurrentPoint('endY', pointId)
-            let cacheEndY = this.#getCachePoint('endY', pointId)
+            let cacheEndY = this.#getCachePoint('endY', pointId) ?? 0
 
             let startControlX = this.#getCurrentPoint('startControlX', pointId)
             let startControlY = this.#getCurrentPoint('startControlY', pointId)
@@ -288,19 +298,19 @@ export class LineBlock<
                 cacheEndY = currentHeight
             }
             if (startControlX === undefined) {
-                this.#setCurrentPoint('startControlX', pointId, startX)
+                this.#setCurrentPoint('startControlX', pointId, startX ?? 0)
                 cacheStartControlX = startX
             }
             if (startControlY === undefined) {
-                this.#setCurrentPoint('startControlY', pointId, startY)
+                this.#setCurrentPoint('startControlY', pointId, startY ?? 0)
                 cacheStartControlY = startY
             }
             if (endControlX === undefined) {
-                this.#setCurrentPoint('endControlX', pointId, endX)
+                this.#setCurrentPoint('endControlX', pointId, endX ?? 0)
                 cacheEndControlX = endX
             }
             if (endControlY === undefined) {
-                this.#setCurrentPoint('endControlY', pointId, endY)
+                this.#setCurrentPoint('endControlY', pointId, endY ?? 0)
                 cacheEndControlY = endY
             }
             const diffX = currentX - cacheX!
@@ -309,67 +319,71 @@ export class LineBlock<
             const diffH = currentHeight - cacheHeight!
             const dX = diffX + diffW
             const dY = diffY + diffH
-            if (endX > startX) {
-                startX += diffX
-                endX += dX
+            let resolvedStartX = startX ?? 0
+            let resolvedEndX = endX ?? 0
+            let resolvedStartY = startY ?? 0
+            let resolvedEndY = endY ?? 0
+            if (resolvedEndX > resolvedStartX) {
+                resolvedStartX += diffX
+                resolvedEndX += dX
             } else {
-                startX += dX
-                endX += diffX
+                resolvedStartX += dX
+                resolvedEndX += diffX
             }
 
-            if (endY > startY) {
-                startY += diffY
-                endY += dY
+            if (resolvedEndY > resolvedStartY) {
+                resolvedStartY += diffY
+                resolvedEndY += dY
             } else {
-                startY += dY
-                endY += diffY
+                resolvedStartY += dY
+                resolvedEndY += diffY
             }
 
             if (stickyStart !== undefined) {
-                const currX = stickyStart.block?.getOptionCurrent('x')
-                const currY = stickyStart.block?.getOptionCurrent('y')
-                startX = currX + (stickyStart.x ?? 0)
-                startY = currY + (stickyStart.y ?? 0)
+                const currX = stickyStart.block?.getOptionCurrent('x') ?? 0
+                const currY = stickyStart.block?.getOptionCurrent('y') ?? 0
+                resolvedStartX = currX + (stickyStart.x ?? 0)
+                resolvedStartY = currY + (stickyStart.y ?? 0)
             }
 
             if (sticktEnd !== undefined) {
-                const currX = sticktEnd.block?.getOptionCurrent('x')
-                const currY = sticktEnd.block?.getOptionCurrent('y')
-                endX = currX + (sticktEnd.x ?? 0)
-                endY = currY + (sticktEnd.y ?? 0)
+                const currX = sticktEnd.block?.getOptionCurrent('x') ?? 0
+                const currY = sticktEnd.block?.getOptionCurrent('y') ?? 0
+                resolvedEndX = currX + (sticktEnd.x ?? 0)
+                resolvedEndY = currY + (sticktEnd.y ?? 0)
             }
 
-            const startXDiff = endDiffX ?? startX - cacheStartX
-            const startYDiff = endDiffY ?? startY - cacheStartY
-            const endXDiff = endX - cacheEndX
-            const endYDiff = endY - cacheEndY
+            const startXDiff = endDiffX ?? resolvedStartX - cacheStartX
+            const startYDiff = endDiffY ?? resolvedStartY - cacheStartY
+            const endXDiff = resolvedEndX - cacheEndX
+            const endYDiff = resolvedEndY - cacheEndY
 
             if (startXDiff !== 0) {
                 this.#setCurrentPoint(
                     'startControlX',
                     pointId,
-                    cacheStartControlX + startXDiff
+                    (cacheStartControlX ?? 0) + startXDiff
                 )
             }
             if (startYDiff !== 0) {
                 this.#setCurrentPoint(
                     'startControlY',
                     pointId,
-                    cacheStartControlY + startYDiff
+                    (cacheStartControlY ?? 0) + startYDiff
                 )
             }
             if (endXDiff !== 0) {
                 this.#setCurrentPoint(
                     'endControlX',
                     pointId,
-                    cacheEndControlX + endXDiff
+                    (cacheEndControlX ?? 0) + endXDiff
                 )
             }
             if (endYDiff !== 0) {
                 this.#setCurrentPoint(
                     'endControlY',
                     pointId,
-                    cacheEndControlY + endYDiff
+                    (cacheEndControlY ?? 0) + endYDiff
                 )
             }
             endDiffX = endXDiff
@@ -377,13 +391,13 @@ export class LineBlock<
 
             if (prevEndX !== undefined) {
                 this.#setCurrentPoint('startX', pointId, prevEndX)
-            } else this.#setCurrentPoint('startX', pointId, startX)
+            } else this.#setCurrentPoint('startX', pointId, resolvedStartX)
             if (prevEndY !== undefined) {
                 this.#setCurrentPoint('startY', pointId, prevEndY)
-            } else this.#setCurrentPoint('startY', pointId, startY)
+            } else this.#setCurrentPoint('startY', pointId, resolvedStartY)
 
-            this.#setCurrentPoint('endX', pointId, endX)
-            this.#setCurrentPoint('endY', pointId, endY)
+            this.#setCurrentPoint('endX', pointId, resolvedEndX)
+            this.#setCurrentPoint('endY', pointId, resolvedEndY)
             prevEndX = cacheEndX
             prevEndY = cacheEndY
         })
@@ -579,7 +593,7 @@ export class LineBlock<
             startDraggable,
             undefined,
             false,
-            (block: LineBlock, opt: boolean) =>
+            (block: LineBlock, opt?: boolean) =>
                 this.#draggablePoints(
                     block,
                     opt,
@@ -593,7 +607,7 @@ export class LineBlock<
             endDraggable,
             undefined,
             false,
-            (block: LineBlock, opt: boolean) =>
+            (block: LineBlock, opt?: boolean) =>
                 this.#draggablePoints(
                     block,
                     opt,
@@ -607,7 +621,7 @@ export class LineBlock<
             startControllable,
             undefined,
             false,
-            (block: LineBlock, opt: boolean) =>
+            (block: LineBlock, opt?: boolean) =>
                 this.#draggablePoints(
                     block,
                     opt,
@@ -621,7 +635,7 @@ export class LineBlock<
             endControllable,
             undefined,
             false,
-            (block: LineBlock, opt: boolean) =>
+            (block: LineBlock, opt?: boolean) =>
                 this.#draggablePoints(
                     block,
                     opt,
@@ -635,14 +649,14 @@ export class LineBlock<
             stickyStart,
             undefined,
             false,
-            (block: LineBlock, opt: StickTo) =>
+            (block: LineBlock, opt?: StickTo) =>
                 this.#restickDependentBlock(block, id, 'stickyStart', opt)
         )
         this.addProperty(
             stickyEnd,
             undefined,
             false,
-            (block: LineBlock, opt: StickTo) =>
+            (block: LineBlock, opt?: StickTo) =>
                 this.#restickDependentBlock(block, id, 'stickyEnd', opt)
         )
     }
@@ -755,10 +769,12 @@ export class LineBlock<
                 'endControlY',
                 pointId
             )
-            const startControlX = this.getOptionCurrent(startControlXName)
-            const startControlY = this.getOptionCurrent(startControlYName)
-            const endControlX = this.getOptionCurrent(endControlXName)
-            const endControlY = this.getOptionCurrent(endControlYName)
+            const startControlX =
+                this.getOptionCurrent<number>(startControlXName)
+            const startControlY =
+                this.getOptionCurrent<number>(startControlYName)
+            const endControlX = this.getOptionCurrent<number>(endControlXName)
+            const endControlY = this.getOptionCurrent<number>(endControlYName)
             if (
                 startControlX !== undefined &&
                 startControlY !== undefined &&
@@ -842,18 +858,18 @@ export class LineBlock<
 
         this.#walkPointNodes((point: PointNode) => {
             const pointId = point.id!
-            const startX = this.getOptionCurrent(
+            const startX = this.getOptionCurrent<number>(
                 this.#formatPointName('startX', pointId)
-            )
-            const startY = this.getOptionCurrent(
+            )!
+            const startY = this.getOptionCurrent<number>(
                 this.#formatPointName('startY', pointId)
-            )
-            const endX = this.getOptionCurrent(
+            )!
+            const endX = this.getOptionCurrent<number>(
                 this.#formatPointName('endX', pointId)
-            )
-            const endY = this.getOptionCurrent(
+            )!
+            const endY = this.getOptionCurrent<number>(
                 this.#formatPointName('endY', pointId)
-            )
+            )!
             const startControlXName = this.#formatPointName(
                 'startControlX',
                 pointId
@@ -870,10 +886,12 @@ export class LineBlock<
                 'endControlY',
                 pointId
             )
-            const startControlX = this.getOptionCurrent(startControlXName)
-            const startControlY = this.getOptionCurrent(startControlYName)
-            const endControlX = this.getOptionCurrent(endControlXName)
-            const endControlY = this.getOptionCurrent(endControlYName)
+            const startControlX =
+                this.getOptionCurrent<number>(startControlXName)
+            const startControlY =
+                this.getOptionCurrent<number>(startControlYName)
+            const endControlX = this.getOptionCurrent<number>(endControlXName)
+            const endControlY = this.getOptionCurrent<number>(endControlYName)
             if (
                 startX !== undefined &&
                 startControlX !== undefined &&
@@ -966,10 +984,12 @@ export class LineBlock<
         const y = this.getOptionCurrent('y')
         const width = this.getOptionCurrent('width')
         const height = this.getOptionCurrent('height')
-        const safeX = Number.isFinite(x) ? x : 0
-        const safeY = Number.isFinite(y) ? y : 0
-        const safeWidth = Number.isFinite(width) ? width : 0
-        const safeHeight = Number.isFinite(height) ? height : 0
+        const safeX = x !== undefined && Number.isFinite(x) ? x : 0
+        const safeY = y !== undefined && Number.isFinite(y) ? y : 0
+        const safeWidth =
+            width !== undefined && Number.isFinite(width) ? width : 0
+        const safeHeight =
+            height !== undefined && Number.isFinite(height) ? height : 0
         this.setOptionCurrent('x', safeX)
         this.setOptionCurrent('y', safeY)
         this.setOptionCurrent('width', safeWidth)
@@ -1001,21 +1021,21 @@ export class LineBlock<
         const path = new Path2D()
         this.#walkPointNodes((point: PointNode) => {
             const pointId = point.id!
-            const startX = this.getOptionCurrent(
+            const startX = this.getOptionCurrent<number>(
                 this.#formatPointName('startX', pointId)
-            )
-            const startY = this.getOptionCurrent(
+            )!
+            const startY = this.getOptionCurrent<number>(
                 this.#formatPointName('startY', pointId)
-            )
+            )!
             if (point.prev === undefined) {
                 path.moveTo(startX, startY)
             }
-            const endX = this.getOptionCurrent(
+            const endX = this.getOptionCurrent<number>(
                 this.#formatPointName('endX', pointId)
-            )
-            const endY = this.getOptionCurrent(
+            )!
+            const endY = this.getOptionCurrent<number>(
                 this.#formatPointName('endY', pointId)
-            )
+            )!
             const startControlXName = this.#formatPointName(
                 'startControlX',
                 pointId
@@ -1032,10 +1052,12 @@ export class LineBlock<
                 'endControlY',
                 pointId
             )
-            const startControlX = this.getOptionCurrent(startControlXName)
-            const startControlY = this.getOptionCurrent(startControlYName)
-            const endControlX = this.getOptionCurrent(endControlXName)
-            const endControlY = this.getOptionCurrent(endControlYName)
+            const startControlX =
+                this.getOptionCurrent<number>(startControlXName)
+            const startControlY =
+                this.getOptionCurrent<number>(startControlYName)
+            const endControlX = this.getOptionCurrent<number>(endControlXName)
+            const endControlY = this.getOptionCurrent<number>(endControlYName)
             if (
                 startControlX !== undefined &&
                 startControlY !== undefined &&
@@ -1106,18 +1128,18 @@ export class LineBlock<
 
         this.#walkPointNodes((point: PointNode) => {
             const pointId = point.id!
-            const startX = this.getOptionCurrent(
+            const startX = this.getOptionCurrent<number>(
                 this.#formatPointName('startX', pointId)
-            )
-            const startY = this.getOptionCurrent(
+            )!
+            const startY = this.getOptionCurrent<number>(
                 this.#formatPointName('startY', pointId)
-            )
-            const endX = this.getOptionCurrent(
+            )!
+            const endX = this.getOptionCurrent<number>(
                 this.#formatPointName('endX', pointId)
-            )
-            const endY = this.getOptionCurrent(
+            )!
+            const endY = this.getOptionCurrent<number>(
                 this.#formatPointName('endY', pointId)
-            )
+            )!
             const startControlXName = this.#formatPointName(
                 'startControlX',
                 pointId
@@ -1134,10 +1156,12 @@ export class LineBlock<
                 'endControlY',
                 pointId
             )
-            const startControlX = this.getOptionCurrent(startControlXName)
-            const startControlY = this.getOptionCurrent(startControlYName)
-            const endControlX = this.getOptionCurrent(endControlXName)
-            const endControlY = this.getOptionCurrent(endControlYName)
+            const startControlX =
+                this.getOptionCurrent<number>(startControlXName)
+            const startControlY =
+                this.getOptionCurrent<number>(startControlYName)
+            const endControlX = this.getOptionCurrent<number>(endControlXName)
+            const endControlY = this.getOptionCurrent<number>(endControlYName)
             const startDraggablePath = this.#formatPointName(
                 START_DRAGGABLE_PATH,
                 pointId
@@ -1291,12 +1315,12 @@ export class LineBlock<
             }
             block.__invokeChange()
         }
-        block.__addEvent('dblclick', dblclick as any)
-        block.__addEvent('click', click as any)
+        block.__addEvent<MouseEvent>('dblclick', dblclick)
+        block.__addEvent<MouseEvent>('click', click)
     }
     #draggablePoints(
         block: LineBlock,
-        opt: boolean,
+        opt: boolean | undefined,
         point: string,
         pointX: string,
         pointY: string,
@@ -1318,7 +1342,7 @@ export class LineBlock<
 
         let initCords = { x: 0, y: 0 }
         let beforeCords = { x: 0, y: 0 }
-        let beforeValues: any = {}
+        let beforeValues: Record<string, unknown> = {}
         const mousedown = (event: MouseEvent) => {
             if (
                 !state.enabled ||
@@ -1333,8 +1357,8 @@ export class LineBlock<
                 if (block.__ImFirst()) {
                     initCords = { x: x, y: y }
                     beforeCords = { x: 0, y: 0 }
-                    const pointXCord = this.getOptionCurrent(pointX)
-                    const pointYCord = this.getOptionCurrent(pointY)
+                    const pointXCord = this.getOptionCurrent<number>(pointX)
+                    const pointYCord = this.getOptionCurrent<number>(pointY)
                     beforeValues[pointX] = pointXCord
                     beforeValues[pointY] = pointYCord
                     block.__updateRunningEvent(point, true)
@@ -1357,8 +1381,8 @@ export class LineBlock<
                     const sin = Math.sin(angle)
                     const pointIncX = incX * cos - incY * sin
                     const pointIncY = incX * sin + incY * cos
-                    const pointXCord = this.getOptionCurrent(pointX)
-                    const pointYCord = this.getOptionCurrent(pointY)
+                    const pointXCord = this.getOptionCurrent<number>(pointX) ?? 0
+                    const pointYCord = this.getOptionCurrent<number>(pointY) ?? 0
                     if (pointIncX !== 0)
                         block.setOptionCurrent(
                             pointX,
@@ -1384,9 +1408,9 @@ export class LineBlock<
                 block.__unregisterZIndex()
                 block.__updateRunningEvent(point, false)
                 if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                    const pointXCord = this.getOptionCurrent(pointX)
-                    const pointYCord = this.getOptionCurrent(pointY)
-                    const after: any = {}
+                    const pointXCord = this.getOptionCurrent<number>(pointX)
+                    const pointYCord = this.getOptionCurrent<number>(pointY)
+                    const after: Record<string, unknown> = {}
                     after[pointX] = pointXCord
                     after[pointY] = pointYCord
                     block.__invokeHistory(beforeValues, after)
@@ -1394,9 +1418,9 @@ export class LineBlock<
                 }
             }
         }
-        block.__addEvent('mousedown', mousedown as any)
-        block.__addEvent('mousemove', mousemove as any)
-        block.__addEvent('mouseup', mouseup as any)
+        block.__addEvent<MouseEvent>('mousedown', mousedown)
+        block.__addEvent<MouseEvent>('mousemove', mousemove)
+        block.__addEvent<MouseEvent>('mouseup', mouseup)
     }
 
     checkInBound(event: MouseEvent): boolean {

@@ -1051,7 +1051,7 @@ export class ShapeBlock<
 
     #filterHandler(
         filter: keyof ShapeFilters,
-        value: string | number | number[]
+        value: string | number | number[] | DropShadow
     ) {
         switch (filter) {
             case 'blur':
@@ -1115,9 +1115,9 @@ export class ShapeBlock<
     #dropShadow(block: ShapeBlock, opt?: DropShadow | DropShadow[]) {
         if (!opt) return
         if (opt[0] instanceof Array)
-            for (const val of opt)
-                block.#filterHandler('drop-shadow', val as any)
-        else block.#filterHandler('drop-shadow', opt as any)
+            for (const val of opt as DropShadow[])
+                block.#filterHandler('drop-shadow', val)
+        else block.#filterHandler('drop-shadow', opt as DropShadow)
     }
     #grayscale(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
         if (!opt) return

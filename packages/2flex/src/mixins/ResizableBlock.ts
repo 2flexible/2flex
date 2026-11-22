@@ -43,7 +43,7 @@ interface ResizableBlockAccessors extends OwnOptionAccessors<
 const DEFAULT_HOT_RESIZABLE_AREA_SIZE = 15
 const DEFAULT_HOT_RESIZABLE_AREA_GAP = 0
 
-export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
+export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
 ) => {
     class ResizableBlock extends Base {
@@ -57,7 +57,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 'resizable',
                 false,
                 false,
-                (block: typeof ResizableBlock, opt?: boolean) =>
+                (block: ResizableBlock, opt?: boolean) =>
                     this.#resizable(block, opt)
             )
             this.addProperty('resizableTop', initialCorners)
@@ -391,7 +391,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             }
         }
         #rotateResizableAreaCordinates(corner: string, radian: number) {
-            const cordsArea = this.getOptionCurrent(corner)
+            const cordsArea = this.getOptionCurrent<HotCornerArea>(corner)
+            if (!cordsArea) return
             const a = this.__rotateCordiantesByCenter(
                 cordsArea.topLeft.x,
                 cordsArea.topLeft.y,
@@ -446,7 +447,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             )
         }
         #checkCornerInBound(x: number, y: number, cornerName: string) {
-            const corner = this.getOptionCurrent(cornerName)
+            const corner = this.getOptionCurrent<HotCornerArea>(cornerName)
+            if (!corner) return false
             return checkInBound(
                 x,
                 y,
@@ -543,7 +545,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             // 0° to 22.5°, 157.5° to 180°, -22.5° to 0°, -180° to -157.5°
             return defaultCursor
         }
-        #resizable(block: any, opt?: boolean) {
+        #resizable(block: ResizableBlock, opt?: boolean) {
             if (opt === undefined || block.#isResizable === opt) return
             block.#isResizable = opt
             if (!opt) {
@@ -555,7 +557,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
 
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
-            let beforeValues: any = {}
+            let beforeValues: Record<string, unknown> = {}
             let topResize = false
             let leftResize = false
             let bottomResize = false
@@ -729,14 +731,12 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                                 rotationCenterX += cx / 2
                                 rotationCenterY += cy / 2
                                 if (leftResize) {
-                                    const adjustX = ((increaseX + cx) /
-                                        2) as any
+                                    const adjustX = (increaseX + cx) / 2
                                     cornerTopLeft.x += increaseX
                                     cornerBottomLeft.x += increaseX
                                     currentX += adjustX
                                 } else if (rightResize) {
-                                    const adjustX = ((increaseX - cx) /
-                                        2) as any
+                                    const adjustX = (increaseX - cx) / 2
                                     currentX -= adjustX
                                     cornerTopRight.x += increaseX
                                     cornerBottomRight.x += increaseX
@@ -762,8 +762,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                                 rotationCenterX += cx / 2
                                 rotationCenterY += cy / 2
                                 if (topResize) {
-                                    const adjustY = ((increaseY + cy) /
-                                        2) as any
+                                    const adjustY = (increaseY + cy) / 2
                                     currentY += adjustY
                                     cornerTopLeft.y += increaseY
                                     cornerTopRight.y += increaseY
@@ -834,7 +833,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                         )
                         beforeCords.x = diffX
                         beforeCords.y = diffY
-                        block.onResizable()?.(block)
+                        block.onResizable()?.(event)
                         block.__invokeChange()
                     }
                 }
@@ -850,7 +849,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
                     block.__unregisterZIndex()
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                        const after: any = {
+                        const after: Record<string, unknown> = {
                             x: block.x(),
                             y: block.y(),
                             width: block.width(),

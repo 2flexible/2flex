@@ -35,7 +35,7 @@ interface RotatableBlockAccessors extends OwnOptionAccessors<
 const DEFAULT_HOT_ROTATABLE_AREA_SIZE = 15
 const DEFAULT_HOT_ROTATABLE_AREA_GAP = 0
 
-export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
+export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
 ) => {
     class RotatableBlock extends Base {
@@ -49,7 +49,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 'rotatable',
                 false,
                 false,
-                (block: any, opt?: boolean) => {
+                (block: RotatableBlock, opt?: boolean) => {
                     this.#rotatable(block, opt)
                 }
             )
@@ -246,7 +246,8 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             }
         }
         #rotateRotatableAreaCordinates(corner: string, diffR: number) {
-            const cordsArea = this.getOptionCurrent(corner)
+            const cordsArea = this.getOptionCurrent<HotCornerArea>(corner)
+            if (!cordsArea) return
             const a = this.__rotateCordiantesByCenter(
                 cordsArea.topLeft.x,
                 cordsArea.topLeft.y,
@@ -294,7 +295,8 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             )
         }
         #checkCornerInBound(x: number, y: number, cornerName: string) {
-            const corner = this.getOptionCurrent(cornerName)
+            const corner = this.getOptionCurrent<HotCornerArea>(cornerName)
+            if (!corner) return false
             return checkInBound(
                 x,
                 y,
@@ -332,7 +334,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 this.#checkCornerInBound(x, y, 'hotRotatableAreaBottomRight')
             )
         }
-        #rotatable(block: any, opt?: boolean) {
+        #rotatable(block: RotatableBlock, opt?: boolean) {
             if (opt === undefined || block.#isRotatable === opt) return
             block.#isRotatable = opt
             if (!opt) {
@@ -344,7 +346,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
 
             let topMove = false
             let leftMove = false
-            let beforeValues: any = {}
+            let beforeValues: Record<string, unknown> = {}
             let inBound = false
             let beforeCursor: string | undefined
 
@@ -483,7 +485,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                         'rotate',
                         currentRotate - block.__parentRotate
                     )
-                    block.onRotatable()?.(block)
+                    block.onRotatable()?.(event)
                     block.__invokeChange()
                 }
             }
@@ -498,7 +500,9 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
                     block.__unregisterZIndex()
                     inBound = false
-                    const after: any = { rotate: block.rotate() }
+                    const after: Record<string, unknown> = {
+                        rotate: block.rotate(),
+                    }
                     block.__invokeHistory(beforeValues, after)
                 }
             }

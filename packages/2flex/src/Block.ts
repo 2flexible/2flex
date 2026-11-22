@@ -53,7 +53,7 @@ export class Block<T extends BlockOptions = BlockOptions> extends OverflowBlock(
             thisBlock.#userOnRender = opt
 
         if (thisBlock.#onRenderWrapper === undefined) {
-            thisBlock.#onRenderWrapper = (block: any) => {
+            thisBlock.#onRenderWrapper = (block: BaseBlock) => {
                 thisBlock.context?.save()
                 // need to clip child before restore if its exist
                 block.__childClipping?.(thisBlock)

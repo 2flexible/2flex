@@ -146,7 +146,8 @@ export class CanvasScene {
     }
    
     #isHelperBlock(block: BaseBlock) {
-        return HELPER_BLOCK_NAMES.includes(block.getOptionCurrent('name'))
+        const name = block.getOptionCurrent('name')
+        return !!name && HELPER_BLOCK_NAMES.includes(name)
     }
     #helperRank(block: BaseBlock) {
         return block.getOptionCurrent('name') === HOT_LINE_BLOCK_NAME ? 1 : 0

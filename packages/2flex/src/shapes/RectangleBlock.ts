@@ -17,7 +17,7 @@ export type BorderRadius = ShortHandRelativeType
 
 // the width of a border is resolved to a number, the style and the color
 // stay as they are
-export type ResolvedBorder = [number, BorderStyle, ColorType]
+export type ResolvedBorder = [number, BorderStyle, BorderColor]
 
 export interface RectangleBlockOptions extends ShapeBlockOptions {
     backgroundColor?: ColorType
@@ -189,20 +189,27 @@ export class RectangleBlock<
         return this.#borderSide('left', opt)
     }
 
-    #borderParse(block: RectangleBlock, opt: any) {
+    #borderParse(
+        block: RectangleBlock,
+        opt?: RectangleBorder
+    ): ResolvedBorder | undefined {
         if (opt === undefined) return opt
-        if (typeof opt === 'string') opt = block.#borderConvert(opt)
-        else if (opt instanceof Array && opt.length == 3) {
-            opt[0] =
-                typeof opt[0] === 'number'
-                    ? opt[0]
-                    : block.__unitConverter(opt[0], true)
-            opt[2] =
-                typeof opt[2] === 'string'
-                    ? (block.__colorConverter(opt[2]) as string)
-                    : opt[2]
+        let parsed: ResolvedBorder
+        if (typeof opt === 'string') parsed = block.#borderConvert(opt)
+        else {
+            parsed = [...opt] as ResolvedBorder
+            if (parsed.length === 3) {
+                parsed[0] =
+                    typeof opt[0] === 'number'
+                        ? opt[0]
+                        : (block.__unitConverter(opt[0], true) ?? 0)
+                parsed[2] =
+                    typeof opt[2] === 'string'
+                        ? (block.__colorConverter(opt[2]) as string)
+                        : opt[2]
+            }
         }
-        return opt
+        return parsed
     }
 
     #borderSide(
@@ -354,12 +361,12 @@ export class RectangleBlock<
 
     #resolvedRadius(): [number, number, number, number] {
         const r = this.borderRadius()
-        const parsed = shortHandParser(r as any) as any
+        const parsed = shortHandParser(r as ShortHandRelativeType)
         if (!Array.isArray(parsed) || parsed.length !== 4) {
             const n = (typeof r === 'number' ? r : 0) || 0
             return [n, n, n, n]
         }
-        let [tlR, trR, brR, blR] = parsed
+        let [tlR, trR, brR, blR] = parsed.map((v) => Number(v) || 0)
         const w = this.__boxWidth()
         const h = this.__boxHeight()
         const topSum = tlR + trR
@@ -389,7 +396,7 @@ export class RectangleBlock<
         return [tlR, trR, brR, blR]
     }
 
-    #borderConvert(opt: string): RectangleBorder {
+    #borderConvert(opt: string): ResolvedBorder {
         const splitted = opt.split(' ')
         const borderWidth = this.__unitConverter(splitted[0], true)
         const borderStyle = splitted[1] as BorderStyle

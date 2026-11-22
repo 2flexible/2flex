@@ -149,7 +149,7 @@ export class TextBlock<
             'editable',
             undefined,
             false,
-            (block: TextBlock, opt: boolean) => this.#editable(block, opt)
+            (block: TextBlock, opt?: boolean) => this.#editable(block, opt)
         )
         this.addProperty('letterSpacing', 0)
         this.addProperty(
@@ -215,7 +215,7 @@ export class TextBlock<
             duration: 1000,
             iterations: Infinity,
             autoStart: false,
-        } as any)
+        })
         this.#caretAnimationRunning = false
     }
 
@@ -1021,7 +1021,7 @@ export class TextBlock<
         )
             return this.#insertText(key)
     }
-    #editable(block: TextBlock, opt: boolean) {
+    #editable(block: TextBlock, opt?: boolean) {
         if (opt === undefined || block.#isEditable === opt) return
         block.#isEditable = opt
         if (!opt) {

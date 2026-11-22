@@ -145,7 +145,7 @@ export interface BaseBlockOptions {
 }
 type BlockOptionKeys = keyof BaseBlockOptions
 
-export type OptionsMap = Map<string, any>
+export type OptionsMap = Map<string, unknown>
 
 export interface BindOptions {
     block: BaseBlock
@@ -159,8 +159,8 @@ type BlockEvent = {
 export interface BlockPayload {
     nodeId: NodeId
     name: string
-    options: Partial<Record<BlockOptionKeys, any>>
-    cacheOptions: Partial<Record<BlockOptionKeys, any>>
+    options: Partial<Record<BlockOptionKeys, unknown>>
+    cacheOptions: Partial<Record<BlockOptionKeys, unknown>>
     childs: BlockPayload[]
 }
 
@@ -180,11 +180,14 @@ export interface ChildsContainer {
     height: number
 }
 
-export type ValueConverterFunc<T, O> = (block: any, value: T) => O
+export type ValueConverterFunc<T, O, B extends BaseBlock = BaseBlock> = (
+    block: B,
+    value: T
+) => O
 
 type PropertyFunc = {
-    (this: BaseBlock, opt?: any): any
-    valueConverter?: ValueConverterFunc<any, any>
+    (this: BaseBlock, opt?: unknown): unknown
+    valueConverter?: ValueConverterFunc<unknown, unknown, BaseBlock>
 }
 
 const DEFAULT_ROTATION_CENTER: SelfType = 'parent'
@@ -387,15 +390,15 @@ export class BaseBlock<
             'zIndex',
             undefined,
             false,
-            (block: BaseBlock, zIndex: number) =>
+            (block: BaseBlock, zIndex: number | undefined) =>
                 this.#hasZIndexChanged(block, zIndex),
-            (block: any, value: any) => this.#zIndexConverter(value)
+            (_block: BaseBlock, value: unknown) => this.#zIndexConverter(value)
         )
         this.addProperty(
             'order',
             undefined,
             false,
-            (block: BaseBlock, order: number) =>
+            (block: BaseBlock, order: number | undefined) =>
                 this.#hasOrderChanged(block, order)
         )
         this.addProperty(
@@ -465,14 +468,14 @@ export class BaseBlock<
                 if (!this.#ownsItsSize()) continue
             }
             const resolved = this.__initResolved(key as string)
-            if (resolved === undefined) continue
+            if (typeof resolved !== 'number') continue
             if (key === 'width')
                 this.setOptionCurrent('width', clampSize(resolved * scale))
             else if (key === 'height')
                 this.setOptionCurrent('height', clampSize(resolved * scale))
         }
     }
-    #isRelativeValue(value: any): boolean {
+    #isRelativeValue(value: unknown): boolean {
         if (typeof value === 'string') return RELATIVE_VALUE_PATTERN.test(value)
         if (value instanceof Array)
             return value.some(
@@ -506,12 +509,13 @@ export class BaseBlock<
         const height = this.__boxHeight()
         // a corner which was given by the user can be malformed, so it is only
         // kept when both of its coordinates are finite
-        const isValidCorner = (corner: any) =>
+        const isValidCorner = (corner: unknown): corner is XY =>
             !!corner &&
-            typeof corner.x === 'number' &&
-            typeof corner.y === 'number' &&
-            Number.isFinite(corner.x) &&
-            Number.isFinite(corner.y)
+            typeof corner === 'object' &&
+            typeof (corner as XY).x === 'number' &&
+            typeof (corner as XY).y === 'number' &&
+            Number.isFinite((corner as XY).x) &&
+            Number.isFinite((corner as XY).y)
         if (!isValidCorner(this.getOptionCurrent('cornerTopLeft')))
             this.setOptionCurrent('cornerTopLeft', {
                 x: x,
@@ -613,14 +617,14 @@ export class BaseBlock<
     #handleBindOptions() {
         for (const opt of this.#bindOptions) {
             for (const key of opt.options) {
-                getPrototype(this, key as any)?.value.call(
+                getPrototype(this, key)?.value.call(
                     this,
                     opt.block.getOptionCurrent(key)
                 )
             }
         }
     }
-    #zIndexConverter(value: any) {
+    #zIndexConverter(value: unknown) {
         if (value === undefined || value === null) return undefined
         const numeric = typeof value === 'number' ? value : Number(value)
         return Number.isNaN(numeric) ? undefined : numeric
@@ -751,14 +755,14 @@ export class BaseBlock<
     //     this.gridRowEnd(gridArea[2] || 'auto')
     //     this.gridColumnEnd(gridArea[3] || 'auto')
     // }
-    #hasZIndexChanged(block: BaseBlock, zIndex: number) {
+    #hasZIndexChanged(block: BaseBlock, zIndex: number | undefined) {
         if (block.#zIndex !== zIndex) {
             block.canvas?.demandRefreshHead()
             block.__refreshHeadBlock()
         }
         block.#zIndex = zIndex
     }
-    #hasOrderChanged(block: BaseBlock, order: number) {
+    #hasOrderChanged(block: BaseBlock, order: number | undefined) {
         if (block.#order !== order) {
             block.__refreshHeadBlock()
         }
@@ -775,15 +779,15 @@ export class BaseBlock<
         }
     }
     updateCordinates() {
-        let currentX = this.getOptionCurrent('x')
-        let currentY = this.getOptionCurrent('y')
-        const cacheX = this.getOptionCache('x')
-        const cacheY = this.getOptionCache('y')
+        let currentX = this.getOptionCurrent('x') ?? 0
+        let currentY = this.getOptionCurrent('y') ?? 0
+        const cacheX = this.getOptionCache('x') ?? 0
+        const cacheY = this.getOptionCache('y') ?? 0
 
-        let currentWidth = this.getOptionCurrent('width')
-        let currentHeight = this.getOptionCurrent('height')
-        const cacheWidth = this.getOptionCache('width')
-        const cacheHeight = this.getOptionCache('height')
+        let currentWidth = this.getOptionCurrent('width') ?? 0
+        let currentHeight = this.getOptionCurrent('height') ?? 0
+        const cacheWidth = this.getOptionCache('width') ?? 0
+        const cacheHeight = this.getOptionCache('height') ?? 0
         const minWidth = this.getOptionCurrent('minWidth')
         const maxWidth = this.getOptionCurrent('maxWidth')
         const minHeight = this.getOptionCurrent('minHeight')
@@ -805,11 +809,18 @@ export class BaseBlock<
         const left = this.getOptionCurrent('left')
         const right = this.getOptionCurrent('right')
 
-        let cornerTopLeftCurrent = this.getOptionCurrent('cornerTopLeft')
-        let cornerTopRightCurrent = this.getOptionCurrent('cornerTopRight')
-        let cornerBottomLeftCurrent = this.getOptionCurrent('cornerBottomLeft')
+        let cornerTopLeftCurrent = this.getOptionCurrent('cornerTopLeft') ?? {
+            x: 0,
+            y: 0,
+        }
+        let cornerTopRightCurrent = this.getOptionCurrent('cornerTopRight') ?? {
+            x: 0,
+            y: 0,
+        }
+        let cornerBottomLeftCurrent =
+            this.getOptionCurrent('cornerBottomLeft') ?? { x: 0, y: 0 }
         let cornerBottomRightCurrent =
-            this.getOptionCurrent('cornerBottomRight')
+            this.getOptionCurrent('cornerBottomRight') ?? { x: 0, y: 0 }
 
         const diffScale =
             (this.getOptionCurrent('scale') || 0) -
@@ -942,12 +953,14 @@ export class BaseBlock<
         const shouldTrackOwnCenter =
             this.rotationCenter() !== 'parent' || !this.__hasParentBlock
         if (shouldTrackOwnCenter) {
-            const centerX = Number.isFinite(rotationCenterX)
-                ? rotationCenterX
-                : currentX + currentWidth / 2
-            const centerY = Number.isFinite(rotationCenterY)
-                ? rotationCenterY
-                : currentY + currentHeight / 2
+            const centerX =
+                rotationCenterX !== undefined && Number.isFinite(rotationCenterX)
+                    ? rotationCenterX
+                    : currentX + currentWidth / 2
+            const centerY =
+                rotationCenterY !== undefined && Number.isFinite(rotationCenterY)
+                    ? rotationCenterY
+                    : currentY + currentHeight / 2
             this.setOptionCurrent(
                 'rotationCenterX',
                 centerX + diffX + diffW / 2
@@ -1145,9 +1158,17 @@ export class BaseBlock<
         if (max !== undefined && height > max) return max
         return height
     }
-    #rotateCornerCordinates(corner: string, diffR: number) {
+    #rotateCornerCordinates(
+        corner:
+            | 'cornerTopLeft'
+            | 'cornerTopRight'
+            | 'cornerBottomLeft'
+            | 'cornerBottomRight',
+        diffR: number
+    ) {
         const cordsAreaCurrent = this.getOptionCurrent(corner)
         const cordsAreaCache = this.getOptionCache(corner)
+        if (!cordsAreaCurrent || !cordsAreaCache) return
         const currentCords = this.__rotateCordiantesByCenter(
             cordsAreaCurrent.x,
             cordsAreaCurrent.y,
@@ -1167,42 +1188,59 @@ export class BaseBlock<
         this.#rotateCornerCordinates('cornerBottomLeft', radian)
         this.#rotateCornerCordinates('cornerBottomRight', radian)
     }
-    addProperty(
+    addProperty<
+        TBlock extends BaseBlock = BaseBlock,
+        TVal = unknown,
+        TResolved = TVal,
+    >(
         method: string,
-        defaultValue: any,
+        defaultValue: TResolved,
         widthRelated?: boolean,
-        func?: (block: any, opt?: any) => void,
-        valueConverter?: ValueConverterFunc<any, any>
+        func?: (block: TBlock, opt: TResolved) => void,
+        valueConverter?: ValueConverterFunc<TVal, TResolved, TBlock>
     ): void {
-        const property = function (this: BaseBlock, opt?: any) {
-            const value = this.__valueHandler(
+        const property = function (this: BaseBlock, opt?: TVal) {
+            const value = this.__valueHandler<TVal, TResolved>(
                 opt,
                 method,
                 defaultValue,
                 widthRelated,
-                valueConverter
+                valueConverter as ValueConverterFunc<TVal, TResolved> | undefined
             )
-            func?.(this, value)
+            func?.(this as TBlock, value)
             return value
         } as PropertyFunc
-        property.valueConverter = valueConverter
-        ;(this.constructor.prototype as Record<string, any>)[method] = property
+        property.valueConverter = valueConverter as
+            | ValueConverterFunc<unknown, unknown, BaseBlock>
+            | undefined
+        ;(this.constructor.prototype as Record<string, PropertyFunc>)[method] =
+            property
     }
     removeProperty(method: string): void {
-        delete (this.constructor.prototype as Record<string, any>)[method]
+        delete (this.constructor.prototype as Record<string, PropertyFunc>)[
+            method
+        ]
         this.options.delete(method)
         this.cacheOptions.delete(method)
     }
-    getOptionCache(key: string) {
+    getOptionCache<K extends keyof BaseBlockOptions>(
+        key: K
+    ): ResolvedValue<NonNullable<BaseBlockOptions[K]>> | undefined
+    getOptionCache<V = unknown>(key: string): V | undefined
+    getOptionCache(key: string): unknown {
         return this.cacheOptions.get(key)
     }
-    getOptionCurrent(key: string) {
+    getOptionCurrent<K extends keyof BaseBlockOptions>(
+        key: K
+    ): ResolvedValue<NonNullable<BaseBlockOptions[K]>> | undefined
+    getOptionCurrent<V = unknown>(key: string): V | undefined
+    getOptionCurrent(key: string): unknown {
         return this.options.get(key)
     }
-    setOptionCache(key: string, value: any) {
+    setOptionCache(key: string, value: unknown) {
         this.cacheOptions.set(key, value)
     }
-    setOptionCurrent(key: string, value: any) {
+    setOptionCurrent(key: string, value: unknown) {
         this.options.set(key, value)
     }
     __refreshHeadBlock() {
@@ -1241,21 +1279,22 @@ export class BaseBlock<
         widthRelated?: boolean,
         valueConverter?: ValueConverterFunc<T, O>
     ): O {
-        let currentValue: any = opt
+        let rawValue: T | undefined = opt
         const important = this.getOptionCurrent('important')
         if (important && Object.hasOwn(important, option))
-            currentValue = important[option]
+            rawValue = (important as Record<string, T | undefined>)[option]
         if (opt !== undefined && !this.__applyOptionsOnly)
-            this.initOptions.set(option, currentValue)
-        if (valueConverter === undefined) {
-            currentValue = this.__valueConverter<T, O>({
-                val: currentValue,
-                widthRelated: widthRelated,
-            })
-        } else currentValue = valueConverter?.(this, currentValue)
-        return this.__cacheOption(currentValue, option, defaultOpt)
+            this.initOptions.set(option, rawValue)
+        const resolvedValue =
+            valueConverter === undefined
+                ? this.__valueConverter<T, O>({
+                      val: rawValue,
+                      widthRelated: widthRelated,
+                  })
+                : valueConverter(this, rawValue as T)
+        return this.__cacheOption(resolvedValue, option, defaultOpt) as O
     }
-    __initResolved(key: string): any {
+    __initResolved(key: string): unknown {
         const value = this.initOptions.get(key)
         if (value === undefined) return undefined
         const property = getPrototype(this, key)?.value as
@@ -1430,7 +1469,10 @@ export class BaseBlock<
         if (this.nodeId !== undefined)
             this.canvas?.unregisterCursor(this.nodeId, cursor)
     }
-    __invokeHistory(before: any, after: any) {
+    __invokeHistory(
+        before: Record<string, unknown>,
+        after: Record<string, unknown>
+    ) {
         if (this.nodeId) this.canvas?.demandHistory(this.nodeId, before, after)
     }
     __generatePayload(): BlockPayload {
@@ -1519,8 +1561,8 @@ export class BaseBlock<
         preOrderTraversal(this, _func)
     }
     set(options: T): void {
-        let before: any = {}
-        let after: any = {}
+        const before: Record<string, unknown> = {}
+        const after: Record<string, unknown> = {}
         for (const [key, value] of Object.entries(options)) {
             const obj = getPrototype(this, key)
             const beforeValue =
@@ -1693,7 +1735,7 @@ export class BaseBlock<
         mouseover and mouseout has little bug when two chidls cross each other there are isMouse over happens to be true but one is under so check in bound checks it under the higher z index element
     */
     mouseover(_func: (event: MouseEvent) => void) {
-        const mouseOver: any = {}
+        const mouseOver: Record<number, boolean> = {}
         let isMouseOver = false
         let inBound = false
         const over = (event: MouseEvent) => {
@@ -1730,7 +1772,7 @@ export class BaseBlock<
         this.__addEvent<MouseEvent>('mousemove', over)
     }
     mouseout(_func: (event: MouseEvent) => void) {
-        const mouseLeave: any = {}
+        const mouseLeave: Record<number, boolean> = {}
         let isMouseLeave = false
         let outBound = false
         const out = (event: MouseEvent) => {

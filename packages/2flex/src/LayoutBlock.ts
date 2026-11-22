@@ -946,21 +946,19 @@ export class LayoutBlock<
                 return widthChanged || heightChanged
             }
 
-            const trackWidth = cols.reduce(
-                (sum: number, col: any) =>
-                    sum + (typeof col === 'number' ? col : 0),
+            const trackWidth = cols.reduce<number>(
+                (sum, col) => sum + (typeof col === 'number' ? col : 0),
                 0
             )
-            const trackHeight = rows.reduce(
-                (sum: number, row: any) =>
-                    sum + (typeof row === 'number' ? row : 0),
+            const trackHeight = rows.reduce<number>(
+                (sum, row) => sum + (typeof row === 'number' ? row : 0),
                 0
             )
             // a track of auto takes the space its childs need
-            const autoCols = cols.filter((col: any) => col === 'auto').length
+            const autoCols = cols.filter((col) => col === 'auto').length
             // without a template of rows the rows are auto as well
             const autoRows =
-                rows.filter((row: any) => row === 'auto').length ||
+                rows.filter((row) => row === 'auto').length ||
                 (this.__initResolved('gridTemplateRows') ? 0 : 1)
             const childCount = this.#flowingChilds.length
 
@@ -1834,7 +1832,7 @@ export class LayoutBlock<
         // amount of rows would not be a valid array length
         const gridCols = cols.length > 0 ? cols : [0]
 
-        const autoWidths = gridCols.filter((item: any) => item !== 'auto')
+        const autoWidths = gridCols.filter((item) => item !== 'auto')
         let rWidth = (autoWidths as number[]).reduce(
             (p: number, c: number) => p + c,
             0
@@ -1846,7 +1844,7 @@ export class LayoutBlock<
         else rWidth = this.#contentW / gridCols.length
 
         const autoHeights = this.gridTemplateRows().filter(
-            (item: any) => item !== 'auto'
+            (item) => item !== 'auto'
         )
         const nRows = Math.max(
             1,

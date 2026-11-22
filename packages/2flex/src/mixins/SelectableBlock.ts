@@ -12,7 +12,7 @@ interface SelectableBlockAccessors extends OwnOptionAccessors<
     BaseBlockOptions
 > {}
 
-export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
+export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
 ) => {
     class SelectableBlock extends Base {
@@ -26,12 +26,12 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 'selectable',
                 false,
                 false,
-                (block: any, opt?: boolean) => {
+                (block: SelectableBlock, opt?: boolean) => {
                     this.#selectable(block, opt)
                 }
             )
         }
-        #selectable(block: any, opt?: boolean) {
+        #selectable(block: SelectableBlock, opt?: boolean) {
             if (opt === undefined || block.#isSelectable === opt) return
             block.#isSelectable = opt
             if (!opt) {
