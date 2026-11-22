@@ -125,8 +125,7 @@ const CONTROLPOINT_PROPERTY_NAMES = [
 export class LineBlock<
     T extends LineBlockOptions = LineBlockOptions,
 > extends ShapeBlock<T> {
-    // @TODO: we should hide the paths also
-    path?: Path2D
+    #path?: Path2D
     #pointsPath: PointsPath
 
     #headPointNode?: PointNode
@@ -189,15 +188,15 @@ export class LineBlock<
         this.#handleRunningEditable()
     }
     draw(_func?: DrawFunc) {
-        this.path = this.#buildPath()
+        this.#path = this.#buildPath()
         const context = this.context
         if (!context) return
 
         context.fillStyle = this.fillColor()
         context.strokeStyle = this.lineColor()
         context.lineWidth = this.lineWidth() ?? 0
-        context.fill(this.path)
-        context.stroke(this.path)
+        context.fill(this.#path)
+        context.stroke(this.#path)
 
         this.#buildInlineHotLines()
     }

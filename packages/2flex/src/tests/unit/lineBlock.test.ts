@@ -512,9 +512,11 @@ describe('LineBlock', () => {
             const block = new LineBlock({})
             expect(() => block.draw()).not.toThrow()
         })
-        it('should keep the path of the line', () => {
+        it('should draw using a Path2D without exposing path publicly', () => {
             line.draw()
-            expect(line.path).toBeInstanceOf(Path2D)
+            expect((line as { path?: Path2D }).path).toBeUndefined()
+            expect(context.fill).toHaveBeenCalledWith(expect.any(Path2D))
+            expect(context.stroke).toHaveBeenCalledWith(expect.any(Path2D))
         })
         it('should build the path of the line', () => {
             const moveTo = vi.spyOn(Path2D.prototype, 'moveTo')
