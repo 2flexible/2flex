@@ -85,9 +85,8 @@ interface LineBlockAccessors extends OwnOptionAccessors<
 > {}
 type CustomPointEvents = {
     [key: string]: {
-        mousedown?: CustomEvent<MouseEvent>
-        mousemove?: CustomEvent<MouseEvent>
-        mouseup?: CustomEvent<MouseEvent>
+        enabled: boolean
+        added: boolean
     }
 }
 type PointsPath = { [key: string]: Path2D }
@@ -129,8 +128,8 @@ export class LineBlock<
     #headPointNode?: PointNode
     #tailPointNode?: PointNode
 
-    #editableDbClickEvent?: CustomEvent<MouseEvent>
-    #editableClickEvent?: CustomEvent<MouseEvent>
+    #isEditable: boolean = false
+    #editableEventsAdded: boolean = false
 
     #controlPointEvents: CustomPointEvents
 
@@ -1258,52 +1257,42 @@ export class LineBlock<
         return inStroke || inPath
     }
     #editable(block: LineBlock, opt?: boolean) {
-        if (opt === undefined) return
+        if (opt === undefined || block.#isEditable === opt) return
+        block.#isEditable = opt
         if (!opt) {
-            const dblclick = block.#editableDbClickEvent
-            const click = block.#editableClickEvent
-            // @TODO: fix any issues
-            if (dblclick) block.__removeEvent('dblclick', dblclick as any)
-            if (click) block.__removeEvent('click', click as any)
             block.__updateRunningEvent(EDITABLE_RUNNING_EVENT, false)
-            block.#editableDbClickEvent = undefined
-            block.#editableClickEvent = undefined
             return
         }
-        if (
-            block.#editableDbClickEvent === undefined &&
-            block.#editableClickEvent === undefined
-        ) {
-            const dblclick = (event: MouseEvent) => {
-                if (!block.selectable()) return
-                const { x, y } = block.canvas?.getCursorPosition(event)!
-                if (
-                    block.#pathInBound(x, y, block.#buildPath()) &&
-                    block.isMouseEventAllowed
-                ) {
-                    block.__registerZIndex()
-                    if (block.__ImFirst()) {
-                        block.__updateRunningEvent(EDITABLE_RUNNING_EVENT, true)
-                    }
+        if (block.#editableEventsAdded) return
+        block.#editableEventsAdded = true
+
+        const dblclick = (event: MouseEvent) => {
+            if (!block.#isEditable || !block.selectable()) return
+            const { x, y } = block.canvas?.getCursorPosition(event)!
+            if (
+                block.#pathInBound(x, y, block.#buildPath()) &&
+                block.isMouseEventAllowed
+            ) {
+                block.__registerZIndex()
+                if (block.__ImFirst()) {
+                    block.__updateRunningEvent(EDITABLE_RUNNING_EVENT, true)
                 }
             }
-            const click = (event: MouseEvent) => {
-                const { x, y } = block.canvas?.getCursorPosition(event)!
-                let editable =
-                    !block.#pathInBound(x, y, block.#buildPath()) &&
-                    block.#controllerPointsNotInBound(x, y)
-                if (editable) {
-                    block.__updateRunningEvent(EDITABLE_RUNNING_EVENT, false)
-                    block.__resetCursor('auto')
-                }
-                block.__invokeChange()
-            }
-            block.#editableDbClickEvent = dblclick as any
-            block.#editableClickEvent = click as any
-            // @TODO: fix any issues
-            block.__addEvent('dblclick', dblclick as any)
-            block.__addEvent('click', click as any)
         }
+        const click = (event: MouseEvent) => {
+            if (!block.#isEditable) return
+            const { x, y } = block.canvas?.getCursorPosition(event)!
+            let editable =
+                !block.#pathInBound(x, y, block.#buildPath()) &&
+                block.#controllerPointsNotInBound(x, y)
+            if (editable) {
+                block.__updateRunningEvent(EDITABLE_RUNNING_EVENT, false)
+                block.__resetCursor('auto')
+            }
+            block.__invokeChange()
+        }
+        block.__addEvent('dblclick', dblclick as any)
+        block.__addEvent('click', click as any)
     }
     #draggablePoints(
         block: LineBlock,
@@ -1314,107 +1303,100 @@ export class LineBlock<
         pathName: string
     ) {
         if (opt === undefined) return
-        const mousedown = block.#controlPointEvents[point]?.mousedown
-        const mousemove = block.#controlPointEvents[point]?.mousemove
-        const mouseup = block.#controlPointEvents[point]?.mouseup
+        const state = (block.#controlPointEvents[point] ??= {
+            enabled: false,
+            added: false,
+        })
+        if (state.enabled === opt) return
+        state.enabled = opt
         if (!opt) {
             block.__updateRunningEvent(point, false)
-            // @TODO: fix any issues
-            if (mousedown) block.__removeEvent('mousedown', mousedown as any)
-            if (mousemove) block.__removeEvent('mousemove', mousemove as any)
-            if (mouseup) block.__removeEvent('mouseup', mouseup as any)
-            block.#controlPointEvents[point].mousedown = undefined
-            block.#controlPointEvents[point].mousemove = undefined
-            block.#controlPointEvents[point].mouseup = undefined
             return
         }
-        if (
-            mousedown === undefined &&
-            mouseup === undefined &&
-            mousemove === undefined
-        ) {
-            let initCords = { x: 0, y: 0 }
-            let beforeCords = { x: 0, y: 0 }
-            let beforeValues: any = {}
-            const mousedown = (event: MouseEvent) => {
-                if (!block.__isRunningEventActive(EDITABLE_RUNNING_EVENT))
-                    return
-                const { x, y } = block.canvas?.getCursorPosition(event)!
-                const path = block.#pointsPath[pathName]
-                const inBound = path ? block.#pathInBound(x, y, path) : false
-                if (inBound) {
-                    block.__registerZIndex()
-                    if (block.__ImFirst()) {
-                        initCords = { x: x, y: y }
-                        beforeCords = { x: 0, y: 0 }
-                        const pointXCord = this.getOptionCurrent(pointX)
-                        const pointYCord = this.getOptionCurrent(pointY)
-                        beforeValues[pointX] = pointXCord
-                        beforeValues[pointY] = pointYCord
-                        block.__updateRunningEvent(point, true)
-                    }
+        if (state.added) return
+        state.added = true
+
+        let initCords = { x: 0, y: 0 }
+        let beforeCords = { x: 0, y: 0 }
+        let beforeValues: any = {}
+        const mousedown = (event: MouseEvent) => {
+            if (
+                !state.enabled ||
+                !block.__isRunningEventActive(EDITABLE_RUNNING_EVENT)
+            )
+                return
+            const { x, y } = block.canvas?.getCursorPosition(event)!
+            const path = block.#pointsPath[pathName]
+            const inBound = path ? block.#pathInBound(x, y, path) : false
+            if (inBound) {
+                block.__registerZIndex()
+                if (block.__ImFirst()) {
+                    initCords = { x: x, y: y }
+                    beforeCords = { x: 0, y: 0 }
+                    const pointXCord = this.getOptionCurrent(pointX)
+                    const pointYCord = this.getOptionCurrent(pointY)
+                    beforeValues[pointX] = pointXCord
+                    beforeValues[pointY] = pointYCord
+                    block.__updateRunningEvent(point, true)
                 }
             }
+        }
 
-            const mousemove = (event: MouseEvent) => {
-                if (block.__isRunningEventActive(point)) {
-                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                    const { x, y } = block.canvas?.getCursorPosition(event)!
-                    let diffX = x - initCords.x
-                    let diffY = y - initCords.y
-                    const incX = diffX - beforeCords.x
-                    const incY = diffY - beforeCords.y
-                    if (incX !== 0 || incY !== 0) {
-                        const angle = -block.__rotation()
-                        const cos = Math.cos(angle)
-                        const sin = Math.sin(angle)
-                        const pointIncX = incX * cos - incY * sin
-                        const pointIncY = incX * sin + incY * cos
-                        const pointXCord = this.getOptionCurrent(pointX)
-                        const pointYCord = this.getOptionCurrent(pointY)
-                        if (pointIncX !== 0)
-                            block.setOptionCurrent(
-                                pointX,
-                                pointXCord + pointIncX
-                            )
-                        if (pointIncY !== 0)
-                            block.setOptionCurrent(
-                                pointY,
-                                pointYCord + pointIncY
-                            )
-                        beforeCords.x = diffX
-                        beforeCords.y = diffY
-                    }
+        const mousemove = (event: MouseEvent) => {
+            if (!state.enabled) return
+            if (block.__isRunningEventActive(point)) {
+                block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                const { x, y } = block.canvas?.getCursorPosition(event)!
+                let diffX = x - initCords.x
+                let diffY = y - initCords.y
+                const incX = diffX - beforeCords.x
+                const incY = diffY - beforeCords.y
+                if (incX !== 0 || incY !== 0) {
+                    const angle = -block.__rotation()
+                    const cos = Math.cos(angle)
+                    const sin = Math.sin(angle)
+                    const pointIncX = incX * cos - incY * sin
+                    const pointIncY = incX * sin + incY * cos
+                    const pointXCord = this.getOptionCurrent(pointX)
+                    const pointYCord = this.getOptionCurrent(pointY)
+                    if (pointIncX !== 0)
+                        block.setOptionCurrent(
+                            pointX,
+                            pointXCord + pointIncX
+                        )
+                    if (pointIncY !== 0)
+                        block.setOptionCurrent(
+                            pointY,
+                            pointYCord + pointIncY
+                        )
+                    beforeCords.x = diffX
+                    beforeCords.y = diffY
+                }
+                block.__invokeChange()
+            }
+        }
+        const mouseup = () => {
+            if (!state.enabled) return
+            if (
+                block.__isRunningEventActive(point) &&
+                block.isMouseEventAllowed
+            ) {
+                block.__unregisterZIndex()
+                block.__updateRunningEvent(point, false)
+                if (beforeCords.x !== 0 || beforeCords.y !== 0) {
+                    const pointXCord = this.getOptionCurrent(pointX)
+                    const pointYCord = this.getOptionCurrent(pointY)
+                    const after: any = {}
+                    after[pointX] = pointXCord
+                    after[pointY] = pointYCord
+                    block.__invokeHistory(beforeValues, after)
                     block.__invokeChange()
                 }
             }
-            const mouseup = () => {
-                if (
-                    block.__isRunningEventActive(point) &&
-                    block.isMouseEventAllowed
-                ) {
-                    block.__unregisterZIndex()
-                    block.__updateRunningEvent(point, false)
-                    if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                        const pointXCord = this.getOptionCurrent(pointX)
-                        const pointYCord = this.getOptionCurrent(pointY)
-                        const after: any = {}
-                        after[pointX] = pointXCord
-                        after[pointY] = pointYCord
-                        block.__invokeHistory(beforeValues, after)
-                        block.__invokeChange()
-                    }
-                }
-            }
-            block.#controlPointEvents[point] = {
-                mousedown: mousedown as any,
-                mousemove: mousemove as any,
-                mouseup: mouseup as any,
-            }
-            block.__addEvent('mousedown', mousedown as any)
-            block.__addEvent('mousemove', mousemove as any)
-            block.__addEvent('mouseup', mouseup as any)
         }
+        block.__addEvent('mousedown', mousedown as any)
+        block.__addEvent('mousemove', mousemove as any)
+        block.__addEvent('mouseup', mouseup as any)
     }
 
     checkInBound(event: MouseEvent): boolean {

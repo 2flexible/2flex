@@ -1,7 +1,7 @@
 import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
 import type { OwnOptionAccessors } from '../BaseBlock'
 import { SELECTABLE_RUNNING_EVENT } from '../const'
-import { BlockConstructor, CustomEvent } from '../types'
+import { BlockConstructor } from '../types'
 
 export interface ISelectableOptions extends BaseBlockOptions {
     selectable?: boolean
@@ -17,8 +17,7 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
 ) => {
     class SelectableBlock extends Base {
         #isSelectable: boolean
-        #mouseDownEvent?: CustomEvent<MouseEvent>
-        #mouseUpEvent?: CustomEvent<MouseEvent>
+        #eventsAdded = false
 
         constructor(...args: any[]) {
             super(...args)
@@ -34,17 +33,16 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
         }
         #selectable(block: any, opt?: boolean) {
             if (opt === undefined || block.#isSelectable === opt) return
+            block.#isSelectable = opt
             if (!opt) {
-                block.__removeEvent('mousedown', block.#mouseDownEvent)
-                block.__removeEvent('mouseup', block.#mouseUpEvent)
                 block.__updateRunningEvent(SELECTABLE_RUNNING_EVENT, false)
-                block.#mouseDownEvent = undefined
-                block.#mouseUpEvent = undefined
                 return
             }
-            block.#isSelectable = opt
+            if (block.#eventsAdded) return
+            block.#eventsAdded = true
 
-            block.#mouseDownEvent = (event: MouseEvent) => {
+            const mouseDownEvent = (event: MouseEvent) => {
+                if (!block.#isSelectable) return
                 const isSelected = block.__isRunningEventActive(
                     SELECTABLE_RUNNING_EVENT
                 )
@@ -76,12 +74,13 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 }
             }
 
-            block.#mouseUpEvent = (event: MouseEvent) => {
+            const mouseUpEvent = () => {
+                if (!block.#isSelectable) return
                 block.__unregisterZIndex()
             }
 
-            block.__addEvent('mousedown', block.#mouseDownEvent)
-            block.__addEvent('mouseup', block.#mouseUpEvent)
+            block.__addEvent('mousedown', mouseDownEvent)
+            block.__addEvent('mouseup', mouseUpEvent)
         }
     }
     interface SelectableBlock extends SelectableBlockAccessors {}

@@ -26,9 +26,7 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
 ) => {
     class DraggableBlock extends Base {
         #isDraggable: boolean
-        #mouseDownEvent?: CustomEvent<MouseEvent>
-        #mouseMoveEvent?: CustomEvent<MouseEvent>
-        #mouseUpEvent?: CustomEvent<MouseEvent>
+        #eventsAdded = false
 
         constructor(...args: any[]) {
             super(...args)
@@ -45,23 +43,19 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
         }
         #draggable(block: any, opt?: boolean) {
             if (opt === undefined || block.#isDraggable === opt) return
+            block.#isDraggable = opt
             if (!opt) {
-                block.__removeEvent('mousedown', block.#mouseDownEvent)
-                block.__removeEvent('mousemove', block.#mouseMoveEvent)
-                block.__removeEvent('mouseup', block.#mouseUpEvent)
                 block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                block.#mouseDownEvent = undefined
-                block.#mouseMoveEvent = undefined
-                block.#mouseUpEvent = undefined
                 return
             }
-            block.#isDraggable = opt
+            if (block.#eventsAdded) return
+            block.#eventsAdded = true
 
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
             let beforeValues = {}
-            block.#mouseDownEvent = (event: MouseEvent) => {
-                if (!block.selectable()) return
+            const mouseDownEvent = (event: MouseEvent) => {
+                if (!block.#isDraggable || !block.selectable()) return
                 if (block.checkInBound(event) && block.isMouseEventAllowed) {
                     block.__registerZIndex()
                     if (block.__ImFirst()) {
@@ -78,7 +72,8 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     }
                 }
             }
-            block.#mouseMoveEvent = (event: MouseEvent) => {
+            const mouseMoveEvent = (event: MouseEvent) => {
+                if (!block.#isDraggable) return
                 if (
                     block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) ||
                     block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT) ||
@@ -112,7 +107,8 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     block.__invokeChange()
                 }
             }
-            block.#mouseUpEvent = () => {
+            const mouseUpEvent = () => {
+                if (!block.#isDraggable) return
                 if (
                     block.__isRunningEventActive(DRAGGABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
@@ -129,9 +125,9 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     }
                 }
             }
-            block.__addEvent('mousedown', block.#mouseDownEvent)
-            block.__addEvent('mousemove', block.#mouseMoveEvent)
-            block.__addEvent('mouseup', block.#mouseUpEvent)
+            block.__addEvent('mousedown', mouseDownEvent)
+            block.__addEvent('mousemove', mouseMoveEvent)
+            block.__addEvent('mouseup', mouseUpEvent)
         }
     }
     interface DraggableBlock extends DraggableBlockAccessors {}

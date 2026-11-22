@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas } from '@2flexible/2flex'
 import {
@@ -271,6 +271,43 @@ describe('ResizableBlock', () => {
             dispatchMouse(element, 'mouseup', 200, 50)
 
             expect(isResizingOn).toBeTruthy()
+        })
+        it('adds events once and ignores them when resizable is toggled false then true', async () => {
+            const addEventSpy = vi.spyOn(block, '__addEvent')
+            const removeEventSpy = vi.spyOn(block, '__removeEvent')
+
+            block.set({ resizable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(3)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
+
+            block.set({ resizable: false })
+            await flush()
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse(element, 'mousemove', 100, 50)
+            dispatchMouse(element, 'mousedown', 100, 50, 1)
+            dispatchMouse(element, 'mousemove', 200, 50, 1)
+            dispatchMouse(element, 'mouseup', 200, 50)
+            expect(block.width()).toBe(100)
+
+            block.set({ resizable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(3)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse(element, 'mousemove', 100, 50)
+            dispatchMouse(element, 'mousedown', 100, 50, 1)
+            dispatchMouse(element, 'mousemove', 200, 50, 1)
+            dispatchMouse(element, 'mouseup', 200, 50)
+            expect(block.width()).toBe(200)
         })
     })
 })

@@ -873,6 +873,35 @@ describe('TextBlock', () => {
             text.draw()
             expect(drawnText(fillText)).toBe('hello')
         })
+        it('adds editing events once and ignores them when editable is toggled false then true', async () => {
+            await createTextBlock({ editable: false })
+            const addEventSpy = vi.spyOn(text, '__addEvent')
+            const removeEventSpy = vi.spyOn(text, '__removeEvent')
+
+            text.editable(true)
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(5)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            text.editable(false)
+            await flush()
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            clickOnLetter(0, 'dblclick')
+            expect(
+                text.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)
+            ).toBe(false)
+
+            text.editable(true)
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(5)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            clickOnLetter(0, 'dblclick')
+            expect(
+                text.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)
+            ).toBe(true)
+        })
         it('should enter the editable mode on a double click on a letter', async () => {
             clickOnLetter(0, 'dblclick')
             expect(

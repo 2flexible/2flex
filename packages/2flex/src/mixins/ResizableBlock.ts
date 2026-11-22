@@ -45,9 +45,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
 ) => {
     class ResizableBlock extends Base {
         #isResizable: boolean
-        #mouseDownEvent?: CustomEvent<MouseEvent>
-        #mouseMoveEvent?: CustomEvent<MouseEvent>
-        #mouseUpEvent?: CustomEvent<MouseEvent>
+        #eventsAdded = false
 
         constructor(...args: any[]) {
             super(...args)
@@ -538,17 +536,13 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
         }
         #resizable(block: any, opt?: boolean) {
             if (opt === undefined || block.#isResizable === opt) return
+            block.#isResizable = opt
             if (!opt) {
-                block.__removeEvent('mousedown', block.#mouseDownEvent)
-                block.__removeEvent('mousemove', block.#mouseMoveEvent)
-                block.__removeEvent('mouseup', block.#mouseUpEvent)
                 block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
-                block.#mouseDownEvent = undefined
-                block.#mouseMoveEvent = undefined
-                block.#mouseUpEvent = undefined
                 return
             }
-            block.#isResizable = opt
+            if (block.#eventsAdded) return
+            block.#eventsAdded = true
 
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
@@ -560,7 +554,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             let inBound = false
             let beforeCursor: string | undefined
 
-            block.#mouseDownEvent = (event: MouseEvent) => {
+            const mouseDownEvent = (event: MouseEvent) => {
+                if (!block.#isResizable) return
                 beforeCords = { x: 0, y: 0 }
                 if (inBound && block.isMouseEventAllowed) {
                     initCords = block.canvas?.getCursorPosition(event)!
@@ -575,7 +570,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     block.__registerZIndex()
                 }
             }
-            block.#mouseMoveEvent = (event: MouseEvent) => {
+            const mouseMoveEvent = (event: MouseEvent) => {
+                if (!block.#isResizable) return
                 if (
                     block.__isRunningEventActive(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT
@@ -834,7 +830,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     }
                 }
             }
-            block.#mouseUpEvent = () => {
+            const mouseUpEvent = () => {
+                if (!block.#isResizable) return
                 if (
                     block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
@@ -855,9 +852,9 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     }
                 }
             }
-            block.__addEvent('mousedown', block.#mouseDownEvent)
-            block.__addEvent('mousemove', block.#mouseMoveEvent)
-            block.__addEvent('mouseup', block.#mouseUpEvent)
+            block.__addEvent('mousedown', mouseDownEvent)
+            block.__addEvent('mousemove', mouseMoveEvent)
+            block.__addEvent('mouseup', mouseUpEvent)
         }
     }
     interface ResizableBlock extends ResizableBlockAccessors {}

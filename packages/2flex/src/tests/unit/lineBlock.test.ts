@@ -683,6 +683,45 @@ describe('LineBlock', () => {
                 false
             )
         })
+        it('adds editing events once and ignores them when editable is toggled false then true', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            line = new LineBlock({
+                selectable: true,
+                controlPoints: [
+                    { startX: 20, startY: 20, endX: 120, endY: 120 },
+                ],
+            })
+            canvas.add(line)
+            allowMouse(canvas)
+            await flush()
+
+            const addEventSpy = vi.spyOn(line, '__addEvent')
+            const removeEventSpy = vi.spyOn(line, '__removeEvent')
+
+            line.set({ editable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(2)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            line.set({ editable: false })
+            await flush()
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse('dblclick', 70, 70)
+            expect(line.__isRunningEventActive(EDITABLE_RUNNING_EVENT)).toBe(
+                false
+            )
+
+            line.set({ editable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(2)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse('dblclick', 70, 70)
+            expect(line.__isRunningEventActive(EDITABLE_RUNNING_EVENT)).toBe(
+                true
+            )
+        })
         it('should leave the editable mode on a click away from the line', () => {
             dispatchMouse('dblclick', 70, 70)
             expect(line.__isRunningEventActive(EDITABLE_RUNNING_EVENT)).toBe(

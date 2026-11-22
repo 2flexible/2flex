@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas } from '@2flexible/2flex'
 import {
@@ -264,6 +264,43 @@ describe('RotatableBlock', () => {
             await flush()
             expect(child.rotate()).not.toBe(0)
             expect(child.__rotation() - child.rotate()).toBeCloseTo(0.5)
+        })
+        it('adds events once and ignores them when rotatable is toggled false then true', async () => {
+            const addEventSpy = vi.spyOn(block, '__addEvent')
+            const removeEventSpy = vi.spyOn(block, '__removeEvent')
+
+            block.set({ rotatable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(3)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
+
+            block.set({ rotatable: false })
+            await flush()
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse(element, 'mousemove', 100, 100)
+            dispatchMouse(element, 'mousedown', 100, 100, 1)
+            dispatchMouse(element, 'mousemove', 200, 100, 1)
+            dispatchMouse(element, 'mouseup', 200, 100)
+            expect(block.rotate()).toBe(0)
+
+            block.set({ rotatable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(3)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse(element, 'mousemove', 100, 100)
+            dispatchMouse(element, 'mousedown', 100, 100, 1)
+            dispatchMouse(element, 'mousemove', 200, 100, 1)
+            dispatchMouse(element, 'mouseup', 200, 100)
+            expect(block.rotate()).not.toBe(0)
         })
     })
 })

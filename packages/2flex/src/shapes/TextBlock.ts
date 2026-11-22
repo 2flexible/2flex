@@ -13,7 +13,7 @@ import type {
     FontWeight,
     ShapeBlockOptions,
 } from '../ShapeBlock'
-import type { CustomEvent, HotCornerArea, RelativeType } from '../types'
+import type { HotCornerArea, RelativeType } from '../types'
 import { clampSize, inRange } from '../Utils'
 
 type Wrap = 'letter' | 'word' | 'nowrap'
@@ -98,11 +98,8 @@ export class TextBlock<
     #calculatedHeight?: number
     #textChanged: boolean = false
 
-    #dbClickEvent?: CustomEvent<Event>
-    #mousedownEvent?: CustomEvent<Event>
-    #mouseMoveEvent?: CustomEvent<Event>
-    #mouseUpEvent?: CustomEvent<Event>
-    #keydownEvent?: CustomEvent<Event>
+    #isEditable: boolean = false
+    #editableEventsAdded: boolean = false
 
     #isDraggingSelection: boolean = false
 
@@ -1020,148 +1017,129 @@ export class TextBlock<
             return this.#insertText(key)
     }
     #editable(block: TextBlock, opt: boolean) {
-        if (opt === undefined) return
+        if (opt === undefined || block.#isEditable === opt) return
+        block.#isEditable = opt
         if (!opt) {
-            if (block.#mousedownEvent)
-                block.__removeEvent('mousedown', block.#mousedownEvent)
-            if (block.#mouseMoveEvent)
-                block.__removeEvent('mousemove', block.#mouseMoveEvent)
-            if (block.#mouseUpEvent)
-                block.__removeEvent('mouseup', block.#mouseUpEvent)
-            if (block.#dbClickEvent)
-                block.__removeEvent('dblclick', block.#dbClickEvent)
-            if (block.#keydownEvent)
-                block.__removeEvent('keydown', block.#keydownEvent)
             block.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, false)
             block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
             block.#clearEditing()
             block.#isDraggingSelection = false
             block.__resetCursor('auto')
             block.__unregisterZIndex()
-            block.#dbClickEvent = undefined
-            block.#mousedownEvent = undefined
-            block.#mouseMoveEvent = undefined
-            block.#mouseUpEvent = undefined
-            block.#keydownEvent = undefined
             return
         }
-        if (
-            !block.#dbClickEvent &&
-            !block.#mousedownEvent &&
-            !block.#mouseMoveEvent &&
-            !block.#mouseUpEvent &&
-            !block.#keydownEvent
-        ) {
-            const dbClick = (event: MouseEvent) => {
-                const clicked = block.#checkLetterInBound(event)
-                if (!clicked) return
+        if (block.#editableEventsAdded) return
+        block.#editableEventsAdded = true
+
+        const dbClick = (event: MouseEvent) => {
+            if (!block.#isEditable) return
+            const clicked = block.#checkLetterInBound(event)
+            if (!clicked) return
+            block.__registerZIndex()
+            if (block.__ImFirst()) {
+                block.#isDraggingSelection = false
+                block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                block.__updateRunningEvent(
+                    TEXT_EDITABLE_RUNNING_EVENT,
+                    true
+                )
+                block.#selectionAnchor = block.#headLetterNode
+                block.#selectionFocus = block.#tailLetterNode
+                block.__invokeChange()
+            }
+        }
+        const mousedown = (event: MouseEvent) => {
+            if (!block.#isEditable) return
+            if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
                 block.__registerZIndex()
-                if (block.__ImFirst()) {
-                    block.#isDraggingSelection = false
-                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                if (!block.__ImFirst()) return
+                event.preventDefault()
+                const clicked = block.#checkLetterInBound(event)
+                if (!clicked) {
                     block.__updateRunningEvent(
                         TEXT_EDITABLE_RUNNING_EVENT,
-                        true
+                        false
                     )
-                    block.#selectionAnchor = block.#headLetterNode
-                    block.#selectionFocus = block.#tailLetterNode
-                    block.__invokeChange()
-                }
-            }
-            const mousedown = (event: MouseEvent) => {
-                if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
-                    block.__registerZIndex()
-                    if (!block.__ImFirst()) return
-                    event.preventDefault()
-                    const clicked = block.#checkLetterInBound(event)
-                    if (!clicked) {
-                        block.__updateRunningEvent(
-                            TEXT_EDITABLE_RUNNING_EVENT,
-                            false
-                        )
-                        block.__updateRunningEvent(
-                            DRAGGABLE_RUNNING_EVENT,
-                            false
-                        )
-                        block.#clearEditing()
-                        block.#selectionAnchor = undefined
-                        block.#selectionFocus = undefined
-                        block.#isDraggingSelection = false
-                        block.__resetCursor('auto')
-                        block.__unregisterZIndex()
-                        block.__invokeChange()
-                        return
-                    }
-                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                    if (event.shiftKey) {
-                        if (block.#selectionAnchor === undefined) {
-                            block.#selectionAnchor = clicked
-                        }
-                        block.#selectionFocus = clicked
-                    } else {
-                        block.#selectionAnchor = clicked
-                        block.#selectionFocus = clicked
-                    }
-                    block.#isDraggingSelection = true
-                    block.__selectCursor('text')
-                    block.__invokeChange()
-                }
-            }
-            const mousemove = (event: MouseEvent) => {
-                if (
-                    block.#isDraggingSelection &&
-                    block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT) &&
-                    block.isMouseEventAllowed
-                ) {
-                    event.preventDefault()
-                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                    const clicked = block.#checkLetterInBound(event)
-                    if (clicked) {
-                        block.#selectionFocus = clicked
-                    }
-                    block.#markEditing()
-                    block.__invokeChange()
-                }
-            }
-            const mouseup = (event: MouseEvent) => {
-                if (block.#isDraggingSelection) {
+                    block.__updateRunningEvent(
+                        DRAGGABLE_RUNNING_EVENT,
+                        false
+                    )
+                    block.#clearEditing()
+                    block.#selectionAnchor = undefined
+                    block.#selectionFocus = undefined
                     block.#isDraggingSelection = false
-                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                    block.__resetCursor('text')
-                    if (
-                        block.__isRunningEventActive(
-                            TEXT_EDITABLE_RUNNING_EVENT
-                        )
-                    ) {
-                        const clicked = block.#checkLetterInBound(event)
-                        if (clicked) block.#selectionFocus = clicked
-                        block.__invokeChange()
-                        block.#markEditing()
-                    }
-                }
-            }
-            const keydown = (event: KeyboardEvent) => {
-                if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
-                    event.preventDefault()
-                    block.#keyMappingBehaviors(event)
-                    // synced before the callback reads the value
-                    block.#syncTextOption()
-                    block.onEditable()?.(block)
-                    block.#markEditing()
+                    block.__resetCursor('auto')
+                    block.__unregisterZIndex()
                     block.__invokeChange()
+                    return
+                }
+                block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                if (event.shiftKey) {
+                    if (block.#selectionAnchor === undefined) {
+                        block.#selectionAnchor = clicked
+                    }
+                    block.#selectionFocus = clicked
+                } else {
+                    block.#selectionAnchor = clicked
+                    block.#selectionFocus = clicked
+                }
+                block.#isDraggingSelection = true
+                block.__selectCursor('text')
+                block.__invokeChange()
+            }
+        }
+        const mousemove = (event: MouseEvent) => {
+            if (!block.#isEditable) return
+            if (
+                block.#isDraggingSelection &&
+                block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT) &&
+                block.isMouseEventAllowed
+            ) {
+                event.preventDefault()
+                block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                const clicked = block.#checkLetterInBound(event)
+                if (clicked) {
+                    block.#selectionFocus = clicked
+                }
+                block.#markEditing()
+                block.__invokeChange()
+            }
+        }
+        const mouseup = (event: MouseEvent) => {
+            if (!block.#isEditable) return
+            if (block.#isDraggingSelection) {
+                block.#isDraggingSelection = false
+                block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                block.__resetCursor('text')
+                if (
+                    block.__isRunningEventActive(
+                        TEXT_EDITABLE_RUNNING_EVENT
+                    )
+                ) {
+                    const clicked = block.#checkLetterInBound(event)
+                    if (clicked) block.#selectionFocus = clicked
+                    block.__invokeChange()
+                    block.#markEditing()
                 }
             }
-            block.__addEvent('dblclick', dbClick)
-            block.__addEvent('mousedown', mousedown)
-            block.__addEvent('mousemove', mousemove)
-            block.__addEvent('mouseup', mouseup)
-            block.__addEvent('keydown', keydown)
-            block.#dbClickEvent = dbClick as any
-            block.#mousedownEvent = mousedown as any
-            block.#mouseMoveEvent = mousemove as any
-            block.#mouseUpEvent = mouseup as any
-            block.#keydownEvent = keydown as any
         }
+        const keydown = (event: KeyboardEvent) => {
+            if (!block.#isEditable) return
+            if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
+                event.preventDefault()
+                block.#keyMappingBehaviors(event)
+                // synced before the callback reads the value
+                block.#syncTextOption()
+                block.onEditable()?.(block)
+                block.#markEditing()
+                block.__invokeChange()
+            }
+        }
+        block.__addEvent('dblclick', dbClick)
+        block.__addEvent('mousedown', mousedown)
+        block.__addEvent('mousemove', mousemove)
+        block.__addEvent('mouseup', mouseup)
+        block.__addEvent('keydown', keydown)
     }
 }
 

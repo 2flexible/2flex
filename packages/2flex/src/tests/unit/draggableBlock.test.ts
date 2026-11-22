@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas } from '@2flexible/2flex'
 import {
@@ -97,5 +97,37 @@ describe('DraggableBlock', () => {
         // canvas content while it is zoomed in
         expect(block.x()).toBe(50)
         expect(block.y()).toBe(25)
+    })
+    it('adds events once and ignores them when draggable is toggled false then true', async () => {
+        const addEventSpy = vi.spyOn(block, '__addEvent')
+        const removeEventSpy = vi.spyOn(block, '__removeEvent')
+
+        block.set({ draggable: true })
+        await flush()
+        expect(addEventSpy).toHaveBeenCalledTimes(3)
+        expect(removeEventSpy).not.toHaveBeenCalled()
+
+        block.set({ draggable: false })
+        await flush()
+        expect(removeEventSpy).not.toHaveBeenCalled()
+
+        const targetLocator = page.elementLocator(canvas.canvas)
+        const element = (await targetLocator.element()) as HTMLElement
+        dispatchMouse(element, 'mousedown', 10, 10, 1)
+        dispatchMouse(element, 'mousemove', 100, 100, 1)
+        dispatchMouse(element, 'mouseup', 100, 100)
+        expect(block.x()).toBe(0)
+        expect(block.y()).toBe(0)
+
+        block.set({ draggable: true })
+        await flush()
+        expect(addEventSpy).toHaveBeenCalledTimes(3)
+        expect(removeEventSpy).not.toHaveBeenCalled()
+
+        dispatchMouse(element, 'mousedown', 10, 10, 1)
+        dispatchMouse(element, 'mousemove', 100, 100, 1)
+        dispatchMouse(element, 'mouseup', 100, 100)
+        expect(block.x()).toBe(90)
+        expect(block.y()).toBe(90)
     })
 })

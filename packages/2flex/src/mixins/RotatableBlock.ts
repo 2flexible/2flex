@@ -37,9 +37,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
 ) => {
     class RotatableBlock extends Base {
         #isRotatable: boolean
-        #mouseDownEvent?: CustomEvent<MouseEvent>
-        #mouseMoveEvent?: CustomEvent<MouseEvent>
-        #mouseUpEvent?: CustomEvent<MouseEvent>
+        #eventsAdded = false
 
         constructor(...args: any[]) {
             super(...args)
@@ -327,17 +325,13 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
         }
         #rotatable(block: any, opt?: boolean) {
             if (opt === undefined || block.#isRotatable === opt) return
+            block.#isRotatable = opt
             if (!opt) {
-                block.__removeEvent('mousedown', block.#mouseDownEvent)
-                block.__removeEvent('mousemove', block.#mouseMoveEvent)
-                block.__removeEvent('mouseup', block.#mouseUpEvent)
                 block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
-                block.#mouseDownEvent = undefined
-                block.#mouseMoveEvent = undefined
-                block.#mouseUpEvent = undefined
                 return
             }
-            block.#isRotatable = opt
+            if (block.#eventsAdded) return
+            block.#eventsAdded = true
 
             let topMove = false
             let leftMove = false
@@ -345,7 +339,8 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             let inBound = false
             let beforeCursor: string | undefined
 
-            block.#mouseDownEvent = (event: MouseEvent) => {
+            const mouseDownEvent = () => {
+                if (!block.#isRotatable) return
                 if (inBound && block.isMouseEventAllowed) {
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, true)
                     beforeValues = {
@@ -356,7 +351,8 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 }
             }
 
-            block.#mouseMoveEvent = (event: MouseEvent) => {
+            const mouseMoveEvent = (event: MouseEvent) => {
+                if (!block.#isRotatable) return
                 if (
                     block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) ||
                     block.__isRunningEventActive(DRAGGABLE_RUNNING_EVENT) ||
@@ -483,7 +479,8 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 }
             }
 
-            block.#mouseUpEvent = () => {
+            const mouseUpEvent = () => {
+                if (!block.#isRotatable) return
                 if (
                     block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
@@ -496,9 +493,9 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                     block.__invokeHistory(beforeValues, after)
                 }
             }
-            block.__addEvent('mousedown', block.#mouseDownEvent)
-            block.__addEvent('mousemove', block.#mouseMoveEvent)
-            block.__addEvent('mouseup', block.#mouseUpEvent)
+            block.__addEvent('mousedown', mouseDownEvent)
+            block.__addEvent('mousemove', mouseMoveEvent)
+            block.__addEvent('mouseup', mouseUpEvent)
         }
     }
     interface RotatableBlock extends RotatableBlockAccessors {}
