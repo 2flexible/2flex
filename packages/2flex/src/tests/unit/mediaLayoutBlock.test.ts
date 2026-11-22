@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { Block, ShapeBlock } from '@2flexible/2flex'
 import { MediaLayoutBlock } from '../../shapes/MediaLayoutBlock'
+import type { MediaLayoutBlockOptions } from '../../shapes/MediaLayoutBlock'
 
 type MediaOptions = ConstructorParameters<typeof MediaLayoutBlock>[0]
 
@@ -83,7 +84,7 @@ describe('MediaLayoutBlock', () => {
     })
 
     describe('option defaults', () => {
-        const defaults: [string, unknown][] = [
+        const defaults: [keyof MediaLayoutBlockOptions, unknown][] = [
             ['source', undefined],
             ['repeatX', undefined],
             ['repeatY', undefined],
@@ -97,7 +98,7 @@ describe('MediaLayoutBlock', () => {
         for (const [option, value] of defaults) {
             it(`should default ${option} to ${value}`, () => {
                 const block = new MediaLayoutBlock({})
-                expect(block[option]()).toStrictEqual(value)
+                expect((block[option] as () => unknown)()).toStrictEqual(value)
             })
         }
     })

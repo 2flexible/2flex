@@ -1,4 +1,5 @@
 import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 import {
     initialCorners,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
@@ -34,10 +35,15 @@ export interface IResizableOptions extends BaseBlockOptions {
     hotResizableAreaGap?: number
 }
 
+interface ResizableBlockAccessors extends OwnOptionAccessors<
+    IResizableOptions,
+    BaseBlockOptions
+> {}
+
 export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class ResizableBlock extends Base {
         #isResizable: boolean
         #mouseDownEvent?: CustomEvent<MouseEvent>
         #mouseMoveEvent?: CustomEvent<MouseEvent>
@@ -854,3 +860,6 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             block.__addEvent('mouseup', block.#mouseUpEvent)
         }
     }
+    interface ResizableBlock extends ResizableBlockAccessors {}
+    return ResizableBlock
+}

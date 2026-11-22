@@ -1,9 +1,15 @@
 import { MediaLayoutBlock, MediaLayoutBlockOptions } from './MediaLayoutBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 type OnPlayCallback = (timestamp: number) => void
 export interface VideoBlockOptions extends MediaLayoutBlockOptions {
     autoPlay?: boolean
     onPlay?: OnPlayCallback
 }
+
+interface VideoBlockAccessors extends OwnOptionAccessors<
+    VideoBlockOptions,
+    MediaLayoutBlockOptions
+> {}
 
 export class VideoBlock<
     T extends VideoBlockOptions = VideoBlockOptions,
@@ -30,7 +36,8 @@ export class VideoBlock<
         this.#buildVideo()
     }
     #buildVideo() {
-        this.mediaSource = this.source()
+        // a video block draws a video element, a url is not resolved here
+        this.mediaSource = this.source() as CanvasImageSource | undefined
         if (this.mediaSource) {
             ;(this.mediaSource as HTMLVideoElement).muted = true
             if (this.autoPlay()) this.play()
@@ -60,3 +67,5 @@ export class VideoBlock<
         return this.#events.isPaused
     }
 }
+
+export interface VideoBlock extends VideoBlockAccessors {}

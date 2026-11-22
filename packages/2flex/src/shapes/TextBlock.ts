@@ -1,3 +1,4 @@
+import type { ColorType, OwnOptionAccessors, TextType } from '../BaseBlock'
 import {
     initialCorners,
     SELECTABLE_RUNNING_EVENT,
@@ -18,11 +19,11 @@ import { clampSize, inRange } from '../Utils'
 type Wrap = 'letter' | 'word' | 'nowrap'
 
 export interface TextBlockOptions extends ShapeBlockOptions {
-    text?: string
-    color?: string
+    text?: TextType
+    color?: ColorType
     strokeWidth?: number
-    strokeColor?: string
-    fontFamily?: string
+    strokeColor?: ColorType
+    fontFamily?: TextType
     fontSize?: RelativeType
     fontWeight?: FontWeight
     fontStyle?: FontStyle
@@ -33,6 +34,11 @@ export interface TextBlockOptions extends ShapeBlockOptions {
     onEditable?: (block: TextBlock) => void
     caret?: boolean
 }
+
+interface TextBlockAccessors extends OwnOptionAccessors<
+    TextBlockOptions,
+    ShapeBlockOptions
+> {}
 type WalkFunc = (letterNode: LetterNode) => void
 
 type LetterMetrics = {
@@ -1158,3 +1164,5 @@ export class TextBlock<
         }
     }
 }
+
+export interface TextBlock extends TextBlockAccessors {}

@@ -1,4 +1,5 @@
 import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { ColorType, OwnOptionAccessors } from '../BaseBlock'
 import {
     HOT_LINE_BLOCK_NAME,
     initialCorners,
@@ -10,17 +11,22 @@ export interface IHotLineBlockOptions extends BaseBlockOptions {
     hotCornerSize?: number
     hotCornerRadius?: number
     hotCornerStrokeWidth?: number
-    hotCornerStrokeColor?: string
-    hotCornerBackgroundColor?: string
+    hotCornerStrokeColor?: ColorType
+    hotCornerBackgroundColor?: ColorType
     hotLineStrokeWidth?: number
-    hotLineStrokeColor?: string
+    hotLineStrokeColor?: ColorType
     hotLines?: boolean
 }
 
+interface HotLineBlockAccessors extends OwnOptionAccessors<
+    IHotLineBlockOptions,
+    BaseBlockOptions
+> {}
+
 export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class HotLineBlock extends Base {
         #hotLineBlock?: BaseBlock
         #hotCornerCords: HotCornerArea
 
@@ -185,3 +191,6 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             return block.#hotLineBlock
         }
     }
+    interface HotLineBlock extends HotLineBlockAccessors {}
+    return HotLineBlock
+}

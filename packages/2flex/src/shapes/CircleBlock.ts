@@ -1,4 +1,5 @@
 import { SELECTABLE_RUNNING_EVENT } from '../const'
+import type { ColorType, OwnOptionAccessors } from '../BaseBlock'
 import { ShapeBlockOptions, ShapeBlock } from '../ShapeBlock'
 import type { DrawFunc, FillStyle } from '../ShapeBlock'
 import { RelativeType } from '../types'
@@ -12,12 +13,17 @@ export interface CircleBlockOptions extends ShapeBlockOptions {
     startAngle?: RelativeType
     endAngle?: RelativeType
     innerRadius?: RelativeType
-    backgroundColor?: FillStyle
+    backgroundColor?: ColorType
     border?: CircleBorder | string
     borderStyle?: BorderStyle
     borderWidth?: BorderWidth
-    borderColor?: BorderColor
+    borderColor?: ColorType
 }
+
+interface CircleBlockAccessors extends OwnOptionAccessors<
+    CircleBlockOptions,
+    ShapeBlockOptions
+> {}
 
 export class CircleBlock<
     T extends CircleBlockOptions = CircleBlockOptions,
@@ -183,3 +189,5 @@ export class CircleBlock<
         )
     }
 }
+
+export interface CircleBlock extends CircleBlockAccessors {}

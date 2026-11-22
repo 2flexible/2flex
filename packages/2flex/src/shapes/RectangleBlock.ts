@@ -1,4 +1,9 @@
 import { SELECTABLE_RUNNING_EVENT } from '../const'
+import type {
+    ColorType,
+    OwnOptionAccessors,
+    ResolvedAs,
+} from '../BaseBlock'
 import { ShapeBlock } from '../ShapeBlock'
 import type { DrawFunc, FillStyle, ShapeBlockOptions } from '../ShapeBlock'
 import type { RelativeType, ShortHandRelativeType } from '../types'
@@ -10,18 +15,22 @@ export type BorderColor = FillStyle
 export type RectangleBorder = [BorderWidth, BorderStyle, BorderColor] | string
 export type BorderRadius = ShortHandRelativeType
 
+// the width of a border is resolved to a number, the style and the color
+// stay as they are
+export type ResolvedBorder = [number, BorderStyle, ColorType]
+
 export interface RectangleBlockOptions extends ShapeBlockOptions {
-    backgroundColor?: FillStyle
+    backgroundColor?: ColorType
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    borderRadius?: BorderRadius
+    borderRadius?: ResolvedAs<BorderRadius, number[]>
     borderStyle?: BorderStyle
     borderWidth?: BorderWidth
-    borderColor?: BorderColor
-    border?: RectangleBorder
-    borderTop?: RectangleBorder
-    borderBottom?: RectangleBorder
-    borderLeft?: RectangleBorder
-    borderRight?: RectangleBorder
+    borderColor?: ColorType
+    border?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    borderTop?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    borderBottom?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    borderLeft?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    borderRight?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
 }
 
 type BorderSide = 'top' | 'right' | 'bottom' | 'left'
@@ -466,3 +475,6 @@ export class RectangleBlock<
         return super.checkInBound(event)
     }
 }
+
+export interface RectangleBlock
+    extends OwnOptionAccessors<RectangleBlockOptions, ShapeBlockOptions> {}

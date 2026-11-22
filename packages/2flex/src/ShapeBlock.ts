@@ -1,4 +1,10 @@
 import { Block, BlockOptions } from './Block'
+import type {
+    ColorType,
+    OwnOptionAccessors,
+    ResolvedAs,
+    TextType,
+} from './BaseBlock'
 import type { RelativeType, XY } from './types'
 
 export type GradientType = 'linear' | 'conic' | 'radial'
@@ -16,8 +22,6 @@ export interface Stroke {
 
 export type FillStyle = CanvasFillStrokeStyles['fillStyle']
 export type StrokeStyle = CanvasFillStrokeStyles['strokeStyle']
-
-export type Font = string
 
 export interface DrawText {
     text: string
@@ -171,10 +175,10 @@ export type DropShadow = [RelativeType, RelativeType, RelativeType, FillStyle]
 
 export interface ShapeBlockOptions extends BlockOptions {
     fill?: Fill
-    fillStyle?: FillStyle
+    fillStyle?: ResolvedAs<FillStyle, FillStyle | undefined>
 
     stroke?: Stroke
-    strokeStyle?: StrokeStyle
+    strokeStyle?: ResolvedAs<StrokeStyle, StrokeStyle | undefined>
 
     lineTo?: XY
     lineWidth?: RelativeType
@@ -194,6 +198,7 @@ export interface ShapeBlockOptions extends BlockOptions {
 
     rect?: RectOpt
     roundRect?: RoundRectOpt
+    fillRect?: RectOpt
     strokeRect?: RectOpt
 
     pointInPath?: PointInPath
@@ -216,20 +221,20 @@ export interface ShapeBlockOptions extends BlockOptions {
     sepia?: RelativeType | RelativeType[]
 
     shadowBlur?: RelativeType
-    shadowColor?: string
+    shadowColor?: ResolvedAs<ColorType, ColorType | undefined>
     shadowOffsetX?: RelativeType
     shadowOffsetY?: RelativeType
 
     fillText?: DrawText
     strokeText?: DrawText
-    font?: Font
+    font?: TextType
     fontStretch?: CanvasFontStretch
     fontKerning?: CanvasFontKerning
     fontVariantCaps?: CanvasFontVariantCaps
     textBaseline?: CanvasTextBaseline
     textRendering?: CanvasTextRendering
-    wordSpacing?: string
-    letterSpacing?: string
+    wordSpacing?: RelativeType
+    letterSpacing?: RelativeType
     direction?: CanvasDirection
     textAlign?: CanvasTextAlign
 
@@ -243,6 +248,7 @@ export interface ShapeBlockOptions extends BlockOptions {
     globalCompositeOperation?: GlobalCompositeOperation
     globalAlpha?: number
 }
+
 export class ShapeBlock<
     T extends ShapeBlockOptions = ShapeBlockOptions,
 > extends Block<T> {
@@ -448,7 +454,7 @@ export class ShapeBlock<
             'font',
             undefined,
             false,
-            (block: ShapeBlock, opt?: Font) => this.#font(block, opt)
+            (block: ShapeBlock, opt?: TextType) => this.#font(block, opt)
         )
         this.addProperty(
             'fillText',
@@ -960,7 +966,7 @@ export class ShapeBlock<
         else return this.context?.isPointInStroke(point.x, point.y) || false
     }
 
-    #font(block: ShapeBlock, opt?: Font) {
+    #font(block: ShapeBlock, opt?: TextType) {
         if (block.context && opt) block.context.font = opt
     }
 
@@ -1176,3 +1182,8 @@ export class ShapeBlock<
         if (block.context && opt) block.context.globalAlpha = opt
     }
 }
+
+export interface ShapeBlock extends Omit<
+    OwnOptionAccessors<ShapeBlockOptions, BlockOptions>,
+    'pointInPath' | 'pointInStroke'
+> {}

@@ -1,4 +1,5 @@
 import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 import { SELECTABLE_RUNNING_EVENT } from '../const'
 import { BlockConstructor, CustomEvent } from '../types'
 
@@ -6,10 +7,15 @@ export interface ISelectableOptions extends BaseBlockOptions {
     selectable?: boolean
 }
 
+interface SelectableBlockAccessors extends OwnOptionAccessors<
+    ISelectableOptions,
+    BaseBlockOptions
+> {}
+
 export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class SelectableBlock extends Base {
         #isSelectable: boolean
         #mouseDownEvent?: CustomEvent<MouseEvent>
         #mouseUpEvent?: CustomEvent<MouseEvent>
@@ -78,3 +84,6 @@ export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             block.__addEvent('mouseup', block.#mouseUpEvent)
         }
     }
+    interface SelectableBlock extends SelectableBlockAccessors {}
+    return SelectableBlock
+}

@@ -1,4 +1,17 @@
 import { Canvas } from './Canvas'
+import { BaseBlock } from './BaseBlock'
+import type { BaseBlockOptions } from './BaseBlock'
+import type {
+    BlockOptionsOf,
+    ColorType,
+    OptionAccessor,
+    OptionAccessors,
+    OptionAccessorsWith,
+    OwnOptionAccessors,
+    ResolvedAs,
+    ResolvedValue,
+    TextType,
+} from './types'
 import { Block } from './Block'
 import {
     RectangleBlock,
@@ -50,9 +63,12 @@ import {
     hslToRgba,
     colorToRgba,
     inRange,
+    extendBlock,
 } from './Utils'
 export {
     Canvas,
+    BaseBlock,
+    extendBlock,
     Block,
     LayoutBlock,
     ShapeBlock,
@@ -93,6 +109,16 @@ export {
 }
 
 export type {
+    BaseBlockOptions,
+    BlockOptionsOf,
+    ColorType,
+    OptionAccessor,
+    OptionAccessors,
+    OptionAccessorsWith,
+    OwnOptionAccessors,
+    ResolvedAs,
+    ResolvedValue,
+    TextType,
     BlockOptions,
     LayoutBlockOptions,
     ShapeBlockOptions,

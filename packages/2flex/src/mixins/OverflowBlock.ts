@@ -1,4 +1,5 @@
 import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     OVERFLOW_AREA_GAP,
@@ -22,6 +23,11 @@ export interface IOverflowOptions extends BaseBlockOptions {
     overflowPositionY?: number
 }
 
+interface OverflowBlockAccessors extends OwnOptionAccessors<
+    IOverflowOptions,
+    BaseBlockOptions
+> {}
+
 // these const values should be customizable options
 const OVERFLOW_SCROLL_BAR_MIN_SIZE = 15
 const OVERFLOW_INNER_AREA_GAP = 3
@@ -30,13 +36,13 @@ const OVERFLOW_INNER_AREA_RADIUS = 10
 
 export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class OverflowBlock extends Base {
         #overflowXscrollBarBlock?: BaseBlock
         #overflowYscrollBarBlock?: BaseBlock
         #overflowWidth: number
         #overflowHeight: number
-        __clipPath?: Path2D
+        declare __clipPath?: Path2D
         clipChild?: (b: BaseBlock) => void
 
         constructor(...args: any[]) {
@@ -696,3 +702,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             return block.#overflowYscrollBarBlock
         }
     }
+    interface OverflowBlock extends OverflowBlockAccessors {}
+    return OverflowBlock
+}

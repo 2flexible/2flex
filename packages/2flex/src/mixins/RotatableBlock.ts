@@ -1,4 +1,5 @@
 import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     initialCorners,
@@ -26,10 +27,15 @@ export interface IRotatableOptions extends BaseBlockOptions {
     hotRotatableAreaGap?: number
 }
 
+interface RotatableBlockAccessors extends OwnOptionAccessors<
+    IRotatableOptions,
+    BaseBlockOptions
+> {}
+
 export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class RotatableBlock extends Base {
         #isRotatable: boolean
         #mouseDownEvent?: CustomEvent<MouseEvent>
         #mouseMoveEvent?: CustomEvent<MouseEvent>
@@ -495,3 +501,6 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             block.__addEvent('mouseup', block.#mouseUpEvent)
         }
     }
+    interface RotatableBlock extends RotatableBlockAccessors {}
+    return RotatableBlock
+}

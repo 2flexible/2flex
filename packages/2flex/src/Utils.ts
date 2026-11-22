@@ -1,8 +1,11 @@
+import type { BaseBlock, BaseBlockOptions } from './BaseBlock'
 import {
+    BlockOptionsOf,
     CubicBezier,
     Easing,
     JumpPosition,
     LinearEasing,
+    OwnOptionAccessors,
     RelativeType,
     RGBA,
     ShortHandRelativeType,
@@ -503,4 +506,17 @@ export function stationaryPoints(
     return points.map((i) => {
         return cubicBezier(p0, p1, p2, p3, i)
     })
+}
+
+// Extends a block class with typed option accessors and set() for TOptions
+export function extendBlock<TOptions extends BaseBlockOptions>() {
+    return <TBase extends abstract new (...args: any[]) => BaseBlock<any>>(
+        BaseClass: TBase
+    ) =>
+        BaseClass as unknown as (new (
+            options: TOptions
+        ) => InstanceType<TBase> & {
+            set(options: TOptions): void
+        } & OwnOptionAccessors<TOptions, BlockOptionsOf<InstanceType<TBase>>>) &
+            Omit<TBase, 'prototype'>
 }

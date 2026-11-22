@@ -1,3 +1,4 @@
+import type { ColorType, OwnOptionAccessors } from '../BaseBlock'
 import {
     DrawFunc,
     FillStyle,
@@ -65,15 +66,23 @@ type WalkFunc = (letterNode: PointNode) => void
 
 export interface LineBlockOptions extends ShapeBlockOptions {
     controlPoints?: ControlPoint[]
-    lineColor?: FillStyle
-    fillColor?: FillStyle
+    lineColor?: ColorType
+    fillColor?: ColorType
     closeLine?: boolean
     controlPointsSize?: RelativeType
+    controlLineWidth?: number
+    controlPointBackgroundColor?: ColorType
+    controlPointStrokeColor?: ColorType
     editable?: boolean
     // every control point registers its own options, which are named after
     // the point they belong to, so the keys of the options are dynamic
     [key: `${(typeof CONTROLPOINT_PROPERTY_NAMES)[number]}-${number}`]: any
 }
+
+interface LineBlockAccessors extends OwnOptionAccessors<
+    LineBlockOptions,
+    ShapeBlockOptions
+> {}
 type CustomPointEvents = {
     [key: string]: {
         mousedown?: CustomEvent<MouseEvent>
@@ -1418,3 +1427,5 @@ export class LineBlock<
         return false
     }
 }
+
+export interface LineBlock extends LineBlockAccessors {}

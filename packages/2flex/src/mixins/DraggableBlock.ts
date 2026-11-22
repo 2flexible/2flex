@@ -1,4 +1,5 @@
 import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
@@ -15,10 +16,15 @@ export interface IDraggableOptions extends BaseBlockOptions {
     onDraggable?: (event: MouseEvent) => void
 }
 
+interface DraggableBlockAccessors extends OwnOptionAccessors<
+    IDraggableOptions,
+    BaseBlockOptions
+> {}
+
 export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class DraggableBlock extends Base {
         #isDraggable: boolean
         #mouseDownEvent?: CustomEvent<MouseEvent>
         #mouseMoveEvent?: CustomEvent<MouseEvent>
@@ -128,3 +134,6 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             block.__addEvent('mouseup', block.#mouseUpEvent)
         }
     }
+    interface DraggableBlock extends DraggableBlockAccessors {}
+    return DraggableBlock
+}

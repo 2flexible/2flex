@@ -1,11 +1,15 @@
 import { DrawFunc, ShapeBlockOptions, ShapeBlock } from '../ShapeBlock'
+import type { OwnOptionAccessors, ResolvedAs } from '../BaseBlock'
 import { RelativeType } from '../types'
 
 type ObjectFit = 'contain' | 'cover' | 'fill' | 'scale-down'
 type Repeat = number | 'fill'
 
 export interface MediaLayoutBlockOptions extends ShapeBlockOptions {
-    source: string | CanvasImageSource
+    source: ResolvedAs<
+        string | CanvasImageSource,
+        string | CanvasImageSource | undefined
+    >
     clipX?: RelativeType
     clipY?: RelativeType
     clipWidth?: RelativeType
@@ -223,3 +227,6 @@ export class MediaLayoutBlock<
         return { width: source.width, height: source.height }
     }
 }
+
+export interface MediaLayoutBlock
+    extends OwnOptionAccessors<MediaLayoutBlockOptions, ShapeBlockOptions> {}

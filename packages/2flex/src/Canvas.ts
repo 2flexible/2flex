@@ -13,6 +13,7 @@ import {
     CustomEvent,
     SnapshotData,
     AnimationId,
+    ScrollableBlock,
 } from './types'
 import { getPrototype } from './Utils'
 import {
@@ -283,7 +284,7 @@ export class Canvas {
         } as MouseEvent
         const targets = this.#scene.getSortedBlocksByZIndex()
         for (let i = targets.length - 1; i >= 0; i--) {
-            const block = targets[i]
+            const block = targets[i] as ScrollableBlock
             if (block.checkInBound(pointerEvent)) {
                 if (axis === 'x' && block.__isOverflowXScrollable) return block
                 if (axis === 'y' && block.__isOverflowYScrollable) return block

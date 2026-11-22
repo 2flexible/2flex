@@ -10,7 +10,27 @@ import {
     HotCornerArea,
     NodeId,
     AnimationId,
+    ColorType,
+    TextType,
+    ResolvedAs,
+    ResolvedValue,
+    OptionAccessor,
+    OptionAccessors,
+    OwnOptionAccessors,
+    OptionAccessorsWith,
+    BlockOptionsOf,
 } from './types'
+export type {
+    ColorType,
+    TextType,
+    ResolvedAs,
+    ResolvedValue,
+    OptionAccessor,
+    OptionAccessors,
+    OwnOptionAccessors,
+    OptionAccessorsWith,
+    BlockOptionsOf,
+}
 import {
     checkInBound,
     fromCm,
@@ -59,13 +79,13 @@ export type PlaceSelf = AlignSelf & JustifySelf
 export type Position = 'relative' | 'absolute' | 'sticky' | 'fixed'
 export type MarginType = ShortHandRelativeType
 export type PaddingType = ShortHandRelativeType
-export type FlexBasis = RelativeType | 'auto'
+export type FlexBasis = ResolvedAs<RelativeType | 'auto', number | 'auto'>
 export type SelfType = 'self' | 'parent'
 export type onRender = (block: BaseBlock) => void
 export type Dependencies = BaseBlock[]
 
 export interface BaseBlockOptions {
-    name?: string
+    name?: ResolvedAs<string, string | undefined>
     x?: RelativeType
     y?: RelativeType
     cornerTopLeft?: XY
@@ -84,12 +104,12 @@ export interface BaseBlockOptions {
     bottom?: RelativeType
     left?: RelativeType
     right?: RelativeType
-    padding?: PaddingType
+    padding?: ResolvedAs<PaddingType, PaddingType | undefined>
     paddingTop?: RelativeType
     paddingRight?: RelativeType
     paddingBottom?: RelativeType
     paddingLeft?: RelativeType
-    margin?: MarginType
+    margin?: ResolvedAs<MarginType, MarginType | undefined>
     marginTop?: RelativeType
     marginRight?: RelativeType
     marginBottom?: RelativeType
@@ -99,7 +119,7 @@ export interface BaseBlockOptions {
     rotationCenterY?: RelativeType
     rotationCenter?: SelfType
     horizontalFlip?: boolean
-    verticallFlip?: boolean
+    verticalFlip?: boolean
     zIndex?: number
     order?: number
     hidden?: boolean
@@ -170,8 +190,6 @@ type PropertyFunc = {
 export class BaseBlock<
     T extends BaseBlockOptions = BaseBlockOptions,
 > extends Node {
-    [key: string]: any
-
     declare parentNode?: BaseBlock
     declare childNodes: Set<BaseBlock>
 
@@ -189,7 +207,11 @@ export class BaseBlock<
     #higestChildOrder?: number
 
     __childAdjustment?: (b: BaseBlock) => void
+    __childClipping?: (b: BaseBlock) => void
     __childsContainer: ChildsContainer
+    // the path a block clips its childs with, it is set by the blocks which
+    // clip, so it is known by every block
+    __clipPath?: Path2D
     __parentHidden = false
     __parentRotate = 0
     __rotateCache = 0
@@ -1769,3 +1791,5 @@ export class BaseBlock<
         this.__addEvent<WheelEvent>('wheel', wheel)
     }
 }
+
+export interface BaseBlock extends OptionAccessors<BaseBlockOptions> {}
