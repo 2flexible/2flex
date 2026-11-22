@@ -105,7 +105,7 @@ type CompiledValue =
 
 let animationIdCounter = 0
 
-export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
+export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) =>
     class extends Base {

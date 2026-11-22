@@ -19,7 +19,7 @@ export interface BlockOptions
         IDraggableOptions,
         IAnimationBlock {}
 
-export class Block extends OverflowBlock(
+export class Block<T extends BlockOptions = BlockOptions> extends OverflowBlock(
     HotLineBlock(
         SelectableBlock(
             ResizableBlock(
@@ -31,7 +31,7 @@ export class Block extends OverflowBlock(
     #userOnRender?: onRender
     #onRenderWrapper?: onRender
     constructor(options: BlockOptions) {
-        super(options)
+        super(options as T)
         this.addProperty(
             'onRender',
             undefined,
@@ -42,6 +42,9 @@ export class Block extends OverflowBlock(
     render() {
         super.render()
         this.__childClipping?.(this)
+    }
+    set(options: T): void {
+        super.set(options)
     }
     #onRender(thisBlock: Block, opt?: onRender) {
         // getter call returns already wrapped value, so it must not be

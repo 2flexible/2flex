@@ -72,7 +72,9 @@ class LetterNode {
     }
 }
 
-export class TextBlock extends ShapeBlock {
+export class TextBlock<
+    T extends TextBlockOptions = TextBlockOptions,
+> extends ShapeBlock<T> {
     #headLetterNode?: LetterNode
     #tailLetterNode?: LetterNode
     #selectionAnchor?: LetterNode
@@ -106,9 +108,13 @@ export class TextBlock extends ShapeBlock {
     #lastInteractionAt: number = 0
 
     constructor(options: TextBlockOptions) {
-        super(options)
+        super(options as T)
         this.#defineProperties()
         this.#localBoundingBox = initialCorners
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineProperties() {

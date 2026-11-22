@@ -5,12 +5,18 @@ export interface ImageBlockOptions extends MediaLayoutBlockOptions {}
 type ImageSourceFactory = (mediaSource?: HTMLImageElement) => HTMLImageElement
 type ImageBlockSource = string | ImageSourceFactory | CanvasImageSource
 
-export class ImageBlock extends MediaLayoutBlock {
+export class ImageBlock<
+    T extends ImageBlockOptions = ImageBlockOptions,
+> extends MediaLayoutBlock<T> {
     #watchedImage?: HTMLImageElement
     #onImageSettled?: () => void
 
     constructor(options: ImageBlockOptions) {
-        super(options)
+        super(options as T)
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
     init(): void {
         super.init()

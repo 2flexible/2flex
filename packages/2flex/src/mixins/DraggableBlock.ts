@@ -15,7 +15,7 @@ export interface IDraggableOptions extends BaseBlockOptions {
     onDraggable?: (event: MouseEvent) => void
 }
 
-export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock>>(
+export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) =>
     class extends Base {

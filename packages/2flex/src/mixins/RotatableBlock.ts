@@ -26,7 +26,7 @@ export interface IRotatableOptions extends BaseBlockOptions {
     hotRotatableAreaGap?: number
 }
 
-export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
+export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) =>
     class extends Base {

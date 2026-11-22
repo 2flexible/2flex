@@ -70,6 +70,9 @@ export interface LineBlockOptions extends ShapeBlockOptions {
     closeLine?: boolean
     controlPointsSize?: RelativeType
     editable?: boolean
+    // every control point registers its own options, which are named after
+    // the point they belong to, so the keys of the options are dynamic
+    [key: `${(typeof CONTROLPOINT_PROPERTY_NAMES)[number]}-${number}`]: any
 }
 type CustomPointEvents = {
     [key: string]: {
@@ -107,7 +110,9 @@ const CONTROLPOINT_PROPERTY_NAMES = [
     'stickyEnd',
 ]
 
-export class LineBlock extends ShapeBlock {
+export class LineBlock<
+    T extends LineBlockOptions = LineBlockOptions,
+> extends ShapeBlock<T> {
     // @TODO: we should hide the paths also
     path?: Path2D
     #pointsPath: PointsPath
@@ -130,10 +135,14 @@ export class LineBlock extends ShapeBlock {
     #stickyDependencies: Map<Block, number> = new Map()
 
     constructor(options: LineBlockOptions) {
-        super(options)
+        super(options as T)
         this.#controlPointEvents = {}
         this.#pointsPath = {}
         this.#defineOptions()
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineOptions() {

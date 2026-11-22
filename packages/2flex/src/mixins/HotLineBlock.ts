@@ -17,7 +17,7 @@ export interface IHotLineBlockOptions extends BaseBlockOptions {
     hotLines?: boolean
 }
 
-export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
+export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) =>
     class extends Base {

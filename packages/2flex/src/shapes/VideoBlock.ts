@@ -5,14 +5,20 @@ export interface VideoBlockOptions extends MediaLayoutBlockOptions {
     onPlay?: OnPlayCallback
 }
 
-export class VideoBlock extends MediaLayoutBlock {
+export class VideoBlock<
+    T extends VideoBlockOptions = VideoBlockOptions,
+> extends MediaLayoutBlock<T> {
     #events = {
         isPlaying: false,
         isPaused: false,
     }
     constructor(options: VideoBlockOptions) {
-        super(options)
+        super(options as T)
         this.#defineProperties()
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineProperties() {

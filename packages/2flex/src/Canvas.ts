@@ -1,5 +1,6 @@
-import { BaseBlock, BlockPayload, BaseBlockOptions } from './BaseBlock'
+import { BaseBlock, BlockPayload } from './BaseBlock'
 import { CanvasScene } from './CanvasScene'
+import type { BlockQuery } from './CanvasScene'
 import { defaultBlocks } from './defaultBlocks'
 import { CanvasDOMManager } from './DOMManager'
 import { CanvasGrid } from './CanvasGrid'
@@ -19,7 +20,6 @@ import {
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
 } from './const'
-import { BlockOptions } from './Block'
 
 // Canvas options shouldn't be style properties
 interface CanvasOptions {
@@ -740,7 +740,7 @@ export class Canvas {
                 for (const [key, value] of Object.entries(
                     blockPaylaod.options || {}
                 ))
-                    foundBlock.options.set(key as keyof BaseBlockOptions, value)
+                    foundBlock.options.set(key, value)
                 for (
                     let i = 0, len = blockPaylaod.childs.length;
                     i < len;
@@ -763,7 +763,7 @@ export class Canvas {
     registerBlocks(...blocks: (typeof BaseBlock)[]) {
         this.#registeredBlocks.push(...blocks)
     }
-    find(queries: BlockOptions): BaseBlock[] {
+    find(queries: BlockQuery): BaseBlock[] {
         return this.#scene.find(queries)
     }
     undo() {

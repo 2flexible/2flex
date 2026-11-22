@@ -26,13 +26,19 @@ export interface RectangleBlockOptions extends ShapeBlockOptions {
 
 type BorderSide = 'top' | 'right' | 'bottom' | 'left'
 
-export class RectangleBlock extends ShapeBlock {
+export class RectangleBlock<
+    T extends RectangleBlockOptions = RectangleBlockOptions,
+> extends ShapeBlock<T> {
     #rectPath?: Path2D
 
     constructor(options: RectangleBlockOptions) {
-        super(options)
+        super(options as T)
         this.#rectPath = new Path2D()
         this.#defineOptions()
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineOptions() {

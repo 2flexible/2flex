@@ -15,12 +15,18 @@ export interface MediaLayoutBlockOptions extends ShapeBlockOptions {
     repeatY?: Repeat
 }
 
-export class MediaLayoutBlock extends ShapeBlock {
+export class MediaLayoutBlock<
+    T extends MediaLayoutBlockOptions = MediaLayoutBlockOptions,
+> extends ShapeBlock<T> {
     mediaSource?: CanvasImageSource
 
     constructor(options: MediaLayoutBlockOptions) {
-        super(options)
+        super(options as T)
         this.#defineProperties()
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineProperties() {

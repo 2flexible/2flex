@@ -65,7 +65,6 @@ export type onRender = (block: BaseBlock) => void
 export type Dependencies = BaseBlock[]
 
 export interface BaseBlockOptions {
-    [key: string]: any
     name?: string
     x?: RelativeType
     y?: RelativeType
@@ -126,11 +125,11 @@ export interface BaseBlockOptions {
 }
 type BlockOptionKeys = keyof BaseBlockOptions
 
-export type OptionsMap = Map<BlockOptionKeys, any>
+export type OptionsMap = Map<string, any>
 
 export interface BindOptions {
     block: BaseBlock
-    options: BlockOptionKeys[]
+    options: string[]
 }
 
 type BlockEvent = {
@@ -168,7 +167,9 @@ type PropertyFunc = {
     valueConverter?: ValueConverterFunc<any, any>
 }
 
-export class BaseBlock extends Node {
+export class BaseBlock<
+    T extends BaseBlockOptions = BaseBlockOptions,
+> extends Node {
     [key: string]: any
 
     declare parentNode?: BaseBlock
@@ -381,7 +382,7 @@ export class BaseBlock extends Node {
             'important',
             {},
             false,
-            (block: BaseBlock, opt?: BaseBlockOptions) => {
+            (block: BaseBlock, opt?: Partial<T>) => {
                 if (!opt) return
                 for (const [key, value] of Object.entries(opt))
                     block.initOptions.set(key, value)
@@ -1162,19 +1163,19 @@ export class BaseBlock extends Node {
     }
     removeProperty(method: string): void {
         delete (this.constructor.prototype as Record<string, any>)[method]
-        this.options.delete(method as BlockOptionKeys)
-        this.cacheOptions.delete(method as BlockOptionKeys)
+        this.options.delete(method)
+        this.cacheOptions.delete(method)
     }
     getOptionCache(key: string) {
         return this.cacheOptions.get(key)
     }
-    getOptionCurrent(key: BlockOptionKeys) {
+    getOptionCurrent(key: string) {
         return this.options.get(key)
     }
-    setOptionCache(key: BlockOptionKeys, value: any) {
+    setOptionCache(key: string, value: any) {
         this.cacheOptions.set(key, value)
     }
-    setOptionCurrent(key: BlockOptionKeys, value: any) {
+    setOptionCurrent(key: string, value: any) {
         this.options.set(key, value)
     }
     __refreshHeadBlock() {
@@ -1236,7 +1237,7 @@ export class BaseBlock extends Node {
         if (!property || property.valueConverter) return undefined
         return property.call(this, value)
     }
-    __cacheOption<I, O>(opt: I, option: BlockOptionKeys, defaultOpt: O) {
+    __cacheOption<I, O>(opt: I, option: string, defaultOpt: O) {
         const value = this.getOptionCurrent(option)
         if (opt !== undefined) {
             this.setOptionCurrent(option, opt)
@@ -1490,7 +1491,7 @@ export class BaseBlock extends Node {
     listAllChilds(_func: (block: BaseBlock) => void): void {
         preOrderTraversal(this, _func)
     }
-    set(options: BaseBlockOptions): void {
+    set(options: T): void {
         let before: any = {}
         let after: any = {}
         for (const [key, value] of Object.entries(options)) {
@@ -1519,13 +1520,13 @@ export class BaseBlock extends Node {
         if (!target) return
         target.#dependendBlocks.delete(this)
     }
-    bindTo(block: BaseBlock, options: BlockOptionKeys[]) {
+    bindTo(block: BaseBlock, options: string[]) {
         this.#bindOptions.push({ block, options })
     }
     unbind(block: BaseBlock) {
         this.#bindOptions = this.#bindOptions.filter((i) => i.block !== block)
     }
-    findChilds<T extends BaseBlockOptions>(queries: T) {
+    findChilds<TQuery extends Partial<BaseBlockOptions>>(queries: TQuery) {
         let blocks: BaseBlock[] = []
         this.listAllChilds((block: BaseBlock) => {
             for (const [k, v] of Object.entries(queries)) {

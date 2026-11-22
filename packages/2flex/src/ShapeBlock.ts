@@ -243,14 +243,16 @@ export interface ShapeBlockOptions extends BlockOptions {
     globalCompositeOperation?: GlobalCompositeOperation
     globalAlpha?: number
 }
-export class ShapeBlock extends Block {
+export class ShapeBlock<
+    T extends ShapeBlockOptions = ShapeBlockOptions,
+> extends Block<T> {
     #gradient?: CanvasGradient
     #canvasPattern?: CanvasPattern | null
     #filters: ShapeFilters = {}
     #filterStr?: string
 
     constructor(options: ShapeBlockOptions) {
-        super(options)
+        super(options as T)
         this.addProperty(
             'clip',
             undefined,
@@ -623,6 +625,9 @@ export class ShapeBlock extends Block {
             false,
             (block: ShapeBlock, opt?: number) => this.#globalAlpha(block, opt)
         )
+    }
+    set(options: T): void {
+        super.set(options)
     }
     render(): void {
         super.render()

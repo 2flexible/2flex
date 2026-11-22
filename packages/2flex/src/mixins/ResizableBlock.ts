@@ -34,7 +34,7 @@ export interface IResizableOptions extends BaseBlockOptions {
     hotResizableAreaGap?: number
 }
 
-export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
+export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) =>
     class extends Base {

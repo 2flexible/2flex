@@ -19,15 +19,21 @@ export interface CircleBlockOptions extends ShapeBlockOptions {
     borderColor?: BorderColor
 }
 
-export class CircleBlock extends ShapeBlock {
+export class CircleBlock<
+    T extends CircleBlockOptions = CircleBlockOptions,
+> extends ShapeBlock<T> {
     #circlePath?: Path2D
 
     constructor(options: CircleBlockOptions) {
-        super(options)
+        super(options as T)
         this.lineJoin('round')
         this.lineCap('round')
         this.#circlePath = new Path2D()
         this.#defineProperties()
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineProperties() {

@@ -28,7 +28,7 @@ const OVERFLOW_INNER_AREA_GAP = 3
 const OVERFLOW_INNER_AREA_SIZE = 10
 const OVERFLOW_INNER_AREA_RADIUS = 10
 
-export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
+export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) =>
     class extends Base {

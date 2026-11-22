@@ -6,7 +6,7 @@ export interface ISelectableOptions extends BaseBlockOptions {
     selectable?: boolean
 }
 
-export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock>>(
+export const SelectableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) =>
     class extends Base {

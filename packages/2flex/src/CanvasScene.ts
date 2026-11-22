@@ -13,6 +13,9 @@ export interface StackingContext {
     participants: BaseBlock[]
 }
 
+// a block is searched by the options it holds and by its own identity
+export type BlockQuery = Partial<BlockOptions> & { nodeId?: number }
+
 export class CanvasScene {
     head: Node
     snapshotSize: number
@@ -46,7 +49,7 @@ export class CanvasScene {
     removeBlock(block: BaseBlock) {
         this.head.removeChild(block)
     }
-    find(queries: BlockOptions): BaseBlock[] {
+    find(queries: BlockQuery): BaseBlock[] {
         const keys = Object.keys(queries)
         if (keys.length === 1 && keys[0] === 'nodeId') {
             const block = this.#nodeIdIndex.get(queries.nodeId as number)
@@ -55,7 +58,8 @@ export class CanvasScene {
         const blocks: BaseBlock[] = []
         this.preOrderTraversal((block: BaseBlock) => {
             for (const k of keys) {
-                if (block.getOptionCurrent(k) !== queries[k]) return
+                if (block.getOptionCurrent(k) !== queries[k as keyof BlockQuery])
+                    return
             }
             blocks.push(block)
         })

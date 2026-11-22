@@ -124,7 +124,9 @@ export interface LayoutBlockOptions
     gapRow?: RelativeType
 }
 
-export class LayoutBlock extends Block {
+export class LayoutBlock<
+    T extends LayoutBlockOptions = LayoutBlockOptions,
+> extends Block<T> {
     #containerX?: number
     #containerY?: number
 
@@ -152,7 +154,7 @@ export class LayoutBlock extends Block {
     #alignItemsInvoker?: () => void
 
     constructor(options: LayoutBlockOptions) {
-        super(options)
+        super(options as T)
 
         this.#startXPos = []
         this.#startYPos = []
@@ -166,6 +168,9 @@ export class LayoutBlock extends Block {
         this.#latestOrder = 1
         this.#childSizes = new Map()
         this.layout()
+    }
+    set(options: T): void {
+        super.set(options)
     }
     updateCords(): void {
         this.#updateOrdering()
