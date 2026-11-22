@@ -3,6 +3,8 @@ import { Block, Canvas, ImageBlock, ShapeBlock } from '@2flexible/2flex'
 import { MediaLayoutBlock } from '../../shapes/MediaLayoutBlock'
 import { flush, removeCanvasElements, waitFor } from './helpers'
 
+type ImageOptions = ConstructorParameters<typeof ImageBlock>[0]
+
 const imageSource =
     'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
 
@@ -29,19 +31,25 @@ describe('ImageBlock', () => {
 
     describe('constructor', () => {
         it('should create an ImageBlock instance', () => {
-            expect(new ImageBlock({})).toBeInstanceOf(ImageBlock)
+            expect(new ImageBlock({} as ImageOptions)).toBeInstanceOf(
+                ImageBlock
+            )
         })
 
         it('should create a MediaLayoutBlock instance', () => {
-            expect(new ImageBlock({})).toBeInstanceOf(MediaLayoutBlock)
+            expect(new ImageBlock({} as ImageOptions)).toBeInstanceOf(
+                MediaLayoutBlock
+            )
         })
 
         it('should create a ShapeBlock instance', () => {
-            expect(new ImageBlock({})).toBeInstanceOf(ShapeBlock)
+            expect(new ImageBlock({} as ImageOptions)).toBeInstanceOf(
+                ShapeBlock
+            )
         })
 
         it('should create a Block instance', () => {
-            expect(new ImageBlock({})).toBeInstanceOf(Block)
+            expect(new ImageBlock({} as ImageOptions)).toBeInstanceOf(Block)
         })
 
         it('should keep the options it was created with', () => {
@@ -77,7 +85,7 @@ describe('ImageBlock', () => {
 
         it('should use a source factory instead of creating an image', () => {
             const source = vi.fn(() => new Image())
-            const block = new ImageBlock({ source })
+            const block = new ImageBlock({ source } as unknown as ImageOptions)
 
             block.init()
 
@@ -87,7 +95,7 @@ describe('ImageBlock', () => {
         it('should pass the current media source to the source factory', () => {
             const image = document.createElement('img')
             const source = vi.fn(() => image)
-            const block = new ImageBlock({ source })
+            const block = new ImageBlock({ source } as unknown as ImageOptions)
 
             block.init()
 
@@ -97,7 +105,7 @@ describe('ImageBlock', () => {
         it('should keep the image returned by the source factory', () => {
             const image = document.createElement('img')
             const source = vi.fn(() => image)
-            const block = new ImageBlock({ source })
+            const block = new ImageBlock({ source } as unknown as ImageOptions)
 
             block.init()
 
@@ -114,7 +122,7 @@ describe('ImageBlock', () => {
         })
 
         it('should not fail without a source', () => {
-            const block = new ImageBlock({})
+            const block = new ImageBlock({} as ImageOptions)
 
             expect(() => block.init()).not.toThrow()
             expect(block.mediaSource).toBeUndefined()
@@ -125,7 +133,7 @@ describe('ImageBlock', () => {
         it('should redraw the media after the image loads', () => {
             const image = document.createElement('img')
             const source = vi.fn(() => image)
-            const block = new ImageBlock({ source })
+            const block = new ImageBlock({ source } as unknown as ImageOptions)
             const invokeChange = vi
                 .spyOn(block, '__invokeChange')
                 .mockImplementation(() => undefined)
@@ -143,7 +151,7 @@ describe('ImageBlock', () => {
         it('should redraw the media after the image failed to load', () => {
             const image = document.createElement('img')
             const source = vi.fn(() => image)
-            const block = new ImageBlock({ source })
+            const block = new ImageBlock({ source } as unknown as ImageOptions)
             const invokeChange = vi
                 .spyOn(block, '__invokeChange')
                 .mockImplementation(() => undefined)
@@ -172,7 +180,7 @@ describe('ImageBlock', () => {
         it('should redraw the media of an already loaded image', () => {
             const image = document.createElement('img')
             const source = vi.fn(() => image)
-            const block = new ImageBlock({ source })
+            const block = new ImageBlock({ source } as unknown as ImageOptions)
             const invokeChange = vi
                 .spyOn(block, '__invokeChange')
                 .mockImplementation(() => undefined)
@@ -224,7 +232,7 @@ describe('ImageBlock', () => {
             const image = new Image()
             image.src = createImage(40, 30, 'red')
             const block = new ImageBlock({
-                source: () => image,
+                source: (() => image) as unknown as string,
                 x: 0,
                 y: 0,
                 width: 100,

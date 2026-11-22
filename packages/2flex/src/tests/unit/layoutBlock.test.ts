@@ -2167,7 +2167,10 @@ describe('LayoutBlock', () => {
                 await setupGrid()
             })
             it('should read and set the column lines without moving a child', async () => {
-                layout.set({ columnStart: 2, columnEnd: 3 })
+                layout.set({
+                    columnStart: 2,
+                    columnEnd: 3,
+                } as Parameters<typeof layout.set>[0])
                 await settle(layout)
                 expect([
                     layout.columnStart(),

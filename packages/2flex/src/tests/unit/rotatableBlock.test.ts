@@ -139,7 +139,9 @@ describe('RotatableBlock', () => {
             expect(topLeftAreaOffset()).toStrictEqual({ x: -40, y: -40 })
         })
         it('should convert a hot area size given in px', async () => {
-            block.set({ hotRotatableAreaSize: '30px' })
+            block.set({
+                hotRotatableAreaSize: '30px' as unknown as number,
+            })
             await flush()
             expect(block.hotRotatableAreaSize()).toBe(30)
             expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })

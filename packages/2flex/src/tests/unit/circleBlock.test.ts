@@ -109,7 +109,11 @@ describe('CircleBlock', () => {
         for (const [option, value] of defaults) {
             it(`should default ${option} to ${value}`, () => {
                 const block = new CircleBlock({})
-                expect(block[option]()).toStrictEqual(value)
+                expect(
+                    (block as unknown as Record<string, () => unknown>)[
+                        option
+                    ]()
+                ).toStrictEqual(value)
             })
         }
     })

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas, RectangleBlock, ShapeBlock } from '@2flexible/2flex'
-import type { IRectangleOptions } from '../../shapes/RectangleBlock'
+import type { RectangleBlockOptions as IRectangleOptions } from '@2flexible/2flex'
 import { SELECTABLE_RUNNING_EVENT } from '../../const'
 import { flush, removeCanvasElements } from './helpers'
 
@@ -103,7 +103,11 @@ describe('RectangleBlock', () => {
         for (const [option, value] of defaults) {
             it(`should default ${option} to ${value}`, () => {
                 const block = new RectangleBlock({})
-                expect(block[option]()).toStrictEqual(value)
+                expect(
+                    (block as unknown as Record<string, () => unknown>)[
+                        option
+                    ]()
+                ).toStrictEqual(value)
             })
         }
     })

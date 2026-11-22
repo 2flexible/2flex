@@ -251,7 +251,8 @@ describe('AnimationBlock', () => {
             })
             await flush(4)
 
-            const [first, second] = block.hotCornerRadius() as number[]
+            const [first, second] =
+                block.hotCornerRadius() as unknown as number[]
             expect(first).toBeGreaterThan(0)
             expect(first).toBeLessThan(100)
             expect(second).toBeGreaterThan(100)
@@ -287,7 +288,7 @@ describe('AnimationBlock', () => {
             })
             await flush(4)
 
-            const { x, y } = block.rotatableTopLeft() as {
+            const { x, y } = block.rotatableTopLeft() as unknown as {
                 x: number
                 y: number
             }

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas, ShapeBlock } from '@2flexible/2flex'
-import type { IShapeOptions } from '../../ShapeBlock'
+import type { ShapeBlockOptions as IShapeOptions } from '@2flexible/2flex'
 import { flush, removeCanvasElements } from './helpers'
 
 let shape: ShapeBlock

@@ -142,7 +142,7 @@ describe('HotLineBlock', () => {
         })
         it('should draw hot lines with customized styles', async () => {
             block.set({
-                hotCornerRadius: [8],
+                hotCornerRadius: [8] as unknown as number,
                 hotCornerBackgroundColor: 'red',
                 hotCornerStrokeColor: 'green',
                 hotCornerStrokeWidth: 4,

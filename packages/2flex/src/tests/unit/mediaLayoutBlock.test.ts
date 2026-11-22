@@ -28,7 +28,7 @@ const createBlock = (
         width: 100,
         height: 100,
         ...options,
-    })
+    } as MediaOptions)
     block.context = context
     block.mediaSource = source
     return block
@@ -41,15 +41,21 @@ describe('MediaLayoutBlock', () => {
 
     describe('constructor', () => {
         it('should create a MediaLayoutBlock instance', () => {
-            expect(new MediaLayoutBlock({})).toBeInstanceOf(MediaLayoutBlock)
+            expect(new MediaLayoutBlock({} as MediaOptions)).toBeInstanceOf(
+                MediaLayoutBlock
+            )
         })
 
         it('should create a ShapeBlock instance', () => {
-            expect(new MediaLayoutBlock({})).toBeInstanceOf(ShapeBlock)
+            expect(new MediaLayoutBlock({} as MediaOptions)).toBeInstanceOf(
+                ShapeBlock
+            )
         })
 
         it('should create a Block instance', () => {
-            expect(new MediaLayoutBlock({})).toBeInstanceOf(Block)
+            expect(new MediaLayoutBlock({} as MediaOptions)).toBeInstanceOf(
+                Block
+            )
         })
 
         it('should keep the options it was created with', () => {
@@ -97,7 +103,7 @@ describe('MediaLayoutBlock', () => {
 
         for (const [option, value] of defaults) {
             it(`should default ${option} to ${value}`, () => {
-                const block = new MediaLayoutBlock({})
+                const block = new MediaLayoutBlock({} as MediaOptions)
                 expect((block[option] as () => unknown)()).toStrictEqual(value)
             })
         }
@@ -118,7 +124,7 @@ describe('MediaLayoutBlock', () => {
             const block = new MediaLayoutBlock({
                 width: 100,
                 height: 100,
-            })
+            } as MediaOptions)
             block.mediaSource = createSource(200, 100)
 
             expect(() => block.draw()).not.toThrow()

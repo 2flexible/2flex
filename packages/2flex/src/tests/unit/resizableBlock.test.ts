@@ -141,7 +141,9 @@ describe('ResizableBlock', () => {
             expect(topLeftAreaOffset()).toStrictEqual({ x: -10, y: -10 })
         })
         it('should convert a hot area size given in px', async () => {
-            block.set({ hotResizableAreaSize: '30px' })
+            block.set({
+                hotResizableAreaSize: '30px' as unknown as number,
+            })
             await flush()
             expect(block.hotResizableAreaSize()).toBe(30)
             expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })

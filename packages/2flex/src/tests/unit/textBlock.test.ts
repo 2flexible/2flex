@@ -210,7 +210,11 @@ describe('TextBlock', () => {
         for (const [option, value] of defaults) {
             it(`should default ${option} to ${value}`, () => {
                 const block = new TextBlock({})
-                expect(block[option]()).toStrictEqual(value)
+                expect(
+                    (block as unknown as Record<string, () => unknown>)[
+                        option
+                    ]()
+                ).toStrictEqual(value)
             })
         }
     })

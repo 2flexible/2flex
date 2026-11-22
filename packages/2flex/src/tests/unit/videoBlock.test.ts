@@ -2,6 +2,8 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { Block, ShapeBlock, VideoBlock } from '@2flexible/2flex'
 import { MediaLayoutBlock } from '../../shapes/MediaLayoutBlock'
 
+type VideoOptions = ConstructorParameters<typeof VideoBlock>[0]
+
 const createVideo = () => {
     const video = document.createElement('video')
     vi.spyOn(video, 'play').mockResolvedValue(undefined)
@@ -16,19 +18,25 @@ describe('VideoBlock', () => {
 
     describe('constructor', () => {
         it('should create a VideoBlock instance', () => {
-            expect(new VideoBlock({})).toBeInstanceOf(VideoBlock)
+            expect(new VideoBlock({} as VideoOptions)).toBeInstanceOf(
+                VideoBlock
+            )
         })
 
         it('should create a MediaLayoutBlock instance', () => {
-            expect(new VideoBlock({})).toBeInstanceOf(MediaLayoutBlock)
+            expect(new VideoBlock({} as VideoOptions)).toBeInstanceOf(
+                MediaLayoutBlock
+            )
         })
 
         it('should create a ShapeBlock instance', () => {
-            expect(new VideoBlock({})).toBeInstanceOf(ShapeBlock)
+            expect(new VideoBlock({} as VideoOptions)).toBeInstanceOf(
+                ShapeBlock
+            )
         })
 
         it('should create a Block instance', () => {
-            expect(new VideoBlock({})).toBeInstanceOf(Block)
+            expect(new VideoBlock({} as VideoOptions)).toBeInstanceOf(Block)
         })
 
         it('should keep the options it was created with', () => {
@@ -40,7 +48,7 @@ describe('VideoBlock', () => {
                 height: 80,
                 autoPlay: true,
                 onPlay,
-            })
+            } as unknown as VideoOptions)
 
             expect(block.x()).toBe(12)
             expect(block.y()).toBe(24)
@@ -53,11 +61,13 @@ describe('VideoBlock', () => {
 
     describe('option defaults', () => {
         it('should default autoPlay to false', () => {
-            expect(new VideoBlock({}).autoPlay()).toBe(false)
+            expect(new VideoBlock({} as VideoOptions).autoPlay()).toBe(false)
         })
 
         it('should default onPlay to undefined', () => {
-            expect(new VideoBlock({}).onPlay()).toBeUndefined()
+            expect(
+                new VideoBlock({} as VideoOptions).onPlay()
+            ).toBeUndefined()
         })
     })
 
@@ -81,7 +91,7 @@ describe('VideoBlock', () => {
         })
 
         it('should not register an animation without a video', () => {
-            const block = new VideoBlock({})
+            const block = new VideoBlock({} as VideoOptions)
             const addAnimation = vi.spyOn(block, '__addAnimation')
 
             block.init()

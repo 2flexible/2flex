@@ -7,7 +7,7 @@ import {
     RectangleBlock,
     ShapeBlock,
 } from '@2flexible/2flex'
-import type { ILineOptions } from '../../shapes/LineBlock'
+import type { LineBlockOptions as ILineOptions } from '@2flexible/2flex'
 import {
     DRAGGABLE_RUNNING_EVENT,
     RESIZABLE_RUNNING_EVENT,
@@ -175,7 +175,11 @@ describe('LineBlock', () => {
         for (const [option, value] of defaults) {
             it(`should default ${option} to ${value}`, () => {
                 const block = new LineBlock({})
-                expect(block[option]()).toStrictEqual(value)
+                expect(
+                    (block as unknown as Record<string, () => unknown>)[
+                        option
+                    ]()
+                ).toStrictEqual(value)
             })
         }
     })

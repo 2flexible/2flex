@@ -48,7 +48,6 @@ describe('OverflowBlock', () => {
             const childBlock = new Block({
                 width: 300,
                 height: 300,
-                backgroundColor: 'red',
             })
             drawFilledBlock(childBlock)
             block.addChild(childBlock)
@@ -62,7 +61,6 @@ describe('OverflowBlock', () => {
             const childBlock = new Block({
                 width: 300,
                 height: 300,
-                backgroundColor: 'red',
             })
             drawFilledBlock(childBlock)
             block.addChild(childBlock)
