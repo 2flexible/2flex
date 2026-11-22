@@ -40,6 +40,9 @@ interface ResizableBlockAccessors extends OwnOptionAccessors<
     BaseBlockOptions
 > {}
 
+const DEFAULT_HOT_RESIZABLE_AREA_SIZE = 15
+const DEFAULT_HOT_RESIZABLE_AREA_GAP = 0
+
 export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) => {
@@ -76,8 +79,14 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             this.addProperty('onResizable', undefined)
             this.addProperty('horizontalFlipResize', undefined)
             this.addProperty('verticalFlipResize', undefined)
-            this.addProperty('hotResizableAreaSize', 15)
-            this.addProperty('hotResizableAreaGap', 0)
+            this.addProperty(
+                'hotResizableAreaSize',
+                DEFAULT_HOT_RESIZABLE_AREA_SIZE
+            )
+            this.addProperty(
+                'hotResizableAreaGap',
+                DEFAULT_HOT_RESIZABLE_AREA_GAP
+            )
         }
         updateCordinates(): void {
             super.updateCordinates()

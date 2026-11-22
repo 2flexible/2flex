@@ -19,6 +19,8 @@ export interface MediaLayoutBlockOptions extends ShapeBlockOptions {
     repeatY?: Repeat
 }
 
+const DEFAULT_OBJECT_FIT: ObjectFit = 'scale-down'
+
 export class MediaLayoutBlock<
     T extends MediaLayoutBlockOptions = MediaLayoutBlockOptions,
 > extends ShapeBlock<T> {
@@ -41,7 +43,7 @@ export class MediaLayoutBlock<
         this.addProperty('clipY', 0)
         this.addProperty('clipWidth', undefined)
         this.addProperty('clipHeight', undefined)
-        this.addProperty('objectFit', 'scale-down')
+        this.addProperty('objectFit', DEFAULT_OBJECT_FIT)
     }
 
     draw(_func?: DrawFunc): void {

@@ -56,6 +56,11 @@ const CARET_LINE_WIDTH = 2
 const CARET_HOLD_DURATION = 500
 const FONT_METRICS_PROBE = 'Hxg'
 const DEFAULT_LINE_HEIGHT_RATIO = 1.2
+const DEFAULT_FONT_FAMILY = 'sans-serif'
+const DEFAULT_FONT_WEIGHT = 'normal'
+const DEFAULT_FONT_VARIANT = 'normal'
+const DEFAULT_FONT_STYLE = 'normal'
+const DEFAULT_WRAP = 'nowrap'
 
 class LetterNode {
     prev?: LetterNode
@@ -130,15 +135,15 @@ export class TextBlock<
                 return block.#text(val)
             }
         )
-        this.addProperty('fontFamily', 'sans-serif')
+        this.addProperty('fontFamily', DEFAULT_FONT_FAMILY)
         this.addProperty('fontSize', 0, true)
-        this.addProperty('fontWeight', 'normal')
-        this.addProperty('fontVariant', 'normal')
-        this.addProperty('fontStyle', 'normal')
+        this.addProperty('fontWeight', DEFAULT_FONT_WEIGHT)
+        this.addProperty('fontVariant', DEFAULT_FONT_VARIANT)
+        this.addProperty('fontStyle', DEFAULT_FONT_STYLE)
         this.addProperty('color', undefined)
         this.addProperty('strokeColor', undefined)
         this.addProperty('strokeWidth', undefined)
-        this.addProperty('wrap', 'nowrap')
+        this.addProperty('wrap', DEFAULT_WRAP)
         this.addProperty('onEditable', undefined)
         this.addProperty(
             'editable',

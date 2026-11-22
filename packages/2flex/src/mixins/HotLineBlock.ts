@@ -23,6 +23,14 @@ interface HotLineBlockAccessors extends OwnOptionAccessors<
     BaseBlockOptions
 > {}
 
+const DEFAULT_HOT_CORNER_SIZE = 10
+const DEFAULT_HOT_CORNER_RADIUS = [0]
+const DEFAULT_HOT_CORNER_BACKGROUND_COLOR = 'white'
+const DEFAULT_HOT_LINE_STROKE_WIDTH = 2.5
+const DEFAULT_HOT_CORNER_STROKE_WIDTH = 2.5
+const DEFAULT_HOT_CORNER_STROKE_COLOR = 'blue'
+const DEFAULT_HOT_LINE_STROKE_COLOR = 'blue'
+
 export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) => {
@@ -40,13 +48,28 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 false,
                 (block: any, opt?: boolean) => this.#hotLines(block, opt)
             )
-            this.addProperty('hotCornerSize', 10)
-            this.addProperty('hotCornerRadius', [0])
-            this.addProperty('hotCornerBackgroundColor', 'white')
-            this.addProperty('hotLineStrokeWidth', 2.5)
-            this.addProperty('hotCornerStrokeWidth', 2.5)
-            this.addProperty('hotCornerStrokeColor', 'blue')
-            this.addProperty('hotLineStrokeColor', 'blue')
+            this.addProperty('hotCornerSize', DEFAULT_HOT_CORNER_SIZE)
+            this.addProperty('hotCornerRadius', DEFAULT_HOT_CORNER_RADIUS)
+            this.addProperty(
+                'hotCornerBackgroundColor',
+                DEFAULT_HOT_CORNER_BACKGROUND_COLOR
+            )
+            this.addProperty(
+                'hotLineStrokeWidth',
+                DEFAULT_HOT_LINE_STROKE_WIDTH
+            )
+            this.addProperty(
+                'hotCornerStrokeWidth',
+                DEFAULT_HOT_CORNER_STROKE_WIDTH
+            )
+            this.addProperty(
+                'hotCornerStrokeColor',
+                DEFAULT_HOT_CORNER_STROKE_COLOR
+            )
+            this.addProperty(
+                'hotLineStrokeColor',
+                DEFAULT_HOT_LINE_STROKE_COLOR
+            )
         }
         updateCords(): void {
             super.updateCords()

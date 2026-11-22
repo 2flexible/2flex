@@ -25,6 +25,12 @@ interface CircleBlockAccessors extends OwnOptionAccessors<
     ShapeBlockOptions
 > {}
 
+const DEFAULT_END_ANGLE = Math.PI * 2
+const DEFAULT_BORDER_COLOR = 'black'
+const DEFAULT_BORDER_STYLE: BorderStyle = 'solid'
+const DEFAULT_LINE_JOIN: CanvasLineJoin = 'round'
+const DEFAULT_LINE_CAP: CanvasLineCap = 'round'
+
 export class CircleBlock<
     T extends CircleBlockOptions = CircleBlockOptions,
 > extends ShapeBlock<T> {
@@ -32,8 +38,8 @@ export class CircleBlock<
 
     constructor(options: CircleBlockOptions) {
         super(options as T)
-        this.lineJoin('round')
-        this.lineCap('round')
+        this.lineJoin(DEFAULT_LINE_JOIN)
+        this.lineCap(DEFAULT_LINE_CAP)
         this.#circlePath = new Path2D()
         this.#defineProperties()
     }
@@ -45,11 +51,11 @@ export class CircleBlock<
     #defineProperties() {
         this.addProperty('innerRadius', 0)
         this.addProperty('startAngle', 0)
-        this.addProperty('endAngle', Math.PI * 2)
+        this.addProperty('endAngle', DEFAULT_END_ANGLE)
         this.addProperty('backgroundColor', undefined)
         this.addProperty('borderWidth', 0, true)
-        this.addProperty('borderColor', 'black')
-        this.addProperty('borderStyle', 'solid')
+        this.addProperty('borderColor', DEFAULT_BORDER_COLOR)
+        this.addProperty('borderStyle', DEFAULT_BORDER_STYLE)
         this.addProperty(
             'border',
             undefined,

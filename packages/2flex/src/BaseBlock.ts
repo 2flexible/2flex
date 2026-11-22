@@ -187,6 +187,11 @@ type PropertyFunc = {
     valueConverter?: ValueConverterFunc<any, any>
 }
 
+const DEFAULT_ROTATION_CENTER: SelfType = 'parent'
+const DEFAULT_FLEX_SHRINK = 1
+const DEFAULT_FLEX_BASIS: FlexBasis = 'auto'
+const DEFAULT_FLEX_GROW = 0
+
 export class BaseBlock<
     T extends BaseBlockOptions = BaseBlockOptions,
 > extends Node {
@@ -375,7 +380,7 @@ export class BaseBlock<
         this.addProperty('rotate', 0)
         this.addProperty('rotationCenterX', undefined, true)
         this.addProperty('rotationCenterY', undefined, false)
-        this.addProperty('rotationCenter', 'parent', true)
+        this.addProperty('rotationCenter', DEFAULT_ROTATION_CENTER, true)
         this.addProperty('horizontalFlip', false)
         this.addProperty('verticalFlip', false)
         this.addProperty(
@@ -413,9 +418,9 @@ export class BaseBlock<
         // this.addProperty('flex', [])
         // this.addProperty('alignSelf', 'auto')
         // this.addProperty('justifySelf', 'auto')
-        this.addProperty('flexShrink', 1)
-        this.addProperty('flexBasis', 'auto')
-        this.addProperty('flexGrow', 0)
+        this.addProperty('flexShrink', DEFAULT_FLEX_SHRINK)
+        this.addProperty('flexBasis', DEFAULT_FLEX_BASIS)
+        this.addProperty('flexGrow', DEFAULT_FLEX_GROW)
         // this.addProperty('gridRow', [])
         // this.addProperty('gridRowStart', 0)
         // this.addProperty('gridRowEnd', 0)

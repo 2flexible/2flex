@@ -32,6 +32,9 @@ interface RotatableBlockAccessors extends OwnOptionAccessors<
     BaseBlockOptions
 > {}
 
+const DEFAULT_HOT_ROTATABLE_AREA_SIZE = 15
+const DEFAULT_HOT_ROTATABLE_AREA_GAP = 0
+
 export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
 ) => {
@@ -58,8 +61,14 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             this.addProperty('hotRotatableAreaTopRight', initialCorners)
             this.addProperty('hotRotatableAreaBottomLeft', initialCorners)
             this.addProperty('hotRotatableAreaBottomRight', initialCorners)
-            this.addProperty('hotRotatableAreaSize', 15)
-            this.addProperty('hotRotatableAreaGap', 0)
+            this.addProperty(
+                'hotRotatableAreaSize',
+                DEFAULT_HOT_ROTATABLE_AREA_SIZE
+            )
+            this.addProperty(
+                'hotRotatableAreaGap',
+                DEFAULT_HOT_ROTATABLE_AREA_GAP
+            )
             this.addProperty('onRotatable', undefined)
         }
         updateCordinates(): void {

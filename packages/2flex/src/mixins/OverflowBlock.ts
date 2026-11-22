@@ -33,6 +33,9 @@ const OVERFLOW_SCROLL_BAR_MIN_SIZE = 15
 const OVERFLOW_INNER_AREA_GAP = 3
 const OVERFLOW_INNER_AREA_SIZE = 10
 const OVERFLOW_INNER_AREA_RADIUS = 10
+const OVERFLOW_SCROLL_BAR_BACKGROUND_COLOR = 'white'
+const OVERFLOW_SCROLL_BAR_THUMB_COLOR = 'gray'
+const DEFAULT_OVERFLOW: Overflow = 'visible'
 
 export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
     Base: TBase
@@ -49,18 +52,21 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
             super(...args)
             this.#overflowWidth = 0
             this.#overflowHeight = 0
-            this.addProperty('overflow', 'visible', false, (block: BaseBlock) =>
-                this.#overflowXY(block)
+            this.addProperty(
+                'overflow',
+                DEFAULT_OVERFLOW,
+                false,
+                (block: BaseBlock) => this.#overflowXY(block)
             )
             this.addProperty(
                 'overflowX',
-                'visible',
+                DEFAULT_OVERFLOW,
                 false,
                 (block: BaseBlock) => this.#overflowX(block)
             )
             this.addProperty(
                 'overflowY',
-                'visible',
+                DEFAULT_OVERFLOW,
                 false,
                 (block: BaseBlock) => this.#overflowY(block)
             )
@@ -356,7 +362,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 coverAreaHeight,
                 0
             )
-            context.fillStyle = 'white'
+            context.fillStyle = OVERFLOW_SCROLL_BAR_BACKGROUND_COLOR
             context.fill()
             context.stroke()
             context.beginPath()
@@ -367,7 +373,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock<any>>>(
                 innerScrollHeight,
                 innerScrollRadius
             )
-            context.fillStyle = 'gray'
+            context.fillStyle = OVERFLOW_SCROLL_BAR_THUMB_COLOR
             context.fill()
             context.restore()
         }

@@ -35,6 +35,12 @@ export interface RectangleBlockOptions extends ShapeBlockOptions {
 
 type BorderSide = 'top' | 'right' | 'bottom' | 'left'
 
+const DEFAULT_BACKGROUND_COLOR = 'white'
+const DEFAULT_BORDER_RADIUS = [0, 0, 0, 0]
+const DEFAULT_BORDER_COLOR = 'white'
+const DEFAULT_BORDER_STYLE: BorderStyle = 'solid'
+const DOTTED_BORDER_DASH = [4, 4]
+
 export class RectangleBlock<
     T extends RectangleBlockOptions = RectangleBlockOptions,
 > extends ShapeBlock<T> {
@@ -51,18 +57,18 @@ export class RectangleBlock<
     }
 
     #defineOptions() {
-        this.addProperty('backgroundColor', 'white')
+        this.addProperty('backgroundColor', DEFAULT_BACKGROUND_COLOR)
         this.addProperty(
             'borderRadius',
-            [0, 0, 0, 0],
+            DEFAULT_BORDER_RADIUS,
             false,
             undefined,
             (block: RectangleBlock, opt?: BorderRadius) =>
                 this.#borderRadius(block, opt)
         )
         this.addProperty('borderWidth', 0, true)
-        this.addProperty('borderColor', 'white')
-        this.addProperty('borderStyle', 'solid')
+        this.addProperty('borderColor', DEFAULT_BORDER_COLOR)
+        this.addProperty('borderStyle', DEFAULT_BORDER_STYLE)
         this.addProperty(
             'border',
             undefined,
@@ -160,7 +166,7 @@ export class RectangleBlock<
         ctx.lineWidth = width as number
         ctx.strokeStyle = color as string
         if (style === 'dotted') {
-            ctx.setLineDash([4, 4])
+            ctx.setLineDash(DOTTED_BORDER_DASH)
             ctx.lineCap = 'butt'
         } else {
             ctx.setLineDash([])
