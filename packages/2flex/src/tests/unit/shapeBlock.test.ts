@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas, ShapeBlock } from '@2flexible/2flex'
-import type { IShapeOptions } from '../../ShapeBlock'
+import type { ShapeBlockOptions as IShapeOptions } from '@2flexible/2flex'
 import { flush, removeCanvasElements } from './helpers'
 
 let shape: ShapeBlock
@@ -301,6 +301,16 @@ describe('ShapeBlock', () => {
     describe('without a context', () => {
         beforeEach(() => {
             shape = new ShapeBlock({ x: 0, y: 0, width: 100, height: 100 })
+        })
+        it('should reject a missing point before checking the path', () => {
+            expect(() => shape.pointInPath(undefined as never)).toThrow(
+                /ShapeBlock\.pointInPath\(\).*point/
+            )
+        })
+        it('should reject an invalid drawing callback', () => {
+            expect(() => shape.draw(10 as never)).toThrow(
+                /ShapeBlock\.draw\(\).*function/
+            )
         })
         it('should not find a point in the path', () => {
             expect(shape.pointInPath({ x: 0, y: 0 })).toBe(false)
@@ -1372,14 +1382,15 @@ describe('ShapeBlock', () => {
                 ],
             ])
             it('should draw the shape with the global composite operation', async () => {
-                // the canvas paints the block which was added first on top, so
-                // the blended shape has to be added first to blend with the one
-                // below it
+                // the canvas paints the block which was added last on top, so
+                // the blended shape needs a higher z index to blend with the
+                // one below it
                 const blended = new ShapeBlock({
                     x: 50,
                     y: 30,
                     width: 60,
                     height: 40,
+                    zIndex: 1,
                     globalCompositeOperation: 'multiply',
                     ...fillOf('blue'),
                     rect,

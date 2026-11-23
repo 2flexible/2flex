@@ -1,24 +1,25 @@
-import { HotLineBlock, IHotLineOptions } from './mixins/HotLineBlock'
-import { BaseBlock, IBaseBlockOptions, onRender } from './BaseBlock'
+import { HotLineBlock, IHotLineBlockOptions } from './mixins/HotLineBlock'
+import { BaseBlock, BaseBlockOptions, onRender } from './BaseBlock'
 import { AnimationBlock, IAnimationBlock } from './mixins/AnimationBlock'
 import { DraggableBlock, IDraggableOptions } from './mixins/DraggableBlock'
 import { IOverflowOptions, OverflowBlock } from './mixins/OverflowBlock'
 import { IResizableOptions, ResizableBlock } from './mixins/ResizableBlock'
 import { IRotatableOptions, RotatableBlock } from './mixins/RotatableBlock'
 import { SelectableBlock, ISelectableOptions } from './mixins/SelectableBlock'
+import { clampSize } from './Utils'
 
-export interface IBlockOptions
+export interface BlockOptions
     extends
-        IBaseBlockOptions,
+        BaseBlockOptions,
         IOverflowOptions,
-        IHotLineOptions,
+        IHotLineBlockOptions,
         ISelectableOptions,
         IResizableOptions,
         IRotatableOptions,
         IDraggableOptions,
         IAnimationBlock {}
 
-export class Block extends OverflowBlock(
+export class Block<T extends BlockOptions = BlockOptions> extends OverflowBlock(
     HotLineBlock(
         SelectableBlock(
             ResizableBlock(
@@ -29,8 +30,8 @@ export class Block extends OverflowBlock(
 ) {
     #userOnRender?: onRender
     #onRenderWrapper?: onRender
-    constructor(options: IBlockOptions) {
-        super(options)
+    constructor(options: BlockOptions) {
+        super(options as T)
         this.addProperty(
             'onRender',
             undefined,
@@ -42,6 +43,9 @@ export class Block extends OverflowBlock(
         super.render()
         this.__childClipping?.(this)
     }
+    set(options: T): void {
+        super.set(options)
+    }
     #onRender(thisBlock: Block, opt?: onRender) {
         // getter call returns already wrapped value, so it must not be
         // registered as a new user callback or it would wrap itself forever
@@ -49,7 +53,7 @@ export class Block extends OverflowBlock(
             thisBlock.#userOnRender = opt
 
         if (thisBlock.#onRenderWrapper === undefined) {
-            thisBlock.#onRenderWrapper = (block: any) => {
+            thisBlock.#onRenderWrapper = (block: BaseBlock) => {
                 thisBlock.context?.save()
                 // need to clip child before restore if its exist
                 block.__childClipping?.(thisBlock)
@@ -70,22 +74,16 @@ export class Block extends OverflowBlock(
         const overflowXSign = blockHorizontalFlip ? -1 : 1
         const overflowYSign = blockVerticalFlip ? -1 : 1
 
-        const pWidth = Math.abs(this.width())
-        const pHeight = Math.abs(this.height())
+        const pWidth = Math.abs(this.width()) - this.__overflowRightGap
+        const pHeight = Math.abs(this.height()) - this.__overflowBottomGap
 
         const pPaddingLeft = this.paddingLeft()
-        const pPaddingRight = this.paddingRight()
         const pPaddingTop = this.paddingTop()
-        const pPaddingBottom = this.paddingBottom()
-
-        const pWidthSpaces = pWidth - (pPaddingLeft + pPaddingRight)
-        const pHeightSpaces = pHeight - (pPaddingTop + pPaddingBottom)
 
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
 
-        const pCurrentRotate = this.getOptionCurrent('rotate')
-        const pCacheRotate = this.getOptionCache('rotate')
+        const pCurrentRotate = this.__rotation()
 
         const cornerLeftX = this.cornerTopLeft().x
         const cornerTopY = this.cornerTopLeft().y
@@ -101,22 +99,26 @@ export class Block extends OverflowBlock(
 
         let blocksContainerWidth = 0
         let blocksContainerHeight = 0
+        let laidOutCount = 0
 
-        this.listOnlyChilds((b: BaseBlock, currIdx, arrLen) => {
+        this.listOnlyChilds((b: BaseBlock) => {
             const blockPosition = b.position()
-            if (blockPosition === 'absolute' || blockPosition === 'fixed')
+            b.__parentHidden = this.__isHidden()
+            if (blockPosition === 'absolute' || blockPosition === 'fixed') {
+                b.__childAdjustment = undefined
+                b.__resetParentRotation()
+                b.canvas?.demandInvoke(b)
                 return
-            let blockW = Math.abs(b.width())
-            let blockH = Math.abs(b.height())
+            }
+            laidOutCount++
+            let blockW = Math.abs(b.__boxWidth())
+            let blockH = Math.abs(b.__boxHeight())
 
-            const blockInitW = b.__valueConverter({
-                val: b.initWidth,
-                widthRelated: true,
-            }) as number
-            const blockInitH = b.__valueConverter({
-                val: b.initHeight,
-                widthRelated: false,
-            }) as number
+            const blockInitW = b.__initResolved('width') as number
+            const blockInitH = b.__initResolved('height') as number
+            // a child without a size keeps the size it measured for itself
+            const blockOwnsWidth = blockInitW === undefined
+            const blockOwnsHeight = blockInitH === undefined
 
             const blockMarginTop = b.marginTop()
             const blockMarginBottom = b.marginBottom()
@@ -133,7 +135,7 @@ export class Block extends OverflowBlock(
                 blockH + blockMarginTop + blockMarginBottom
 
             wrapWidth += blockWidthSpaces
-            if (wrapWidth > pWidthSpaces) {
+            if (wrapWidth > pWidth) {
                 startX = 0
                 blocksContainerHeight += containerH
                 wrapWidth = blockWidthSpaces
@@ -201,25 +203,29 @@ export class Block extends OverflowBlock(
             if (containerW > blocksContainerWidth)
                 blocksContainerWidth = containerW
 
-            if (currIdx == arrLen - 1) blocksContainerHeight += containerH
+            blockW = blockInitW !== undefined ? blockInitW : blockW
+            blockH = blockInitH !== undefined ? blockInitH : blockH
 
-            blockW = blockInitW
-            blockH = blockInitH
-
-            b.setOptionCurrent('rotate', pCurrentRotate)
-            b.setOptionCache('rotate', pCacheRotate)
+            b.__parentRotate = pCurrentRotate
             b.__childAdjustment = (b: BaseBlock) => {
-                b.hidden(this.hidden())
                 if (b.rotationCenter() === 'parent') {
-                    b.rotationCenterX(centerX)
-                    b.rotationCenterY(centerY)
+                    b.setOptionCurrent('rotationCenterX', centerX)
+                    b.setOptionCurrent('rotationCenterY', centerY)
                 }
-                b.x(x)
-                b.y(y)
-                if (blockHorizontalFlip) blockW = -blockW
-                if (blockVerticalFlip) blockH = -blockH
-                b.width(blockW)
-                b.height(blockH)
+                b.setOptionCurrent('x', x)
+                b.setOptionCurrent('y', y)
+                const childPaddingW = b.paddingLeft() + b.paddingRight()
+                const childPaddingH = b.paddingTop() + b.paddingBottom()
+                // the size of the child is read again, it may have measured
+                // itself after the parent measured it
+                const childW = blockOwnsWidth ? Math.abs(b.width()) : blockW
+                const childH = blockOwnsHeight ? Math.abs(b.height()) : blockH
+                let borderW = childW + childPaddingW
+                let borderH = childH + childPaddingH
+                if (blockHorizontalFlip) borderW = -borderW
+                if (blockVerticalFlip) borderH = -borderH
+                b.setOptionCurrent('width', clampSize(borderW - childPaddingW))
+                b.setOptionCurrent('height', clampSize(borderH - childPaddingH))
             }
 
             b.__childClipping = (b: BaseBlock) => {
@@ -245,6 +251,7 @@ export class Block extends OverflowBlock(
             }
             b.canvas?.demandInvoke(b)
         })
+        if (laidOutCount > 0) blocksContainerHeight += containerH
         this.__childsContainer = {
             width: blocksContainerWidth,
             height: blocksContainerHeight,

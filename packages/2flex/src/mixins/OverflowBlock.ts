@@ -1,6 +1,8 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
+    OVERFLOW_AREA_GAP,
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
     OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
@@ -13,7 +15,7 @@ import { clamp, checkInBound } from '../Utils'
 
 export type Overflow = 'visible' | 'hidden' | 'scroll' | 'auto'
 
-export interface IOverflowOptions extends IBaseBlockOptions {
+export interface IOverflowOptions extends BaseBlockOptions {
     overflow?: Overflow
     overflowX?: Overflow
     overflowY?: Overflow
@@ -21,42 +23,52 @@ export interface IOverflowOptions extends IBaseBlockOptions {
     overflowPositionY?: number
 }
 
+interface OverflowBlockAccessors extends OwnOptionAccessors<
+    IOverflowOptions,
+    BaseBlockOptions
+> {}
+
 // these const values should be customizable options
 const OVERFLOW_SCROLL_BAR_MIN_SIZE = 15
-const OVERFLOW_AREA_GAP = 15
 const OVERFLOW_INNER_AREA_GAP = 3
 const OVERFLOW_INNER_AREA_SIZE = 10
 const OVERFLOW_INNER_AREA_RADIUS = 10
+const OVERFLOW_SCROLL_BAR_BACKGROUND_COLOR = 'white'
+const OVERFLOW_SCROLL_BAR_THUMB_COLOR = 'gray'
+const DEFAULT_OVERFLOW: Overflow = 'visible'
 
 export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class OverflowBlock extends Base {
         #overflowXscrollBarBlock?: BaseBlock
         #overflowYscrollBarBlock?: BaseBlock
         #overflowWidth: number
         #overflowHeight: number
-        __clipPath?: Path2D
+        declare __clipPath?: Path2D
         clipChild?: (b: BaseBlock) => void
 
         constructor(...args: any[]) {
             super(...args)
             this.#overflowWidth = 0
             this.#overflowHeight = 0
-            this.addProperty('overflow', 'visible', false, (block: BaseBlock) =>
-                this.#overflowXY(block)
+            this.addProperty(
+                'overflow',
+                DEFAULT_OVERFLOW,
+                false,
+                (block: OverflowBlock) => this.#overflowXY(block)
             )
             this.addProperty(
                 'overflowX',
-                'visible',
+                DEFAULT_OVERFLOW,
                 false,
-                (block: BaseBlock) => this.#overflowX(block)
+                (block: OverflowBlock) => this.#overflowX(block)
             )
             this.addProperty(
                 'overflowY',
-                'visible',
+                DEFAULT_OVERFLOW,
                 false,
-                (block: BaseBlock) => this.#overflowY(block)
+                (block: OverflowBlock) => this.#overflowY(block)
             )
             this.addProperty('overflowPositionX', 0, true)
             this.addProperty('overflowPositionY', 0, false)
@@ -70,33 +82,33 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#overflowXscrollBarBlock?.__invokeChange()
             this.#overflowYscrollBarBlock?.__invokeChange()
         }
-        #overflowX(block: any) {
+        #overflowX(block: OverflowBlock) {
             if (
                 (block.__isOverflowXScroll || block.__isOverflowXAuto) &&
                 !block.#overflowXscrollBarBlock
             ) {
                 const scrollBar = block.#overflowXScrollBar(block)
-                block.canvas?.add(scrollBar)
+                block.addChild(scrollBar)
             }
         }
-        #overflowY(block: any) {
+        #overflowY(block: OverflowBlock) {
             if (
                 (block.__isOverflowYScroll || block.__isOverflowYAuto) &&
                 !block.#overflowYscrollBarBlock
             ) {
                 const scrollBar = block.#overflowYScrollBar(block)
-                block.canvas?.add(scrollBar)
+                block.addChild(scrollBar)
             }
         }
-        #overflowXY(block: any) {
+        #overflowXY(block: OverflowBlock) {
             block.#overflowX(block)
             block.#overflowY(block)
         }
         #visualBounds() {
             const x0 = this.x()
-            const x1 = x0 + this.width()
+            const x1 = x0 + this.__boxWidth()
             const y0 = this.y()
-            const y1 = y0 + this.height()
+            const y1 = y0 + this.__boxHeight()
             return {
                 minX: Math.min(x0, x1),
                 maxX: Math.max(x0, x1),
@@ -121,17 +133,11 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#overflowXscrollBarBlock.rotationCenterY(
                 this.rotationCenterY()
             )
-            this.#overflowXscrollBarBlock.rotate(this.rotate())
+            this.#overflowXscrollBarBlock.rotate(this.__rotation())
             this.#overflowXscrollBarBlock.left(left)
             this.#overflowXscrollBarBlock.top(top)
             this.#overflowXscrollBarBlock.width(maxX - minX)
             this.#overflowXscrollBarBlock.height(OVERFLOW_AREA_GAP)
-            // Showing overflow scroll bar block on top of the child blocks
-            this.#overflowXscrollBarBlock.zIndex(
-                1 +
-                    (this.__getHighestChildZIndex() ?? 0) +
-                    (this.#overflowYscrollBarBlock ? 1 : 0)
-            )
         }
         #updateOverflowYBlockParameters() {
             if (!this.#overflowYscrollBarBlock) return
@@ -155,30 +161,20 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#overflowYscrollBarBlock.rotationCenterY(
                 this.rotationCenterY()
             )
-            this.#overflowYscrollBarBlock.rotate(this.rotate())
+            this.#overflowYscrollBarBlock.rotate(this.__rotation())
             this.#overflowYscrollBarBlock.left(left)
             this.#overflowYscrollBarBlock.top(top)
             this.#overflowYscrollBarBlock.width(OVERFLOW_AREA_GAP)
             this.#overflowYscrollBarBlock.height(coverHeight)
-            // Showing overflow scroll bar block on top of the child blocks
-            this.#overflowYscrollBarBlock.zIndex(
-                1 + (this.__getHighestChildZIndex() ?? 0)
-            )
         }
         #updateOverflowCordinates() {
             if (this.__isOverflowVisible) return
             const beforeWidth = this.#overflowWidth
             const beforeHeight =
                 this.#overflowHeight || this.#overflowScrollYHeightCut
-            const visibleWidth =
-                Math.abs(this.width()) -
-                this.paddingLeft() -
-                this.paddingRight()
+            const visibleWidth = Math.abs(this.width())
             const visibleHeight =
-                Math.abs(this.height()) -
-                this.paddingTop() -
-                this.paddingBottom() -
-                this.#overflowScrollYHeightCut
+                Math.abs(this.height()) - this.#overflowScrollYHeightCut
 
             this.#overflowWidth = visibleWidth - this.__childsContainer.width
             this.#overflowHeight = visibleHeight - this.__childsContainer.height
@@ -226,8 +222,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.__clipPath?.rect(
                 this.x(),
                 this.y(),
-                this.width(),
-                this.height()
+                this.__boxWidth(),
+                this.__boxHeight()
             )
         }
         #clippingPath() {
@@ -268,6 +264,12 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
         get __isOverflowYScrollable() {
             return this.__isOverflowYScroll || this.__isOverflowYAutoAllowScrool
         }
+        get __overflowRightGap(): number {
+            return this.__isOverflowYScrollable ? OVERFLOW_AREA_GAP : 0
+        }
+        get __overflowBottomGap(): number {
+            return this.__isOverflowXScrollable ? OVERFLOW_AREA_GAP : 0
+        }
         get __isOverflowExists() {
             const overflow = this.getOptionCurrent('overflow') || 'visible'
             return (
@@ -300,7 +302,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             return this.__isOverflowXScrollable ? OVERFLOW_AREA_GAP : 0
         }
         get #overflowXScrollPer() {
-            const width = Math.abs(this.width())
+            const width = Math.abs(this.__boxWidth())
             const areaWidth = clamp(
                 width + this.#overflowWidth,
                 OVERFLOW_SCROLL_BAR_MIN_SIZE,
@@ -311,7 +313,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             return 1
         }
         get #overflowYScrollPer() {
-            const height = Math.abs(this.height())
+            const height = Math.abs(this.__boxHeight())
             const areaHeight = clamp(
                 height +
                     (this.#overflowHeight - this.#overflowScrollYHeightCut),
@@ -345,7 +347,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             // need to clip overflow area too
             block.__childClipping?.(hotLineBlock)
             context.translate(block.rotationCenterX(), block.rotationCenterY())
-            context.rotate(block.rotate())
+            context.rotate(block.__rotation())
             context.translate(
                 -block.rotationCenterX(),
                 -block.rotationCenterY()
@@ -360,7 +362,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 coverAreaHeight,
                 0
             )
-            context.fillStyle = 'white'
+            context.fillStyle = OVERFLOW_SCROLL_BAR_BACKGROUND_COLOR
             context.fill()
             context.stroke()
             context.beginPath()
@@ -371,17 +373,18 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 innerScrollHeight,
                 innerScrollRadius
             )
-            context.fillStyle = 'gray'
+            context.fillStyle = OVERFLOW_SCROLL_BAR_THUMB_COLOR
             context.fill()
             context.restore()
         }
-        #overflowXScrollBar(block: any) {
+        #overflowXScrollBar(block: OverflowBlock) {
             if (block.#overflowXscrollBarBlock)
                 return block.#overflowXscrollBarBlock
-            block.#overflowXscrollBarBlock = new BaseBlock({
+            const scrollBar = new BaseBlock({
                 name: OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
                 position: 'fixed',
             })
+            block.#overflowXscrollBarBlock = scrollBar
             block.#updateOverflowXBlockParameters()
             // moving overflow scrollbar
             let initCords = { x: 0, y: 0 }
@@ -394,18 +397,11 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     !block.__isOverflowXScrollable
                 )
                     return
-                const cornerTopLeft =
-                    block.#overflowXscrollBarBlock?.cornerTopLeft()!
-                const cornerTopRight =
-                    block.#overflowXscrollBarBlock?.cornerTopRight()!
-                const cornerBottomLeft =
-                    block.#overflowXscrollBarBlock?.cornerBottomLeft()!
-                const cornerBottomRight =
-                    block.#overflowXscrollBarBlock?.cornerBottomRight()!
-                initCords =
-                    block.#overflowXscrollBarBlock?.canvas?.getCursorPosition(
-                        event
-                    )!
+                const cornerTopLeft = scrollBar.cornerTopLeft()
+                const cornerTopRight = scrollBar.cornerTopRight()
+                const cornerBottomLeft = scrollBar.cornerBottomLeft()
+                const cornerBottomRight = scrollBar.cornerBottomRight()
+                initCords = scrollBar.canvas?.getCursorPosition(event)!
                 if (
                     checkInBound(
                         initCords.x,
@@ -418,19 +414,22 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         cornerBottomLeft.y,
                         cornerBottomRight.x,
                         cornerBottomRight.y
-                    ) &&
-                    !(block.__isOverflowXAuto && block.#overflowWidth < 0)
+                    )
                 ) {
                     beforeCords = { x: 0, y: 0 }
                     beforeValues = {
                         overflowPositionX: block.overflowPositionX(),
                     }
-                    block.#overflowXscrollBarBlock.__registerZIndex()
+                    scrollBar.__registerZIndex()
                     block.__updateRunningEvent(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT,
                         true
                     )
-                } else block.#overflowXscrollBarBlock.__unregisterZIndex()
+
+                    block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
+                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                    block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
+                } else scrollBar.__unregisterZIndex()
             }
             const mousemove = (event: MouseEvent) => {
                 if (
@@ -439,12 +438,9 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     ) &&
                     block.isMouseEventAllowed &&
                     block.#overflowWidth < 0 &&
-                    block.#overflowXscrollBarBlock.__ImFirst()
+                    scrollBar.__ImFirst()
                 ) {
-                    const { x, y } =
-                        block.#overflowXscrollBarBlock.canvas?.getCursorPosition(
-                            event
-                        )!
+                    const { x, y } = scrollBar.canvas?.getCursorPosition(event)!
 
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
@@ -452,7 +448,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     if (diffX !== 0 || diffY !== 0) {
                         const dxX = diffX - beforeCords.x
                         const dxY = diffY - beforeCords.y
-                        const angle = block.rotate()
+                        const angle = block.__rotation()
 
                         const signX = block.horizontalFlip() ? -1 : 1
                         const scrollDeltaX =
@@ -466,8 +462,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         beforeCords.y = diffY
                         block.__invokeChange()
                     }
-                    block.#overflowXscrollBarBlock.__selectCursor('auto')
-                } else block.#overflowXscrollBarBlock.__resetCursor('auto')
+                    scrollBar.__selectCursor('auto')
+                } else scrollBar.__resetCursor('auto')
             }
             const mouseup = () => {
                 if (
@@ -480,9 +476,9 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT,
                         false
                     )
-                    block.#overflowXscrollBarBlock?.__unregisterZIndex()
+                    scrollBar.__unregisterZIndex()
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                        const after: any = {
+                        const after: Record<string, unknown> = {
                             overflowPositionX: block.overflowPositionX(),
                         }
                         block.__invokeHistory(beforeValues, after)
@@ -490,18 +486,15 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     }
                 }
             }
-            block.#overflowXscrollBarBlock?.__addEvent('mousedown', mousedown)
-            block.#overflowXscrollBarBlock?.__addEvent('mousemove', mousemove)
-            block.#overflowXscrollBarBlock?.__addEvent('mouseup', mouseup)
-            block.#overflowXscrollBarBlock.onRender(
+            scrollBar.__addEvent('mousedown', mousedown)
+            scrollBar.__addEvent('mousemove', mousemove)
+            scrollBar.__addEvent('mouseup', mouseup)
+            scrollBar.onRender(
                 (overflowXScrollBar: BaseBlock) => {
-                    if (
-                        (block.__isOverflowXAuto && block.#overflowWidth > 0) ||
-                        !overflowXScrollBar
-                    )
+                    if (!block.__isOverflowXScrollable || !overflowXScrollBar)
                         return
 
-                    const width = Math.abs(block.width())
+                    const width = Math.abs(block.__boxWidth())
                     const areaWidth = clamp(
                         width + block.#overflowWidth,
                         OVERFLOW_SCROLL_BAR_MIN_SIZE,
@@ -537,14 +530,15 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             )
             return block.#overflowXscrollBarBlock
         }
-        #overflowYScrollBar(block: any) {
+        #overflowYScrollBar(block: OverflowBlock) {
             if (block.#overflowYscrollBarBlock)
                 return block.#overflowYscrollBarBlock
 
-            block.#overflowYscrollBarBlock = new BaseBlock({
+            const scrollBar = new BaseBlock({
                 name: OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
                 position: 'fixed',
             })
+            block.#overflowYscrollBarBlock = scrollBar
             block.#updateOverflowYBlockParameters()
             // moving overflow scrollbar
             let initCords = { x: 0, y: 0 }
@@ -557,19 +551,12 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     !block.__isOverflowYScrollable
                 )
                     return
-                const cornerTopLeft =
-                    block.#overflowYscrollBarBlock?.cornerTopLeft()!
-                const cornerTopRight =
-                    block.#overflowYscrollBarBlock?.cornerTopRight()!
-                const cornerBottomLeft =
-                    block.#overflowYscrollBarBlock?.cornerBottomLeft()!
-                const cornerBottomRight =
-                    block.#overflowYscrollBarBlock?.cornerBottomRight()!
+                const cornerTopLeft = scrollBar.cornerTopLeft()
+                const cornerTopRight = scrollBar.cornerTopRight()
+                const cornerBottomLeft = scrollBar.cornerBottomLeft()
+                const cornerBottomRight = scrollBar.cornerBottomRight()
 
-                initCords =
-                    block.#overflowYscrollBarBlock.canvas?.getCursorPosition(
-                        event
-                    )!
+                initCords = scrollBar.canvas?.getCursorPosition(event)!
                 if (
                     checkInBound(
                         initCords.x,
@@ -582,14 +569,13 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         cornerBottomLeft.y,
                         cornerBottomRight.x,
                         cornerBottomRight.y
-                    ) &&
-                    !(block.__isOverflowYAuto && block.#overflowHeight < 0)
+                    )
                 ) {
                     beforeCords = { x: 0, y: 0 }
                     beforeValues = {
                         overflowPositionY: block.overflowPositionY(),
                     }
-                    block.#overflowYscrollBarBlock.__registerZIndex()
+                    scrollBar.__registerZIndex()
                     block.__updateRunningEvent(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT,
                         true
@@ -598,7 +584,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
                     block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
-                } else block.#overflowYscrollBarBlock.__unregisterZIndex()
+                } else scrollBar.__unregisterZIndex()
             }
             const mousemove = (event: MouseEvent) => {
                 if (
@@ -607,19 +593,16 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     ) &&
                     block.isMouseEventAllowed &&
                     block.#overflowHeight < 0 &&
-                    block.#overflowYscrollBarBlock.__ImFirst()
+                    scrollBar.__ImFirst()
                 ) {
-                    const { x, y } =
-                        block.#overflowYscrollBarBlock.canvas?.getCursorPosition(
-                            event
-                        )!
+                    const { x, y } = scrollBar.canvas?.getCursorPosition(event)!
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
 
                     if (diffY !== 0 || diffX !== 0) {
                         const dxX = diffX - beforeCords.x
                         const dxY = diffY - beforeCords.y
-                        const angle = block.rotate()
+                        const angle = block.__rotation()
 
                         const signY = block.verticalFlip() ? -1 : 1
                         const scrollDeltaY =
@@ -633,8 +616,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         beforeCords.y = diffY
                         block.__invokeChange()
                     }
-                    block.#overflowYscrollBarBlock.__selectCursor('auto')
-                } else block.#overflowYscrollBarBlock.__resetCursor('auto')
+                    scrollBar.__selectCursor('auto')
+                } else scrollBar.__resetCursor('auto')
             }
             const mouseup = () => {
                 if (
@@ -646,9 +629,9 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         OVERFLOW_Y_SCROLL_RUNNING_EVENT,
                         false
                     )
-                    block.#overflowYscrollBarBlock.__unregisterZIndex()
+                    scrollBar.__unregisterZIndex()
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                        const after: any = {
+                        const after: Record<string, unknown> = {
                             overflowPositionY: block.overflowPositionY(),
                         }
                         block.__invokeHistory(beforeValues, after)
@@ -656,19 +639,15 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     }
                 }
             }
-            block.#overflowYscrollBarBlock.__addEvent('mousedown', mousedown)
-            block.#overflowYscrollBarBlock.__addEvent('mousemove', mousemove)
-            block.#overflowYscrollBarBlock.__addEvent('mouseup', mouseup)
-            block.#overflowYscrollBarBlock.onRender(
+            scrollBar.__addEvent('mousedown', mousedown)
+            scrollBar.__addEvent('mousemove', mousemove)
+            scrollBar.__addEvent('mouseup', mouseup)
+            scrollBar.onRender(
                 (overflowYScrollBar: BaseBlock) => {
-                    if (
-                        (block.__isOverflowYAuto &&
-                            block.#overflowHeight > 0) ||
-                        !overflowYScrollBar
-                    )
+                    if (!block.__isOverflowYScrollable || !overflowYScrollBar)
                         return
 
-                    const height = Math.abs(block.height())
+                    const height = Math.abs(block.__boxHeight())
                     const areaHeight = clamp(
                         height +
                             (block.#overflowHeight -
@@ -706,3 +685,6 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             return block.#overflowYscrollBarBlock
         }
     }
+    interface OverflowBlock extends OverflowBlockAccessors {}
+    return OverflowBlock
+}

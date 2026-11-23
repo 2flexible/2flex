@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { Block, Canvas, LayoutBlock } from '@2flexible/2flex'
+import {
+    Block,
+    Canvas,
+    LayoutBlock,
+    RectangleBlock,
+    TextBlock,
+} from '@2flexible/2flex'
 import { flush, removeCanvasElements } from './helpers'
 
 let canvas: Canvas
@@ -42,6 +48,11 @@ describe('LayoutBlock', () => {
         beforeEach(async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             await flush()
+        })
+        it('should reject an unsupported layout type at construction', () => {
+            expect(() => new LayoutBlock({ layout: 'stack' as never })).toThrow(
+                /new LayoutBlock\(\).*options\.layout/
+            )
         })
         it('should lay out childs in a row by default', async () => {
             layout = new LayoutBlock({ width: 300, height: 200 })
@@ -118,7 +129,15 @@ describe('LayoutBlock', () => {
             childs.forEach((child) => layout.addChild(child))
             canvas.add(layout)
             await flush()
-            expect([layout.width(), layout.height()]).toStrictEqual([150, 40])
+            // a grid without a template lays its childs out in a single
+            // column, so it takes the width of the widest child and the
+            // height of all of them
+            expect([layout.width(), layout.height()]).toStrictEqual([50, 120])
+            expect(positions(childs)).toStrictEqual([
+                [0, 0],
+                [0, 40],
+                [0, 80],
+            ])
         })
         it('should lay out a grid back as a row', async () => {
             layout = new LayoutBlock({
@@ -193,6 +212,104 @@ describe('LayoutBlock', () => {
             canvas.add(layout)
             await flush()
             expect([layout.width(), layout.height()]).toStrictEqual([300, 200])
+        })
+    })
+
+    describe('self sizing', () => {
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            await flush()
+        })
+        it('should size a flex row from its childs', async () => {
+            layout = new LayoutBlock({ layout: 'flex' })
+            layout.addChild(new Block({ width: 150, height: 50 }))
+            layout.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(layout)
+            await flush()
+
+            // a row sums up the widths and takes the biggest height
+            expect([layout.width(), layout.height()]).toStrictEqual([200, 80])
+        })
+        it('should size a flex column from its childs', async () => {
+            layout = new LayoutBlock({
+                layout: 'flex',
+                flexDirection: 'column',
+            })
+            layout.addChild(new Block({ width: 150, height: 50 }))
+            layout.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(layout)
+            await flush()
+
+            // a column sums up the heights and takes the biggest width
+            expect([layout.width(), layout.height()]).toStrictEqual([150, 130])
+        })
+        it('should size an inline-flex from its childs', async () => {
+            layout = new LayoutBlock({ layout: 'inline-flex' })
+            const childs = createChilds(3, 50, 40)
+            childs.forEach((child) => layout.addChild(child))
+            canvas.add(layout)
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([150, 40])
+        })
+        it('should size a grid from the tracks of its template', async () => {
+            layout = new LayoutBlock({
+                layout: 'grid',
+                gridTemplateColumns: [100, 100],
+            })
+            const childs = createChilds(4, 50, 50)
+            childs.forEach((child) => layout.addChild(child))
+            canvas.add(layout)
+            await flush()
+
+            expect(layout.width()).toBe(200)
+        })
+        it('should follow a child which is resized', async () => {
+            layout = new LayoutBlock({ layout: 'inline-flex' })
+            const child = new Block({ width: 150, height: 50 })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([150, 50])
+
+            child.set({ width: 300 })
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([300, 50])
+        })
+        it('should follow a child which is added', async () => {
+            layout = new LayoutBlock({ layout: 'inline-flex' })
+            layout.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(layout)
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([150, 50])
+
+            layout.addChild(new Block({ width: 50, height: 80 }))
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([200, 80])
+        })
+        it('should follow a child which is removed', async () => {
+            layout = new LayoutBlock({ layout: 'inline-flex' })
+            const child = new Block({ width: 150, height: 50 })
+            layout.addChild(child)
+            layout.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(layout)
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([200, 80])
+
+            layout.removeChild(child)
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([50, 80])
+        })
+        it('should keep an explicit size of a flex layout block', async () => {
+            layout = new LayoutBlock({ layout: 'flex', width: 300 })
+            layout.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(layout)
+            await flush()
+
+            expect([layout.width(), layout.height()]).toStrictEqual([300, 50])
         })
     })
 
@@ -425,6 +542,264 @@ describe('LayoutBlock', () => {
             await settle(layout)
             // the basis is the size the child takes up in the column
             expect([childs[0].height(), childs[1].y()]).toStrictEqual([80, 80])
+        })
+    })
+
+    describe('cross axis', () => {
+        // a child which does not fit into the layout block on the axis it is
+        // aligned on is scaled down to the space of the layout block. a
+        // wrapped layout grows its lines instead, like it does in css
+        const setup = async (
+            direction: 'row' | 'column',
+            wrap: boolean,
+            child: Block
+        ) => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexDirection: direction,
+                flexWrap: wrap ? 'wrap' : 'nowrap',
+            })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+        }
+
+        it('should scale down a child which is taller than a row', async () => {
+            const child = new Block({ width: 50, height: 400 })
+            await setup('row', false, child)
+            expect(child.height()).toBe(200)
+        })
+
+        it('should scale down a child which is wider than a column', async () => {
+            const child = new Block({ width: 400, height: 50 })
+            await setup('column', false, child)
+            expect(child.width()).toBe(300)
+        })
+
+        it('should keep the padding of a scaled down child out of it', async () => {
+            const child = new Block({ width: 50, height: 400, padding: 10 })
+            await setup('row', false, child)
+            // the padding is part of the size of the child
+            expect(child.height()).toBe(180)
+        })
+
+        it('should not scale a child below its minimum height', async () => {
+            const child = new Block({ width: 50, height: 400, minHeight: 350 })
+            await setup('row', false, child)
+            expect(child.height()).toBe(350)
+        })
+
+        it('should not scale a child below its minimum width', async () => {
+            const child = new Block({ width: 400, height: 50, minWidth: 350 })
+            await setup('column', false, child)
+            expect(child.width()).toBe(350)
+        })
+
+        it('should keep a child which fits into the layout block', async () => {
+            const child = new Block({ width: 100, height: 50 })
+            await setup('row', false, child)
+            expect([child.width(), child.height()]).toStrictEqual([100, 50])
+        })
+
+        it('should keep a child which fits into a wrapped column', async () => {
+            const child = new Block({ width: 100, height: 50 })
+            await setup('column', true, child)
+            expect([child.width(), child.height()]).toStrictEqual([100, 50])
+        })
+
+        it('should keep the cross axis of a child with a flex basis', async () => {
+            const child = new Block({ width: 100, height: 50, flexBasis: 400 })
+            await setup('column', true, child)
+            // the basis is the size on the main axis, the width is the cross
+            // axis and it is kept
+            expect(child.width()).toBe(100)
+        })
+
+        it('should scale down the cross axis of a child with a flex basis', async () => {
+            const child = new Block({ width: 400, height: 50, flexBasis: 100 })
+            await setup('column', false, child)
+            // the basis is the size on the main axis, the width is the cross
+            // axis and it is scaled down
+            expect(child.width()).toBe(300)
+        })
+
+        it('should scale down a child of a flipped layout block', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexDirection: 'column',
+                horizontalFlip: true,
+            })
+            const child = new Block({ width: 400, height: 50 })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+            // the width is the cross axis of a column, so it is scaled down
+            expect(child.width()).toBe(300)
+        })
+
+        it('should scale down a child of a vertically flipped layout block', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                verticalFlip: true,
+            })
+            const child = new Block({ width: 50, height: 400 })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+            // the height is the cross axis of a row, so it is scaled down
+            expect(child.height()).toBe(200)
+        })
+
+        it('should let a child of a wrapped row reach out of the layout block', async () => {
+            const child = new Block({ width: 50, height: 400 })
+            await setup('row', true, child)
+            // a wrapped layout grows its lines instead of scaling its childs
+            // down, so the child keeps its size
+            expect(child.height()).toBe(400)
+            expect(layout.__childsContainer).toStrictEqual({
+                width: 50,
+                height: 400,
+            })
+        })
+
+        it('should let a child of a wrapped column reach out of the layout block', async () => {
+            const child = new Block({ width: 400, height: 50 })
+            await setup('column', true, child)
+            expect(child.width()).toBe(400)
+            expect(layout.__childsContainer).toStrictEqual({
+                width: 400,
+                height: 50,
+            })
+        })
+
+        it('should grow the line of a wrapped row to its tallest child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexWrap: 'wrap',
+            })
+            // the two childs do not fit into one row, so the second one is
+            // placed below the first line
+            const first = new Block({ width: 200, height: 400 })
+            const second = new Block({ width: 200, height: 50 })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            expect([first.y(), second.y()]).toStrictEqual([0, 400])
+            expect(layout.__childsContainer).toStrictEqual({
+                width: 200,
+                height: 450,
+            })
+        })
+
+        it('should grow the column of a wrapped column to its widest child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexDirection: 'column',
+                flexWrap: 'wrap',
+            })
+            // the two childs do not fit into one column, so the second one is
+            // placed beside the first column
+            const first = new Block({ width: 400, height: 100 })
+            const second = new Block({ width: 100, height: 100 })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            expect([first.x(), second.x()]).toStrictEqual([0, 0])
+            expect([first.y(), second.y()]).toStrictEqual([0, 100])
+            expect(layout.__childsContainer).toStrictEqual({
+                width: 400,
+                height: 200,
+            })
+        })
+
+        it('should align a child of a grown line on its cross axis', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+            })
+            const tall = new Block({ width: 200, height: 400 })
+            const small = new Block({ width: 100, height: 50 })
+            layout.addChild(tall)
+            layout.addChild(small)
+            canvas.add(layout)
+            await flush()
+            // the line is as tall as its tallest child, so the smaller one is
+            // centered in it
+            expect(small.y()).toBe(175)
+        })
+
+        it('should not spread the lines of a wrapped layout which overflows', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexWrap: 'wrap',
+                alignContent: 'space-between',
+            })
+            const tall = new Block({ width: 200, height: 400 })
+            const second = new Block({ width: 200, height: 50 })
+            layout.addChild(tall)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // there is no free space to spread the lines into
+            expect(second.y()).toBe(400)
+        })
+
+        it('should keep the measured size of a text child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({ width: 300, height: 200 })
+            // a text block measures itself, so it has a size on its own
+            const child = new TextBlock({
+                text: 'hello world',
+                fontSize: 20,
+            })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+            expect(child.width()).toBeGreaterThan(0)
+            expect(child.height()).toBeGreaterThan(0)
+        })
+
+        it('should lay a text child with a relative size out', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            const rectBlock = new RectangleBlock({
+                width: 120,
+                height: 20,
+                x: 120,
+                y: 200,
+            })
+            const innerLayout = new LayoutBlock({
+                width: '100%',
+                height: '100%',
+            })
+            // a relative size is resolved after the block is initialized, so
+            // the block has no size while it measures itself
+            const child = new TextBlock({
+                text: 'dfdsf',
+                width: '100%',
+                height: '100%',
+            })
+            innerLayout.addChild(child)
+            rectBlock.addChild(innerLayout)
+            canvas.add(rectBlock)
+            await flush()
+            expect([child.width(), child.height()]).toStrictEqual([120, 20])
         })
     })
 
@@ -1150,6 +1525,20 @@ describe('LayoutBlock', () => {
                 10, 20,
             ])
         })
+        it('should resolve a relative gap against the axis of its side', async () => {
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                gap: '10%',
+            })
+            canvas.add(layout)
+            await flush()
+            // the gap of the column is a part of the width of the containing
+            // block, the gap of the row a part of its height
+            expect([layout.gapColumn(), layout.gapRow()]).toStrictEqual([
+                40, 50,
+            ])
+        })
     })
 
     describe('grid layout', () => {
@@ -1513,6 +1902,36 @@ describe('LayoutBlock', () => {
                 height: 50,
             })
         })
+        it('should lay the childs out in one column without columns', async () => {
+            const childs = await setupGrid(
+                {
+                    width: 200,
+                    height: 200,
+                    layout: 'grid' as const,
+                    gridTemplateColumns: [],
+                },
+                3
+            )
+            // without columns the childs are stacked in a single column
+            expect(positions(childs)).toStrictEqual([
+                [0, 0],
+                [0, 50],
+                [0, 100],
+            ])
+        })
+        it('should not throw when the grid has no columns and no childs', async () => {
+            await expect(
+                setupGrid(
+                    {
+                        width: 200,
+                        height: 200,
+                        layout: 'grid' as const,
+                        gridTemplateColumns: [],
+                    },
+                    0
+                )
+            ).resolves.toBeDefined()
+        })
         it('should not measure a column which is not used', async () => {
             const childs = await setupGrid(
                 {
@@ -1753,7 +2172,10 @@ describe('LayoutBlock', () => {
                 await setupGrid()
             })
             it('should read and set the column lines without moving a child', async () => {
-                layout.set({ columnStart: 2, columnEnd: 3 })
+                layout.set({
+                    columnStart: 2,
+                    columnEnd: 3,
+                } as Parameters<typeof layout.set>[0])
                 await settle(layout)
                 expect([
                     layout.columnStart(),
@@ -1897,7 +2319,7 @@ describe('LayoutBlock', () => {
                     height: 50,
                 })
             })
-            it('should distribute the childs inside the whole width', async () => {
+            it('should distribute the childs inside the content box', async () => {
                 layout = new LayoutBlock({
                     width: 300,
                     height: 200,
@@ -1909,17 +2331,15 @@ describe('LayoutBlock', () => {
                 await flush()
                 layout.set({ justifyContent: 'end' })
                 await settle(layout)
-                // the free space is measured without the padding, so the last
-                // child reaches past the right edge of the layout block
                 expect(positions(childs)).toStrictEqual([
-                    [180, 10],
-                    [230, 10],
-                    [280, 10],
+                    [160, 10],
+                    [210, 10],
+                    [260, 10],
                 ])
             })
         })
         describe('spacing of a child', () => {
-            it('should not shrink a padded child to the layout block', async () => {
+            it('should shrink a padded child to the layout block', async () => {
                 layout = new LayoutBlock({ width: 60, height: 200 })
                 const childs = createChilds(2, 50, 50)
                 childs[0].set({ padding: [10] })
@@ -1927,11 +2347,72 @@ describe('LayoutBlock', () => {
                 canvas.add(layout)
                 await flush()
                 // the padding makes the child wider than the layout block and
-                // it is kept as it is instead of being shrunk
-                expect([childs[0].width(), childs[0].height()]).toStrictEqual([
-                    70, 70,
-                ])
-                expect([childs[1].x(), childs[1].y()]).toStrictEqual([70, 0])
+                // it is shrunk to the space which is left for it
+                expect([
+                    childs[0].__boxWidth(),
+                    childs[0].__boxHeight(),
+                ]).toStrictEqual([40, 70])
+                expect([childs[1].x(), childs[1].y()]).toStrictEqual([40, 0])
+            })
+            it('should increase the size of a padded child', async () => {
+                layout = new LayoutBlock({ width: 300, height: 200 })
+                const childs = createChilds(1, 50, 50)
+                childs[0].set({ padding: [10] })
+                childs.forEach((child) => layout.addChild(child))
+                canvas.add(layout)
+                await flush()
+                expect([
+                    childs[0].__boxWidth(),
+                    childs[0].__boxHeight(),
+                ]).toStrictEqual([70, 70])
+            })
+            it('should shrink a child with a relative size', async () => {
+                layout = new LayoutBlock({ width: 300, height: 200 })
+                const child = new Block({
+                    width: '100%',
+                    height: 50,
+                    padding: 10,
+                })
+                layout.addChild(child)
+                canvas.add(layout)
+                await flush()
+                expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual(
+                    [300, 70]
+                )
+            })
+            it('should resolve a relative size against the content box of the layout block', async () => {
+                layout = new LayoutBlock({
+                    width: 300,
+                    height: 200,
+                    padding: [10],
+                })
+                const child = new Block({ width: '100%', height: 50 })
+                layout.addChild(child)
+                canvas.add(layout)
+                await flush()
+                expect([child.width(), child.height()]).toStrictEqual([300, 50])
+                expect([child.x(), child.y()]).toStrictEqual([10, 10])
+            })
+            it('should share the free space with a child with a relative size', async () => {
+                layout = new LayoutBlock({
+                    width: 300,
+                    height: 200,
+                    flexDirection: 'row',
+                })
+                const child = new Block({
+                    width: '50%',
+                    height: 50,
+                    flexGrow: 1,
+                })
+                layout.addChild(child)
+                canvas.add(layout)
+                await flush()
+                // the size the child was asked for is its base size, so it
+                // grows into the free space of the layout
+                expect(child.width()).toBe(300)
+                layout.set({ width: 500 })
+                await flush()
+                expect(child.width()).toBe(500)
             })
             it('should add the margin of a child to a column', async () => {
                 layout = new LayoutBlock({
@@ -2081,7 +2562,7 @@ describe('LayoutBlock', () => {
             })
         })
         describe('over constrained', () => {
-            it('should not shrink a child which overflows the layout block', async () => {
+            it('should shrink a child which overflows the layout block', async () => {
                 layout = new LayoutBlock({ width: 50, height: 200 })
                 const childs = createChilds(2, 50, 50)
                 childs.forEach((child) => layout.addChild(child))
@@ -2089,10 +2570,10 @@ describe('LayoutBlock', () => {
                 await flush()
                 expect(positions(childs)).toStrictEqual([
                     [0, 0],
-                    [50, 0],
+                    [25, 0],
                 ])
                 expect(childs.map((child) => child.width())).toStrictEqual([
-                    50, 50,
+                    25, 25,
                 ])
             })
             it('should not spread childs which overflow the layout block', async () => {
@@ -2107,7 +2588,7 @@ describe('LayoutBlock', () => {
                 expect(layout.gapColumn()).toBe(0)
                 expect(positions(childs)).toStrictEqual([
                     [0, 0],
-                    [50, 0],
+                    [25, 0],
                 ])
             })
             it('should not spread a single child between the edges', async () => {
@@ -2158,7 +2639,7 @@ describe('LayoutBlock', () => {
                     [200, 50],
                 ])
             })
-            it('should not shrink the childs when the layout block shrinks', async () => {
+            it('should shrink the childs when the layout block shrinks', async () => {
                 layout = new LayoutBlock({ width: 300, height: 200 })
                 const childs = createChilds(3, 50, 50)
                 childs.forEach((child) => layout.addChild(child))
@@ -2166,18 +2647,18 @@ describe('LayoutBlock', () => {
                 await flush()
                 layout.set({ width: 100 })
                 await settle(layout)
-                // the childs keep their place and reach past the new edge
+                // the childs share the new width of the layout block
                 expect(positions(childs)).toStrictEqual([
                     [0, 0],
-                    [50, 0],
-                    [100, 0],
+                    [100 / 3, 0],
+                    [(100 / 3) * 2, 0],
                 ])
                 expect(layout.__childsContainer).toStrictEqual({
-                    width: 150,
+                    width: 100,
                     height: 50,
                 })
             })
-            it('should not shrink a nested layout block', async () => {
+            it('should shrink a nested layout block', async () => {
                 layout = new LayoutBlock({ width: 60, height: 200 })
                 const column = new LayoutBlock({ width: 200, height: 100 })
                 const child = new Block({ width: 50, height: 50 })
@@ -2186,7 +2667,7 @@ describe('LayoutBlock', () => {
                 canvas.add(layout)
                 await flush()
                 expect([column.width(), column.height()]).toStrictEqual([
-                    200, 100,
+                    60, 100,
                 ])
                 expect([child.x(), child.y()]).toStrictEqual([0, 0])
             })
@@ -2986,6 +3467,491 @@ describe('LayoutBlock', () => {
             expect([cell.x(), cell.y()]).toStrictEqual([0, 0])
             // the deepest child is centered inside the cell of its own parent
             expect([block.x(), block.y()]).toStrictEqual([20, 20])
+        })
+        it('should not move a grandchild of a shrunk child', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            const root = new Block({ width: 400, height: 120, x: 0, y: 120 })
+            const frame = new RectangleBlock({ width: '100%', height: '100%' })
+            layout = new LayoutBlock({
+                width: '100%',
+                height: '100%',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+            })
+            const tall = new RectangleBlock({ width: 200, height: 200 })
+            const small = new RectangleBlock({ width: 120, height: 120 })
+            layout.addChild(tall)
+            layout.addChild(small)
+            frame.addChild(layout)
+            root.addChild(frame)
+            canvas.add(root)
+            await flush()
+            // the tall child is shrunk to the height of the layout block, so
+            // the small child is aligned with it right from the start
+            expect([tall.height(), small.y()]).toStrictEqual([120, 120])
+            const before = positions([tall, small])
+            await settle(layout)
+            expect(positions([tall, small])).toStrictEqual(before)
+        })
+    })
+
+    describe('shrunk childs', () => {
+        it('should align a child by the shrunk size of a taller child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                alignItems: 'center',
+            })
+            const tallChild = new Block({ width: 50, height: 300 })
+            const smallChild = new Block({ width: 50, height: 50 })
+            layout.addChild(tallChild)
+            layout.addChild(smallChild)
+            canvas.add(layout)
+            await flush()
+            // the tall child is shrunk to the height of the layout block, so
+            // the row is as high as the layout block and the small child is
+            // centered in it
+            expect([tallChild.height(), smallChild.y()]).toStrictEqual([
+                200, 75,
+            ])
+        })
+        it('should align a child by the shrunk size of a wider child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                flexDirection: 'column',
+                alignItems: 'center',
+            })
+            const wideChild = new Block({ width: 400, height: 50 })
+            const smallChild = new Block({ width: 50, height: 50 })
+            layout.addChild(wideChild)
+            layout.addChild(smallChild)
+            canvas.add(layout)
+            await flush()
+            // the wide child is shrunk to the width of the layout block, so
+            // the column is as wide as the layout block and the small child is
+            // centered in it
+            expect([wideChild.width(), smallChild.x()]).toStrictEqual([
+                300, 125,
+            ])
+        })
+        it('should not move the childs when the layout block is laid out again', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            layout = new LayoutBlock({
+                width: 300,
+                height: 200,
+                alignItems: 'center',
+            })
+            const tallChild = new Block({ width: 50, height: 300 })
+            const smallChild = new Block({ width: 50, height: 50 })
+            layout.addChild(tallChild)
+            layout.addChild(smallChild)
+            canvas.add(layout)
+            await flush()
+            const before = positions([tallChild, smallChild])
+            await settle(layout)
+            // the childs keep their place, the layout block does not move them
+            // when it is laid out again
+            expect(positions([tallChild, smallChild])).toStrictEqual(before)
+        })
+    })
+
+    describe('shrunk childs of the main axis', () => {
+        it('should shrink the childs of a row to the width of the layout block', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({
+                width: 120,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'space-between',
+            })
+            const first = new RectangleBlock({ width: '100%', height: '100%' })
+            const second = new RectangleBlock({ width: '100%', height: '100%' })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // the childs are as wide as the layout block together, so every one
+            // of them gets a half of it
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [60, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([60, 60])
+            expect(layout.__childsContainer).toStrictEqual({
+                width: 120,
+                height: 40,
+            })
+        })
+        it('should shrink the childs of a column to the height of the layout block', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({
+                width: 120,
+                height: 40,
+                flexDirection: 'column',
+            })
+            const first = new RectangleBlock({ width: '100%', height: '100%' })
+            const second = new RectangleBlock({ width: '100%', height: '100%' })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [0, 20],
+            ])
+            expect([first.height(), second.height()]).toStrictEqual([20, 20])
+        })
+        it('should shrink the childs by their own size', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 120, height: 40 })
+            const first = new RectangleBlock({ width: 100, height: '100%' })
+            const second = new RectangleBlock({ width: 100, height: '100%' })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // both childs are the same size, so both of them lose the same
+            // amount of it
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [60, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([60, 60])
+        })
+        it('should keep the min width of a child', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 120, height: 40 })
+            const first = new RectangleBlock({
+                width: '100%',
+                height: '100%',
+                minWidth: 100,
+            })
+            const second = new RectangleBlock({ width: '100%', height: '100%' })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // the first child keeps its min width and the second one takes the
+            // space which is left
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [100, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([100, 20])
+        })
+        it('should let a child reach past the layout block by its min width', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 120, height: 40 })
+            const first = new RectangleBlock({
+                width: '100%',
+                height: '100%',
+                minWidth: 150,
+            })
+            const second = new RectangleBlock({ width: '100%', height: '100%' })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // the min width of the first child is bigger than the layout block,
+            // so it reaches past it
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [150, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([150, 0])
+        })
+        it('should not shrink a child which does not shrink', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 120, height: 40 })
+            const first = new RectangleBlock({
+                width: 80,
+                height: '100%',
+                flexShrink: 0,
+            })
+            const second = new RectangleBlock({
+                width: 80,
+                height: '100%',
+                flexShrink: 0,
+            })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // the childs keep their size and reach past the layout block
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [80, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([80, 80])
+        })
+        it('should share the space of the gap between the childs', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 120, height: 40, gap: 10 })
+            const first = new RectangleBlock({ width: '100%', height: '100%' })
+            const second = new RectangleBlock({ width: '100%', height: '100%' })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // the gap takes a part of the space which the childs share
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [65, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([55, 55])
+        })
+        it('should not shrink the childs again when the layout block is laid out again', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 120, height: 40 })
+            const first = new RectangleBlock({ width: '100%', height: '100%' })
+            const second = new RectangleBlock({ width: '100%', height: '100%' })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            const before = positions([first, second])
+            await settle(layout)
+            // the size the childs were shrunk to is not their base size
+            expect(positions([first, second])).toStrictEqual(before)
+        })
+        it('should resize the childs when the layout block is resized', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 120, height: 40 })
+            const first = new RectangleBlock({ width: '100%', height: '100%' })
+            const second = new RectangleBlock({ width: '100%', height: '100%' })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            layout.set({ width: 240 })
+            await settle(layout)
+            // the relative size of the childs is resolved against the layout
+            // block again
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [120, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([120, 120])
+        })
+        it('should take the size which was set on a child', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 120, height: 40 })
+            const first = new RectangleBlock({ width: '100%', height: '100%' })
+            const second = new RectangleBlock({ width: '100%', height: '100%' })
+            first.set({ width: 40 })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // the size of the first child is the one which was set on it, the
+            // childs share the space which is left
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [30, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([30, 90])
+        })
+    })
+
+    describe('grown childs of the main axis', () => {
+        it('should grow the childs of a row into the width of the layout block', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 300, height: 40 })
+            const first = new RectangleBlock({
+                width: 50,
+                height: '100%',
+                flexGrow: 1,
+            })
+            const second = new RectangleBlock({
+                width: 50,
+                height: '100%',
+                flexGrow: 1,
+            })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // the free space of the layout block is shared by the childs
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [150, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([150, 150])
+        })
+        it('should grow the childs by their grow factor', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 300, height: 40 })
+            const first = new RectangleBlock({
+                width: 50,
+                height: '100%',
+                flexGrow: 1,
+            })
+            const second = new RectangleBlock({
+                width: 100,
+                height: '100%',
+                flexGrow: 2,
+            })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // the second child grows twice as fast as the first one
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [100, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([100, 200])
+        })
+        it('should not grow a child which does not grow', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 300, height: 40 })
+            const first = new RectangleBlock({
+                width: 50,
+                height: '100%',
+                flexGrow: 1,
+            })
+            const second = new RectangleBlock({ width: 50, height: '100%' })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            // the free space belongs to the child which grows
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [250, 0],
+            ])
+            expect([first.width(), second.width()]).toStrictEqual([250, 50])
+        })
+        it('should grow a child with a relative size', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({ width: 300, height: 40 })
+            const child = new RectangleBlock({
+                width: '50%',
+                height: '100%',
+                flexGrow: 1,
+            })
+            layout.addChild(child)
+            canvas.add(layout)
+            await flush()
+            expect([child.x(), child.width()]).toStrictEqual([0, 300])
+        })
+        it('should grow the childs of a column into the height of the layout block', async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            layout = new LayoutBlock({
+                width: 120,
+                height: 200,
+                flexDirection: 'column',
+            })
+            const first = new RectangleBlock({
+                width: '100%',
+                height: 50,
+                flexGrow: 1,
+            })
+            const second = new RectangleBlock({
+                width: '100%',
+                height: 50,
+                flexGrow: 1,
+            })
+            layout.addChild(first)
+            layout.addChild(second)
+            canvas.add(layout)
+            await flush()
+            expect(positions([first, second])).toStrictEqual([
+                [0, 0],
+                [0, 100],
+            ])
+            expect([first.height(), second.height()]).toStrictEqual([100, 100])
+        })
+    })
+
+    describe('invoked childs', () => {
+        // a layout block hands out the coordinates of its childs in two steps,
+        // first the offset inside its own box and then the absolute position
+        // on the canvas, so a child which is invoked before its parent keeps
+        // the offset of the layout instead of its own position
+        let rectBlock: RectangleBlock
+        let innerLayout: LayoutBlock
+        let textBlock: TextBlock
+        let imageBlock: Block
+
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 800, 900)
+            rectBlock = new RectangleBlock({
+                width: 120,
+                height: 20,
+                x: 120,
+                y: 200,
+            })
+            innerLayout = new LayoutBlock({
+                alignItems: 'center',
+                width: '100%',
+                height: '100%',
+                justifyContent: 'space-between',
+            })
+            textBlock = new TextBlock({
+                text: 'dfdsf',
+                width: '100%',
+                height: '100%',
+            })
+            imageBlock = new Block({
+                width: '100%',
+                height: '100%',
+            })
+            innerLayout.addChild(textBlock)
+            innerLayout.addChild(imageBlock)
+            rectBlock.addChild(innerLayout)
+            canvas.add(rectBlock)
+            await flush()
+        })
+
+        it('should lay the childs of the layout out inside the rectangle', () => {
+            // the 120 wide rectangle shares its space between the 2 childs
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
+        })
+        it('should keep a child which is invoked before its layout in place', async () => {
+            // the child is invoked first, so the layout of its parent writes
+            // the offset of the child over its own coordinates
+            canvas.demandInvoke(imageBlock)
+            canvas.demandInvoke(innerLayout)
+            await flush()
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
+            expect(imageBlock.cornerTopLeft()).toStrictEqual({ x: 180, y: 200 })
+        })
+        it('should keep a child which is invoked before the root of its layout in place', async () => {
+            // the root block invokes the layout of the child, so the child is
+            // invoked before the layout which owns it
+            canvas.demandInvoke(imageBlock)
+            canvas.demandInvoke(rectBlock)
+            await flush()
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
+        })
+        it('should keep the childs in place when the layout is invoked', async () => {
+            canvas.demandInvoke(innerLayout)
+            await flush()
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
+        })
+        it('should keep the childs in place when the root block is invoked', async () => {
+            canvas.demandInvoke(rectBlock)
+            await flush()
+            expect(positions([textBlock, imageBlock])).toStrictEqual([
+                [120, 200],
+                [180, 200],
+            ])
         })
     })
 })

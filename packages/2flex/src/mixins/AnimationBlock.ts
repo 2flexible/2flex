@@ -1,4 +1,4 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
 import type {
     AnimationId,
     Animator,
@@ -15,9 +15,12 @@ import {
     clamp,
     easingParser,
     getPrototype,
+    invalidArgument,
     lerp,
     rgbaRepresenter,
     rgbaToArray,
+    requireCallback,
+    requireRecord,
 } from '../Utils'
 
 export type Delay = number
@@ -26,7 +29,9 @@ export type Duration = number
 export type IterationStart = number
 export type PlaybackRate = number
 export type AutoStart = boolean
-export type IteratableOpts = { [key: string]: any }
+export type IteratableOpts = {
+    [key: string]: KeyframeValue | KeyframeBreakpoints | undefined
+}
 
 // a single breakpoint of an animated option. options that hold arrays or plain
 // objects are animated by nesting them, which the value compiler walks through
@@ -67,7 +72,7 @@ export interface KeyframesConfig {
     currentVal: unknown
     breakPoints: CompiledValue[]
     iterDirection: number
-    invoker: any
+    invoker: PropertyDescriptor
     category: ValueKind
     underlyingValue: CompiledValue
     accumulator: CompiledValue
@@ -85,7 +90,7 @@ export interface KeyframeIterationConfig {
 
 export type CallbackAnimator = (timestamp: number, easing: number) => void
 
-export interface IAnimationBlock extends IBaseBlockOptions {}
+export interface IAnimationBlock extends BaseBlockOptions {}
 
 type ValueKind =
     | 'number'
@@ -128,25 +133,48 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#animationSettings = {}
         }
 
+        #requireAnimation(method: string, animationId: AnimationId) {
+            const api = `${this.constructor.name}.${method}()`
+            if (typeof animationId !== 'string' || !animationId.trim())
+                invalidArgument(
+                    api,
+                    'animationId',
+                    'a nonempty string',
+                    animationId
+                )
+            if (!Object.hasOwn(this.#keyframeIterationConfig, animationId))
+                throw new RangeError(
+                    `[2flex] ${api} could not find animation "${animationId}". Use the ID returned by animate().`
+                )
+            return this.#keyframeIterationConfig[animationId]
+        }
+
         animationStart(animationId: AnimationId) {
-            const config = this.#keyframeIterationConfig[animationId]
+            const config = this.#requireAnimation('animationStart', animationId)
             config['isFinished'] = false
             config['isRunning'] = true
             const pauseDuration = performance.now() - config.pauseStartedAt
             config.startTime += pauseDuration
         }
         animationStop(animationId: AnimationId) {
-            const config = this.#keyframeIterationConfig[animationId]
+            const config = this.#requireAnimation('animationStop', animationId)
             config['isRunning'] = false
             config['pauseStartedAt'] = performance.now()
         }
         animationFinish(animationId: AnimationId) {
+            const config = this.#requireAnimation(
+                'animationFinish',
+                animationId
+            )
             this.#applyFinalValues(animationId)
-            this.#keyframeIterationConfig[animationId]['isFinished'] = true
-            this.#keyframeIterationConfig[animationId]['isRunning'] = false
+            config['isFinished'] = true
+            config['isRunning'] = false
         }
         animationReverse(animationId: AnimationId) {
-            const config = this.#keyframeIterationConfig[animationId]
+            const config = this.#requireAnimation(
+                'animationReverse',
+                animationId
+            )
             const settings = this.#animationSettings[animationId]
             config['isReverse'] = true
             if (settings['direction'] === 'normal')
@@ -163,30 +191,44 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
             }
         }
         animationDelay(animationId: AnimationId, value: Delay) {
+            this.#requireAnimation('animationDelay', animationId)
             this.#animationSettings[animationId]['delay'] = value
         }
         animationPlaybackRate(animationId: AnimationId, value: PlaybackRate) {
+            this.#requireAnimation('animationPlaybackRate', animationId)
             this.#animationSettings[animationId]['playbackRate'] = value
         }
         animationDirection(animationId: AnimationId, value: Direction) {
+            this.#requireAnimation('animationDirection', animationId)
             this.#animationSettings[animationId]['direction'] = value
         }
         animationDuration(animationId: AnimationId, value: Duration) {
+            this.#requireAnimation('animationDuration', animationId)
             this.#animationSettings[animationId]['duration'] = value
         }
         animationIterationStart(
             animationId: AnimationId,
             value: IterationStart
         ) {
+            this.#requireAnimation('animationIterationStart', animationId)
             this.#animationSettings[animationId]['iterationStart'] = value
         }
         animationIterations(animationId: AnimationId, value: Iterations) {
+            this.#requireAnimation('animationIterations', animationId)
             this.#animationSettings[animationId]['iterations'] = value
         }
         animationAutoStart(animationId: AnimationId, value: AutoStart) {
+            this.#requireAnimation('animationAutoStart', animationId)
             this.#animationSettings[animationId]['autoStart'] = value
         }
         removeAnimation(animationId: AnimationId) {
+            if (typeof animationId !== 'string' || !animationId.trim())
+                invalidArgument(
+                    `${this.constructor.name}.removeAnimation()`,
+                    'animationId',
+                    'a nonempty string',
+                    animationId
+                )
             this.__removeAnimation(animationId)
         }
         #isRgbaString(value: unknown): value is string {
@@ -437,12 +479,13 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
 
                 const currentObjValue = obj.value.call(this)
 
-                const breakPoints = keyframe.map((frameValue: any) =>
+                if (!Array.isArray(keyframe)) continue
+                const breakPoints = keyframe.map((frameValue: KeyframeValue) =>
                     obj.value.call(this, frameValue)
                 )
                 obj.value.call(this, currentObjValue)
 
-                const compiled = breakPoints.map((value: any) =>
+                const compiled = breakPoints.map((value: unknown) =>
                     this.#compileValue(value)
                 )
                 this.#normalizeBreakpointArity(compiled)
@@ -689,6 +732,26 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
             if (hasApplied) this.__invokeChange()
         }
         animate(keyframes: AnimationKeyframe, callback?: CallbackAnimator) {
+            const method = `${this.constructor.name}.animate()`
+            requireRecord(method, 'keyframes', keyframes)
+            if (callback !== undefined)
+                requireCallback(method, 'callback', callback)
+            if (keyframes.onFinish !== undefined)
+                requireCallback(
+                    method,
+                    'keyframes.onFinish',
+                    keyframes.onFinish
+                )
+            if (
+                keyframes.id !== undefined &&
+                (typeof keyframes.id !== 'string' || !keyframes.id.trim())
+            )
+                invalidArgument(
+                    method,
+                    'keyframes.id',
+                    'a nonempty string',
+                    keyframes.id
+                )
             const animationId = keyframes.id ?? this.#generateAnimationId()
             const {
                 id,
@@ -704,6 +767,15 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 composite,
                 ...options
             } = keyframes
+            for (const [key, value] of Object.entries(options)) {
+                if (value !== undefined && !Array.isArray(value))
+                    invalidArgument(
+                        method,
+                        'keyframes.' + key,
+                        'an array of breakpoints',
+                        value
+                    )
+            }
             this.#keyframeParser(animationId, keyframes)
             this.#buildKeyframes(animationId, options)
             const animator = this.#buildAnimator(animationId, callback)

@@ -21,6 +21,16 @@ describe('AnimationBlock', () => {
         canvas.add(block)
         await flush()
     })
+    it('should reject keyframes without a breakpoint array', () => {
+        expect(() => block.animate({ x: 10 })).toThrow(
+            /Block\.animate\(\).*breakpoints.*keyframes\.x/
+        )
+    })
+    it('should report an unknown animation when starting it', () => {
+        expect(() => block.animationStart('missing')).toThrow(
+            /Block\.animationStart\(\).*missing/
+        )
+    })
     it('should generate a unique id for every animation', () => {
         const first = block.animate({ id: undefined, x: [0, 100] })
         const second = block.animate({ id: undefined, x: [0, 100] })
@@ -251,7 +261,8 @@ describe('AnimationBlock', () => {
             })
             await flush(4)
 
-            const [first, second] = block.hotCornerRadius() as number[]
+            const [first, second] =
+                block.hotCornerRadius() as unknown as number[]
             expect(first).toBeGreaterThan(0)
             expect(first).toBeLessThan(100)
             expect(second).toBeGreaterThan(100)
@@ -287,7 +298,7 @@ describe('AnimationBlock', () => {
             })
             await flush(4)
 
-            const { x, y } = block.rotatableTopLeft() as {
+            const { x, y } = block.rotatableTopLeft() as unknown as {
                 x: number
                 y: number
             }

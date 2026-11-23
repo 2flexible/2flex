@@ -1,4 +1,5 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { ColorType, OwnOptionAccessors } from '../BaseBlock'
 import {
     HOT_LINE_BLOCK_NAME,
     initialCorners,
@@ -6,21 +7,34 @@ import {
 } from '../const'
 import { BlockConstructor, HotCornerArea } from '../types'
 
-export interface IHotLineOptions extends IBaseBlockOptions {
+export interface IHotLineBlockOptions extends BaseBlockOptions {
     hotCornerSize?: number
     hotCornerRadius?: number
     hotCornerStrokeWidth?: number
-    hotCornerStrokeColor?: string
-    hotCornerBackgroundColor?: string
+    hotCornerStrokeColor?: ColorType
+    hotCornerBackgroundColor?: ColorType
     hotLineStrokeWidth?: number
-    hotLineStrokeColor?: string
+    hotLineStrokeColor?: ColorType
     hotLines?: boolean
 }
 
+interface HotLineBlockAccessors extends OwnOptionAccessors<
+    IHotLineBlockOptions,
+    BaseBlockOptions
+> {}
+
+const DEFAULT_HOT_CORNER_SIZE = 10
+const DEFAULT_HOT_CORNER_RADIUS = [0]
+const DEFAULT_HOT_CORNER_BACKGROUND_COLOR = 'white'
+const DEFAULT_HOT_LINE_STROKE_WIDTH = 2.5
+const DEFAULT_HOT_CORNER_STROKE_WIDTH = 2.5
+const DEFAULT_HOT_CORNER_STROKE_COLOR = 'blue'
+const DEFAULT_HOT_LINE_STROKE_COLOR = 'blue'
+
 export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class HotLineBlock extends Base {
         #hotLineBlock?: BaseBlock
         #hotCornerCords: HotCornerArea
 
@@ -32,15 +46,31 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 'hotLines',
                 false,
                 false,
-                (block: any, opt?: boolean) => this.#hotLines(block, opt)
+                (block: HotLineBlock, opt?: boolean) =>
+                    this.#hotLines(block, opt)
             )
-            this.addProperty('hotCornerSize', 10)
-            this.addProperty('hotCornerRadius', [0])
-            this.addProperty('hotCornerBackgroundColor', 'white')
-            this.addProperty('hotLineStrokeWidth', 2.5)
-            this.addProperty('hotCornerStrokeWidth', 2.5)
-            this.addProperty('hotCornerStrokeColor', 'blue')
-            this.addProperty('hotLineStrokeColor', 'blue')
+            this.addProperty('hotCornerSize', DEFAULT_HOT_CORNER_SIZE)
+            this.addProperty('hotCornerRadius', DEFAULT_HOT_CORNER_RADIUS)
+            this.addProperty(
+                'hotCornerBackgroundColor',
+                DEFAULT_HOT_CORNER_BACKGROUND_COLOR
+            )
+            this.addProperty(
+                'hotLineStrokeWidth',
+                DEFAULT_HOT_LINE_STROKE_WIDTH
+            )
+            this.addProperty(
+                'hotCornerStrokeWidth',
+                DEFAULT_HOT_CORNER_STROKE_WIDTH
+            )
+            this.addProperty(
+                'hotCornerStrokeColor',
+                DEFAULT_HOT_CORNER_STROKE_COLOR
+            )
+            this.addProperty(
+                'hotLineStrokeColor',
+                DEFAULT_HOT_LINE_STROKE_COLOR
+            )
         }
         updateCords(): void {
             super.updateCords()
@@ -56,20 +86,10 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 bottomRight: this.cornerBottomRight(),
             }
         }
-        #getHigherZindex() {
-            let higherZindex = 0
-            if (this.__isOverflowExists) higherZindex = 2
-            else {
-                if (this.__isOverflowXExists) higherZindex += 1
-                if (this.__isOverflowYExists) higherZindex += 1
-            }
-            return 1 + (this.__getHighestChildZIndex() ?? 0) + higherZindex
-        }
-
-        #hotLines(block: any, opt?: boolean) {
+        #hotLines(block: HotLineBlock, opt?: boolean) {
             if (!block.#hotLineBlock && opt) {
                 const hotLineBlock = block.#buildHotLines(block)
-                block.canvas?.add(hotLineBlock)
+                block.addChild(hotLineBlock)
             }
         }
         #updateHotLineBlockParameters() {
@@ -88,13 +108,13 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.#hotLineBlock.y(y - (size + strokeWidth) / 2)
             this.#hotLineBlock.width(w + size + strokeWidth)
             this.#hotLineBlock.height(h + size + strokeWidth)
-
-            this.#hotLineBlock.zIndex(this.#getHigherZindex())
         }
 
-        #buildHotLines(block: any) {
+        #buildHotLines(block: HotLineBlock) {
             block.#hotLineBlock = new BaseBlock({
                 name: HOT_LINE_BLOCK_NAME,
+                // absolute so the flexbox of the parent does not lay it out
+                position: 'absolute',
                 x: 0,
                 y: 0,
                 width: 0,
@@ -102,7 +122,6 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 rotate: 0,
                 rotationCenterX: block.rotationCenterX(),
                 rotationCenterY: block.rotationCenterY(),
-                zIndex: block.#getHigherZindex(),
             })
             block.#hotLineBlock.onRender((hotLineBlock: BaseBlock) => {
                 if (
@@ -126,7 +145,7 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.rotationCenterX(),
                     block.rotationCenterY()
                 )
-                context.rotate(block.rotate())
+                context.rotate(block.__rotation())
                 context.translate(
                     -block.rotationCenterX(),
                     -block.rotationCenterY()
@@ -196,3 +215,6 @@ export const HotLineBlock = <TBase extends BlockConstructor<BaseBlock>>(
             return block.#hotLineBlock
         }
     }
+    interface HotLineBlock extends HotLineBlockAccessors {}
+    return HotLineBlock
+}

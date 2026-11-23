@@ -1,4 +1,5 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 import {
     initialCorners,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
@@ -9,7 +10,7 @@ import {
 import { BlockConstructor, HotCornerArea, XY } from '../types'
 import { checkInBound } from '../Utils'
 
-export interface IResizableOptions extends IBaseBlockOptions {
+export interface IResizableOptions extends BaseBlockOptions {
     resizable?: boolean
     resizableTop?: boolean
     resizableLeft?: boolean
@@ -34,14 +35,20 @@ export interface IResizableOptions extends IBaseBlockOptions {
     hotResizableAreaGap?: number
 }
 
+interface ResizableBlockAccessors extends OwnOptionAccessors<
+    IResizableOptions,
+    BaseBlockOptions
+> {}
+
+const DEFAULT_HOT_RESIZABLE_AREA_SIZE = 15
+const DEFAULT_HOT_RESIZABLE_AREA_GAP = 0
+
 export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class ResizableBlock extends Base {
         #isResizable: boolean
-        #mouseDownEvent?: CustomEvent<MouseEvent>
-        #mouseMoveEvent?: CustomEvent<MouseEvent>
-        #mouseUpEvent?: CustomEvent<MouseEvent>
+        #eventsAdded = false
 
         constructor(...args: any[]) {
             super(...args)
@@ -50,7 +57,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 'resizable',
                 false,
                 false,
-                (block: typeof ResizableBlock, opt?: boolean) =>
+                (block: ResizableBlock, opt?: boolean) =>
                     this.#resizable(block, opt)
             )
             this.addProperty('resizableTop', initialCorners)
@@ -72,8 +79,14 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.addProperty('onResizable', undefined)
             this.addProperty('horizontalFlipResize', undefined)
             this.addProperty('verticalFlipResize', undefined)
-            this.addProperty('hotResizableAreaSize', 15)
-            this.addProperty('hotResizableAreaGap', 0)
+            this.addProperty(
+                'hotResizableAreaSize',
+                DEFAULT_HOT_RESIZABLE_AREA_SIZE
+            )
+            this.addProperty(
+                'hotResizableAreaGap',
+                DEFAULT_HOT_RESIZABLE_AREA_GAP
+            )
         }
         updateCordinates(): void {
             super.updateCordinates()
@@ -378,7 +391,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             }
         }
         #rotateResizableAreaCordinates(corner: string, radian: number) {
-            const cordsArea = this.getOptionCurrent(corner)
+            const cordsArea = this.getOptionCurrent<HotCornerArea>(corner)
+            if (!cordsArea) return
             const a = this.__rotateCordiantesByCenter(
                 cordsArea.topLeft.x,
                 cordsArea.topLeft.y,
@@ -433,7 +447,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             )
         }
         #checkCornerInBound(x: number, y: number, cornerName: string) {
-            const corner = this.getOptionCurrent(cornerName)
+            const corner = this.getOptionCurrent<HotCornerArea>(cornerName)
+            if (!corner) return false
             return checkInBound(
                 x,
                 y,
@@ -530,23 +545,19 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             // 0° to 22.5°, 157.5° to 180°, -22.5° to 0°, -180° to -157.5°
             return defaultCursor
         }
-        #resizable(block: any, opt?: boolean) {
+        #resizable(block: ResizableBlock, opt?: boolean) {
             if (opt === undefined || block.#isResizable === opt) return
+            block.#isResizable = opt
             if (!opt) {
-                block.__removeEvent('mousedown', block.#mouseDownEvent)
-                block.__removeEvent('mousemove', block.#mouseMoveEvent)
-                block.__removeEvent('mouseup', block.#mouseUpEvent)
                 block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
-                block.#mouseDownEvent = undefined
-                block.#mouseMoveEvent = undefined
-                block.#mouseUpEvent = undefined
                 return
             }
-            block.#isResizable = opt
+            if (block.#eventsAdded) return
+            block.#eventsAdded = true
 
             let initCords = { x: 0, y: 0 }
             let beforeCords = { x: 0, y: 0 }
-            let beforeValues: any = {}
+            let beforeValues: Record<string, unknown> = {}
             let topResize = false
             let leftResize = false
             let bottomResize = false
@@ -554,7 +565,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             let inBound = false
             let beforeCursor: string | undefined
 
-            block.#mouseDownEvent = (event: MouseEvent) => {
+            const mouseDownEvent = (event: MouseEvent) => {
+                if (!block.#isResizable) return
                 beforeCords = { x: 0, y: 0 }
                 if (inBound && block.isMouseEventAllowed) {
                     initCords = block.canvas?.getCursorPosition(event)!
@@ -569,7 +581,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__registerZIndex()
                 }
             }
-            block.#mouseMoveEvent = (event: MouseEvent) => {
+            const mouseMoveEvent = (event: MouseEvent) => {
+                if (!block.#isResizable) return
                 if (
                     block.__isRunningEventActive(
                         OVERFLOW_X_SCROLL_RUNNING_EVENT
@@ -631,7 +644,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         }
                         cursor = block.#chooseBoxCursorInAgle(
                             cursor,
-                            block.rotate()
+                            block.__rotation()
                         )
                         block.__registerZIndex()
                         block.__selectCursor(cursor)
@@ -656,14 +669,14 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     let diffX = x - initCords.x
                     let diffY = y - initCords.y
                     if (diffX !== 0 || diffY !== 0) {
-                        const cacheRotate = block.getOptionCache('rotate')
+                        const cacheRotate = block.__rotationCache()
                         const diffW = diffX - beforeCords.x
                         const diffH = diffY - beforeCords.y
-                        const angle = block.rotate()
+                        const angle = block.__rotation()
                         let currentX = block.x()
                         let currentY = block.y()
-                        let currentWidth = block.width()
-                        let currentHeight = block.height()
+                        let currentWidth = block.__boxWidth()
+                        let currentHeight = block.__boxHeight()
                         const maxWidth = block.maxWidth() ?? Infinity
                         const minWidth = block.minWidth() ?? 0
                         const maxHeight = block.maxHeight() ?? Infinity
@@ -718,14 +731,12 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                                 rotationCenterX += cx / 2
                                 rotationCenterY += cy / 2
                                 if (leftResize) {
-                                    const adjustX = ((increaseX + cx) /
-                                        2) as any
+                                    const adjustX = (increaseX + cx) / 2
                                     cornerTopLeft.x += increaseX
                                     cornerBottomLeft.x += increaseX
                                     currentX += adjustX
                                 } else if (rightResize) {
-                                    const adjustX = ((increaseX - cx) /
-                                        2) as any
+                                    const adjustX = (increaseX - cx) / 2
                                     currentX -= adjustX
                                     cornerTopRight.x += increaseX
                                     cornerBottomRight.x += increaseX
@@ -751,8 +762,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                                 rotationCenterX += cx / 2
                                 rotationCenterY += cy / 2
                                 if (topResize) {
-                                    const adjustY = ((increaseY + cy) /
-                                        2) as any
+                                    const adjustY = (increaseY + cy) / 2
                                     currentY += adjustY
                                     cornerTopLeft.y += increaseY
                                     cornerTopRight.y += increaseY
@@ -799,10 +809,20 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         block.setOptionCurrent('y', currentY)
                         block.setOptionCache('x', currentX)
                         block.setOptionCache('y', currentY)
-                        block.setOptionCurrent('width', currentWidth)
-                        block.setOptionCurrent('height', currentHeight)
-                        block.setOptionCache('width', currentWidth)
-                        block.setOptionCache('height', currentHeight)
+                        const contentWidth =
+                            currentWidth -
+                            block.paddingLeft() -
+                            block.paddingRight()
+                        const contentHeight =
+                            currentHeight -
+                            block.paddingTop() -
+                            block.paddingBottom()
+                        block.setOptionCurrent('width', contentWidth)
+                        block.setOptionCurrent('height', contentHeight)
+                        block.setOptionCache('width', contentWidth)
+                        block.setOptionCache('height', contentHeight)
+                        block.initOptions.set('width', contentWidth)
+                        block.initOptions.set('height', contentHeight)
                         block.setOptionCurrent(
                             'rotationCenterX',
                             rotationCenterX
@@ -813,12 +833,13 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         )
                         beforeCords.x = diffX
                         beforeCords.y = diffY
-                        block.onResizable()?.(block)
+                        block.onResizable()?.(event)
                         block.__invokeChange()
                     }
                 }
             }
-            block.#mouseUpEvent = () => {
+            const mouseUpEvent = () => {
+                if (!block.#isResizable) return
                 if (
                     block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
@@ -828,7 +849,7 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__updateRunningEvent(RESIZABLE_RUNNING_EVENT, false)
                     block.__unregisterZIndex()
                     if (beforeCords.x !== 0 || beforeCords.y !== 0) {
-                        const after: any = {
+                        const after: Record<string, unknown> = {
                             x: block.x(),
                             y: block.y(),
                             width: block.width(),
@@ -839,8 +860,11 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     }
                 }
             }
-            block.__addEvent('mousedown', block.#mouseDownEvent)
-            block.__addEvent('mousemove', block.#mouseMoveEvent)
-            block.__addEvent('mouseup', block.#mouseUpEvent)
+            block.__addEvent('mousedown', mouseDownEvent)
+            block.__addEvent('mousemove', mouseMoveEvent)
+            block.__addEvent('mouseup', mouseUpEvent)
         }
     }
+    interface ResizableBlock extends ResizableBlockAccessors {}
+    return ResizableBlock
+}

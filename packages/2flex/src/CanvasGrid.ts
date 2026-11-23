@@ -12,25 +12,46 @@ export class GridTile {
     context?: OffscreenCanvasRenderingContext2D | null
     bitmap?: ImageBitmap
     dirty: boolean
+    // the density the tile was rasterized at
+    renderScale: number
 
     constructor(col: number, row: number, tileSize: number) {
         this.col = col
         this.row = row
         this.tileSize = tileSize
+        this.renderScale = 1
         this.dummyCanvas = new DummyCanvas(tileSize, tileSize)
         this.blocks = new Set()
         this.dirty = true
         this.context = this.dummyCanvas.context
     }
 
+    #syncBufferSize() {
+        const size = Math.round(this.tileSize * this.renderScale)
+        this.dummyCanvas.resize(size, size)
+        this.context = this.dummyCanvas.context
+    }
+
+    setRenderScale(renderScale: number) {
+        if (this.renderScale === renderScale) return
+        this.renderScale = renderScale
+        this.#syncBufferSize()
+        this.dirty = true
+    }
+
     paint(sortedBlocks: BaseBlock[]) {
-        this.context?.clearRect(0, 0, this.tileSize, this.tileSize)
+        this.#syncBufferSize()
+        const density = this.renderScale
+        const pixelSize = this.tileSize * density
+        this.context?.clearRect(0, 0, pixelSize, pixelSize)
         const ox = this.col * this.tileSize
         const oy = this.row * this.tileSize
         for (const block of sortedBlocks) {
             if (!this.blocks.has(block) || !this.context) continue
             block.context = this.context
             this.context.save()
+            // one world unit is drawn as `density` pixels
+            this.context.setTransform(density, 0, 0, density, 0, 0)
             this.context.translate(-ox, -oy)
             block.render()
             this.context.restore()
@@ -159,6 +180,14 @@ export class CanvasGrid {
     }
 
     #expandRange(cMin: number, cMax: number, rMin: number, rMax: number) {
+        if (
+            !Number.isFinite(cMin) ||
+            !Number.isFinite(cMax) ||
+            !Number.isFinite(rMin) ||
+            !Number.isFinite(rMax)
+        ) {
+            return
+        }
         const newOriginCol = Math.min(this.originCol, cMin)
         const newOriginRow = Math.min(this.originRow, rMin)
         const newEndCol = Math.max(this.originCol + this.cols - 1, cMax)
@@ -193,6 +222,17 @@ export class CanvasGrid {
         }
         for (const block of allBlocks) {
             const newKeys = this.tilesForBBox(block.boundingBox)
+            const oldKeys =
+                block.nodeId !== undefined
+                    ? this.#blockTiles.get(block.nodeId)
+                    : undefined
+            if (oldKeys) {
+                for (const key of oldKeys) {
+                    if (newKeys.has(key)) continue
+                    const tile = this.#tiles.get(key)
+                    if (tile && tile.blocks.delete(block)) tile.dirty = true
+                }
+            }
             for (const key of newKeys) {
                 const tile = this.#tiles.get(key)
                 if (tile && !tile.blocks.has(block)) {
@@ -244,6 +284,14 @@ export class CanvasGrid {
         const r1 = Math.floor(maxY / this.tileSize)
 
         const ids: Set<string> = new Set()
+        if (
+            !Number.isFinite(c0) ||
+            !Number.isFinite(c1) ||
+            !Number.isFinite(r0) ||
+            !Number.isFinite(r1)
+        ) {
+            return ids
+        }
         for (let r = r0; r <= r1; r++) {
             for (let c = c0; c <= c1; c++) {
                 ids.add(worldTileKey(c, r))
@@ -254,8 +302,16 @@ export class CanvasGrid {
 
     addBlock(block: BaseBlock) {
         if (block.nodeId === undefined) return
+        const oldIds = this.#blockTiles.get(block.nodeId)
         this.expand(block.boundingBox)
         const ids = this.tilesForBBox(block.boundingBox)
+        if (oldIds) {
+            for (const key of oldIds) {
+                if (ids.has(key)) continue
+                const tile = this.#tiles.get(key)
+                if (tile && tile.blocks.delete(block)) tile.dirty = true
+            }
+        }
         this.#blockTiles.set(block.nodeId, ids)
         for (const key of ids) {
             const tile = this.#tiles.get(key)
@@ -281,16 +337,14 @@ export class CanvasGrid {
 
     updateBlock(block: BaseBlock) {
         if (block.nodeId === undefined) return
+        const oldIds = this.#blockTiles.get(block.nodeId)
         this.expand(block.boundingBox)
         const newIds = this.tilesForBBox(block.boundingBox)
-        const oldIds = this.#blockTiles.get(block.nodeId)
         if (oldIds) {
             for (const key of oldIds) {
+                if (newIds.has(key)) continue
                 const tile = this.#tiles.get(key)
-                if (tile) {
-                    tile.blocks.delete(block)
-                    tile.dirty = true
-                }
+                if (tile && tile.blocks.delete(block)) tile.dirty = true
             }
         }
         for (const key of newIds) {
@@ -305,6 +359,12 @@ export class CanvasGrid {
 
     markAllDirty() {
         for (const tile of this.#tiles.values()) tile.dirty = true
+    }
+
+    // changes the density of every tile
+    setRenderScale(renderScale: number) {
+        for (const tile of this.#tiles.values())
+            tile.setRenderScale(renderScale)
     }
 
     getDirtyTiles(): GridTile[] {

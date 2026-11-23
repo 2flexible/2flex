@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import { Block, Canvas } from '@2flexible/2flex'
+import {
+    Block,
+    Canvas,
+    CircleBlock,
+    LayoutBlock,
+    RectangleBlock,
+    TextBlock,
+} from '@2flexible/2flex'
 import {
     allowMouse,
     dispatchMouse,
@@ -26,6 +33,14 @@ describe('Block', () => {
                 height: 100,
             })
             expect(block).toBeDefined()
+        })
+        it('should reject a missing options object or an invalid width', () => {
+            expect(() => new Block(undefined as never)).toThrow(
+                /new Block\(\).*options.*undefined/
+            )
+            expect(() => new Block({ width: '12unknown' })).toThrow(
+                /new Block\(\).*supported length.*options\.width/
+            )
         })
         it('does not throw when creating with options', () => {
             expect(
@@ -87,6 +102,19 @@ describe('Block', () => {
                 100
             )
         })
+        it('should convert the viewport units on every axis', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            canvas.add(block)
+            await flush()
+            // a viewport unit is the viewport, it does not depend on the axis
+            // of the option it is used for
+            expect(block.__valueHandler('20vh', 'customValue', 0, true)).toBe(
+                100
+            )
+            expect(block.__valueHandler('20vw', 'customValue', 0, false)).toBe(
+                80
+            )
+        })
         it('should convert centimeters to pixel', () => {
             expect(block.__valueHandler('20cm', 'customValue', 0)).toBe(756)
         })
@@ -129,6 +157,21 @@ describe('Block', () => {
                 block.__valueHandler(['20px', '10', 'white'], 'customValue', 0)
             ).toEqual([20, 10, 'rgba(255, 255, 255, 1)'])
         })
+        it('should reject invalid options before applying any changes', () => {
+            block.x(10)
+            expect(() => block.set({ x: 20, hidden: 'false' as never })).toThrow(
+                /Block\.set\(\).*boolean.*options\.hidden/
+            )
+            expect(() => block.set({ x: 20, widht: 10 } as never)).toThrow(
+                /Block\.set\(\).*widht/
+            )
+            expect(block.x()).toBe(10)
+        })
+        it('should reject an invalid value passed to a setter', () => {
+            expect(() => block.width(null as never)).toThrow(
+                /Block\.width\(\).*null/
+            )
+        })
         it('should use set method for setting option value', () => {
             expect(() => block.set({ x: 20 })).not.toThrow()
             expect(block.x()).toBe(20)
@@ -153,6 +196,11 @@ describe('Block', () => {
         it('should set method set options of block', () => {
             block.set({ x: 10 })
             expect(block.x()).toBe(10)
+        })
+        it('should reject a binding without option names', () => {
+            expect(() => block.bindTo(new Block({}), undefined as never)).toThrow(
+                /Block\.bindTo\(\).*options.*undefined/
+            )
         })
         it('should bind options of block', async () => {
             block.set({ x: 100 })
@@ -182,6 +230,32 @@ describe('Block', () => {
                 block.cornerBottomLeft(),
                 block.cornerBottomRight(),
             ]).toMatchSnapshot()
+        })
+        it('should keep a finite box when the position is not finite', async () => {
+            block.set({ x: NaN, y: NaN })
+            await flush()
+            expect(Number.isFinite(block.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.y)).toBe(true)
+        })
+        it('should keep a finite box when the rotation center is not finite', async () => {
+            block.set({ rotationCenterX: NaN, rotationCenterY: NaN })
+            await flush()
+            expect(Number.isFinite(block.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.y)).toBe(true)
+        })
+        it('should keep a finite box when a corner is not finite', async () => {
+            block.set({
+                cornerTopLeft: { x: NaN, y: NaN },
+            } as any)
+            await flush()
+            expect(Number.isFinite(block.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(block.boundingBox.bottomRight.y)).toBe(true)
         })
         it('should change x coordinate', async () => {
             block.set({ x: 120 })
@@ -320,6 +394,16 @@ describe('Block', () => {
             canvas.add(block)
             expect([...block.childNodes][0]).toBe(childBlock)
         })
+        it('should reject adding an ancestor as a child', () => {
+            const parent = new Block({})
+            const child = new Block({})
+            parent.addChild(child)
+            expect(() => child.addChild(parent)).toThrow(
+                /Block\.addChild\(\).*ancestor/
+            )
+            expect(child.childNodes.size).toBe(0)
+            expect(parent.childNodes.has(child)).toBe(true)
+        })
         it('should add child blocks after canvas init', () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
@@ -405,6 +489,103 @@ describe('Block', () => {
             })
             expect(currIdx).toBe(childBlocks.length)
         })
+        it('should find child blocks by their own options', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            const otherChildBlock = new Block({ name: 'other' })
+            block.addChild(childBlock)
+            block.addChild(otherChildBlock)
+            // the query is matched against the option of the child and not
+            // against the option of the block the search started from
+            expect(block.findChilds({ name: 'child' })).toStrictEqual([
+                childBlock,
+            ])
+            expect(block.findChilds({ name: 'other' })).toStrictEqual([
+                otherChildBlock,
+            ])
+        })
+        it('should find child blocks in the whole subtree', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            const grandChildBlock = new Block({ name: 'grandchild' })
+            childBlock.addChild(grandChildBlock)
+            block.addChild(childBlock)
+            expect(block.findChilds({ name: 'grandchild' })).toStrictEqual([
+                grandChildBlock,
+            ])
+        })
+        it('should not find blocks which do not match the query', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            block.addChild(childBlock)
+            expect(block.findChilds({ name: 'missing' })).toStrictEqual([])
+        })
+        it('should find child blocks by an option which is not a name', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child', zIndex: 5 })
+            const otherChildBlock = new Block({ name: 'other', zIndex: 1 })
+            block.addChild(childBlock)
+            block.addChild(otherChildBlock)
+            expect(block.findChilds({ zIndex: 5 })).toStrictEqual([childBlock])
+            expect(block.findChilds({ zIndex: 1 })).toStrictEqual([
+                otherChildBlock,
+            ])
+        })
+        it('should include the block the search started from', () => {
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            block.addChild(childBlock)
+            // the traversal starts from the block itself, so a query which
+            // matches the block itself returns it as well
+            expect(block.findChilds({ name: 'parent' })).toStrictEqual([block])
+        })
+        it('should find child blocks after they are added to a canvas', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+                name: 'parent',
+            })
+            const childBlock = new Block({ name: 'child' })
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            expect(block.findChilds({ name: 'child' })).toStrictEqual([
+                childBlock,
+            ])
+        })
         it('should adjust coordinates of child blocks', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
@@ -429,7 +610,7 @@ describe('Block', () => {
                 childBlocks[0].y(),
                 childBlocks[0].width(),
                 childBlocks[0].height(),
-                childBlocks[0].rotate(),
+                childBlocks[0].__rotation(),
             ]).toEqual([
                 expect.closeTo(70),
                 expect.closeTo(90),
@@ -443,7 +624,7 @@ describe('Block', () => {
                 childBlocks[1].y(),
                 childBlocks[1].width(),
                 childBlocks[1].height(),
-                childBlocks[0].rotate(),
+                childBlocks[0].__rotation(),
             ]).toEqual([
                 expect.closeTo(110),
                 expect.closeTo(90),
@@ -457,7 +638,7 @@ describe('Block', () => {
                 childBlocks[2].y(),
                 childBlocks[2].width(),
                 childBlocks[2].height(),
-                childBlocks[0].rotate(),
+                childBlocks[0].__rotation(),
             ]).toEqual([
                 expect.closeTo(70),
                 expect.closeTo(140),
@@ -490,6 +671,95 @@ describe('Block', () => {
                 childBlock.rotationCenterY(),
             ]).toStrictEqual([90, 115])
         })
+        it('should rotate a child around the rotation center of its parent', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 200,
+            })
+            const childBlock = new Block({
+                width: 50,
+                height: 30,
+                rotate: Math.PI,
+            })
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            expect(childBlock.__rotation()).toBeCloseTo(Math.PI)
+            expect(childBlock.horizontalFlip()).toBe(false)
+            expect(childBlock.verticalFlip()).toBe(false)
+            expect(childBlock.cornerTopLeft().x).toBeCloseTo(200)
+            expect(childBlock.cornerTopLeft().y).toBeCloseTo(200)
+            expect(childBlock.cornerBottomRight().x).toBeCloseTo(150)
+            expect(childBlock.cornerBottomRight().y).toBeCloseTo(170)
+            expect(childBlock.boundingBox.topLeft.x).toBeCloseTo(150)
+            expect(childBlock.boundingBox.topLeft.y).toBeCloseTo(170)
+            expect(childBlock.boundingBox.bottomRight.x).toBeCloseTo(200)
+            expect(childBlock.boundingBox.bottomRight.y).toBeCloseTo(200)
+        })
+        it('should keep the painted area of a rotated child inside its bounding box when the parent is moved', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 200,
+            })
+            const childBlock = new Block({
+                width: 50,
+                height: 30,
+                rotate: Math.PI,
+            })
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            block.set({ x: 100, y: 60 })
+            await flush()
+            expect(childBlock.cornerTopLeft().x).toBeCloseTo(300)
+            expect(childBlock.cornerTopLeft().y).toBeCloseTo(260)
+            expect(childBlock.boundingBox.topLeft.x).toBeCloseTo(250)
+            expect(childBlock.boundingBox.topLeft.y).toBeCloseTo(230)
+            expect(childBlock.boundingBox.bottomRight.x).toBeCloseTo(300)
+            expect(childBlock.boundingBox.bottomRight.y).toBeCloseTo(260)
+        })
+        it('should draw the selection of a rotated child around the child', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new RectangleBlock({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 200,
+                backgroundColor: 'red',
+                selectable: true,
+                draggable: true,
+                hotLines: true,
+                rotatable: true,
+            })
+            const childBlock = new RectangleBlock({
+                width: 50,
+                height: 30,
+                rotate: Math.PI,
+                backgroundColor: 'blue',
+                selectable: true,
+                draggable: true,
+                hotLines: true,
+            })
+            block.addChild(childBlock)
+            canvas.add(block)
+            allowMouse(canvas)
+            await flush()
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 175, 185, 1)
+            dispatchMouse(element, 'mouseup', 175, 185)
+            await flush()
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'rotated-child-selection'
+            )
+        })
         it('should hide child block', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
@@ -509,7 +779,8 @@ describe('Block', () => {
             block.addChild(childBlock)
             canvas.add(block)
             await flush()
-            expect(childBlock.hidden()).toBe(true)
+            expect(childBlock.hidden()).toBe(false)
+            expect(childBlock.__isHidden()).toBe(true)
             // a hidden block is not painted at all
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'child-not-drawn-while-parent-is-hidden'
@@ -534,13 +805,14 @@ describe('Block', () => {
             canvas.add(block)
             await flush()
             expect(childBlock.hidden()).toBe(false)
+            expect(childBlock.__isHidden()).toBe(false)
             // the child is laid out by its parent and painted on top of it
             expect([childBlock.x(), childBlock.y()]).toStrictEqual([70, 90])
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'child-drawn-while-parent-is-visible'
             )
         })
-        it('should show a child which is hidden on its own', async () => {
+        it('should keep a child which is hidden on its own hidden', async () => {
             canvas = new Canvas('myCanvas', 400, 500)
             block = new Block({
                 x: 70,
@@ -557,11 +829,159 @@ describe('Block', () => {
             block.addChild(childBlock)
             canvas.add(block)
             await flush()
-            // visibility always comes from the parent, so the child is drawn
-            expect(childBlock.hidden()).toBe(false)
+            expect(childBlock.hidden()).toBe(true)
+            expect(childBlock.__isHidden()).toBe(true)
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
-                'child-hidden-by-itself-is-drawn'
+                'child-hidden-by-itself-is-not-drawn'
             )
+        })
+        it('should hide the whole subtree of a hidden block', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 200,
+                height: 200,
+            })
+            const childBlock = new Block({ width: 100, height: 100 })
+            const grandChildBlock = new Block({ width: 50, height: 50 })
+            drawFilledBlock(childBlock)
+            drawFilledBlock(grandChildBlock)
+            childBlock.addChild(grandChildBlock)
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            expect(childBlock.__isHidden()).toBe(false)
+            expect(grandChildBlock.__isHidden()).toBe(false)
+            block.set({ hidden: true })
+            await flush()
+            expect(childBlock.__isHidden()).toBe(true)
+            expect(grandChildBlock.__isHidden()).toBe(true)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'subtree-not-drawn-while-ancestor-is-hidden'
+            )
+            block.set({ hidden: false })
+            await flush()
+            expect(childBlock.__isHidden()).toBe(false)
+            expect(grandChildBlock.__isHidden()).toBe(false)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'subtree-drawn-after-ancestor-is-shown'
+            )
+        })
+        it('should hide the subtree of an absolutely positioned block', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            const parentBlock = new Block({
+                x: 120,
+                y: 120,
+                width: 400,
+                height: 400,
+            })
+            const absoluteBlock = new Block({
+                x: 120,
+                y: 120,
+                width: 120,
+                height: 60,
+                position: 'absolute',
+            })
+            const childBlock = new Block({ width: 80, height: 30 })
+            drawFilledBlock(absoluteBlock)
+            drawFilledBlock(childBlock)
+            absoluteBlock.addChild(childBlock)
+            parentBlock.addChild(absoluteBlock)
+            canvas.add(parentBlock)
+            await flush()
+            expect(childBlock.__isHidden()).toBe(false)
+            absoluteBlock.set({ hidden: true })
+            await flush()
+            expect(absoluteBlock.__isHidden()).toBe(true)
+            expect(childBlock.__isHidden()).toBe(true)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'absolute-subtree-not-drawn-while-block-is-hidden'
+            )
+            absoluteBlock.set({ hidden: false })
+            await flush()
+            expect(childBlock.__isHidden()).toBe(false)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'absolute-subtree-drawn-after-block-is-shown'
+            )
+        })
+        it('should keep the own hidden state of a child when the parent is shown', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new Block({
+                x: 70,
+                y: 90,
+                width: 100,
+                height: 100,
+            })
+            const childBlock = new Block({
+                width: 40,
+                height: 50,
+                hidden: true,
+            })
+            block.addChild(childBlock)
+            canvas.add(block)
+            await flush()
+            expect(childBlock.hidden()).toBe(true)
+            expect(childBlock.__isHidden()).toBe(true)
+            block.set({ hidden: true })
+            await flush()
+            block.set({ hidden: false })
+            await flush()
+            expect(childBlock.hidden()).toBe(true)
+            expect(childBlock.__isHidden()).toBe(true)
+        })
+        it('should hide the childs of a hidden block which is added to a parent block', async () => {
+            canvas = new Canvas('myCanvas', 600, 600)
+            const dummyBlock = new Block({
+                width: 400,
+                height: 400,
+                x: 120,
+                y: 120,
+            })
+            const customBlock = new RectangleBlock({
+                backgroundColor: 'blue',
+                width: 120,
+                height: 40,
+                x: 120,
+                y: 120,
+                position: 'absolute',
+            })
+            const layoutBlock = new LayoutBlock({
+                x: 120,
+                y: 120,
+                width: 120,
+                height: 60,
+                alignItems: 'center',
+                flexDirection: 'column',
+            })
+            const textBlock = new TextBlock({
+                text: 'volvo',
+                color: 'white',
+                fontSize: 12,
+                width: 80,
+                height: 30,
+            })
+            layoutBlock.addChild(textBlock)
+            customBlock.addChild(layoutBlock)
+            dummyBlock.addChild(customBlock)
+            canvas.add(dummyBlock)
+            await flush()
+            expect(textBlock.__isHidden()).toBe(false)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'absolute-shape-subtree-drawn-while-block-is-visible'
+            )
+            customBlock.set({ hidden: true })
+            await flush()
+            expect(customBlock.__isHidden()).toBe(true)
+            expect(layoutBlock.__isHidden()).toBe(true)
+            expect(textBlock.__isHidden()).toBe(true)
+            await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
+                'absolute-shape-subtree-not-drawn-while-block-is-hidden'
+            )
+            customBlock.set({ hidden: false })
+            await flush()
+            expect(layoutBlock.__isHidden()).toBe(false)
+            expect(textBlock.__isHidden()).toBe(false)
         })
     })
     describe('child layout', () => {
@@ -716,6 +1136,63 @@ describe('Block', () => {
             // a relative size is resolved against the parent again
             expect(percentChild.width()).toBe(200)
         })
+        it('should resolve the margin of a child against the parent again', async () => {
+            block = new Block({ x: 0, y: 0, width: 200, height: 100 })
+            const percentChild = new Block({
+                width: 20,
+                height: 20,
+                margin: '10%',
+            })
+            block.addChild(percentChild)
+            canvas.add(block)
+            await flush()
+            // the horizontal margin is a part of the width of the parent, the
+            // vertical one a part of its height
+            expect(percentChild.marginLeft()).toBe(20)
+            expect(percentChild.marginTop()).toBe(10)
+            block.set({ width: 400, height: 200 })
+            await flush()
+            expect(percentChild.marginLeft()).toBe(40)
+            expect(percentChild.marginTop()).toBe(20)
+        })
+        it('should resolve the size of an absolute child against the parent again', async () => {
+            block = new Block({ x: 0, y: 0, width: 200, height: 100 })
+            const absoluteChild = new Block({
+                width: '50%',
+                height: '50%',
+                position: 'absolute',
+            })
+            block.addChild(absoluteChild)
+            canvas.add(block)
+            await flush()
+            expect(absoluteChild.width()).toBe(100)
+            expect(absoluteChild.height()).toBe(50)
+            block.set({ width: 400, height: 200 })
+            await flush()
+            // an absolute child is not given a size by its parent, so it
+            // resolves its own size again
+            expect(absoluteChild.width()).toBe(200)
+            expect(absoluteChild.height()).toBe(100)
+        })
+        it('should resolve the size of a child against the chain of its parents', async () => {
+            block = new Block({ x: 0, y: 0, width: 400, height: 300 })
+            const layout = new LayoutBlock({ width: '50%', height: '50%' })
+            const grandChild = new Block({ width: '50%', height: '50%' })
+            layout.addChild(grandChild)
+            block.addChild(layout)
+            canvas.add(block)
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([200, 150])
+            expect([grandChild.width(), grandChild.height()]).toStrictEqual([
+                100, 75,
+            ])
+            block.set({ width: 800, height: 600 })
+            await flush()
+            expect([layout.width(), layout.height()]).toStrictEqual([400, 300])
+            expect([grandChild.width(), grandChild.height()]).toStrictEqual([
+                200, 150,
+            ])
+        })
         it('should give childs the rotation center of their parent', async () => {
             block = new Block({ x: 70, y: 90, width: 100, height: 100 })
             const centerChild = new Block({ width: 40, height: 50 })
@@ -740,13 +1217,35 @@ describe('Block', () => {
             block.addChild(rotatedChild)
             canvas.add(block)
             await flush()
-            expect(rotatedChild.rotate()).toBeCloseTo(0.6)
-            expect(rotatedChild.getOptionCurrent('rotate')).toBeCloseTo(0.6)
-            expect(rotatedChild.getOptionCache('rotate')).toBeCloseTo(0.6)
+            expect(rotatedChild.rotate()).toBe(0)
+            expect(rotatedChild.getOptionCurrent('rotate')).toBe(0)
+            expect(rotatedChild.getOptionCache('rotate')).toBe(0)
+            expect(rotatedChild.__rotation()).toBeCloseTo(0.6)
+            expect(rotatedChild.__rotationCache()).toBeCloseTo(0.6)
             block.set({ rotate: 1.2 })
             await flush()
-            expect(rotatedChild.getOptionCurrent('rotate')).toBeCloseTo(1.2)
-            expect(rotatedChild.getOptionCache('rotate')).toBeCloseTo(1.2)
+            expect(rotatedChild.rotate()).toBe(0)
+            expect(rotatedChild.__rotation()).toBeCloseTo(1.2)
+            expect(rotatedChild.__rotationCache()).toBeCloseTo(1.2)
+        })
+        it('should keep the own rotation of a child and add the rotation of its parent to it', async () => {
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                rotate: 0.6,
+            })
+            const rotatedChild = new Block({
+                width: 40,
+                height: 50,
+                rotate: 0.3,
+            })
+            block.addChild(rotatedChild)
+            canvas.add(block)
+            await flush()
+            expect(rotatedChild.rotate()).toBeCloseTo(0.3)
+            expect(rotatedChild.__rotation()).toBeCloseTo(0.9)
         })
         it('should move already laid out childs when parent changes', async () => {
             block = new Block({ x: 0, y: 0, width: 200, height: 100 })
@@ -778,10 +1277,12 @@ describe('Block', () => {
             block.addChild(hiddenChild)
             canvas.add(block)
             await flush()
-            expect(hiddenChild.hidden()).toBe(true)
+            expect(hiddenChild.hidden()).toBe(false)
+            expect(hiddenChild.__isHidden()).toBe(true)
             block.set({ hidden: false })
             await flush()
             expect(hiddenChild.hidden()).toBe(false)
+            expect(hiddenChild.__isHidden()).toBe(false)
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'child-drawn-after-parent-is-shown'
             )
@@ -828,6 +1329,18 @@ describe('Block', () => {
             })
             canvas.add(block)
             await flush()
+        })
+        it('padding should resolve a relative value against the axis of its side', async () => {
+            const parent = new Block({ width: 200, height: 100 })
+            const child = new Block({ width: 20, height: 20, padding: '10%' })
+            parent.addChild(child)
+            canvas.add(parent)
+            await flush()
+            // the horizontal padding is a part of the width of the parent, the
+            // vertical one a part of its height
+            expect([child.paddingLeft(), child.paddingTop()]).toStrictEqual([
+                20, 10,
+            ])
         })
         it('padding should parse values', () => {
             block.set({ padding: 20 })
@@ -884,8 +1397,10 @@ describe('Block', () => {
                 paddingBottom: paddingBottom,
             })
             await flush()
-            expect(block.width()).toBe(paddingRight + blockWidth)
-            expect(block.height()).toBe(paddingBottom + blockHeight)
+            expect(block.__boxWidth()).toBe(paddingRight + blockWidth)
+            expect(block.__boxHeight()).toBe(paddingBottom + blockHeight)
+            expect(block.width()).toBe(blockWidth)
+            expect(block.height()).toBe(blockHeight)
         })
         it('padding should add spacing around itself', async () => {
             const padding = 30
@@ -904,6 +1419,62 @@ describe('Block', () => {
             expect(childBlocks[2].x()).toBe(
                 childBlocks[1].width() + childBlocks[0].width() + padding
             )
+        })
+        it('padding should increase the size of a child', async () => {
+            const child = new Block({ width: 50, height: 50, padding: 10 })
+            block.addChild(child)
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                70, 70,
+            ])
+        })
+        it('padding should increase the size of a nested child', async () => {
+            const middle = new Block({ width: 200, height: 200 })
+            const child = new Block({ width: 50, height: 50, padding: 10 })
+            block.addChild(middle)
+            middle.addChild(child)
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                70, 70,
+            ])
+        })
+        it('padding should not shrink a child with a relative size', async () => {
+            const child = new Block({
+                width: '100%',
+                height: '100%',
+                padding: 10,
+            })
+            block.addChild(child)
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                420, 420,
+            ])
+        })
+        it('a relative size of a child should not change with its padding', async () => {
+            const child = new Block({ width: '100%', height: '100%' })
+            block.addChild(child)
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                400, 400,
+            ])
+            child.set({ padding: 10 })
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                420, 420,
+            ])
+            child.set({ padding: 20 })
+            await flush()
+            expect([child.__boxWidth(), child.__boxHeight()]).toStrictEqual([
+                440, 440,
+            ])
+        })
+        it('a relative size should be resolved against the content box of the parent', async () => {
+            block.set({ padding: 10 })
+            const child = new Block({ width: '100%', height: '100%' })
+            block.addChild(child)
+            await flush()
+            expect([child.width(), child.height()]).toStrictEqual([400, 400])
+            expect([child.x(), child.y()]).toStrictEqual([10, 10])
         })
         it('margin should parse values', () => {
             block.set({ margin: 20 })
@@ -1094,6 +1665,50 @@ describe('Block', () => {
             })
             await flush()
             expect([block.x(), block.y()]).toStrictEqual([160, 350])
+        })
+        it('should keep the absolute position when the view is moved', async () => {
+            block.set({
+                position: 'absolute',
+                left: 100,
+                top: 50,
+            })
+            await flush()
+            expect([block.x(), block.y()]).toStrictEqual([100, 50])
+
+            // an absolute block belongs to the content of the canvas, so it
+            // moves along with it when the view is panned or zoomed
+            canvas.view.tx = 200
+            canvas.view.ty = 100
+            canvas.view.scale = 2
+            await flush()
+
+            // every change re-invokes the block, which must not derive its
+            // position from the view transform again
+            block.set({ width: 130 })
+            await flush()
+            expect([block.x(), block.y()]).toStrictEqual([100, 50])
+        })
+        it('should not snap back to its initial absolute position when it is clicked', async () => {
+            block.set({
+                position: 'absolute',
+                left: 100,
+                top: 50,
+            })
+            await flush()
+            block.click(() => {})
+            allowMouse(canvas)
+
+            canvas.view.tx = 200
+            await flush()
+
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+            // the block sits at the world position 100,50 which is at the
+            // screen position 300,50 after the canvas was panned
+            dispatchMouse(element, 'click', 350, 100)
+            await flush()
+
+            expect([block.x(), block.y()]).toStrictEqual([100, 50])
         })
         it('should set sticky position', async () => {
             block.set({
@@ -1306,6 +1921,11 @@ describe('Block', () => {
             allowMouse(canvas)
             await flush()
         })
+        it('should reject a missing click callback when registering it', () => {
+            expect(() => block.click(undefined as never)).toThrow(
+                /Block\.click\(\).*function.*callback/
+            )
+        })
         it('should trigger click event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
             let isClicked = false
@@ -1420,8 +2040,449 @@ describe('Block', () => {
 
             expect(isMouseLeave).toBeTruthy()
         })
-        it.todo('should trigger mouseover event', async () => {})
-        it.todo('should trigger mouseout event', async () => {})
+        it('should trigger enter and leave for every row of a list', async () => {
+            const rows: Block[] = []
+            const events: string[] = []
+
+            for (let i = 0; i < 4; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                rows.push(row)
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            // walk down the rows, every row has to report that it was entered
+            for (let i = 0; i < rows.length; i++) {
+                dispatchMouse(element, 'mousemove', 50, i * 50 + 25)
+                await flush()
+            }
+
+            expect(events).toContain('enter:0')
+            expect(events).toContain('enter:1')
+            expect(events).toContain('enter:2')
+            expect(events).toContain('enter:3')
+        })
+        it('should trigger leave for the row the pointer came from', async () => {
+            const events: string[] = []
+
+            for (let i = 0; i < 4; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 75)
+            await flush()
+
+            expect(events).toContain('enter:0')
+            expect(events).toContain('leave:0')
+            expect(events).toContain('enter:1')
+        })
+        it('should release the z index of a row once it is left', async () => {
+            const rows: Block[] = []
+
+            for (let i = 0; i < 4; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => {})
+                row.mouseleave(() => {})
+                rows.push(row)
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 75)
+            await flush()
+
+            // the row the pointer left must not keep the first place, otherwise
+            // the rows underneath it can never be hovered again
+            expect(canvas.whoIsTheFirst(rows[0].nodeId!)).toBe(false)
+        })
+        it('should allow hovering the same row again after another row was hovered', async () => {
+            const events: string[] = []
+
+            for (let i = 0; i < 3; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 75)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 125)
+            await flush()
+            // back to the first row
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+
+            expect(events.filter((e) => e === 'enter:0')).toHaveLength(2)
+        })
+        it('should keep the hovered row in the first place while it is hovered', async () => {
+            const rows: Block[] = []
+
+            for (let i = 0; i < 3; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => {})
+                row.mouseleave(() => {})
+                rows.push(row)
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+
+            // the row under the pointer owns the first place
+            expect(canvas.whoIsTheFirst(rows[0].nodeId!)).toBe(true)
+        })
+        it('should not trigger enter again while the pointer stays on the row', async () => {
+            const events: string[] = []
+
+            for (let i = 0; i < 3; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 60, 30)
+            await flush()
+            dispatchMouse(element, 'mousemove', 70, 35)
+            await flush()
+
+            expect(events.filter((e) => e === 'enter:0')).toHaveLength(1)
+            expect(events.filter((e) => e === 'leave:0')).toHaveLength(0)
+        })
+        it('should trigger leave once after the pointer left the row', async () => {
+            const events: string[] = []
+
+            for (let i = 0; i < 3; i++) {
+                const row = new Block({
+                    x: 0,
+                    y: i * 50,
+                    width: 100,
+                    height: 50,
+                    zIndex: i,
+                })
+                row.mouseenter(() => events.push(`enter:${i}`))
+                row.mouseleave(() => events.push(`leave:${i}`))
+                canvas.add(row)
+            }
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 25)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 75)
+            await flush()
+            dispatchMouse(element, 'mousemove', 50, 125)
+            await flush()
+
+            expect(events.filter((e) => e === 'leave:0')).toHaveLength(1)
+        })
+        it('should trigger mouseover event', async () => {
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            let overCount = 0
+            block.mouseover(() => {
+                overCount++
+            })
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+
+            expect(overCount).toBe(1)
+        })
+        it('should trigger mouseout event', async () => {
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            let outCount = 0
+            block.mouseover(() => {})
+            block.mouseout(() => {
+                outCount++
+            })
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+            // the pointer leaves the block
+            dispatchMouse(element, 'mousemove', 300, 300)
+            await flush()
+
+            expect(outCount).toBe(1)
+        })
+        it('should not trigger mouseover again while the pointer stays', async () => {
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            let overCount = 0
+            block.mouseover(() => {
+                overCount++
+            })
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+            dispatchMouse(element, 'mousemove', 20, 20)
+            await flush()
+            dispatchMouse(element, 'mousemove', 30, 30)
+            await flush()
+
+            expect(overCount).toBe(1)
+        })
+        it('should not trigger mouseover for a block which is covered', async () => {
+            const lower = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 1,
+            })
+            const upper = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 2,
+            })
+
+            const lowerOver = vi.fn()
+            const upperOver = vi.fn()
+            lower.mouseover(lowerOver)
+            upper.mouseover(upperOver)
+            canvas.add(lower, upper)
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            // the pointer is inside of both blocks, the upper one is above
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+
+            expect(upperOver).toHaveBeenCalledTimes(1)
+            expect(lowerOver).not.toHaveBeenCalled()
+        })
+        it('should trigger mouseout for a block which gets covered', async () => {
+            const lower = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 1,
+            })
+            const lowerOut = vi.fn()
+            lower.mouseover(() => {})
+            lower.mouseout(lowerOut)
+            canvas.add(lower)
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+            expect(lowerOut).not.toHaveBeenCalled()
+
+            // the upper block covers the lower one
+            const upper = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 2,
+            })
+            upper.mouseover(() => {})
+            canvas.add(upper)
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+
+            expect(lowerOut).toHaveBeenCalledTimes(1)
+        })
+        it('should trigger mouseover again when the block is uncovered', async () => {
+            const lower = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 1,
+            })
+            const lowerOver = vi.fn()
+            lower.mouseover(lowerOver)
+            canvas.add(lower)
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+            expect(lowerOver).toHaveBeenCalledTimes(1)
+
+            // the upper block covers the lower one
+            const upper = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                zIndex: 2,
+            })
+            upper.mouseover(() => {})
+            canvas.add(upper)
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+            expect(lowerOver).toHaveBeenCalledTimes(1)
+
+            // the upper block is removed
+            canvas.remove(upper)
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 50, 50)
+            await flush()
+
+            expect(lowerOver).toHaveBeenCalledTimes(2)
+        })
+        it('should not trigger mouseout when the pointer moves onto a child', async () => {
+            const parent = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+            })
+            const child = new Block({
+                x: 50,
+                y: 50,
+                width: 50,
+                height: 50,
+            })
+            parent.addChild(child)
+
+            const parentOut = vi.fn()
+            const parentOver = vi.fn()
+            parent.mouseover(parentOver)
+            parent.mouseout(parentOut)
+            canvas.add(parent)
+            await flush()
+            allowMouse(canvas)
+
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            // the pointer enters the parent
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+            expect(parentOver).toHaveBeenCalledTimes(1)
+
+            // the pointer moves onto the child, the parent is still hovered
+            dispatchMouse(element, 'mousemove', 75, 75)
+            await flush()
+
+            expect(parentOut).not.toHaveBeenCalled()
+        })
+        it('should not trigger mouseover while the pointer is outside the canvas', async () => {
+            const currentCanvas = page.elementLocator(canvas.canvas)
+            const element = (await currentCanvas.element()) as HTMLElement
+
+            let overCount = 0
+            block.mouseover(() => {
+                overCount++
+            })
+            await flush()
+
+            // the pointer is not inside of the canvas
+            canvas.isMouseEventAllowed = false
+            dispatchMouse(element, 'mousemove', 10, 10)
+            await flush()
+
+            expect(overCount).toBe(0)
+        })
         it('should trigger keyup event', async () => {
             const currentCanvas = page.elementLocator(canvas.canvas)
             const element = (await currentCanvas.element()) as HTMLElement
@@ -1506,6 +2567,315 @@ describe('Block', () => {
             await flush()
             await userEvent.click(currentCanvas, { position: { x: 10, y: 10 } })
             expect(isClicked).toBeTruthy()
+        })
+    })
+    describe('dependencies', () => {
+        let target: Block
+        let dependent: Block
+
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            target = new Block({ x: 20, y: 30, width: 100, height: 100 })
+            dependent = new Block({ x: 0, y: 0, width: 50, height: 50 })
+            canvas.add(target)
+            canvas.add(dependent)
+            await flush()
+        })
+
+        it('should invoke the dependent when the block it depends on changes', async () => {
+            dependent.addDependency(target)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            target.set({ x: 200 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+        })
+        it('should not invoke the dependent when another block changes', async () => {
+            dependent.addDependency(target)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            const other = new Block({ x: 0, y: 0, width: 10, height: 10 })
+            canvas.add(other)
+            await flush()
+            other.set({ x: 50 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should not invoke the dependent after the dependency was removed', async () => {
+            dependent.addDependency(target)
+            dependent.removeDependency(target)
+            // the pending work of the canvas is flushed before the spy is
+            // placed, so only the work of the change is counted
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            target.set({ x: 200 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should not throw when a dependency which does not exist is removed', () => {
+            expect(() => dependent.removeDependency(target)).not.toThrow()
+        })
+        it('should ignore a dependency on itself', async () => {
+            dependent.addDependency(dependent)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            dependent.set({ x: 200 })
+            await flush()
+
+            // the block does not depend on itself, so it is not invoked twice
+            expect(spy.mock.calls.length).toBeLessThanOrEqual(1)
+        })
+        it('should invoke the dependent of a nested block when it changes', async () => {
+            const child = new Block({ x: 0, y: 0, width: 20, height: 20 })
+            target.addChild(child)
+            dependent.addDependency(child)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            child.set({ x: 150 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+        })
+        it('should invoke every dependent of a block', async () => {
+            const second = new Block({ x: 0, y: 0, width: 50, height: 50 })
+            canvas.add(second)
+            await flush()
+            dependent.addDependency(target)
+            second.addDependency(target)
+            await flush()
+            const spy = vi.spyOn(dependent, 'updateCords')
+            const secondSpy = vi.spyOn(second, 'updateCords')
+            target.set({ x: 220 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+            expect(secondSpy).toHaveBeenCalled()
+        })
+        it('should apply the dependencies given by the set method', async () => {
+            const source = new Block({ x: 5, y: 5, width: 20, height: 20 })
+            canvas.add(source)
+            await flush()
+            // the listed blocks depend on the block which lists them, so they
+            // are invoked when the block which lists them changes
+            target.set({ dependencies: [source] })
+            await flush()
+            const spy = vi.spyOn(source, 'updateCords')
+            target.set({ x: 200 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+        })
+        it('should apply the dependencies given in the constructor', async () => {
+            const source = new Block({ x: 5, y: 5, width: 20, height: 20 })
+            const watcher = new Block({
+                width: 10,
+                height: 10,
+                dependencies: [source],
+            })
+            canvas.add(source)
+            canvas.add(watcher)
+            await flush()
+            const spy = vi.spyOn(source, 'updateCords')
+            watcher.set({ x: 90 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+        })
+        it('should release the dependencies which are no longer listed', async () => {
+            const source = new Block({ x: 5, y: 5, width: 20, height: 20 })
+            canvas.add(source)
+            await flush()
+            target.set({ dependencies: [source] })
+            await flush()
+            const spy = vi.spyOn(source, 'updateCords')
+            target.set({ x: 200 })
+            await flush()
+            expect(spy).toHaveBeenCalled()
+
+            target.set({ dependencies: [] })
+            await flush()
+            spy.mockClear()
+            target.set({ x: 260 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should replace the dependencies instead of adding them to them', async () => {
+            const source = new Block({ x: 5, y: 5, width: 20, height: 20 })
+            const other = new Block({ x: 6, y: 6, width: 20, height: 20 })
+            canvas.add(source)
+            canvas.add(other)
+            await flush()
+            target.set({ dependencies: [source, other] })
+            await flush()
+            const sourceSpy = vi.spyOn(source, 'updateCords')
+            const otherSpy = vi.spyOn(other, 'updateCords')
+
+            // the block which is not listed anymore is not invoked anymore
+            target.set({ dependencies: [other] })
+            await flush()
+            sourceSpy.mockClear()
+            otherSpy.mockClear()
+            target.set({ x: 240 })
+            await flush()
+
+            expect(sourceSpy).not.toHaveBeenCalled()
+            expect(otherSpy).toHaveBeenCalled()
+        })
+        it('should not hang the canvas when two blocks depend on each other', async () => {
+            target.addDependency(dependent)
+            dependent.addDependency(target)
+            await flush()
+            target.set({ x: 220 })
+            await flush()
+
+            expect(target.x()).toBe(220)
+        })
+    })
+
+    describe('self sizing', () => {
+        beforeEach(async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            await flush()
+        })
+        it('should take the size of its childs when no size was given', async () => {
+            block = new Block({ x: 0, y: 0 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 50])
+        })
+        it('should take the size of its childs when its size was read before it was added', async () => {
+            block = new Block({ x: 0, y: 0 })
+            // reading the size must not turn it into a size which was given
+            block.width()
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 50])
+        })
+        it('should take the width of the widest of its childs', async () => {
+            block = new Block({ x: 0, y: 0 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            block.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 80])
+        })
+        it('should keep a width which was given and derive the height', async () => {
+            block = new Block({ x: 0, y: 0, width: 200 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([200, 50])
+        })
+        it('should keep a height which was given and derive the width', async () => {
+            block = new Block({ x: 0, y: 0, height: 200 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 200])
+        })
+        it('should keep a size of zero which was given', async () => {
+            block = new Block({ x: 0, y: 0, width: 0, height: 0 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([0, 0])
+        })
+        it('should include the margins of its childs and its own padding', async () => {
+            block = new Block({ x: 0, y: 0, padding: 10 })
+            block.addChild(new Block({ width: 150, height: 50, margin: 5 }))
+            canvas.add(block)
+            await flush()
+
+            // the child takes 150 plus its margins, the padding is added on top
+            expect([block.width(), block.height()]).toStrictEqual([180, 80])
+        })
+        it('should not take the size of a child which is out of the flow', async () => {
+            block = new Block({ x: 0, y: 0 })
+            block.addChild(
+                new Block({ width: 150, height: 50, position: 'absolute' })
+            )
+            canvas.add(block)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([0, 0])
+        })
+        it('should grow when a child is added', async () => {
+            block = new Block({ x: 0, y: 0 })
+            block.addChild(new Block({ width: 150, height: 50 }))
+            canvas.add(block)
+            await flush()
+            expect([block.width(), block.height()]).toStrictEqual([150, 50])
+
+            block.addChild(new Block({ width: 50, height: 80 }))
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([150, 80])
+        })
+        it('should shrink when a child is removed', async () => {
+            block = new Block({ x: 0, y: 0 })
+            const child = new Block({ width: 150, height: 50 })
+            block.addChild(child)
+            block.addChild(new Block({ width: 50, height: 80 }))
+            canvas.add(block)
+            await flush()
+            expect([block.width(), block.height()]).toStrictEqual([150, 80])
+
+            block.removeChild(child)
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([50, 80])
+        })
+        it('should follow a child which is resized', async () => {
+            block = new Block({ x: 0, y: 0 })
+            const child = new Block({ width: 150, height: 50 })
+            block.addChild(child)
+            canvas.add(block)
+            await flush()
+            expect([block.width(), block.height()]).toStrictEqual([150, 50])
+
+            child.set({ width: 300, height: 90 })
+            await flush()
+
+            expect([block.width(), block.height()]).toStrictEqual([300, 90])
+        })
+        it('should size a shape block from its childs', async () => {
+            const shape = new RectangleBlock({ x: 0, y: 0 })
+            shape.addChild(new RectangleBlock({ width: 120, height: 40 }))
+            canvas.add(shape)
+            await flush()
+
+            expect([shape.width(), shape.height()]).toStrictEqual([120, 40])
+        })
+        it('should size a circle block from its childs', async () => {
+            const circle = new CircleBlock({ x: 0, y: 0 })
+            circle.addChild(new RectangleBlock({ width: 120, height: 40 }))
+            canvas.add(circle)
+            await flush()
+
+            expect([circle.width(), circle.height()]).toStrictEqual([120, 40])
+        })
+        it('should size a nested block from the childs of its childs', async () => {
+            const outer = new Block({ x: 0, y: 0 })
+            const inner = new Block({ x: 0, y: 0 })
+            inner.addChild(new Block({ width: 150, height: 50 }))
+            outer.addChild(inner)
+            canvas.add(outer)
+            await flush()
+
+            expect([inner.width(), inner.height()]).toStrictEqual([150, 50])
+            expect([outer.width(), outer.height()]).toStrictEqual([150, 50])
         })
     })
 })

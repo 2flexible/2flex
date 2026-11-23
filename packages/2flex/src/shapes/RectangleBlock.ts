@@ -1,6 +1,11 @@
 import { SELECTABLE_RUNNING_EVENT } from '../const'
+import type {
+    ColorType,
+    OwnOptionAccessors,
+    ResolvedAs,
+} from '../BaseBlock'
 import { ShapeBlock } from '../ShapeBlock'
-import type { DrawFunc, FillStyle, IShapeOptions } from '../ShapeBlock'
+import type { DrawFunc, FillStyle, ShapeBlockOptions } from '../ShapeBlock'
 import type { RelativeType, ShortHandRelativeType } from '../types'
 import { shortHandParser } from '../Utils'
 
@@ -10,44 +15,60 @@ export type BorderColor = FillStyle
 export type RectangleBorder = [BorderWidth, BorderStyle, BorderColor] | string
 export type BorderRadius = ShortHandRelativeType
 
-export interface IRectangleOptions extends IShapeOptions {
-    backgroundColor?: FillStyle
+// the width of a border is resolved to a number, the style and the color
+// stay as they are
+export type ResolvedBorder = [number, BorderStyle, BorderColor]
+
+export interface RectangleBlockOptions extends ShapeBlockOptions {
+    backgroundColor?: ColorType
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
-    borderRadius?: BorderRadius
+    borderRadius?: ResolvedAs<BorderRadius, number[]>
     borderStyle?: BorderStyle
     borderWidth?: BorderWidth
-    borderColor?: BorderColor
-    border?: RectangleBorder
-    borderTop?: RectangleBorder
-    borderBottom?: RectangleBorder
-    borderLeft?: RectangleBorder
-    borderRight?: RectangleBorder
+    borderColor?: ColorType
+    border?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    borderTop?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    borderBottom?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    borderLeft?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    borderRight?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
 }
 
 type BorderSide = 'top' | 'right' | 'bottom' | 'left'
 
-export class RectangleBlock extends ShapeBlock {
+const DEFAULT_BACKGROUND_COLOR = 'white'
+const DEFAULT_BORDER_RADIUS = [0, 0, 0, 0]
+const DEFAULT_BORDER_COLOR = 'white'
+const DEFAULT_BORDER_STYLE: BorderStyle = 'solid'
+const DOTTED_BORDER_DASH = [4, 4]
+
+export class RectangleBlock<
+    T extends RectangleBlockOptions = RectangleBlockOptions,
+> extends ShapeBlock<T> {
     #rectPath?: Path2D
 
-    constructor(options: IRectangleOptions) {
-        super(options)
+    constructor(options: RectangleBlockOptions) {
+        super(options as T)
         this.#rectPath = new Path2D()
         this.#defineOptions()
     }
 
+    set(options: T): void {
+        super.set(options)
+    }
+
     #defineOptions() {
-        this.addProperty('backgroundColor', 'white')
+        this.addProperty('backgroundColor', DEFAULT_BACKGROUND_COLOR)
         this.addProperty(
             'borderRadius',
-            [0, 0, 0, 0],
+            DEFAULT_BORDER_RADIUS,
             false,
             undefined,
             (block: RectangleBlock, opt?: BorderRadius) =>
                 this.#borderRadius(block, opt)
         )
         this.addProperty('borderWidth', 0, true)
-        this.addProperty('borderColor', 'white')
-        this.addProperty('borderStyle', 'solid')
+        this.addProperty('borderColor', DEFAULT_BORDER_COLOR)
+        this.addProperty('borderStyle', DEFAULT_BORDER_STYLE)
         this.addProperty(
             'border',
             undefined,
@@ -95,8 +116,8 @@ export class RectangleBlock extends ShapeBlock {
         if (!context) return
         const x = this.x()
         const y = this.y()
-        const w = this.width()
-        const h = this.height()
+        const w = this.__boxWidth()
+        const h = this.__boxHeight()
         const radius = this.borderRadius()
 
         const rectPath = new Path2D()
@@ -145,7 +166,7 @@ export class RectangleBlock extends ShapeBlock {
         ctx.lineWidth = width as number
         ctx.strokeStyle = color as string
         if (style === 'dotted') {
-            ctx.setLineDash([4, 4])
+            ctx.setLineDash(DOTTED_BORDER_DASH)
             ctx.lineCap = 'butt'
         } else {
             ctx.setLineDash([])
@@ -168,20 +189,27 @@ export class RectangleBlock extends ShapeBlock {
         return this.#borderSide('left', opt)
     }
 
-    #borderParse(block: RectangleBlock, opt: any) {
+    #borderParse(
+        block: RectangleBlock,
+        opt?: RectangleBorder
+    ): ResolvedBorder | undefined {
         if (opt === undefined) return opt
-        if (typeof opt === 'string') opt = block.#borderConvert(opt)
-        else if (opt instanceof Array && opt.length == 3) {
-            opt[0] =
-                typeof opt[0] === 'number'
-                    ? opt[0]
-                    : block.__unitConverter(opt[0], true)
-            opt[2] =
-                typeof opt[2] === 'string'
-                    ? (block.__colorConverter(opt[2]) as string)
-                    : opt[2]
+        let parsed: ResolvedBorder
+        if (typeof opt === 'string') parsed = block.#borderConvert(opt)
+        else {
+            parsed = [...opt] as ResolvedBorder
+            if (parsed.length === 3) {
+                parsed[0] =
+                    typeof opt[0] === 'number'
+                        ? opt[0]
+                        : (block.__unitConverter(opt[0], true) ?? 0)
+                parsed[2] =
+                    typeof opt[2] === 'string'
+                        ? (block.__colorConverter(opt[2]) as string)
+                        : opt[2]
+            }
         }
-        return opt
+        return parsed
     }
 
     #borderSide(
@@ -236,15 +264,15 @@ export class RectangleBlock extends ShapeBlock {
 
     #sideLength(side: BorderSide): number {
         return side === 'left' || side === 'right'
-            ? this.height()
-            : this.width()
+            ? this.__boxHeight()
+            : this.__boxWidth()
     }
 
     #sidePath(side: BorderSide, borderWidth: number): Path2D {
         const x = this.x()
         const y = this.y()
-        const w = this.width()
-        const h = this.height()
+        const w = this.__boxWidth()
+        const h = this.__boxHeight()
         const r = this.#resolvedRadius()
         const path = new Path2D()
         const [tlR, trR, brR, blR] = r
@@ -333,14 +361,14 @@ export class RectangleBlock extends ShapeBlock {
 
     #resolvedRadius(): [number, number, number, number] {
         const r = this.borderRadius()
-        const parsed = shortHandParser(r as any) as any
+        const parsed = shortHandParser(r as ShortHandRelativeType)
         if (!Array.isArray(parsed) || parsed.length !== 4) {
             const n = (typeof r === 'number' ? r : 0) || 0
             return [n, n, n, n]
         }
-        let [tlR, trR, brR, blR] = parsed
-        const w = this.width()
-        const h = this.height()
+        let [tlR, trR, brR, blR] = parsed.map((v) => Number(v) || 0)
+        const w = this.__boxWidth()
+        const h = this.__boxHeight()
         const topSum = tlR + trR
         if (topSum > 0 && topSum > w) {
             const f = w / topSum
@@ -368,7 +396,7 @@ export class RectangleBlock extends ShapeBlock {
         return [tlR, trR, brR, blR]
     }
 
-    #borderConvert(opt: string): RectangleBorder {
+    #borderConvert(opt: string): ResolvedBorder {
         const splitted = opt.split(' ')
         const borderWidth = this.__unitConverter(splitted[0], true)
         const borderStyle = splitted[1] as BorderStyle
@@ -379,7 +407,7 @@ export class RectangleBlock extends ShapeBlock {
     #maxBorderWidth(): number {
         const candidates: number[] = []
         const bw = this.getOptionCurrent('borderWidth')
-        if (typeof bw === 'number') candidates.push(bw)
+        if (typeof bw === 'number' && Number.isFinite(bw)) candidates.push(bw)
         for (const key of [
             'borderTop',
             'borderRight',
@@ -388,11 +416,13 @@ export class RectangleBlock extends ShapeBlock {
         ] as const) {
             const v = this.getOptionCurrent(key)
             if (Array.isArray(v) && typeof v[0] === 'number') {
-                candidates.push(v[0])
+                if (Number.isFinite(v[0])) candidates.push(v[0])
             }
         }
         const b = this.getOptionCurrent('border')
-        if (Array.isArray(b) && typeof b[0] === 'number') candidates.push(b[0])
+        if (Array.isArray(b) && typeof b[0] === 'number') {
+            if (Number.isFinite(b[0])) candidates.push(b[0])
+        }
         return candidates.length > 0 ? Math.max(...candidates) : 0
     }
 
@@ -400,8 +430,8 @@ export class RectangleBlock extends ShapeBlock {
         const maxLW = this.#maxBorderWidth()
         const x = this.x() - maxLW / 2
         const y = this.y() - maxLW / 2
-        const w = this.width() + maxLW
-        const h = this.height() + maxLW
+        const w = this.__boxWidth() + maxLW
+        const h = this.__boxHeight() + maxLW
         this.__clipPath?.rect(x, y, w, h)
     }
 
@@ -410,7 +440,13 @@ export class RectangleBlock extends ShapeBlock {
         this.#adjustBoundingBox()
     }
     #adjustBoundingBox(): void {
-        const extra = (this.hotLineStrokeWidth() + this.#maxBorderWidth()) / 2
+        const strokeWidth = this.hotLineStrokeWidth()
+        const borderWidth = this.#maxBorderWidth()
+        // a width which is not finite would spread into the whole box
+        const extra =
+            Number.isFinite(strokeWidth) && Number.isFinite(borderWidth)
+                ? (strokeWidth + borderWidth) / 2
+                : 0
         const { topLeft, topRight, bottomLeft, bottomRight } = this.boundingBox
         this.boundingBox = {
             topLeft: { x: topLeft.x - extra, y: topLeft.y - extra },
@@ -434,7 +470,7 @@ export class RectangleBlock extends ShapeBlock {
         const centerY = this.rotationCenterY()
         context.save()
         context.translate(centerX, centerY)
-        context.rotate(this.rotate())
+        context.rotate(this.__rotation())
         context.translate(-centerX, -centerY)
         context.lineWidth = this.#maxBorderWidth()
         const inStroke = context.isPointInStroke(path, x, y)
@@ -452,3 +488,6 @@ export class RectangleBlock extends ShapeBlock {
         return super.checkInBound(event)
     }
 }
+
+export interface RectangleBlock
+    extends OwnOptionAccessors<RectangleBlockOptions, ShapeBlockOptions> {}

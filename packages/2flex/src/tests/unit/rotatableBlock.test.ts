@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas } from '@2flexible/2flex'
 import {
@@ -139,7 +139,9 @@ describe('RotatableBlock', () => {
             expect(topLeftAreaOffset()).toStrictEqual({ x: -40, y: -40 })
         })
         it('should convert a hot area size given in px', async () => {
-            block.set({ hotRotatableAreaSize: '30px' })
+            block.set({
+                hotRotatableAreaSize: '30px' as unknown as number,
+            })
             await flush()
             expect(block.hotRotatableAreaSize()).toBe(30)
             expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })
@@ -228,6 +230,79 @@ describe('RotatableBlock', () => {
             dispatchMouse(element, 'mouseup', 150, 50)
 
             expect(isRotatingOn).toBeTruthy()
+        })
+        it('should rotate a child and keep the rotation of its parent', async () => {
+            const parent = new Block({
+                x: 0,
+                y: 0,
+                width: 200,
+                height: 200,
+                rotate: 0.5,
+            })
+            const child = new Block({
+                width: 50,
+                height: 50,
+                selectable: true,
+                rotatable: true,
+            })
+            parent.addChild(child)
+            canvas.add(parent)
+            await flush()
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousedown', 70, -2)
+            dispatchMouse(element, 'mouseup', 70, -2)
+            await flush()
+
+            dispatchMouse(element, 'mousemove', 83, 42)
+
+            dispatchMouse(element, 'mousedown', 83, 42, 1)
+
+            dispatchMouse(element, 'mousemove', 120, 60, 1)
+
+            dispatchMouse(element, 'mouseup', 120, 60)
+
+            await flush()
+            expect(child.rotate()).not.toBe(0)
+            expect(child.__rotation() - child.rotate()).toBeCloseTo(0.5)
+        })
+        it('adds events once and ignores them when rotatable is toggled false then true', async () => {
+            const addEventSpy = vi.spyOn(block, '__addEvent')
+            const removeEventSpy = vi.spyOn(block, '__removeEvent')
+
+            block.set({ rotatable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(3)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
+
+            block.set({ rotatable: false })
+            await flush()
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse(element, 'mousemove', 100, 100)
+            dispatchMouse(element, 'mousedown', 100, 100, 1)
+            dispatchMouse(element, 'mousemove', 200, 100, 1)
+            dispatchMouse(element, 'mouseup', 200, 100)
+            expect(block.rotate()).toBe(0)
+
+            block.set({ rotatable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(3)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse(element, 'mousemove', 100, 100)
+            dispatchMouse(element, 'mousedown', 100, 100, 1)
+            dispatchMouse(element, 'mousemove', 200, 100, 1)
+            dispatchMouse(element, 'mouseup', 200, 100)
+            expect(block.rotate()).not.toBe(0)
         })
     })
 })

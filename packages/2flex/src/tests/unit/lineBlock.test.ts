@@ -7,7 +7,7 @@ import {
     RectangleBlock,
     ShapeBlock,
 } from '@2flexible/2flex'
-import type { ILineOptions } from '../../shapes/LineBlock'
+import type { LineBlockOptions as ILineOptions } from '@2flexible/2flex'
 import {
     DRAGGABLE_RUNNING_EVENT,
     RESIZABLE_RUNNING_EVENT,
@@ -95,6 +95,24 @@ const createLine = async (options: ILineOptions = {}) => {
     return line
 }
 
+const createLineWithTarget = async (
+    target: RectangleBlock,
+    options: ILineOptions = {}
+) => {
+    canvas = new Canvas('myCanvas', 400, 500)
+    canvas.add(target)
+    line = new LineBlock({
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        ...options,
+    })
+    canvas.add(line)
+    await flush()
+    return line
+}
+
 describe('LineBlock', () => {
     afterEach(() => {
         vi.restoreAllMocks()
@@ -144,8 +162,6 @@ describe('LineBlock', () => {
     describe('option defaults', () => {
         const defaults: [string, unknown][] = [
             ['controlPoints', []],
-            ['stickyStart', undefined],
-            ['stickyEnd', undefined],
             ['controlPointsSize', 5],
             ['controlLineWidth', 2],
             ['controlPointBackgroundColor', 'white'],
@@ -159,7 +175,11 @@ describe('LineBlock', () => {
         for (const [option, value] of defaults) {
             it(`should default ${option} to ${value}`, () => {
                 const block = new LineBlock({})
-                expect(block[option]()).toStrictEqual(value)
+                expect(
+                    (block as unknown as Record<string, () => unknown>)[
+                        option
+                    ]()
+                ).toStrictEqual(value)
             })
         }
     })
@@ -395,6 +415,72 @@ describe('LineBlock', () => {
             expect(line.boundingBox.topLeft).toEqual({ x: 0, y: 0 })
             expect(line.boundingBox.bottomRight).toEqual({ x: 100, y: 100 })
         })
+        it('should keep finite coordinates when the line has no control points', async () => {
+            await createLine({
+                x: 10,
+                y: 20,
+                width: 30,
+                height: 40,
+            })
+            expect(line.x()).toBe(10)
+            expect(line.y()).toBe(20)
+            expect(line.width()).toBe(30)
+            expect(line.height()).toBe(40)
+            expect(Number.isFinite(line.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.bottomRight.y)).toBe(true)
+        })
+        it('should not hang the canvas when the points are given as top level options', async () => {
+            // the points are only read from the control points, so top level
+            // ones leave the line without any, which used to produce infinite
+            // bounds and hang the tile grid of the canvas
+            canvas = new Canvas('myCanvas', 800, 900, {
+                backgroundColor: 'black',
+                zoomType: 'point',
+            })
+            line = new LineBlock({
+                width: 10,
+                height: 10,
+                startX: 0,
+                startY: 0,
+                endX: 10,
+                endY: 10,
+                lineColor: 'white',
+                lineWidth: 2,
+            } as ILineOptions)
+            canvas.add(line)
+            await flush(5)
+
+            expect(Number.isFinite(line.x())).toBe(true)
+            expect(Number.isFinite(line.y())).toBe(true)
+            expect(Number.isFinite(line.width())).toBe(true)
+            expect(Number.isFinite(line.height())).toBe(true)
+        })
+        it('should keep finite coordinates when the points are not numeric', async () => {
+            await createLine({
+                x: 10,
+                y: 20,
+                width: 30,
+                height: 40,
+                controlPoints: [
+                    {
+                        startX: NaN,
+                        startY: NaN,
+                        endX: NaN,
+                        endY: NaN,
+                    },
+                ],
+            })
+            expect(Number.isFinite(line.x())).toBe(true)
+            expect(Number.isFinite(line.y())).toBe(true)
+            expect(Number.isFinite(line.width())).toBe(true)
+            expect(Number.isFinite(line.height())).toBe(true)
+            expect(Number.isFinite(line.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(line.boundingBox.bottomRight.y)).toBe(true)
+        })
         it('should start the line at the position of the block', async () => {
             await createLine({
                 x: 20,
@@ -430,9 +516,11 @@ describe('LineBlock', () => {
             const block = new LineBlock({})
             expect(() => block.draw()).not.toThrow()
         })
-        it('should keep the path of the line', () => {
+        it('should draw using a Path2D without exposing path publicly', () => {
             line.draw()
-            expect(line.path).toBeInstanceOf(Path2D)
+            expect((line as { path?: Path2D }).path).toBeUndefined()
+            expect(context.fill).toHaveBeenCalledWith(expect.any(Path2D))
+            expect(context.stroke).toHaveBeenCalledWith(expect.any(Path2D))
         })
         it('should build the path of the line', () => {
             const moveTo = vi.spyOn(Path2D.prototype, 'moveTo')
@@ -599,6 +687,45 @@ describe('LineBlock', () => {
             dispatchMouse('dblclick', 70, 30)
             expect(line.__isRunningEventActive(EDITABLE_RUNNING_EVENT)).toBe(
                 false
+            )
+        })
+        it('adds editing events once and ignores them when editable is toggled false then true', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            line = new LineBlock({
+                selectable: true,
+                controlPoints: [
+                    { startX: 20, startY: 20, endX: 120, endY: 120 },
+                ],
+            })
+            canvas.add(line)
+            allowMouse(canvas)
+            await flush()
+
+            const addEventSpy = vi.spyOn(line, '__addEvent')
+            const removeEventSpy = vi.spyOn(line, '__removeEvent')
+
+            line.set({ editable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(2)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            line.set({ editable: false })
+            await flush()
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse('dblclick', 70, 70)
+            expect(line.__isRunningEventActive(EDITABLE_RUNNING_EVENT)).toBe(
+                false
+            )
+
+            line.set({ editable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(2)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse('dblclick', 70, 70)
+            expect(line.__isRunningEventActive(EDITABLE_RUNNING_EVENT)).toBe(
+                true
             )
         })
         it('should leave the editable mode on a click away from the line', () => {
@@ -771,6 +898,174 @@ describe('LineBlock', () => {
             await flush()
             expect(line.getOptionCurrent('startX-0')).toBe(105)
             expect(line.getOptionCurrent('startY-0')).toBe(65)
+        })
+        it('should depend on the block it is stuck to', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 100 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-0')).toBe(105)
+        })
+        it('should not depend on a block it is not stuck to', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                    },
+                ],
+            })
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 100 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should keep the dependency when both ends are stuck to the same block', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                        stickyEnd: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            target.set({ x: 100 })
+            await flush()
+            expect(line.getOptionCurrent('startX-0')).toBe(105)
+            expect(line.getOptionCurrent('endX-0')).toBe(105)
+        })
+        it('should move the dependency to the block it is stuck to now', async () => {
+            const other = new RectangleBlock({
+                x: 10,
+                y: 20,
+                width: 20,
+                height: 20,
+            })
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            canvas.add(other)
+            await flush()
+            line.set({ 'stickyStart-0': { block: other, x: 5, y: 5 } })
+            await flush()
+
+            expect(line.getOptionCurrent('startX-0')).toBe(15)
+
+            const oldSpy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 300 })
+            await flush()
+            expect(oldSpy).not.toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-0')).toBe(15)
+
+            const newSpy = vi.spyOn(line, 'updateCords')
+            other.set({ x: 200 })
+            await flush()
+            expect(newSpy).toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-0')).toBe(205)
+        })
+        it('should release the dependency when the control points are reset', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            line.controlPoints([])
+            await flush()
+
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 300 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-0')).toBeUndefined()
+        })
+        it('should release the dependency when a control point is removed', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            line.removeControlPoint(0)
+            await flush()
+
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 300 })
+            await flush()
+
+            expect(spy).not.toHaveBeenCalled()
+        })
+        it('should keep the dependency when only one of two points is removed', async () => {
+            await createLineWithTarget(target, {
+                controlPoints: [
+                    {
+                        startX: 0,
+                        startY: 0,
+                        endX: 50,
+                        endY: 50,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                    {
+                        startX: 50,
+                        startY: 50,
+                        endX: 100,
+                        endY: 100,
+                        stickyStart: { block: target, x: 5, y: 5 },
+                    },
+                ],
+            })
+
+            line.removeControlPoint(0)
+            await flush()
+
+            const spy = vi.spyOn(line, 'updateCords')
+            target.set({ x: 300 })
+            await flush()
+
+            expect(spy).toHaveBeenCalled()
+            expect(line.getOptionCurrent('startX-1')).toBe(305)
         })
     })
 

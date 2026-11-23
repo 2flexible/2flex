@@ -1,5 +1,6 @@
-import { BaseBlock, BlockPayload, IBaseBlockOptions } from './BaseBlock'
+import { BaseBlock, BaseBlockOptions, BlockPayload } from './BaseBlock'
 import { CanvasScene } from './CanvasScene'
+import type { BlockQuery } from './CanvasScene'
 import { defaultBlocks } from './defaultBlocks'
 import { CanvasDOMManager } from './DOMManager'
 import { CanvasGrid } from './CanvasGrid'
@@ -12,17 +13,27 @@ import {
     CustomEvent,
     SnapshotData,
     AnimationId,
+    ScrollableBlock,
 } from './types'
-import { getPrototype } from './Utils'
+import {
+    getPrototype,
+    invalidArgument,
+    isRecord,
+    requireRecord,
+    validateBlockArguments,
+    validateBlockConstructors,
+    validateBlockOption,
+    validateCanvasSettings,
+    validateLoadBlocks,
+} from './Utils'
 import {
     HOT_LINE_BLOCK_NAME,
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
 } from './const'
-import { IBlockOptions } from './Block'
 
 // Canvas options shouldn't be style properties
-interface CanvasOptions {
+export interface CanvasOptions {
     zoomSpeed?: number
     zoomInvSpeed?: number
     moveSpeed?: number
@@ -36,6 +47,8 @@ interface CanvasOptions {
     positionZ?: number
     fps?: number
     tileSize?: number
+    qualitySettleDelay?: number
+    maxQuality?: number
 }
 
 interface DefaultCanvasOptions extends Required<{
@@ -48,7 +61,7 @@ interface CanvasCurrentPosition {
     z: number
 }
 
-interface CanvasView {
+export interface CanvasView {
     tx: number
     ty: number
     scale: number
@@ -85,8 +98,8 @@ export type QueuePayloadMap = {
     'block:cache': Set<BaseBlock>
     'block:history': {
         [nodeId: number]: {
-            before: any
-            after: any
+            before: Record<string, unknown>
+            after: Record<string, unknown>
         }
     }
     'animation:add': { [animationId: AnimationId]: Animator }
@@ -115,14 +128,16 @@ export class Canvas {
 
     view: CanvasView
 
+    #renderScale: number
+    #targetRenderScale: number
+    #lastZoomTime: number
+
     #canvasEvents: CanvasEvents
     #canvasAnimations: { [animationId: AnimationId]: Animator }
 
     isFocused: boolean
     isMouseEventAllowed: boolean
-    #latestBlockZIndex: number
-    #highestZIndex?: number
-    #registeredZIndexes: Map<number, number>
+    #registeredZIndexes: Map<number, number | undefined>
     #registeredCursors: Map<number, string[]>
     #registeredBlocks: (typeof BaseBlock)[]
 
@@ -132,6 +147,14 @@ export class Canvas {
         height: number,
         options?: CanvasOptions & ICssProperties
     ) {
+        validateCanvasSettings(
+            'new Canvas()',
+            '',
+            canvasId,
+            width,
+            height,
+            options
+        )
         this.canvasId = canvasId
         this.options = options
         this.width = width
@@ -151,13 +174,18 @@ export class Canvas {
             positionZ: 1,
             fps: 60,
             tileSize: 256,
+            qualitySettleDelay: 150,
+            maxQuality: 2,
         }
 
         this.view = { tx: 0, ty: 0, scale: 1 }
 
+        this.#renderScale = 1
+        this.#targetRenderScale = 1
+        this.#lastZoomTime = 0
+
         this.#canvasEvents = {}
         this.#canvasAnimations = {}
-        this.#latestBlockZIndex = 1
         this.#registeredZIndexes = new Map()
         this.#registeredCursors = new Map()
         this.isFocused = false
@@ -175,14 +203,17 @@ export class Canvas {
             this.height,
             this.#defaultOptions.tileSize
         )
+        this.#targetRenderScale = this.#computeRenderScale()
+        this.#renderScale = this.#targetRenderScale
+        this.#grid.setRenderScale(this.#renderScale)
         this.#queue = {}
         this.#scene = new CanvasScene()
         this.#history = new History(this.#defaultOptions.historySize)
         this.#scheduler = new RenderScheduler(this.options?.fps, (timestmap) =>
             this.#render(timestmap)
         )
-        this.#scheduler.start()
         this.#init()
+        this.#scheduler.start()
     }
 
     #setOptions(options: CanvasOptions) {
@@ -213,6 +244,10 @@ export class Canvas {
             this.#defaultOptions.tileSize = options.tileSize
             this.#grid?.resize(this.width, this.height)
         }
+        if (options.qualitySettleDelay !== undefined)
+            this.#defaultOptions.qualitySettleDelay = options.qualitySettleDelay
+        if (options.maxQuality !== undefined)
+            this.#defaultOptions.maxQuality = options.maxQuality
 
         this.view = {
             tx: this.#defaultOptions.positionX,
@@ -286,7 +321,7 @@ export class Canvas {
         } as MouseEvent
         const targets = this.#scene.getSortedBlocksByZIndex()
         for (let i = targets.length - 1; i >= 0; i--) {
-            const block = targets[i]
+            const block = targets[i] as ScrollableBlock
             if (block.checkInBound(pointerEvent)) {
                 if (axis === 'x' && block.__isOverflowXScrollable) return block
                 if (axis === 'y' && block.__isOverflowYScrollable) return block
@@ -361,6 +396,8 @@ export class Canvas {
                 this.view.tx = cx - (cx - this.view.tx) * k
                 this.view.ty = cy - (cy - this.view.ty) * k
                 this.view.scale *= k
+                this.#markZoomActivity()
+                this.#primeGrid()
                 this.#demandInvokeExplicitBlocks()
             },
             { passive: false }
@@ -380,6 +417,8 @@ export class Canvas {
                 this.view.tx = x - (x - this.view.tx) * k
                 this.view.ty = y - (y - this.view.ty) * k
                 this.view.scale *= k
+                this.#markZoomActivity()
+                this.#primeGrid()
                 this.#demandInvokeExplicitBlocks()
             },
             { passive: false }
@@ -419,9 +458,28 @@ export class Canvas {
         this.#invokeAnimations(timestamp)
         this.#renderCachedBlocks()
         this.#refreshHead()
+        this.#applyPendingQuality(timestamp)
         this.#drawCachedBlocks()
         this.#buildDemandedHistory()
         this.#clearQueue()
+    }
+    #computeRenderScale(): number {
+        const maxQuality = this.#defaultOptions.maxQuality
+        const target = this.view.scale * this.#domCanvas.pixelRatio
+        if (!Number.isFinite(target)) return 1
+        return Math.min(Math.max(target, 1), maxQuality)
+    }
+    #markZoomActivity() {
+        this.#lastZoomTime = performance.now()
+        this.#targetRenderScale = this.#computeRenderScale()
+    }
+    #applyPendingQuality(timestamp: Timestamp) {
+        if (this.#targetRenderScale === this.#renderScale) return
+        const settleDelay = this.#defaultOptions.qualitySettleDelay
+        if (timestamp - this.#lastZoomTime < settleDelay) return
+        this.#renderScale = this.#targetRenderScale
+        // the cached pixels belong to the previous density
+        this.#grid.setRenderScale(this.#renderScale)
     }
     #clearQueue() {
         this.#queue = {}
@@ -429,7 +487,6 @@ export class Canvas {
     #refreshHead() {
         const isRefresh = this.#queue['canvas:refresh:head']
         if (isRefresh) {
-            this.#buildBlocksZIndex()
             this.#scene.sortBlocksByZIndex()
             this.#sortAllDomEventsByZIndex()
             this.#registerDomEvents()
@@ -449,10 +506,11 @@ export class Canvas {
         const tiles = this.#grid.allTiles
         if (tiles.length === 0) return
         const v = this.view
+        const dpr = this.#domCanvas.pixelRatio
 
         context.save()
         context.setTransform(1, 0, 0, 1, 0, 0)
-        context.clearRect(0, 0, this.width, this.height)
+        context.clearRect(0, 0, this.width * dpr, this.height * dpr)
 
         const vw = this.width / v.scale
         const vh = this.height / v.scale
@@ -461,7 +519,14 @@ export class Canvas {
         const wMaxX = wMinX + vw
         const wMaxY = wMinY + vh
 
-        context.setTransform(v.scale, 0, 0, v.scale, v.tx, v.ty)
+        context.setTransform(
+            v.scale * dpr,
+            0,
+            0,
+            v.scale * dpr,
+            v.tx * dpr,
+            v.ty * dpr
+        )
         const sortedBlocks = this.#scene.getSortedBlocksByZIndex()
         const tileSize = this.#grid.tileSize
         for (const tile of tiles) {
@@ -531,7 +596,9 @@ export class Canvas {
                         )
                     }
                 }
-                this.demandInvoke(foundNode)
+                // the block and the parents of it are laid out again, so a
+                // restored value is used by the layout of its parent
+                foundNode.__invokeChange()
             }
         }
     }
@@ -544,11 +611,12 @@ export class Canvas {
     #sortDomEventsByZIndex(eventName: string) {
         this.#canvasEvents[eventName].events = this.#canvasEvents[
             eventName
-        ].events.sort(
-            (a, b) =>
-                b.block.getOptionCurrent('zIndex') -
-                a.block.getOptionCurrent('zIndex')
-        )
+        ].events.sort((a, b) => {
+            const aIndex = this.#scene.getPaintIndex(a.block.nodeId!)
+            const bIndex = this.#scene.getPaintIndex(b.block.nodeId!)
+            if (aIndex === bIndex) return 0
+            return bIndex - aIndex
+        })
     }
     #buildDomEventFunc(eventName: string) {
         this.#canvasEvents[eventName].func = (e: Event) => {
@@ -620,13 +688,11 @@ export class Canvas {
         if (addedBlocks) {
             for (const block of addedBlocks) {
                 block.canvas = this
-                this.#handleBlockOptions(block)
                 block.init()
                 this.demandInvoke(block)
             }
             this.#scene.buildSceneGraph()
             for (const block of addedBlocks) this.#grid.addBlock(block)
-            this.#buildBlocksZIndex()
             this.demandRefreshHead()
         }
     }
@@ -643,19 +709,8 @@ export class Canvas {
                 this.#scene.removeBlock(block)
             }
             this.#scene.buildSceneGraph()
-            this.#buildBlocksZIndex()
             this.demandRefreshHead()
         }
-    }
-    #buildBlocksZIndex() {
-        this.#latestBlockZIndex = 0
-        this.#scene.reversePostOrderTraversal((block: BaseBlock) => {
-            const zIndex = block.getOptionCurrent('zIndex')
-            if (zIndex === undefined) {
-                block.setOptionCurrent('zIndex', this.#latestBlockZIndex)
-                this.#latestBlockZIndex += 1
-            }
-        })
     }
     #buildDemandedHistory() {
         if (!this.#defaultOptions.history) return
@@ -681,12 +736,8 @@ export class Canvas {
             this.#history.add(nextData)
         }
     }
-    #handleBlockOptions(block: BaseBlock) {
-        for (const [key, value] of block.options) {
-            getPrototype(block, key as string)?.value.call(block, value)
-        }
-    }
     add(...blocks: BaseBlock[]) {
+        validateBlockArguments('Canvas.add()', blocks, BaseBlock)
         for (let i = 0, len = blocks.length; i < len; i++) {
             const block = blocks[i]
             this.#scene.addBlock(block)
@@ -694,6 +745,7 @@ export class Canvas {
         }
     }
     remove(...blocks: BaseBlock[]) {
+        validateBlockArguments('Canvas.remove()', blocks, BaseBlock)
         for (let i = 0, len = blocks.length; i < len; i++) {
             const block = blocks[i]
             this.#scene.removeBlock(block)
@@ -716,9 +768,106 @@ export class Canvas {
         return JSON.stringify(payload)
     }
     load(payload: string) {
-        const parsedPayload = JSON.parse(payload) as Payload
+        const method = 'Canvas.load()'
+        if (typeof payload !== 'string')
+            invalidArgument(method, 'payload', 'a JSON string', payload)
+        let parsed: unknown
+        try {
+            parsed = JSON.parse(payload)
+        } catch (cause) {
+            throw new SyntaxError(
+                '[2flex] Canvas.load() expected valid JSON at payload.',
+                { cause }
+            )
+        }
+        if (!isRecord(parsed))
+            invalidArgument(method, 'payload', 'an object', parsed)
+        const settings = parsed.canvas
+        if (!isRecord(settings))
+            invalidArgument(method, 'canvas', 'an object', settings)
+        validateCanvasSettings(
+            method,
+            'canvas.',
+            settings.canvasId,
+            settings.width,
+            settings.height,
+            settings.options
+        )
+        validateLoadBlocks(parsed.blocks, 'blocks', new Set())
+        const parsedPayload = parsed as unknown as Payload
         const canvasOpt = parsedPayload.canvas
         const blocksPayload = parsedPayload.blocks
+
+        interface PreparedBlock {
+            block: BaseBlock
+            options: BlockPayload['options']
+            children: PreparedBlock[]
+        }
+
+        const unregistered = new Map<string, string>()
+        const prepareBlock = (
+            payload: BlockPayload,
+            path: string
+        ): PreparedBlock | undefined => {
+            const existing =
+                payload.nodeId === undefined
+                    ? undefined
+                    : this.#scene.find({ nodeId: payload.nodeId })[0]
+            const blockClass = this.#registeredBlocks.find(
+                (block) => block.name === payload.name
+            )
+            if (!existing && !blockClass) {
+                if (!unregistered.has(payload.name))
+                    unregistered.set(payload.name, path)
+                return
+            }
+
+            const options = payload.options ?? {}
+            for (const [key, value] of Object.entries(options))
+                validateBlockOption(
+                    method,
+                    `${path}.options.${key}`,
+                    key,
+                    value,
+                    BaseBlock
+                )
+            let block = existing
+            if (!block && blockClass) {
+                try {
+                    block = new blockClass(options as BaseBlockOptions)
+                } catch (cause) {
+                    throw new Error(
+                        `[2flex] ${method} could not construct "${payload.name}" at ${path}.`,
+                        { cause }
+                    )
+                }
+            }
+            if (!block) return
+
+            const children: PreparedBlock[] = []
+            for (const [index, child] of payload.childs.entries()) {
+                const childPath = `${path}.childs[${index}]`
+                const prepared = prepareBlock(child, childPath)
+                if (!prepared) continue
+                for (
+                    let ancestor: BaseBlock | undefined = block;
+                    ancestor;
+                    ancestor = ancestor.parentNode
+                ) {
+                    if (ancestor === prepared.block)
+                        throw new TypeError(
+                            `[2flex] ${method} cannot add an ancestor as a child at ${childPath}.`
+                        )
+                }
+                children.push(prepared)
+            }
+            return { block, options, children }
+        }
+        const preparedBlocks: PreparedBlock[] = []
+        for (const [index, payload] of blocksPayload.entries()) {
+            const prepared = prepareBlock(payload, `blocks[${index}]`)
+            if (prepared) preparedBlocks.push(prepared)
+        }
 
         this.canvasId = canvasOpt.canvasId
         this.options = canvasOpt.options
@@ -734,58 +883,25 @@ export class Canvas {
         this.#scheduler.stop()
         this.#scheduler.start()
 
-        const constructedBlocks: BaseBlock[] = []
-
-        const checkBlock = (blockPaylaod: BlockPayload) => {
-            const exists = this.#scene.find({
-                nodeId: blockPaylaod.nodeId,
-            })?.[0]
-            let foundBlock: BaseBlock | undefined
-            // first need to check if this block already in our tree
-            // otherwise construct new block
-            if (exists) {
-                foundBlock = exists
-            } else {
-                const foundClass = this.#registeredBlocks.filter(
-                    (b) => b.name === blockPaylaod.name
-                )?.[0]
-
-                if (foundClass) {
-                    // @TODO: fix any issue
-                    foundBlock = new foundClass(blockPaylaod.options || {})
-                }
-            }
-            if (foundBlock) {
-                for (const [key, value] of Object.entries(
-                    blockPaylaod.options || {}
-                ))
-                    foundBlock.options.set(
-                        key as keyof IBaseBlockOptions,
-                        value
-                    )
-                for (
-                    let i = 0, len = blockPaylaod.childs.length;
-                    i < len;
-                    i++
-                ) {
-                    const childBlock = checkBlock(blockPaylaod.childs[i])
-                    if (childBlock) foundBlock.addChild(childBlock)
-                }
-            }
-            return foundBlock
+        const applyBlock = ({ block, options, children }: PreparedBlock) => {
+            for (const [key, value] of Object.entries(options))
+                block.options.set(key, value)
+            for (const child of children) block.addChild(applyBlock(child))
+            return block
         }
-
-        for (let i = 0, len = blocksPayload.length; i < len; i++) {
-            const b = checkBlock(blocksPayload[i])
-            if (b) constructedBlocks.push(b)
+        this.add(...preparedBlocks.map(applyBlock))
+        for (const [name, path] of unregistered) {
+            console.warn(
+                `[2flex] Canvas.load() skipped unregistered block "${name}" at ${path}. Register its class with Canvas.registerBlocks() before loading.`
+            )
         }
-
-        this.add(...constructedBlocks)
     }
     registerBlocks(...blocks: (typeof BaseBlock)[]) {
+        validateBlockConstructors(blocks, BaseBlock)
         this.#registeredBlocks.push(...blocks)
     }
-    find(queries: IBlockOptions): BaseBlock[] {
+    find(queries: BlockQuery): BaseBlock[] {
+        requireRecord('Canvas.find()', 'queries', queries)
         return this.#scene.find(queries)
     }
     undo() {
@@ -817,7 +933,21 @@ export class Canvas {
     get currentPosition(): CanvasCurrentPosition {
         return { x: this.view.tx, y: this.view.ty, z: this.view.scale }
     }
+    get renderScale(): number {
+        return this.#renderScale
+    }
     getCursorPosition(event: MouseEvent | WheelEvent) {
+        if (
+            !event ||
+            typeof event.pageX !== 'number' ||
+            typeof event.pageY !== 'number'
+        )
+            invalidArgument(
+                'Canvas.getCursorPosition()',
+                'event',
+                'an event with numeric pageX and pageY',
+                event
+            )
         const r = this.boundingClientRect
         const px = (event as MouseEvent).pageX - r.left
         const py = (event as MouseEvent).pageY - r.top
@@ -831,6 +961,8 @@ export class Canvas {
         this.context?.clearRect(0, 0, clientRect.width, clientRect.height)
     }
     changeCursor(cur?: string) {
+        if (cur !== undefined && typeof cur !== 'string')
+            invalidArgument('Canvas.changeCursor()', 'cursor', 'a string', cur)
         return this.#domCanvas.changeStyle({
             cursor: cur,
         })
@@ -868,10 +1000,20 @@ export class Canvas {
     }
     #resolveCursor() {
         let cursor: string | undefined
-        let highZIndex = -Infinity
+        let highPaintIndex = -1
+        let highZIndex: number | undefined = undefined
         for (const [id, cur] of this.#registeredCursors) {
+            const paintIndex = this.#scene.getPaintIndex(id)
+            if (paintIndex >= 0) {
+                if (paintIndex > highPaintIndex) {
+                    highPaintIndex = paintIndex
+                    cursor = cur[0]
+                }
+                continue
+            }
             const zIndex = this.#registeredZIndexes.get(id)
-            if (zIndex !== undefined && zIndex > highZIndex) {
+            if (zIndex === undefined) continue
+            if (highZIndex === undefined || zIndex > highZIndex) {
                 highZIndex = zIndex
                 cursor = cur[0]
             }
@@ -879,29 +1021,31 @@ export class Canvas {
         this.#domCanvas.changeStyle({ cursor: cursor })
     }
     whoIsTheFirst(nodeId: number) {
-        const zIndex = this.#registeredZIndexes.get(nodeId)
-        return zIndex !== undefined && zIndex === this.#highestZIndex
-    }
-    registerZIndex(nodeId: number, zIndex: number) {
-        this.#registeredZIndexes.set(nodeId, zIndex)
-        if (this.#highestZIndex === undefined || zIndex > this.#highestZIndex) {
-            this.#highestZIndex = zIndex
+        if (!this.#registeredZIndexes.has(nodeId)) return false
+        let highPaintIndex = -1
+        let highZIndex: number | undefined = undefined
+        for (const id of this.#registeredZIndexes.keys()) {
+            const paintIndex = this.#scene.getPaintIndex(id)
+            if (paintIndex >= 0) {
+                if (paintIndex > highPaintIndex) highPaintIndex = paintIndex
+                continue
+            }
+            const zIndex = this.#registeredZIndexes.get(id)
+            if (zIndex === undefined) continue
+            if (highZIndex === undefined || zIndex > highZIndex)
+                highZIndex = zIndex
         }
+        const paintIndex = this.#scene.getPaintIndex(nodeId)
+        if (paintIndex >= 0) return paintIndex === highPaintIndex
+        const zIndex = this.#registeredZIndexes.get(nodeId)
+        if (zIndex === undefined || highZIndex === undefined) return false
+        return zIndex === highZIndex
+    }
+    registerZIndex(nodeId: number, zIndex?: number) {
+        this.#registeredZIndexes.set(nodeId, zIndex)
     }
     unregisterZIndex(nodeId: number) {
-        const current = this.#registeredZIndexes.get(nodeId)
-        if (current === undefined) return
         this.#registeredZIndexes.delete(nodeId)
-        if (
-            this.#highestZIndex !== undefined &&
-            current === this.#highestZIndex
-        ) {
-            let max: number | undefined = undefined
-            for (const z of this.#registeredZIndexes.values()) {
-                if (max === undefined || z > max) max = z
-            }
-            this.#highestZIndex = max
-        }
     }
     demandInvoke(block: BaseBlock) {
         const set = (this.#queue['block:cache'] ??= new Set())
@@ -915,7 +1059,11 @@ export class Canvas {
         const set = (this.#queue['block:remove'] ??= new Set())
         set.add(block)
     }
-    demandHistory(nodeId: number, before: any, after: any) {
+    demandHistory(
+        nodeId: number,
+        before: Record<string, unknown>,
+        after: Record<string, unknown>
+    ) {
         const historyObj = (this.#queue['block:history'] ??= {})
         historyObj[nodeId] = { before: before, after: after }
     }

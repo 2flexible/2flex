@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas, RectangleBlock, ShapeBlock } from '@2flexible/2flex'
-import type { IRectangleOptions } from '../../shapes/RectangleBlock'
+import type { RectangleBlockOptions as IRectangleOptions } from '@2flexible/2flex'
 import { SELECTABLE_RUNNING_EVENT } from '../../const'
 import { flush, removeCanvasElements } from './helpers'
 
@@ -103,7 +103,11 @@ describe('RectangleBlock', () => {
         for (const [option, value] of defaults) {
             it(`should default ${option} to ${value}`, () => {
                 const block = new RectangleBlock({})
-                expect(block[option]()).toStrictEqual(value)
+                expect(
+                    (block as unknown as Record<string, () => unknown>)[
+                        option
+                    ]()
+                ).toStrictEqual(value)
             })
         }
     })
@@ -426,6 +430,32 @@ describe('RectangleBlock', () => {
                 x: 126.25,
                 y: 126.25,
             })
+        })
+        it('should keep a finite box when the border width is not finite', async () => {
+            rectangle.set({ borderWidth: NaN })
+            canvas.demandInvoke(rectangle)
+            await flush()
+            expect(Number.isFinite(rectangle.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(rectangle.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(rectangle.boundingBox.bottomRight.x)).toBe(
+                true
+            )
+            expect(Number.isFinite(rectangle.boundingBox.bottomRight.y)).toBe(
+                true
+            )
+        })
+        it('should keep a finite box when the hot line stroke width is not finite', async () => {
+            rectangle.set({ hotLineStrokeWidth: NaN })
+            canvas.demandInvoke(rectangle)
+            await flush()
+            expect(Number.isFinite(rectangle.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(rectangle.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(rectangle.boundingBox.bottomRight.x)).toBe(
+                true
+            )
+            expect(Number.isFinite(rectangle.boundingBox.bottomRight.y)).toBe(
+                true
+            )
         })
     })
 

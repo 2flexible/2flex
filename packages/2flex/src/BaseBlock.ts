@@ -1,6 +1,6 @@
 import type { Canvas } from './Canvas'
 import { Node } from './Node'
-import { initialCorners } from './const'
+import { initialCorners, RELATIVE_VALUE_PATTERN } from './const'
 import {
     RelativeType,
     ShortHandRelativeType,
@@ -10,7 +10,27 @@ import {
     HotCornerArea,
     NodeId,
     AnimationId,
+    ColorType,
+    TextType,
+    ResolvedAs,
+    ResolvedValue,
+    OptionAccessor,
+    OptionAccessors,
+    OwnOptionAccessors,
+    OptionAccessorsWith,
+    BlockOptionsOf,
 } from './types'
+export type {
+    ColorType,
+    TextType,
+    ResolvedAs,
+    ResolvedValue,
+    OptionAccessor,
+    OptionAccessors,
+    OwnOptionAccessors,
+    OptionAccessorsWith,
+    BlockOptionsOf,
+}
 import {
     checkInBound,
     fromCm,
@@ -31,8 +51,12 @@ import {
     namedColors,
     hslToRgba,
     shortHandParser,
-    clamp,
+    clampSize,
     preOrderTraversal,
+    invalidArgument,
+    requireCallback,
+    requireRecord,
+    validateBlockOption,
 } from './Utils'
 
 export type AlignSelf =
@@ -59,14 +83,13 @@ export type PlaceSelf = AlignSelf & JustifySelf
 export type Position = 'relative' | 'absolute' | 'sticky' | 'fixed'
 export type MarginType = ShortHandRelativeType
 export type PaddingType = ShortHandRelativeType
-export type FlexBasis = RelativeType | 'auto'
+export type FlexBasis = ResolvedAs<RelativeType | 'auto', number | 'auto'>
 export type SelfType = 'self' | 'parent'
 export type onRender = (block: BaseBlock) => void
 export type Dependencies = BaseBlock[]
 
-export interface IBaseBlockOptions {
-    [key: string]: any
-    name?: string
+export interface BaseBlockOptions {
+    name?: ResolvedAs<string, string | undefined>
     x?: RelativeType
     y?: RelativeType
     cornerTopLeft?: XY
@@ -85,12 +108,12 @@ export interface IBaseBlockOptions {
     bottom?: RelativeType
     left?: RelativeType
     right?: RelativeType
-    padding?: PaddingType
+    padding?: ResolvedAs<PaddingType, PaddingType | undefined>
     paddingTop?: RelativeType
     paddingRight?: RelativeType
     paddingBottom?: RelativeType
     paddingLeft?: RelativeType
-    margin?: MarginType
+    margin?: ResolvedAs<MarginType, MarginType | undefined>
     marginTop?: RelativeType
     marginRight?: RelativeType
     marginBottom?: RelativeType
@@ -100,17 +123,17 @@ export interface IBaseBlockOptions {
     rotationCenterY?: RelativeType
     rotationCenter?: SelfType
     horizontalFlip?: boolean
-    verticallFlip?: boolean
+    verticalFlip?: boolean
     zIndex?: number
     order?: number
     hidden?: boolean
-    important?: IBaseBlockOptions
+    important?: BaseBlockOptions
     // flex: Flex
     // alignSelf?: AlignSelf
     // justifySelf?: JustifySelf
-    // flexShrink?: FlexShrink
+    flexShrink?: number
     flexBasis?: FlexBasis
-    // flexGrow?: FlexGrow
+    flexGrow?: number
     // grid-row: grid-row-start / grid-row-end;
     // gridRow?: number[]
     // gridRowStart?: number
@@ -124,13 +147,13 @@ export interface IBaseBlockOptions {
     onRender?: onRender
     dependencies?: Dependencies
 }
-type BlockOptionKeys = keyof IBaseBlockOptions
+type BlockOptionKeys = keyof BaseBlockOptions
 
-export type OptionsMap = Map<BlockOptionKeys, any>
+export type OptionsMap = Map<string, unknown>
 
 export interface BindOptions {
     block: BaseBlock
-    options: BlockOptionKeys[]
+    options: string[]
 }
 
 type BlockEvent = {
@@ -140,8 +163,8 @@ type BlockEvent = {
 export interface BlockPayload {
     nodeId: NodeId
     name: string
-    options: Partial<Record<BlockOptionKeys, any>>
-    cacheOptions: Partial<Record<BlockOptionKeys, any>>
+    options: Partial<Record<BlockOptionKeys, unknown>>
+    cacheOptions: Partial<Record<BlockOptionKeys, unknown>>
     childs: BlockPayload[]
 }
 
@@ -161,11 +184,24 @@ export interface ChildsContainer {
     height: number
 }
 
-export type ValueConverterFunc<T, O> = (block: any, value: T) => O
+export type ValueConverterFunc<T, O, B extends BaseBlock = BaseBlock> = (
+    block: B,
+    value: T
+) => O
 
-export class BaseBlock extends Node {
-    [key: string]: any
+type PropertyFunc = {
+    (this: BaseBlock, opt?: unknown): unknown
+    valueConverter?: ValueConverterFunc<unknown, unknown, BaseBlock>
+}
 
+const DEFAULT_ROTATION_CENTER: SelfType = 'parent'
+const DEFAULT_FLEX_SHRINK = 1
+const DEFAULT_FLEX_BASIS: FlexBasis = 'auto'
+const DEFAULT_FLEX_GROW = 0
+
+export class BaseBlock<
+    T extends BaseBlockOptions = BaseBlockOptions,
+> extends Node {
     declare parentNode?: BaseBlock
     declare childNodes: Set<BaseBlock>
 
@@ -173,19 +209,25 @@ export class BaseBlock extends Node {
     context?: OffscreenCanvasRenderingContext2D | null
     options: OptionsMap
     cacheOptions: OptionsMap
+    initOptions: OptionsMap
 
-    initWidth?: RelativeType
-    initHeight?: RelativeType
     realWidth: number
     realHeight: number
     realCenterX: number
     realCenterY: number
     boundingBox: HotCornerArea
-    #higestChildZIndex?: number
     #higestChildOrder?: number
 
     __childAdjustment?: (b: BaseBlock) => void
+    __childClipping?: (b: BaseBlock) => void
     __childsContainer: ChildsContainer
+    // the path a block clips its childs with, it is set by the blocks which
+    // clip, so it is known by every block
+    __clipPath?: Path2D
+    __parentHidden = false
+    __parentRotate = 0
+    __rotateCache = 0
+    __applyOptionsOnly = false
 
     #zIndex?: number
     #order?: number
@@ -193,16 +235,19 @@ export class BaseBlock extends Node {
     #runningEvents: RunningEvents
     #bindOptions: BindOptions[]
     #dependendBlocks: Set<BaseBlock>
+    #lastHidden: boolean | undefined = false
+    // every handler keeps its own state
+    #isMouseOver = false
+    #isMouseOut = false
 
-    constructor(options: IBaseBlockOptions) {
+    constructor(options: BaseBlockOptions) {
         super()
         this.options = new Map()
         this.cacheOptions = new Map()
+        this.initOptions = new Map()
         this.#buildOptions(options)
         this.#defineProperties()
 
-        this.initWidth = options.width
-        this.initHeight = options.height
         this.realWidth = 0
         this.realHeight = 0
         this.realCenterX = 0
@@ -226,22 +271,25 @@ export class BaseBlock extends Node {
         }
     }
     render() {
-        if (this.hidden()) return
+        if (this.__isHidden()) return
         this.onRender()?.(this)
     }
     updateCords() {
-        const currentRotate = this.getOptionCurrent('rotate') || 0
-        const cacheRotate = this.getOptionCache('rotate') || 0
+        const currentRotate = this.__rotation()
+        const cacheRotate = this.__rotationCache()
         const diffR = currentRotate - cacheRotate
         // reset rotation to before value
         if (currentRotate !== 0 || cacheRotate !== 0)
             this.rotateCordinates(-cacheRotate)
+        this.#resolveInitOptions()
+        const sizeChanged = this.__deriveSizeFromChilds()
         this.__childAdjustment?.(this)
         this.updateCordinates()
         this.updateChildsCordinate()
         // after cordiantes calculated restore rotation
         if (currentRotate !== 0 || cacheRotate !== 0)
             this.rotateCordinates(cacheRotate + diffR)
+        this.__rotateCache = currentRotate
         this.#calculateBoundingBox()
         this.#calculateRealWidth()
         this.#calculateRealHeight()
@@ -249,12 +297,18 @@ export class BaseBlock extends Node {
         this.#calculateRealCenterY()
         this.#updateOptionsCache()
         this.#handleBindOptions()
+        if (sizeChanged) {
+            this.__hasParentBlock &&
+                this.parentNode?.__invokeDerivedSizeChanged()
+        }
     }
     init() {
+        this.__applyOptions()
         this.#initializeCordinates()
         this.#updateOptionsCache()
         this.updateCordinates()
-        this.rotateCordinates(this.rotate())
+        this.rotateCordinates(this.__rotation())
+        this.__rotateCache = this.__rotation()
         // need to again take cache after updating cordiantes
         this.#updateOptionsCache()
         this.#calculateBoundingBox()
@@ -271,10 +325,21 @@ export class BaseBlock extends Node {
         this.#clearPendings()
         this.__refreshHeadBlock()
     }
-    #buildOptions(options: IBaseBlockOptions) {
+    #buildOptions(options: BaseBlockOptions) {
+        const method = `new ${this.constructor.name}()`
+        requireRecord(method, 'options (pass {} for defaults)', options)
         const ownOptions = this.options
+        const initOptions = this.initOptions
         for (const [key, value] of Object.entries(options)) {
+            validateBlockOption(
+                method,
+                'options.' + key,
+                key,
+                value,
+                BaseBlock
+            )
             ownOptions.set(key, value)
+            initOptions.set(key, value)
         }
     }
     #defineProperties() {
@@ -307,19 +372,25 @@ export class BaseBlock extends Node {
             'padding',
             undefined,
             false,
-            (block: BaseBlock, opt?: PaddingType) =>
-                this.#parsePadding(block, opt)
+            undefined,
+            (block: BaseBlock, opt?: PaddingType) => {
+                block.#parsePadding(block, opt)
+                return opt
+            }
         )
         this.addProperty('paddingTop', 0, false)
         this.addProperty('paddingBottom', 0, false)
-        this.addProperty('paddingLeft', 0, false)
-        this.addProperty('paddingRight', 0, false)
+        this.addProperty('paddingLeft', 0, true)
+        this.addProperty('paddingRight', 0, true)
         this.addProperty(
             'margin',
             undefined,
             false,
-            (block: BaseBlock, opt?: MarginType) =>
-                this.#parseMargin(block, opt)
+            undefined,
+            (block: BaseBlock, opt?: MarginType) => {
+                block.#parseMargin(block, opt)
+                return opt
+            }
         )
         this.addProperty('marginTop', 0, false)
         this.addProperty('marginBottom', 0, false)
@@ -328,31 +399,47 @@ export class BaseBlock extends Node {
         this.addProperty('rotate', 0)
         this.addProperty('rotationCenterX', undefined, true)
         this.addProperty('rotationCenterY', undefined, false)
-        this.addProperty('rotationCenter', 'parent', true)
+        this.addProperty('rotationCenter', DEFAULT_ROTATION_CENTER, true)
         this.addProperty('horizontalFlip', false)
         this.addProperty('verticalFlip', false)
         this.addProperty(
             'zIndex',
             undefined,
             false,
-            (block: BaseBlock, zIndex: number) =>
-                this.#hasZIndexChanged(block, zIndex)
+            (block: BaseBlock, zIndex: number | undefined) =>
+                this.#hasZIndexChanged(block, zIndex),
+            (_block: BaseBlock, value: unknown) => this.#zIndexConverter(value)
         )
         this.addProperty(
             'order',
             undefined,
             false,
-            (block: BaseBlock, order: number) =>
+            (block: BaseBlock, order: number | undefined) =>
                 this.#hasOrderChanged(block, order)
         )
-        this.addProperty('hidden', false)
-        this.addProperty('important', {})
+        this.addProperty(
+            'hidden',
+            false,
+            false,
+            (block: BaseBlock, opt?: boolean) =>
+                this.#onHiddenChanged(block, opt)
+        )
+        this.addProperty(
+            'important',
+            {},
+            false,
+            (block: BaseBlock, opt?: Partial<T>) => {
+                if (!opt) return
+                for (const [key, value] of Object.entries(opt))
+                    block.initOptions.set(key, value)
+            }
+        )
         // this.addProperty('flex', [])
         // this.addProperty('alignSelf', 'auto')
         // this.addProperty('justifySelf', 'auto')
-        // this.addProperty('flexShrink', 0)
-        this.addProperty('flexBasis', 'auto')
-        // this.addProperty('flexGrow', 0)
+        this.addProperty('flexShrink', DEFAULT_FLEX_SHRINK)
+        this.addProperty('flexBasis', DEFAULT_FLEX_BASIS)
+        this.addProperty('flexGrow', DEFAULT_FLEX_GROW)
         // this.addProperty('gridRow', [])
         // this.addProperty('gridRowStart', 0)
         // this.addProperty('gridRowEnd', 0)
@@ -369,6 +456,15 @@ export class BaseBlock extends Node {
                 this.#dependency(block, opt)
         )
     }
+    #onHiddenChanged(block: BaseBlock, opt?: boolean) {
+        const hidden = !!opt
+        if (block.#lastHidden === hidden) return
+        block.#lastHidden = hidden
+        block.__invokeChange()
+    }
+    __isHidden(): boolean {
+        return !!(this.hidden() || this.__parentHidden)
+    }
     #updateOptionsCache() {
         const options = this.options
         const cacheOptions = this.cacheOptions
@@ -376,12 +472,44 @@ export class BaseBlock extends Node {
             cacheOptions.set(key, value)
         }
     }
+    #resolveInitOptions() {
+        const scale = this.getOptionCurrent('scale') ?? 1
+        const scaleChanged =
+            (this.getOptionCurrent('scale') || 0) !==
+            (this.getOptionCache('scale') || 0)
+        for (const [key, value] of this.initOptions) {
+            if (!this.#isRelativeValue(value)) continue
+            if (key === 'width' || key === 'height') {
+                if (scaleChanged) continue
+                if (!this.#ownsItsSize()) continue
+            }
+            const resolved = this.__initResolved(key as string)
+            if (typeof resolved !== 'number') continue
+            if (key === 'width')
+                this.setOptionCurrent('width', clampSize(resolved * scale))
+            else if (key === 'height')
+                this.setOptionCurrent('height', clampSize(resolved * scale))
+        }
+    }
+    #isRelativeValue(value: unknown): boolean {
+        if (typeof value === 'string') return RELATIVE_VALUE_PATTERN.test(value)
+        if (value instanceof Array)
+            return value.some(
+                (item) =>
+                    typeof item === 'string' &&
+                    RELATIVE_VALUE_PATTERN.test(item)
+            )
+        return false
+    }
+    #ownsItsSize(): boolean {
+        if (!this.__hasParentBlock) return true
+        const position = this.position()
+        return position === 'absolute' || position === 'fixed'
+    }
     #initializeCordinates() {
         // calling some requried options to be initialized
         const x = this.x()
         const y = this.y()
-        let width = this.width()
-        let height = this.height()
         let scale: number | undefined = this.scale()
         const padding = this.padding()
         const margin = this.margin()
@@ -389,28 +517,37 @@ export class BaseBlock extends Node {
         if (padding !== undefined) this.#parsePadding(this, padding)
         if (margin !== undefined) this.#parseMargin(this, margin)
         scale = scale !== undefined ? scale : 1
-        width = this.width(
-            (width + this.paddingLeft() + this.paddingRight()) * scale
-        )
-        height = this.height(
-            (height + this.paddingTop() + this.paddingBottom()) * scale
-        )
-        if (this.getOptionCurrent('cornerTopLeft') === undefined)
+        const contentWidth = this.getOptionCurrent('width') ?? 0
+        const contentHeight = this.getOptionCurrent('height') ?? 0
+        this.setOptionCurrent('width', clampSize(contentWidth * scale))
+        this.setOptionCurrent('height', clampSize(contentHeight * scale))
+        const width = this.__boxWidth()
+        const height = this.__boxHeight()
+        // a corner which was given by the user can be malformed, so it is only
+        // kept when both of its coordinates are finite
+        const isValidCorner = (corner: unknown): corner is XY =>
+            !!corner &&
+            typeof corner === 'object' &&
+            typeof (corner as XY).x === 'number' &&
+            typeof (corner as XY).y === 'number' &&
+            Number.isFinite((corner as XY).x) &&
+            Number.isFinite((corner as XY).y)
+        if (!isValidCorner(this.getOptionCurrent('cornerTopLeft')))
             this.setOptionCurrent('cornerTopLeft', {
                 x: x,
                 y: y,
             })
-        if (this.getOptionCurrent('cornerTopRight') === undefined)
+        if (!isValidCorner(this.getOptionCurrent('cornerTopRight')))
             this.setOptionCurrent('cornerTopRight', {
                 x: x + width,
                 y: y,
             })
-        if (this.getOptionCurrent('cornerBottomLeft') === undefined)
+        if (!isValidCorner(this.getOptionCurrent('cornerBottomLeft')))
             this.setOptionCurrent('cornerBottomLeft', {
                 x: x,
                 y: y + height,
             })
-        if (this.getOptionCurrent('cornerBottomRight') === undefined)
+        if (!isValidCorner(this.getOptionCurrent('cornerBottomRight')))
             this.setOptionCurrent('cornerBottomRight', {
                 x: x + width,
                 y: y + height,
@@ -420,9 +557,15 @@ export class BaseBlock extends Node {
         this.#calculateRealHeight()
         this.#calculateRealCenterX()
         this.#calculateRealCenterY()
-        if (this.getOptionCurrent('rotationCenterX') === undefined)
+        if (
+            this.getOptionCurrent('rotationCenterX') === undefined ||
+            !Number.isFinite(this.getOptionCurrent('rotationCenterX'))
+        )
             this.setOptionCurrent('rotationCenterX', this.realCenterX)
-        if (this.getOptionCurrent('rotationCenterY') === undefined)
+        if (
+            this.getOptionCurrent('rotationCenterY') === undefined ||
+            !Number.isFinite(this.getOptionCurrent('rotationCenterY'))
+        )
             this.setOptionCurrent('rotationCenterY', this.realCenterY)
     }
     #collectQueueAddEvents() {
@@ -490,27 +633,23 @@ export class BaseBlock extends Node {
     #handleBindOptions() {
         for (const opt of this.#bindOptions) {
             for (const key of opt.options) {
-                getPrototype(this, key as any)?.value.call(
+                getPrototype(this, key)?.value.call(
                     this,
                     opt.block.getOptionCurrent(key)
                 )
             }
         }
     }
-    __getHighestChildZIndex() {
-        if (this.#higestChildZIndex === undefined) {
-            this.#higestChildZIndex = this.zIndex() ?? 0
-            this.listAllChilds((block: BaseBlock) => {
-                const bZIndex = block.zIndex()
-                if (
-                    bZIndex !== undefined &&
-                    bZIndex > this.#higestChildZIndex!
-                ) {
-                    this.#higestChildZIndex = bZIndex
-                }
-            })
-        }
-        return this.#higestChildZIndex
+    #zIndexConverter(value: unknown) {
+        if (value === undefined || value === null) return undefined
+        const numeric = typeof value === 'number' ? value : Number(value)
+        return Number.isNaN(numeric) ? undefined : numeric
+    }
+    __zIndex() {
+        return this.#zIndexConverter(this.getOptionCurrent('zIndex'))
+    }
+    __opensStackingContext() {
+        return this.__zIndex() !== undefined
     }
     __getdHighestChildOrder() {
         if (this.#higestChildOrder === undefined) {
@@ -567,6 +706,16 @@ export class BaseBlock extends Node {
             bottomLeftCorner.y,
             bottomRightCorner.y
         )
+        // a corner which is not finite would spread into the whole box, so the
+        // last box which was calculated is kept instead
+        if (
+            !Number.isFinite(minCordX) ||
+            !Number.isFinite(minCordY) ||
+            !Number.isFinite(maxCordX) ||
+            !Number.isFinite(maxCordY)
+        ) {
+            return
+        }
         this.boundingBox = {
             topLeft: {
                 x: minCordX,
@@ -587,16 +736,10 @@ export class BaseBlock extends Node {
         }
     }
     #width(block: BaseBlock, value: number) {
-        block.setOptionCurrent(
-            'width',
-            value > 0 ? clamp(value, 1, 4096) : clamp(value, -4096, -1)
-        )
+        block.setOptionCurrent('width', clampSize(value))
     }
     #height(block: BaseBlock, value: number) {
-        block.setOptionCurrent(
-            'height',
-            value > 0 ? clamp(value, 1, 4096) : clamp(value, -4096, -1)
-        )
+        block.setOptionCurrent('height', clampSize(value))
     }
     #parseMargin(block: BaseBlock, margin: MarginType | undefined) {
         if (margin === undefined) return
@@ -628,14 +771,14 @@ export class BaseBlock extends Node {
     //     this.gridRowEnd(gridArea[2] || 'auto')
     //     this.gridColumnEnd(gridArea[3] || 'auto')
     // }
-    #hasZIndexChanged(block: BaseBlock, zIndex: number) {
+    #hasZIndexChanged(block: BaseBlock, zIndex: number | undefined) {
         if (block.#zIndex !== zIndex) {
             block.canvas?.demandRefreshHead()
             block.__refreshHeadBlock()
         }
         block.#zIndex = zIndex
     }
-    #hasOrderChanged(block: BaseBlock, order: number) {
+    #hasOrderChanged(block: BaseBlock, order: number | undefined) {
         if (block.#order !== order) {
             block.__refreshHeadBlock()
         }
@@ -652,25 +795,15 @@ export class BaseBlock extends Node {
         }
     }
     updateCordinates() {
-        let currentX = this.getOptionCurrent('x')
-        let currentY = this.getOptionCurrent('y')
-        const cacheX = this.getOptionCache('x')
-        const cacheY = this.getOptionCache('y')
+        let currentX = this.getOptionCurrent('x') ?? 0
+        let currentY = this.getOptionCurrent('y') ?? 0
+        const cacheX = this.getOptionCache('x') ?? 0
+        const cacheY = this.getOptionCache('y') ?? 0
 
-        let currentWidth = this.getOptionCurrent('width')
-        let currentHeight = this.getOptionCurrent('height')
-        const cacheWidth = this.getOptionCache('width')
-        const cacheHeight = this.getOptionCache('height')
-
-        const blockInitW = this.__valueConverter({
-            val: this.initWidth,
-            widthRelated: true,
-        }) as number
-        const blockInitH = this.__valueConverter({
-            val: this.initHeight,
-            widthRelated: false,
-        }) as number
-
+        let currentWidth = this.getOptionCurrent('width') ?? 0
+        let currentHeight = this.getOptionCurrent('height') ?? 0
+        const cacheWidth = this.getOptionCache('width') ?? 0
+        const cacheHeight = this.getOptionCache('height') ?? 0
         const minWidth = this.getOptionCurrent('minWidth')
         const maxWidth = this.getOptionCurrent('maxWidth')
         const minHeight = this.getOptionCurrent('minHeight')
@@ -679,55 +812,56 @@ export class BaseBlock extends Node {
         const rotationCenterX = this.getOptionCurrent('rotationCenterX')
         const rotationCenterY = this.getOptionCurrent('rotationCenterY')
 
+        // a position which is not finite would spread into every corner of the
+        // block, so it falls back to the last known finite position
+        if (!Number.isFinite(currentX))
+            currentX = Number.isFinite(cacheX) ? cacheX : 0
+        if (!Number.isFinite(currentY))
+            currentY = Number.isFinite(cacheY) ? cacheY : 0
+
         const position = this.getOptionCurrent('position')
         const top = this.getOptionCurrent('top')
         const bottom = this.getOptionCurrent('bottom')
         const left = this.getOptionCurrent('left')
         const right = this.getOptionCurrent('right')
 
-        let cornerTopLeftCurrent = this.getOptionCurrent('cornerTopLeft')
-        let cornerTopRightCurrent = this.getOptionCurrent('cornerTopRight')
-        let cornerBottomLeftCurrent = this.getOptionCurrent('cornerBottomLeft')
+        let cornerTopLeftCurrent = this.getOptionCurrent('cornerTopLeft') ?? {
+            x: 0,
+            y: 0,
+        }
+        let cornerTopRightCurrent = this.getOptionCurrent('cornerTopRight') ?? {
+            x: 0,
+            y: 0,
+        }
+        let cornerBottomLeftCurrent =
+            this.getOptionCurrent('cornerBottomLeft') ?? { x: 0, y: 0 }
         let cornerBottomRightCurrent =
-            this.getOptionCurrent('cornerBottomRight')
+            this.getOptionCurrent('cornerBottomRight') ?? { x: 0, y: 0 }
 
         const diffScale =
             (this.getOptionCurrent('scale') || 0) -
             (this.getOptionCache('scale') || 0)
-
-        const diffPaddingTop =
-            this.getOptionCurrent('paddingTop') -
-            this.getOptionCache('paddingTop')
-        const diffPaddingBottom =
-            this.getOptionCurrent('paddingBottom') -
-            this.getOptionCache('paddingBottom')
-        const diffPaddingLeft =
-            this.getOptionCurrent('paddingLeft') -
-            this.getOptionCache('paddingLeft')
-        const diffPaddingRight =
-            this.getOptionCurrent('paddingRight') -
-            this.getOptionCache('paddingRight')
-
-        if (diffPaddingRight || diffPaddingLeft)
-            currentWidth = currentWidth + diffPaddingRight + diffPaddingLeft
-        if (diffPaddingTop || diffPaddingBottom)
-            currentHeight = currentHeight + diffPaddingTop + diffPaddingBottom
 
         if (diffScale) {
             currentWidth *= diffScale
             currentHeight *= diffScale
         }
         if (maxWidth !== undefined)
-            currentWidth = Math.min(blockInitW, maxWidth)
+            currentWidth = Math.min(currentWidth, maxWidth)
         if (minWidth !== undefined)
             currentWidth = Math.max(minWidth, currentWidth)
 
         if (maxHeight !== undefined)
-            currentHeight = Math.min(blockInitH, maxHeight)
+            currentHeight = Math.min(currentHeight, maxHeight)
         if (minHeight !== undefined)
             currentHeight = Math.max(minHeight, currentHeight)
 
-        if (position === 'fixed' || position === 'absolute') {
+        const borderWidth =
+            currentWidth + this.paddingLeft() + this.paddingRight()
+        const borderHeight =
+            currentHeight + this.paddingTop() + this.paddingBottom()
+
+        if (position === 'fixed') {
             const tx = this.canvas?.view.tx ?? 0
             const ty = this.canvas?.view.ty ?? 0
             const scale = this.canvas?.view.scale ?? 1
@@ -735,7 +869,7 @@ export class BaseBlock extends Node {
             if (top !== undefined) currentY = (top - ty) * invScale
             else if (bottom !== undefined)
                 currentY =
-                    ((Math.abs((this.canvas?.height || 1) - currentHeight) -
+                    ((Math.abs((this.canvas?.height || 1) - borderHeight) -
                         bottom -
                         ty) *
                         invScale) /
@@ -743,11 +877,20 @@ export class BaseBlock extends Node {
             if (left !== undefined) currentX = (left - tx) * invScale
             else if (right !== undefined)
                 currentX =
-                    ((Math.abs((this.canvas?.width || 1) - currentWidth) -
+                    ((Math.abs((this.canvas?.width || 1) - borderWidth) -
                         right -
                         tx) *
                         invScale) /
                     1
+        } else if (position === 'absolute') {
+            if (top !== undefined) currentY = top
+            else if (bottom !== undefined)
+                currentY =
+                    Math.abs((this.canvas?.height || 1) - borderHeight) - bottom
+            if (left !== undefined) currentX = left
+            else if (right !== undefined)
+                currentX =
+                    Math.abs((this.canvas?.width || 1) - borderWidth) - right
         } else if (position === 'sticky' && !this.__hasParentBlock) {
             const tx = this.canvas?.view.tx ?? 0
             const ty = this.canvas?.view.ty ?? 0
@@ -759,19 +902,18 @@ export class BaseBlock extends Node {
                 currentY = (top - ty) * invScale
             } else if (
                 bottom !== undefined &&
-                (currentY + currentHeight) * scale + ty > canvasH - bottom
+                (currentY + borderHeight) * scale + ty > canvasH - bottom
             ) {
                 currentY =
-                    ((canvasH - currentHeight - bottom - ty) * invScale) / 1
+                    ((canvasH - borderHeight - bottom - ty) * invScale) / 1
             }
             if (left !== undefined && currentX * scale + tx < left) {
                 currentX = (left - tx) * invScale
             } else if (
                 right !== undefined &&
-                (currentX + currentWidth) * scale + tx > canvasW - right
+                (currentX + borderWidth) * scale + tx > canvasW - right
             ) {
-                currentX =
-                    ((canvasW - currentWidth - right - tx) * invScale) / 1
+                currentX = ((canvasW - borderWidth - right - tx) * invScale) / 1
             }
         } else if (position === 'relative' && !this.__hasParentBlock) {
             if (left !== undefined) currentX = left
@@ -781,8 +923,16 @@ export class BaseBlock extends Node {
         }
         const diffX = currentX - cacheX
         const diffY = currentY - cacheY
-        const diffW = currentWidth - cacheWidth
-        const diffH = currentHeight - cacheHeight
+        const diffW =
+            borderWidth -
+            (cacheWidth +
+                (this.getOptionCache('paddingLeft') ?? 0) +
+                (this.getOptionCache('paddingRight') ?? 0))
+        const diffH =
+            borderHeight -
+            (cacheHeight +
+                (this.getOptionCache('paddingTop') ?? 0) +
+                (this.getOptionCache('paddingBottom') ?? 0))
         const dX = diffX + diffW
         const dY = diffY + diffH
 
@@ -807,25 +957,33 @@ export class BaseBlock extends Node {
             cornerTopLeftCurrent.x > cornerTopRightCurrent.x ||
             cornerBottomLeftCurrent.x > cornerBottomRightCurrent.x
         )
-            this.horizontalFlip(true)
-        else this.horizontalFlip(false)
+            this.setOptionCurrent('horizontalFlip', true)
+        else this.setOptionCurrent('horizontalFlip', false)
         if (
             cornerTopLeftCurrent.y > cornerBottomLeftCurrent.y ||
             cornerTopRightCurrent.y > cornerBottomRightCurrent.y
         )
-            this.verticalFlip(true)
-        else this.verticalFlip(false)
+            this.setOptionCurrent('verticalFlip', true)
+        else this.setOptionCurrent('verticalFlip', false)
 
         const shouldTrackOwnCenter =
             this.rotationCenter() !== 'parent' || !this.__hasParentBlock
         if (shouldTrackOwnCenter) {
+            const centerX =
+                rotationCenterX !== undefined && Number.isFinite(rotationCenterX)
+                    ? rotationCenterX
+                    : currentX + currentWidth / 2
+            const centerY =
+                rotationCenterY !== undefined && Number.isFinite(rotationCenterY)
+                    ? rotationCenterY
+                    : currentY + currentHeight / 2
             this.setOptionCurrent(
                 'rotationCenterX',
-                rotationCenterX + diffX + diffW / 2
+                centerX + diffX + diffW / 2
             )
             this.setOptionCurrent(
                 'rotationCenterY',
-                rotationCenterY + diffY + diffH / 2
+                centerY + diffY + diffH / 2
             )
         }
         this.setOptionCurrent('x', currentX)
@@ -842,18 +1000,12 @@ export class BaseBlock extends Node {
         const pHeight = this.height()
 
         const pPaddingLeft = this.paddingLeft()
-        const pPaddingRight = this.paddingRight()
         const pPaddingTop = this.paddingTop()
-        const pPaddingBottom = this.paddingBottom()
-
-        const pWidthSpaces = pWidth - (pPaddingLeft + pPaddingRight)
-        const pHeightSpaces = pHeight - (pPaddingTop + pPaddingBottom)
 
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
 
-        const pCurrentRotate = this.getOptionCurrent('rotate')
-        const pCacheRotate = this.getOptionCache('rotate')
+        const pCurrentRotate = this.__rotation()
 
         const cornerLeftX = this.cornerTopLeft().x
         const cornerTopY = this.cornerTopLeft().y
@@ -875,32 +1027,34 @@ export class BaseBlock extends Node {
 
         this.listOnlyChilds((b: BaseBlock, currIdx, arrLen) => {
             const blockPosition = b.position()
-            if (blockPosition === 'absolute' || blockPosition === 'fixed')
+            b.__parentHidden = this.__isHidden()
+            if (blockPosition === 'absolute' || blockPosition === 'fixed') {
+                b.__childAdjustment = undefined
+                b.__resetParentRotation()
+                b.canvas?.demandInvoke(b)
                 return
+            }
 
             const blockMarginTop = b.marginTop() * verticalFlipSign
             const blockMarginBottom = b.marginBottom() * verticalFlipSign
             const blockMarginLeft = b.marginLeft() * horiztionalFlipSign
             const blockMarginRight = b.marginRight() * horiztionalFlipSign
 
-            const blockInitW = b.__valueConverter({
-                val: b.initWidth,
-                widthRelated: true,
-            }) as number
-            const blockInitH = b.__valueConverter({
-                val: b.initHeight,
-                widthRelated: false,
-            }) as number
+            let blockW = Math.abs(b.__boxWidth())
+            let blockH = Math.abs(b.__boxHeight())
 
-            let blockW = Math.abs(b.width())
-            let blockH = Math.abs(b.height())
+            const blockInitW = b.__initResolved('width') as number
+            const blockInitH = b.__initResolved('height') as number
+            // a child without a size keeps the size it measured for itself
+            const blockOwnsWidth = blockInitW === undefined
+            const blockOwnsHeight = blockInitH === undefined
 
             const blockWidthSpaces = blockW + blockMarginLeft + blockMarginRight
             const blockHeightSpaces =
                 blockH + blockMarginTop + blockMarginBottom
 
             wrapWidth += blockWidthSpaces
-            if (wrapWidth > pWidthSpaces) {
+            if (wrapWidth > pWidth) {
                 startX = 0
                 blocksContainerHeight += containerH
                 wrapWidth = blockWidthSpaces
@@ -931,23 +1085,29 @@ export class BaseBlock extends Node {
 
             if (currIdx == arrLen - 1) blocksContainerHeight += containerH
 
-            blockW = blockInitW
-            blockH = blockInitH
+            blockW = blockInitW !== undefined ? blockInitW : blockW
+            blockH = blockInitH !== undefined ? blockInitH : blockH
 
-            b.setOptionCurrent('rotate', pCurrentRotate)
-            b.setOptionCache('rotate', pCacheRotate)
+            b.__parentRotate = pCurrentRotate
             b.__childAdjustment = (b: BaseBlock) => {
-                b.hidden(this.hidden())
                 if (b.rotationCenter() === 'parent') {
                     b.setOptionCurrent('rotationCenterX', centerX)
                     b.setOptionCurrent('rotationCenterY', centerY)
                 }
-                b.x(blockXStart)
-                b.y(blockYStart)
-                if (blockHorizontalFlip) blockW = -blockW
-                if (blockVerticalFlip) blockH = -blockH
-                b.width(blockW)
-                b.height(blockH)
+                b.setOptionCurrent('x', blockXStart)
+                b.setOptionCurrent('y', blockYStart)
+                const childPaddingW = b.paddingLeft() + b.paddingRight()
+                const childPaddingH = b.paddingTop() + b.paddingBottom()
+                // the size of the child is read again, it may have measured
+                // itself after the parent measured it
+                const childW = blockOwnsWidth ? Math.abs(b.width()) : blockW
+                const childH = blockOwnsHeight ? Math.abs(b.height()) : blockH
+                let borderW = childW + childPaddingW
+                let borderH = childH + childPaddingH
+                if (blockHorizontalFlip) borderW = -borderW
+                if (blockVerticalFlip) borderH = -borderH
+                b.setOptionCurrent('width', clampSize(borderW - childPaddingW))
+                b.setOptionCurrent('height', clampSize(borderH - childPaddingH))
             }
             b.canvas?.demandInvoke(b)
         })
@@ -956,9 +1116,75 @@ export class BaseBlock extends Node {
             height: blocksContainerHeight,
         }
     }
-    #rotateCornerCordinates(corner: string, diffR: number) {
+    __deriveSizeFromChilds(): boolean {
+        const needsWidth = this.__initResolved('width') === undefined
+        const needsHeight = this.__initResolved('height') === undefined
+        if (!needsWidth && !needsHeight) return false
+
+        const extent = this.#childsExtent()
+        const paddingW = this.paddingLeft() + this.paddingRight()
+        const paddingH = this.paddingTop() + this.paddingBottom()
+
+        const widthChanged = needsWidth
+            ? this.__setDerivedWidth(extent.width + paddingW)
+            : false
+        const heightChanged = needsHeight
+            ? this.__setDerivedHeight(extent.height + paddingH)
+            : false
+        return widthChanged || heightChanged
+    }
+    #childsExtent(): { width: number; height: number } {
+        let width = 0
+        let height = 0
+        this.listOnlyChilds((b: BaseBlock) => {
+            const position = b.position()
+            if (position === 'absolute' || position === 'fixed') return
+            const childW =
+                Math.abs(b.__boxWidth()) + b.marginLeft() + b.marginRight()
+            const childH =
+                Math.abs(b.__boxHeight()) + b.marginTop() + b.marginBottom()
+            if (childW > width) width = childW
+            if (childH > height) height = childH
+        })
+        return { width, height }
+    }
+    __setDerivedWidth(width: number): boolean {
+        const clamped = clampSize(this.#clampWidth(width))
+        if (this.getOptionCurrent('width') === clamped) return false
+        this.setOptionCurrent('width', clamped)
+        return true
+    }
+    __setDerivedHeight(height: number): boolean {
+        const clamped = clampSize(this.#clampHeight(height))
+        if (this.getOptionCurrent('height') === clamped) return false
+        this.setOptionCurrent('height', clamped)
+        return true
+    }
+    #clampWidth(width: number): number {
+        const min = this.minWidth()
+        const max = this.maxWidth()
+        if (min !== undefined && width < min) return min
+        if (max !== undefined && width > max) return max
+        return width
+    }
+    #clampHeight(height: number): number {
+        const min = this.minHeight()
+        const max = this.maxHeight()
+        if (min !== undefined && height < min) return min
+        if (max !== undefined && height > max) return max
+        return height
+    }
+    #rotateCornerCordinates(
+        corner:
+            | 'cornerTopLeft'
+            | 'cornerTopRight'
+            | 'cornerBottomLeft'
+            | 'cornerBottomRight',
+        diffR: number
+    ) {
         const cordsAreaCurrent = this.getOptionCurrent(corner)
         const cordsAreaCache = this.getOptionCache(corner)
+        if (!cordsAreaCurrent || !cordsAreaCache) return
         const currentCords = this.__rotateCordiantesByCenter(
             cordsAreaCurrent.x,
             cordsAreaCurrent.y,
@@ -978,46 +1204,63 @@ export class BaseBlock extends Node {
         this.#rotateCornerCordinates('cornerBottomLeft', radian)
         this.#rotateCornerCordinates('cornerBottomRight', radian)
     }
-    addProperty(
+    addProperty<
+        TBlock extends BaseBlock = BaseBlock,
+        TVal = unknown,
+        TResolved = TVal,
+    >(
         method: string,
-        defaultValue: any,
+        defaultValue: TResolved,
         widthRelated?: boolean,
-        func?: (block: any, opt?: any) => void,
-        valueConverter?: ValueConverterFunc<any, any>
+        func?: (block: TBlock, opt: TResolved) => void,
+        valueConverter?: ValueConverterFunc<TVal, TResolved, TBlock>
     ): void {
-        ;(this.constructor.prototype as Record<string, any>)[method] =
-            function (this: BaseBlock, opt?: any) {
-                const value = this.__valueHandler(
-                    opt,
-                    method,
-                    defaultValue,
-                    widthRelated,
-                    valueConverter
-                )
-                func?.(this, value)
-                return value
-            }
+        const property = function (this: BaseBlock, opt?: TVal) {
+            const value = this.__valueHandler<TVal, TResolved>(
+                opt,
+                method,
+                defaultValue,
+                widthRelated,
+                valueConverter as ValueConverterFunc<TVal, TResolved> | undefined
+            )
+            func?.(this as TBlock, value)
+            return value
+        } as PropertyFunc
+        property.valueConverter = valueConverter as
+            | ValueConverterFunc<unknown, unknown, BaseBlock>
+            | undefined
+        ;(this.constructor.prototype as Record<string, PropertyFunc>)[method] =
+            property
     }
     removeProperty(method: string): void {
-        delete (this.constructor.prototype as Record<string, any>)[method]
-        this.options.delete(method as BlockOptionKeys)
-        this.cacheOptions.delete(method as BlockOptionKeys)
+        delete (this.constructor.prototype as Record<string, PropertyFunc>)[
+            method
+        ]
+        this.options.delete(method)
+        this.cacheOptions.delete(method)
     }
-    getOptionCache(key: string) {
+    getOptionCache<K extends keyof BaseBlockOptions>(
+        key: K
+    ): ResolvedValue<NonNullable<BaseBlockOptions[K]>> | undefined
+    getOptionCache<V = unknown>(key: string): V | undefined
+    getOptionCache(key: string): unknown {
         return this.cacheOptions.get(key)
     }
-    getOptionCurrent(key: BlockOptionKeys) {
+    getOptionCurrent<K extends keyof BaseBlockOptions>(
+        key: K
+    ): ResolvedValue<NonNullable<BaseBlockOptions[K]>> | undefined
+    getOptionCurrent<V = unknown>(key: string): V | undefined
+    getOptionCurrent(key: string): unknown {
         return this.options.get(key)
     }
-    setOptionCache(key: BlockOptionKeys, value: any) {
+    setOptionCache(key: string, value: unknown) {
         this.cacheOptions.set(key, value)
     }
-    setOptionCurrent(key: BlockOptionKeys, value: any) {
+    setOptionCurrent(key: string, value: unknown) {
         this.options.set(key, value)
     }
     __refreshHeadBlock() {
         if (this.__hasParentBlock) this.parentNode?.__refreshHeadBlock()
-        this.#higestChildZIndex = undefined
         this.#higestChildOrder = undefined
     }
     get isMouseEventAllowed() {
@@ -1031,6 +1274,12 @@ export class BaseBlock extends Node {
             return true
         return false
     }
+    __boxWidth(): number {
+        return this.width() + this.paddingLeft() + this.paddingRight()
+    }
+    __boxHeight(): number {
+        return this.height() + this.paddingTop() + this.paddingBottom()
+    }
     get __parentWidth(): number {
         if (this.__hasParentBlock) return this.parentNode?.width?.() || 1
         return this.canvas?.width || 1
@@ -1039,24 +1288,6 @@ export class BaseBlock extends Node {
         if (this.__hasParentBlock) return this.parentNode?.height?.() || 1
         return this.canvas?.height || 1
     }
-    get __leftSpace() {
-        return this.marginLeft()
-    }
-    get __rightSpace() {
-        return this.paddingRight() + this.marginRight()
-    }
-    get __topSpace() {
-        return this.marginTop()
-    }
-    get __bottomSpace() {
-        return this.paddingBottom() + this.marginBottom()
-    }
-    get __widthSpaces() {
-        return this.__leftSpace + this.__rightSpace
-    }
-    get __heightSpaces() {
-        return this.__topSpace + this.__bottomSpace
-    }
     __valueHandler<T, O>(
         opt: T | undefined,
         option: string,
@@ -1064,19 +1295,39 @@ export class BaseBlock extends Node {
         widthRelated?: boolean,
         valueConverter?: ValueConverterFunc<T, O>
     ): O {
-        let currentValue: any = opt
+        if (opt !== undefined)
+            validateBlockOption(
+                `${this.constructor.name}.${option}()`,
+                'value',
+                option,
+                opt,
+                BaseBlock
+            )
+        let rawValue: T | undefined = opt
         const important = this.getOptionCurrent('important')
         if (important && Object.hasOwn(important, option))
-            currentValue = important[option]
-        if (valueConverter === undefined) {
-            currentValue = this.__valueConverter<T, O>({
-                val: currentValue,
-                widthRelated: widthRelated,
-            })
-        } else currentValue = valueConverter?.(this, currentValue)
-        return this.__cacheOption(currentValue, option, defaultOpt)
+            rawValue = (important as Record<string, T | undefined>)[option]
+        if (opt !== undefined && !this.__applyOptionsOnly)
+            this.initOptions.set(option, rawValue)
+        const resolvedValue =
+            valueConverter === undefined
+                ? this.__valueConverter<T, O>({
+                      val: rawValue,
+                      widthRelated: widthRelated,
+                  })
+                : valueConverter(this, rawValue as T)
+        return this.__cacheOption(resolvedValue, option, defaultOpt) as O
     }
-    __cacheOption<I, O>(opt: I, option: BlockOptionKeys, defaultOpt: O) {
+    __initResolved(key: string): unknown {
+        const value = this.initOptions.get(key)
+        if (value === undefined) return undefined
+        const property = getPrototype(this, key)?.value as
+            | PropertyFunc
+            | undefined
+        if (!property || property.valueConverter) return undefined
+        return property.call(this, value)
+    }
+    __cacheOption<I, O>(opt: I, option: string, defaultOpt: O) {
         const value = this.getOptionCurrent(option)
         if (opt !== undefined) {
             this.setOptionCurrent(option, opt)
@@ -1103,7 +1354,7 @@ export class BaseBlock extends Node {
         } else if (val instanceof Array) {
             const vals = []
             for (let i = 0, len = val.length; i < len; i++) {
-                vals.push(this.__valueConverter({ val: val[i] }))
+                vals.push(this.__valueConverter({ val: val[i], widthRelated }))
             }
             return vals as O
         }
@@ -1111,31 +1362,23 @@ export class BaseBlock extends Node {
     }
     __unitConverter(value: string, widthRelated?: boolean) {
         const size = widthRelated ? this.__parentWidth : this.__parentHeight
-        const space = widthRelated ? this.__widthSpaces : this.__heightSpaces
         if (value.endsWith('px')) return Number(value.split('px')[0])
-        else if (value.endsWith('%')) {
-            return (
-                fromPercentage(Number(value.split('%')[0]), size || 1) - space
+        else if (value.endsWith('%'))
+            return fromPercentage(Number(value.split('%')[0]), size || 1)
+        else if (value.endsWith('rem'))
+            return fromRem(
+                Number(value.split('rem')[0]),
+                this.canvas?.width || 1
             )
-        } else if (value.endsWith('rem'))
-            return (
-                fromRem(
-                    Number(value.split('rem')[0]),
-                    this.canvas?.width || 1
-                ) - space
+        else if (value.endsWith('em'))
+            return fromEm(Number(value.split('em')[0]), size || 1)
+        else if (value.endsWith('vh'))
+            return fromVH(
+                Number(value.split('vh')[0]),
+                this.canvas?.height || 1
             )
-        else if (value.endsWith('em')) {
-            return fromEm(Number(value.split('em')[0]), size || 1) - space
-        } else if (value.endsWith('vh') && !widthRelated)
-            return (
-                fromVH(Number(value.split('vh')[0]), this.canvas?.height || 1) -
-                space
-            )
-        else if (value.endsWith('vw') && widthRelated)
-            return (
-                fromVW(Number(value.split('vw')[0]), this.canvas?.width || 1) -
-                space
-            )
+        else if (value.endsWith('vw'))
+            return fromVW(Number(value.split('vw')[0]), this.canvas?.width || 1)
         else if (value.endsWith('cm'))
             return fromCm(Number(value.split('cm')[0]))
         else if (value.endsWith('mm'))
@@ -1218,14 +1461,29 @@ export class BaseBlock extends Node {
     __removeChildInternal(block: BaseBlock): void {
         super.removeChild(block)
         block.__childAdjustment = undefined
+        block.__resetParentRotation()
     }
     __invokeChange() {
+        this.#invokeDependencies()
         if (this.__hasParentBlock) {
             this.parentNode?.__invokeChange()
             return
         }
-        this.#invokeDependencies()
         this.canvas?.demandInvoke(this)
+    }
+    __invokeDerivedSizeChanged() {
+        this.__deriveSizeFromChilds()
+        // the childs are laid out against the new size
+        this.updateChildsCordinate()
+        this.__hasParentBlock &&
+            this.parentNode?.__invokeDerivedSizeChanged()
+    }
+    __applyOptions() {
+        this.__applyOptionsOnly = true
+        for (const [key, value] of this.options) {
+            getPrototype(this, key as string)?.value.call(this, value)
+        }
+        this.__applyOptionsOnly = false
     }
     __selectCursor(cursor: string) {
         if (this.nodeId !== undefined)
@@ -1235,7 +1493,10 @@ export class BaseBlock extends Node {
         if (this.nodeId !== undefined)
             this.canvas?.unregisterCursor(this.nodeId, cursor)
     }
-    __invokeHistory(before: any, after: any) {
+    __invokeHistory(
+        before: Record<string, unknown>,
+        after: Record<string, unknown>
+    ) {
         if (this.nodeId) this.canvas?.demandHistory(this.nodeId, before, after)
     }
     __generatePayload(): BlockPayload {
@@ -1271,6 +1532,15 @@ export class BaseBlock extends Node {
             radian
         )
     }
+    __rotation(): number {
+        return this.rotate() + this.__parentRotate
+    }
+    __rotationCache(): number {
+        return this.__rotateCache
+    }
+    __resetParentRotation() {
+        this.__parentRotate = 0
+    }
     checkInBound(event: MouseEvent): boolean {
         const { x, y } = this.canvas?.getCursorPosition(event)!
         let topLeft = this.cornerTopLeft()
@@ -1303,23 +1573,67 @@ export class BaseBlock extends Node {
             bottomRight.y
         )
     }
+    // the pointer is inside of this block or of one of its descendants
+    __isInBoundTree(event: MouseEvent): boolean {
+        if (this.checkInBound(event)) return true
+        let isInside = false
+        this.listAllChilds((b: BaseBlock) => {
+            if (isInside) return
+            if (b.checkInBound(event)) isInside = true
+        })
+        return isInside
+    }
     listOnlyChilds<T extends BaseBlock>(
         _func: (block: T, currIdx: number, arrLen: number) => void
     ): void {
+        requireCallback(
+            `${this.constructor.name}.listOnlyChilds()`,
+            'callback',
+            _func
+        )
         const childNodes = [...this.childNodes]
         for (let i = 0, len = childNodes.length; i < len; i++) {
             _func(childNodes[i] as T, i, len)
         }
     }
     listAllChilds(_func: (block: BaseBlock) => void): void {
+        requireCallback(
+            `${this.constructor.name}.listAllChilds()`,
+            'callback',
+            _func
+        )
         preOrderTraversal(this, _func)
     }
-    set(options: IBaseBlockOptions): void {
-        let before: any = {}
-        let after: any = {}
-        for (const [key, value] of Object.entries(options)) {
+    __isOption(key: string): boolean {
+        const property = getPrototype(this, key)?.value
+        return (
+            typeof property === 'function' &&
+            Object.hasOwn(property, 'valueConverter')
+        )
+    }
+    set(options: T): void {
+        const method = `${this.constructor.name}.set()`
+        requireRecord(method, 'options', options)
+        const entries = Object.entries(options)
+        for (const [key, value] of entries) {
+            if (!this.__isOption(key))
+                throw new TypeError(
+                    `[2flex] ${method} does not recognize option "${key}".`
+                )
+            validateBlockOption(
+                method,
+                'options.' + key,
+                key,
+                value,
+                BaseBlock
+            )
+        }
+        const before: Record<string, unknown> = {}
+        const after: Record<string, unknown> = {}
+        for (const [key, value] of entries) {
             const obj = getPrototype(this, key)
-            let beforeValue = obj?.value.call(this)
+            const beforeValue =
+                this.initOptions.get(key) ?? obj?.value.call(this)
             const handledVal = obj?.value.call(this, value)
             this.setOptionCurrent(
                 key,
@@ -1333,41 +1647,96 @@ export class BaseBlock extends Node {
             this.__invokeChange()
         }
     }
-    addDependecy(block: BaseBlock) {
-        this.#dependendBlocks.add(block)
+    addDependency(target: BaseBlock) {
+        const method = `${this.constructor.name}.addDependency()`
+        if (!(target instanceof BaseBlock))
+            invalidArgument(method, 'target', 'a BaseBlock', target)
+        if (target === this) return
+        target.#dependendBlocks.add(this)
+        this.__invokeChange()
     }
-    removeDependency(block: BaseBlock) {
-        this.#dependendBlocks.delete(block)
+    removeDependency(target: BaseBlock) {
+        const method = `${this.constructor.name}.removeDependency()`
+        if (!(target instanceof BaseBlock))
+            invalidArgument(method, 'target', 'a BaseBlock', target)
+        target.#dependendBlocks.delete(this)
     }
-    bindTo(block: BaseBlock, options: BlockOptionKeys[]) {
+    bindTo(block: BaseBlock, options: string[]) {
+        const method = `${this.constructor.name}.bindTo()`
+        if (!(block instanceof BaseBlock))
+            invalidArgument(method, 'block', 'a BaseBlock', block)
+        if (
+            !Array.isArray(options) ||
+            !options.every((key) => typeof key === 'string' && key.trim())
+        )
+            invalidArgument(
+                method,
+                'options',
+                'an array of nonempty option names',
+                options
+            )
         this.#bindOptions.push({ block, options })
     }
     unbind(block: BaseBlock) {
+        const method = `${this.constructor.name}.unbind()`
+        if (!(block instanceof BaseBlock))
+            invalidArgument(method, 'block', 'a BaseBlock', block)
         this.#bindOptions = this.#bindOptions.filter((i) => i.block !== block)
     }
-    findChilds<T extends IBaseBlockOptions>(queries: T) {
+    findChilds<TQuery extends Partial<BaseBlockOptions>>(queries: TQuery) {
+        requireRecord(
+            `${this.constructor.name}.findChilds()`,
+            'queries',
+            queries
+        )
         let blocks: BaseBlock[] = []
         this.listAllChilds((block: BaseBlock) => {
             for (const [k, v] of Object.entries(queries)) {
-                if (this.getOptionCurrent(k) === v) blocks.push(block)
+                if (block.getOptionCurrent(k) === v) blocks.push(block)
             }
         })
         return blocks
     }
     addChild(block: BaseBlock): void {
+        const method = `${this.constructor.name}.addChild()`
+        if (!(block instanceof BaseBlock))
+            invalidArgument(method, 'block', 'a BaseBlock', block)
+        for (
+            let ancestor: Node | undefined = this;
+            ancestor;
+            ancestor = ancestor.parentNode
+        ) {
+            if (ancestor === block)
+                throw new TypeError(
+                    `[2flex] ${method} cannot add itself or an ancestor as a child.`
+                )
+        }
         super.addChild(block)
+        block.__parentHidden = this.__isHidden()
         if (this.canvas) this.canvas.demandAddBlock(block)
         else this.#pending['addedChilds'].push(block)
         this.__invokeHistory({ removeChild: block }, { addChild: block })
+        this.canvas?.demandInvoke(this)
     }
     removeChild(block: BaseBlock): void {
+        const method = `${this.constructor.name}.removeChild()`
+        if (!(block instanceof BaseBlock))
+            invalidArgument(method, 'block', 'a BaseBlock', block)
         super.removeChild(block)
         block.__childAdjustment = undefined
+        block.__resetParentRotation()
+        block.__parentHidden = false
         if (this.canvas) this.canvas.demandRemoveBlock(block)
         else this.#pending['removedChilds'].push(block)
         this.__invokeHistory({ addChild: block }, { removeChild: block })
+        this.canvas?.demandInvoke(this)
     }
     contextMenu(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.contextMenu()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1380,6 +1749,7 @@ export class BaseBlock extends Node {
         this.__addEvent<MouseEvent>('contextmenu', out)
     }
     click(_func: (event: MouseEvent) => void) {
+        requireCallback(`${this.constructor.name}.click()`, 'callback', _func)
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1392,6 +1762,11 @@ export class BaseBlock extends Node {
         this.__addEvent<MouseEvent>('click', out)
     }
     dblclick(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.dblclick()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1404,6 +1779,11 @@ export class BaseBlock extends Node {
         this.__addEvent<MouseEvent>('dblclick', out)
     }
     mousedown(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mousedown()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1416,6 +1796,7 @@ export class BaseBlock extends Node {
         this.__addEvent<MouseEvent>('mousedown', out)
     }
     mouseup(_func: (event: MouseEvent) => void) {
+        requireCallback(`${this.constructor.name}.mouseup()`, 'callback', _func)
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1428,6 +1809,11 @@ export class BaseBlock extends Node {
         this.__addEvent<MouseEvent>('mouseup', out)
     }
     mousemove(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mousemove()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
@@ -1440,14 +1826,23 @@ export class BaseBlock extends Node {
         this.__addEvent<MouseEvent>('mousemove', out)
     }
     mouseenter(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mouseenter()`,
+            'callback',
+            _func
+        )
         let isMouseEnter = false
         const enter = (event: MouseEvent) => {
             if (this.checkInBound(event) && this.isMouseEventAllowed) {
                 this.__registerZIndex()
-                if (this.__ImFirst() && !isMouseEnter) {
-                    _func(event)
-                    this.__invokeChange()
-                    isMouseEnter = true
+                if (this.__ImFirst()) {
+                    if (!isMouseEnter) {
+                        _func(event)
+                        this.__invokeChange()
+                        isMouseEnter = true
+                    }
+                } else {
+                    this.__unregisterZIndex()
                 }
             } else {
                 isMouseEnter = false
@@ -1457,100 +1852,98 @@ export class BaseBlock extends Node {
         this.__addEvent<MouseEvent>('mousemove', enter)
     }
     mouseleave(_func: (event: MouseEvent) => void) {
+        requireCallback(
+            `${this.constructor.name}.mouseleave()`,
+            'callback',
+            _func
+        )
         let isMouseLeave = false
         const leave = (event: MouseEvent) => {
             if (!this.checkInBound(event) && this.isMouseEventAllowed) {
-                this.__registerZIndex()
-
-                if (!this.__ImFirst() && !isMouseLeave) {
+                this.__unregisterZIndex()
+                if (!isMouseLeave) {
                     _func(event)
                     this.__invokeChange()
                     isMouseLeave = true
                 }
             } else {
                 isMouseLeave = false
-                this.__unregisterZIndex()
             }
         }
         this.__addEvent<MouseEvent>('mousemove', leave)
     }
-    /** @Todo
-        mouseover and mouseout has little bug when two chidls cross each other there are isMouse over happens to be true but one is under so check in bound checks it under the higher z index element
-    */
     mouseover(_func: (event: MouseEvent) => void) {
-        const mouseOver: any = {}
-        let isMouseOver = false
-        let inBound = false
+        requireCallback(
+            `${this.constructor.name}.mouseover()`,
+            'callback',
+            _func
+        )
         const over = (event: MouseEvent) => {
-            this.listAllChilds((b: BaseBlock) => {
-                if (mouseOver[b.nodeId!] == undefined)
-                    mouseOver[b.nodeId!] = b.checkInBound(event)
-
-                if (!b.checkInBound(event)) {
-                    if (mouseOver[b.nodeId!]) {
-                        mouseOver[b.nodeId!] = false
-                        isMouseOver = false
-                    }
-                } else if (mouseOver[b.nodeId!] === false) {
-                    mouseOver[b.nodeId!] = true
-                    isMouseOver = true
-                }
-            })
-            if (this.checkInBound(event)) {
-                if (!inBound) {
-                    inBound = true
-                    isMouseOver = true
-                }
-            } else {
-                inBound = false
-                isMouseOver = false
+            if (!this.isMouseEventAllowed) return
+            if (!this.__isInBoundTree(event)) {
+                this.#isMouseOver = false
+                return
             }
-
-            if (isMouseOver) {
+            this.__registerZIndex()
+            // the block above this one is visited first, so a covered block
+            // is not reported as hovered
+            if (!this.__ImFirst()) {
+                this.__unregisterZIndex()
+                this.#isMouseOver = false
+                return
+            }
+            if (!this.#isMouseOver) {
+                this.#isMouseOver = true
                 _func(event)
                 this.__invokeChange()
-                isMouseOver = false
             }
         }
         this.__addEvent<MouseEvent>('mousemove', over)
     }
     mouseout(_func: (event: MouseEvent) => void) {
-        const mouseLeave: any = {}
-        let isMouseLeave = false
-        let outBound = false
+        requireCallback(
+            `${this.constructor.name}.mouseout()`,
+            'callback',
+            _func
+        )
         const out = (event: MouseEvent) => {
-            if (!this.checkInBound(event)) {
-                if (!outBound) {
-                    outBound = true
-                    isMouseLeave = true
+            if (!this.isMouseEventAllowed) {
+                // the pointer left the canvas
+                if (this.#isMouseOut) {
+                    this.#isMouseOut = false
+                    _func(event)
+                    this.__invokeChange()
                 }
-            } else {
-                outBound = false
-                isMouseLeave = false
+                return
             }
-            this.listAllChilds((b: BaseBlock) => {
-                if (mouseLeave[b.nodeId!] == undefined)
-                    mouseLeave[b.nodeId!] = b.checkInBound(event)
-                if (b.checkInBound(event)) {
-                    if (mouseLeave[b.nodeId!]) {
-                        mouseLeave[b.nodeId!] = false
-                        isMouseLeave = true
+            if (this.__isInBoundTree(event)) {
+                this.__registerZIndex()
+                // the block is still the topmost one, so it is not left, a
+                // covered block is left
+                if (this.__ImFirst()) {
+                    this.#isMouseOut = false
+                } else {
+                    this.__unregisterZIndex()
+                    if (!this.#isMouseOut) {
+                        this.#isMouseOut = true
+                        _func(event)
+                        this.__invokeChange()
                     }
-                } else if (mouseLeave[b.nodeId!] == false) {
-                    mouseLeave[b.nodeId!] = true
-                    isMouseLeave = true
                 }
-            })
-
-            if (isMouseLeave) {
+                return
+            }
+            // the pointer is not inside of this block
+            this.__unregisterZIndex()
+            if (!this.#isMouseOut) {
+                this.#isMouseOut = true
                 _func(event)
                 this.__invokeChange()
-                isMouseLeave = false
             }
         }
         this.__addEvent<MouseEvent>('mousemove', out)
     }
     keydown(_func: (event: KeyboardEvent) => void) {
+        requireCallback(`${this.constructor.name}.keydown()`, 'callback', _func)
         const down = (event: KeyboardEvent) => {
             if (this.canvas?.isFocused) {
                 event.preventDefault()
@@ -1561,6 +1954,7 @@ export class BaseBlock extends Node {
         this.__addEvent<KeyboardEvent>('keydown', down)
     }
     keyup(_func: (event: KeyboardEvent) => void) {
+        requireCallback(`${this.constructor.name}.keyup()`, 'callback', _func)
         const up = (event: KeyboardEvent) => {
             if (this.canvas?.isFocused) {
                 event.preventDefault()
@@ -1571,6 +1965,7 @@ export class BaseBlock extends Node {
         this.__addEvent<KeyboardEvent>('keyup', up)
     }
     wheel(_func: (event: WheelEvent) => void) {
+        requireCallback(`${this.constructor.name}.wheel()`, 'callback', _func)
         const wheel = (event: WheelEvent) => {
             if (this.canvas?.isFocused) {
                 event.preventDefault()
@@ -1581,3 +1976,5 @@ export class BaseBlock extends Node {
         this.__addEvent<WheelEvent>('wheel', wheel)
     }
 }
+
+export interface BaseBlock extends OptionAccessors<BaseBlockOptions> {}

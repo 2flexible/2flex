@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
 import { Block, Canvas } from '@2flexible/2flex'
 import {
@@ -141,7 +141,9 @@ describe('ResizableBlock', () => {
             expect(topLeftAreaOffset()).toStrictEqual({ x: -10, y: -10 })
         })
         it('should convert a hot area size given in px', async () => {
-            block.set({ hotResizableAreaSize: '30px' })
+            block.set({
+                hotResizableAreaSize: '30px' as unknown as number,
+            })
             await flush()
             expect(block.hotResizableAreaSize()).toBe(30)
             expect(topLeftAreaSize()).toStrictEqual({ width: 30, height: 30 })
@@ -184,6 +186,41 @@ describe('ResizableBlock', () => {
             expect(block.x()).toBe(0)
             expect(block.y()).toBe(0)
             expect(block.height()).toBe(100)
+        })
+        it('should keep the size of a resized block with a relative size', async () => {
+            block = new Block({
+                x: 0,
+                y: 0,
+                width: '50%',
+                height: 100,
+                selectable: true,
+            })
+            canvas.add(block)
+            await flush()
+            // the relative size is a part of the width of the canvas
+            expect(block.width()).toBe(200)
+            block.set({ resizable: true })
+            await flush()
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+
+            // select the block so the resize handles become active
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
+
+            // hover the right resizable edge to arm the resize handle
+            dispatchMouse(element, 'mousemove', 200, 50)
+
+            dispatchMouse(element, 'mousedown', 200, 50, 1)
+
+            dispatchMouse(element, 'mousemove', 300, 50, 1)
+
+            dispatchMouse(element, 'mouseup', 300, 50)
+            await flush()
+            // the dragged size replaces the relative one, so the block does
+            // not fall back to the size it was asked for
+            expect(block.width()).toBe(300)
         })
         it('should resize from specified corners', async () => {
             block.set({ resizable: true })
@@ -236,6 +273,43 @@ describe('ResizableBlock', () => {
             dispatchMouse(element, 'mouseup', 200, 50)
 
             expect(isResizingOn).toBeTruthy()
+        })
+        it('adds events once and ignores them when resizable is toggled false then true', async () => {
+            const addEventSpy = vi.spyOn(block, '__addEvent')
+            const removeEventSpy = vi.spyOn(block, '__removeEvent')
+
+            block.set({ resizable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(3)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            const targetLocator = page.elementLocator(canvas.canvas)
+            const element = (await targetLocator.element()) as HTMLElement
+
+            dispatchMouse(element, 'mousedown', 10, 10)
+            dispatchMouse(element, 'mouseup', 10, 10)
+            await flush()
+
+            block.set({ resizable: false })
+            await flush()
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse(element, 'mousemove', 100, 50)
+            dispatchMouse(element, 'mousedown', 100, 50, 1)
+            dispatchMouse(element, 'mousemove', 200, 50, 1)
+            dispatchMouse(element, 'mouseup', 200, 50)
+            expect(block.width()).toBe(100)
+
+            block.set({ resizable: true })
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(3)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            dispatchMouse(element, 'mousemove', 100, 50)
+            dispatchMouse(element, 'mousedown', 100, 50, 1)
+            dispatchMouse(element, 'mousemove', 200, 50, 1)
+            dispatchMouse(element, 'mouseup', 200, 50)
+            expect(block.width()).toBe(200)
         })
     })
 })

@@ -1,3 +1,4 @@
+import type { ColorType, OwnOptionAccessors, TextType } from '../BaseBlock'
 import {
     initialCorners,
     SELECTABLE_RUNNING_EVENT,
@@ -10,19 +11,19 @@ import type {
     FontStyle,
     FontVariant,
     FontWeight,
-    IShapeOptions,
+    ShapeBlockOptions,
 } from '../ShapeBlock'
-import type { CustomEvent, HotCornerArea, RelativeType } from '../types'
-import { inRange } from '../Utils'
+import type { HotCornerArea, RelativeType } from '../types'
+import { clampSize, inRange, invalidArgument } from '../Utils'
 
 type Wrap = 'letter' | 'word' | 'nowrap'
 
-export interface ITextOptions extends IShapeOptions {
-    text?: string
-    color?: string
+export interface TextBlockOptions extends ShapeBlockOptions {
+    text?: TextType
+    color?: ColorType
     strokeWidth?: number
-    strokeColor?: string
-    fontFamily?: string
+    strokeColor?: ColorType
+    fontFamily?: TextType
     fontSize?: RelativeType
     fontWeight?: FontWeight
     fontStyle?: FontStyle
@@ -33,7 +34,18 @@ export interface ITextOptions extends IShapeOptions {
     onEditable?: (block: TextBlock) => void
     caret?: boolean
 }
+
+interface TextBlockAccessors extends OwnOptionAccessors<
+    TextBlockOptions,
+    ShapeBlockOptions
+> {}
 type WalkFunc = (letterNode: LetterNode) => void
+
+type LetterMetrics = {
+    width: number
+    ascent: number
+    descent: number
+}
 
 const TEXT_EDITABLE_RUNNING_EVENT = 'text-editable'
 const TEXT_EDITING_RUNNING_EVENT = 'text-editing'
@@ -42,6 +54,15 @@ const CARET_LINE_HEIGHT_GAP = 10
 const CARET_LINE_COLOR = 'white'
 const CARET_LINE_WIDTH = 2
 const CARET_HOLD_DURATION = 500
+const FONT_METRICS_PROBE = 'Hxg'
+const DEFAULT_LINE_HEIGHT_RATIO = 1.2
+const DEFAULT_FONT_FAMILY = 'sans-serif'
+const DEFAULT_FONT_WEIGHT = 'normal'
+const DEFAULT_FONT_VARIANT = 'normal'
+const DEFAULT_FONT_STYLE = 'normal'
+const DEFAULT_WRAP = 'nowrap'
+// the size of the canvas the glyphs are measured on
+const MEASUREMENT_CANVAS_SIZE = 1
 
 class LetterNode {
     prev?: LetterNode
@@ -64,22 +85,28 @@ class LetterNode {
     }
 }
 
-export class TextBlock extends ShapeBlock {
+export class TextBlock<
+    T extends TextBlockOptions = TextBlockOptions,
+> extends ShapeBlock<T> {
     #headLetterNode?: LetterNode
     #tailLetterNode?: LetterNode
     #selectionAnchor?: LetterNode
     #selectionFocus?: LetterNode
 
-    #words?: {
-        [key: string]: { width: number; height: number }
-    }
+    #letterMetrics?: Map<string, LetterMetrics>
+    #words?: number[]
     #wordsFontKey?: string
+    #textAscent: number = 0
+    #textWidth: number = 0
+    #lineCount: number = 0
+    #autoWidth: boolean = false
+    #autoHeight: boolean = false
+    #calculatedWidth?: number
+    #calculatedHeight?: number
+    #textChanged: boolean = false
 
-    #dbClickEvent?: CustomEvent<Event>
-    #mousedownEvent?: CustomEvent<Event>
-    #mouseMoveEvent?: CustomEvent<Event>
-    #mouseUpEvent?: CustomEvent<Event>
-    #keydownEvent?: CustomEvent<Event>
+    #isEditable: boolean = false
+    #editableEventsAdded: boolean = false
 
     #isDraggingSelection: boolean = false
 
@@ -90,10 +117,14 @@ export class TextBlock extends ShapeBlock {
     #caretAnimationRunning: boolean = false
     #lastInteractionAt: number = 0
 
-    constructor(options: ITextOptions) {
-        super(options)
+    constructor(options: TextBlockOptions) {
+        super(options as T)
         this.#defineProperties()
         this.#localBoundingBox = initialCorners
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineProperties() {
@@ -106,21 +137,21 @@ export class TextBlock extends ShapeBlock {
                 return block.#text(val)
             }
         )
-        this.addProperty('fontFamily', 'sans-serif')
+        this.addProperty('fontFamily', DEFAULT_FONT_FAMILY)
         this.addProperty('fontSize', 0, true)
-        this.addProperty('fontWeight', 'normal')
-        this.addProperty('fontVariant', 'normal')
-        this.addProperty('fontStyle', 'normal')
+        this.addProperty('fontWeight', DEFAULT_FONT_WEIGHT)
+        this.addProperty('fontVariant', DEFAULT_FONT_VARIANT)
+        this.addProperty('fontStyle', DEFAULT_FONT_STYLE)
         this.addProperty('color', undefined)
         this.addProperty('strokeColor', undefined)
         this.addProperty('strokeWidth', undefined)
-        this.addProperty('wrap', 'nowrap')
+        this.addProperty('wrap', DEFAULT_WRAP)
         this.addProperty('onEditable', undefined)
         this.addProperty(
             'editable',
             undefined,
             false,
-            (block: TextBlock, opt: boolean) => this.#editable(block, opt)
+            (block: TextBlock, opt?: boolean) => this.#editable(block, opt)
         )
         this.addProperty('letterSpacing', 0)
         this.addProperty(
@@ -186,13 +217,12 @@ export class TextBlock extends ShapeBlock {
             duration: 1000,
             iterations: Infinity,
             autoStart: false,
-        } as any)
+        })
         this.#caretAnimationRunning = false
     }
 
     draw(_func?: DrawFunc): void {
         this.#setFont()
-        this.#buildWords()
         this.#updateLetterNodeCordinates()
         const caret = this.getOptionCurrent('caret')
         if (caret) this.#drawCaret()
@@ -229,8 +259,15 @@ export class TextBlock extends ShapeBlock {
     get #formatedFont() {
         return `${this.fontStyle()} ${this.fontVariant()} ${this.fontWeight()} ${this.fontSize()}px ${this.fontFamily()}`
     }
-    get #lineHeightPx() {
-        return (this.fontSize() || 0) * (this.lineHeight() ?? 1)
+    get #lineBoxHeight(): number {
+        const lineHeight = this.lineHeight()
+        if (lineHeight !== undefined && lineHeight > 0)
+            return (this.fontSize() || 0) * lineHeight
+        const measure = this.measureText(FONT_METRICS_PROBE)
+        const ascent = measure?.fontBoundingBoxAscent ?? 0
+        const descent = measure?.fontBoundingBoxDescent ?? 0
+        if (ascent + descent > 0) return ascent + descent
+        return (this.fontSize() || 0) * DEFAULT_LINE_HEIGHT_RATIO
     }
     #parseLineHeight(val?: RelativeType): number | undefined {
         if (val === undefined) return undefined
@@ -250,24 +287,48 @@ export class TextBlock extends ShapeBlock {
     }
     init(): void {
         this.#constructDummyContext()
+        this.#autoWidth = this.initOptions.get('width') === undefined
+        this.#autoHeight = this.initOptions.get('height') === undefined
+        this.#applyAutoSize()
+        this.#textChanged = false
         super.init()
         this.#setFont()
-        this.#buildWords()
         this.#updateLetterNodeCordinates()
         this.#updateBoundingCords()
         this.#addCaretAnimation()
     }
     #constructDummyContext() {
-        const dummyCanvas = new DummyCanvas(this.width(), this.height())
+        // the context only measures the glyphs, so it needs no pixels
+        const dummyCanvas = new DummyCanvas(
+            MEASUREMENT_CANVAS_SIZE,
+            MEASUREMENT_CANVAS_SIZE
+        )
         this.#dummyContext = dummyCanvas.context
     }
     measureText(text: string) {
+        if (typeof text !== 'string')
+            invalidArgument(
+                `${this.constructor.name}.measureText()`,
+                'text',
+                'a string',
+                text
+            )
         const context = this.#activeContext
         return context?.measureText(text)
     }
     updateCords(): void {
+        if (this.#textChanged) {
+            this.#textChanged = false
+            this.#applyAutoSize()
+        }
         super.updateCords()
+        this.#updateLetterNodeCordinates()
         this.#updateBoundingCords()
+    }
+    // a text block sizes itself from its glyphs, so it does not take the size
+    // of its childs
+    __deriveSizeFromChilds(): boolean {
+        return false
     }
     #setFont() {
         const context = this.#activeContext
@@ -284,7 +345,7 @@ export class TextBlock extends ShapeBlock {
             minXs.push(node.x)
             minYs.push(node.y - node.height)
             maxXs.push(node.x + node.width)
-            maxYs.push(node.y + node.height)
+            maxYs.push(node.y + node.descent)
         })
 
         if (minXs.length === 0) {
@@ -297,6 +358,17 @@ export class TextBlock extends ShapeBlock {
         const maxX = Math.max(...maxXs)
         const minY = Math.min(...minYs)
         const maxY = Math.max(...maxYs)
+
+        // a coordinate which is not finite would spread into the whole box, so
+        // the last box which was calculated is kept instead
+        if (
+            !Number.isFinite(minX) ||
+            !Number.isFinite(maxX) ||
+            !Number.isFinite(minY) ||
+            !Number.isFinite(maxY)
+        ) {
+            return
+        }
 
         this.#localBoundingBox = {
             topLeft: { x: minX, y: minY },
@@ -327,6 +399,15 @@ export class TextBlock extends ShapeBlock {
         const worldMinY = Math.min(...ys)
         const worldMaxY = Math.max(...ys)
 
+        if (
+            !Number.isFinite(worldMinX) ||
+            !Number.isFinite(worldMaxX) ||
+            !Number.isFinite(worldMinY) ||
+            !Number.isFinite(worldMaxY)
+        ) {
+            return
+        }
+
         this.boundingBox = {
             topLeft: { x: worldMinX, y: worldMinY },
             topRight: { x: worldMaxX, y: worldMinY },
@@ -339,7 +420,7 @@ export class TextBlock extends ShapeBlock {
         const horizontalFlip = this.horizontalFlip()
         const fx = horizontalFlip ? -1 : 1
         const fy = verticalFlip ? -1 : 1
-        const rotate = this.rotate() || 0
+        const rotate = this.__rotation() || 0
         const rotSign = verticalFlip !== horizontalFlip ? -1 : 1
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
@@ -353,19 +434,37 @@ export class TextBlock extends ShapeBlock {
         return { x: rx * fx + centerX, y: ry * fy + centerY }
     }
     #text(text?: string) {
-        if (text === undefined) return text
-        this.#invalidateWords()
+        if (text === undefined) return this.#currentText()
         this.#headLetterNode = undefined
         this.#tailLetterNode = undefined
         for (const letter of text.split(''))
             this.#insertLetter(letter, this.#tailLetterNode)
         this.#selectionFocus = this.#tailLetterNode
         this.#selectionAnchor = this.#tailLetterNode
+        this.__invokeChange()
         return text
     }
-    #invalidateWords() {
-        this.#words = undefined
-        this.#wordsFontKey = undefined
+    // the letters are the source of truth, the option only mirrors them
+    #currentText(): string | undefined {
+        // a block which never had a text keeps the default of the option
+        if (!this.initOptions.has('text')) return this.getOptionCurrent('text')
+        let out = ''
+        this.#walkLetterNodes((node: LetterNode) => {
+            out += node.letter ?? ''
+        })
+        return out
+    }
+    // the option mirrors the letters, so it is exported and undoable
+    #syncTextOption() {
+        // an edited text is known, even when every letter was removed
+        if (!this.initOptions.has('text')) this.initOptions.set('text', '')
+        const current = this.#currentText()
+        if (current === undefined) return
+        const before = this.getOptionCurrent('text')
+        if (before === current) return
+        this.setOptionCurrent('text', current)
+        this.initOptions.set('text', current)
+        this.__invokeHistory({ text: before }, { text: current })
     }
     #insertLetter(letter: string, after?: LetterNode): LetterNode {
         const node = new LetterNode(letter)
@@ -381,7 +480,9 @@ export class TextBlock extends ShapeBlock {
             this.#headLetterNode = node
             if (!this.#tailLetterNode) this.#tailLetterNode = node
         }
+        this.#letterMetrics = undefined
         this.#invalidateWords()
+        this.#textChanged = true
         return node
     }
     #removeLetter(letterNode: LetterNode) {
@@ -394,36 +495,106 @@ export class TextBlock extends ShapeBlock {
         letterNode.prev = undefined
         letterNode.next = undefined
         this.#invalidateWords()
+        this.#textChanged = true
     }
-    #buildWords() {
+    #invalidateWords() {
+        this.#words = undefined
+        this.#wordsFontKey = undefined
+    }
+    #fontStateKey(): string {
+        const context = this.#activeContext as unknown as
+            | Record<string, unknown>
+            | null
+            | undefined
+        return [
+            this.#formatedFont,
+            this.letterSpacing() ?? 0,
+            context?.letterSpacing ?? '',
+            context?.fontStretch ?? '',
+            context?.fontKerning ?? '',
+            context?.fontVariantCaps ?? '',
+        ].join('|')
+    }
+    #measureLetter(letter: string, fontState: string): LetterMetrics {
+        if (!this.#letterMetrics) this.#letterMetrics = new Map()
+        const metrics = this.#letterMetrics
+        const key = `${fontState}|${letter}`
+        const cached = metrics.get(key)
+        if (cached) return cached
         const letterSpacing = this.letterSpacing() ?? 0
-        const fontKey = `${this.#formatedFont}|${letterSpacing}`
-        if (this.#words !== undefined && this.#wordsFontKey === fontKey) return
-        this.#words = {}
-        this.#wordsFontKey = fontKey
-        const words = this.#words
-        const lineHeightPx = this.#lineHeightPx
-        let word = ''
-        this.#walkLetterNodes((letterNode) => {
-            word += letterNode.letter
-            if (
-                (word !== ' ' && letterNode.letter === ' ') ||
-                letterNode.next === undefined
-            ) {
-                const measure = this.measureText(word)
-                const wordWidth =
-                    (measure?.width ?? 0) + word.length * letterSpacing
-                const wordHeight =
-                    (measure?.actualBoundingBoxAscent ||
-                        measure?.fontBoundingBoxAscent ||
-                        0) + lineHeightPx
-                words[word] = {
-                    width: wordWidth,
-                    height: wordHeight,
-                }
-                word = ''
+        const measure = this.measureText(letter)
+        const result: LetterMetrics = {
+            width: (measure?.width ?? 0) + letterSpacing,
+            ascent:
+                measure?.actualBoundingBoxAscent ||
+                measure?.fontBoundingBoxAscent ||
+                0,
+            descent:
+                measure?.actualBoundingBoxDescent ||
+                measure?.fontBoundingBoxDescent ||
+                0,
+        }
+        metrics.set(key, result)
+        return result
+    }
+    #prepareText() {
+        this.#setFont()
+        const fontState = this.#fontStateKey()
+        if (this.#words !== undefined && this.#wordsFontKey === fontState)
+            return
+        const words: number[] = []
+        this.#words = words
+        this.#wordsFontKey = fontState
+        let wordWidth = 0
+        let textWidth = 0
+        let ascent = 0
+        this.#walkLetterNodes((node: LetterNode) => {
+            if (!node.letter) return
+            const metrics = this.#measureLetter(node.letter, fontState)
+            node.width = metrics.width
+            node.height = metrics.ascent
+            node.descent = metrics.descent
+            textWidth += node.width
+            if (node.letter === ' ') {
+                words.push(wordWidth)
+                wordWidth = 0
+                return
             }
+            wordWidth += node.width
+            if (node.height > ascent) ascent = node.height
         })
+        words.push(wordWidth)
+        this.#textWidth = textWidth
+        this.#textAscent = ascent
+    }
+    #applyAutoSize() {
+        if (!this.#autoWidth && !this.#autoHeight) return
+        const width = this.getOptionCurrent('width')
+        const height = this.getOptionCurrent('height')
+        if (
+            this.#calculatedWidth !== undefined &&
+            width !== this.#calculatedWidth
+        )
+            this.#autoWidth = false
+        if (
+            this.#calculatedHeight !== undefined &&
+            height !== this.#calculatedHeight
+        )
+            this.#autoHeight = false
+        if (!this.#autoWidth && !this.#autoHeight) return
+        this.#prepareText()
+        if (this.#autoWidth) {
+            this.setOptionCurrent('width', clampSize(this.#textWidth))
+        }
+        this.#updateLetterNodeCordinates()
+        if (this.#autoHeight) {
+            this.setOptionCurrent(
+                'height',
+                clampSize(this.#lineCount * this.#lineBoxHeight)
+            )
+        }
+        this.#calculatedWidth = this.getOptionCurrent('width')
+        this.#calculatedHeight = this.getOptionCurrent('height')
     }
     #walkLetterNodes(_func: WalkFunc) {
         let letterNode: undefined | LetterNode = this.#headLetterNode
@@ -440,63 +611,57 @@ export class TextBlock extends ShapeBlock {
         }
     }
     #updateLetterNodeCordinates() {
+        this.#setFont()
+        this.#prepareText()
         const wrap = this.wrap()
-        const width = this.width()
-        const height = this.height()
-        const absoluteWidth = Math.abs(width)
+        const absoluteWidth = Math.abs(this.width())
         const x = this.x()
         const y = this.y()
-        const letterSpacing = this.letterSpacing() ?? 0
-        const lineHeightPx = this.#lineHeightPx
-        const addW = this.horizontalFlip() ? width : 0
-        const addH = this.verticalFlip() ? height : 0
-        const words = Object.entries(this.#words ?? {})
-        let wordIdx = 0
-        let currentWord = words[wordIdx]
+        const addW = this.horizontalFlip() ? this.width() : 0
+        const addH = this.verticalFlip() ? this.height() : 0
+        const lineBox = this.#lineBoxHeight
+        const ascent = this.#textAscent
+        const words = this.#words ?? []
+        const canWrap =
+            absoluteWidth > 0 && (wrap === 'letter' || wrap === 'word')
+        let wordIndex = 0
         let xPos = x
         let yPos = y
-        let wrapW = 0
-        let wrapH = 0
+        let lineWidth = 0
+        let line = 0
+        let letters = 0
         let node: LetterNode | undefined = this.#headLetterNode
         while (node) {
             const letter = node
             node = node.next
             if (!letter.letter) continue
-            const measure = this.measureText(letter.letter)
-            letter.width = (measure?.width ?? 0) + letterSpacing
-            letter.height =
-                measure?.actualBoundingBoxAscent ||
-                measure?.fontBoundingBoxAscent ||
-                0
-            letter.descent =
-                measure?.actualBoundingBoxDescent ||
-                measure?.fontBoundingBoxDescent ||
-                0
-            wrapW += letter.width
-            if (
-                wrapW >= absoluteWidth &&
-                (wrap === 'letter' || wrap === 'word')
-            ) {
-                yPos += wrapH
+            lineWidth += letter.width
+            if (canWrap && lineWidth > absoluteWidth) {
+                yPos += lineBox
                 xPos = x
-                wrapW = letter.width
+                lineWidth = letter.width
+                line++
             }
             if (letter.letter === ' ' && wrap === 'word') {
-                wordIdx += 1
-                currentWord = words[wordIdx]
-                if (currentWord && wrapW + currentWord[1].width > absoluteWidth)
-                    wrapW += currentWord[1].width
+                wordIndex++
+                const nextWord = words[wordIndex]
+                if (
+                    nextWord !== undefined &&
+                    lineWidth + nextWord > absoluteWidth
+                )
+                    lineWidth += nextWord
             }
-            if (letter.height > wrapH && letter.letter !== ' ')
-                wrapH = letter.height + lineHeightPx
+            letter.line = line
             letter.x = xPos + addW
-            letter.y = yPos + wrapH + addH
+            letter.y = yPos + ascent + addH
             xPos += letter.width
+            letters++
         }
+        this.#lineCount = letters > 0 ? line + 1 : 0
     }
     #checkLetterInBound(event: MouseEvent) {
         let { x, y } = this.canvas?.getCursorPosition(event)!
-        const rotate = this.rotate() || 0
+        const rotate = this.__rotation() || 0
         const verticalFlip = this.verticalFlip()
         const horizontalFlip = this.horizontalFlip()
         const centerX = this.rotationCenterX()
@@ -550,7 +715,7 @@ export class TextBlock extends ShapeBlock {
             return
 
         const node = focus.next
-        const ascent = node?.height || focus.height || 0
+        const ascent = this.#textAscent
         const y = (node?.y ?? focus.y) - ascent - CARET_LINE_HEIGHT_GAP
         const x = node?.x ?? focus.x + focus.width
         const height = y + ascent + CARET_LINE_HEIGHT_GAP * 2
@@ -795,6 +960,8 @@ export class TextBlock extends ShapeBlock {
     #pasteFromClipboard() {
         navigator.clipboard?.readText().then((text) => {
             this.#insertText(text)
+            // the text is pasted asynchronously, so it is synced here
+            this.#syncTextOption()
             this.onEditable()?.(this)
             this.__invokeChange()
         })
@@ -821,6 +988,7 @@ export class TextBlock extends ShapeBlock {
             this.#selectionAnchor = undefined
             this.#selectionFocus = undefined
             this.__resetCursor('auto')
+            this.__unregisterZIndex()
             return
         }
 
@@ -866,144 +1034,131 @@ export class TextBlock extends ShapeBlock {
         )
             return this.#insertText(key)
     }
-    #editable(block: TextBlock, opt: boolean) {
-        if (opt === undefined) return
+    #editable(block: TextBlock, opt?: boolean) {
+        if (opt === undefined || block.#isEditable === opt) return
+        block.#isEditable = opt
         if (!opt) {
-            if (block.#mousedownEvent)
-                block.__removeEvent('mousedown', block.#mousedownEvent)
-            if (block.#mouseMoveEvent)
-                block.__removeEvent('mousemove', block.#mouseMoveEvent)
-            if (block.#mouseUpEvent)
-                block.__removeEvent('mouseup', block.#mouseUpEvent)
-            if (block.#dbClickEvent)
-                block.__removeEvent('dblclick', block.#dbClickEvent)
-            if (block.#keydownEvent)
-                block.__removeEvent('keydown', block.#keydownEvent)
             block.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, false)
             block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
             block.#clearEditing()
             block.#isDraggingSelection = false
             block.__resetCursor('auto')
-            block.#dbClickEvent = undefined
-            block.#mousedownEvent = undefined
-            block.#mouseMoveEvent = undefined
-            block.#mouseUpEvent = undefined
-            block.#keydownEvent = undefined
+            block.__unregisterZIndex()
             return
         }
-        if (
-            !block.#dbClickEvent &&
-            !block.#mousedownEvent &&
-            !block.#mouseMoveEvent &&
-            !block.#mouseUpEvent &&
-            !block.#keydownEvent
-        ) {
-            const dbClick = (event: MouseEvent) => {
-                const clicked = block.#checkLetterInBound(event)
-                if (!clicked) return
+        if (block.#editableEventsAdded) return
+        block.#editableEventsAdded = true
+
+        const dbClick = (event: MouseEvent) => {
+            if (!block.#isEditable) return
+            const clicked = block.#checkLetterInBound(event)
+            if (!clicked) return
+            block.__registerZIndex()
+            if (block.__ImFirst()) {
+                block.#isDraggingSelection = false
+                block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                block.__updateRunningEvent(
+                    TEXT_EDITABLE_RUNNING_EVENT,
+                    true
+                )
+                block.#selectionAnchor = block.#headLetterNode
+                block.#selectionFocus = block.#tailLetterNode
+                block.__invokeChange()
+            }
+        }
+        const mousedown = (event: MouseEvent) => {
+            if (!block.#isEditable) return
+            if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
                 block.__registerZIndex()
-                if (block.__ImFirst()) {
-                    block.#isDraggingSelection = false
-                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                if (!block.__ImFirst()) return
+                event.preventDefault()
+                const clicked = block.#checkLetterInBound(event)
+                if (!clicked) {
                     block.__updateRunningEvent(
                         TEXT_EDITABLE_RUNNING_EVENT,
-                        true
+                        false
                     )
-                    block.#selectionAnchor = block.#headLetterNode
-                    block.#selectionFocus = block.#tailLetterNode
-                    block.__invokeChange()
-                }
-            }
-            const mousedown = (event: MouseEvent) => {
-                if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
-                    block.__registerZIndex()
-                    if (!block.__ImFirst()) return
-                    event.preventDefault()
-                    const clicked = block.#checkLetterInBound(event)
-                    if (!clicked) {
-                        block.__updateRunningEvent(
-                            TEXT_EDITABLE_RUNNING_EVENT,
-                            false
-                        )
-                        block.__updateRunningEvent(
-                            DRAGGABLE_RUNNING_EVENT,
-                            false
-                        )
-                        block.#clearEditing()
-                        block.#selectionAnchor = undefined
-                        block.#selectionFocus = undefined
-                        block.#isDraggingSelection = false
-                        block.__resetCursor('auto')
-                        block.__invokeChange()
-                        return
-                    }
-                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                    if (event.shiftKey) {
-                        if (block.#selectionAnchor === undefined) {
-                            block.#selectionAnchor = clicked
-                        }
-                        block.#selectionFocus = clicked
-                    } else {
-                        block.#selectionAnchor = clicked
-                        block.#selectionFocus = clicked
-                    }
-                    block.#isDraggingSelection = true
-                    block.__selectCursor('text')
-                    block.__invokeChange()
-                }
-            }
-            const mousemove = (event: MouseEvent) => {
-                if (
-                    block.#isDraggingSelection &&
-                    block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT) &&
-                    block.isMouseEventAllowed
-                ) {
-                    event.preventDefault()
-                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                    const clicked = block.#checkLetterInBound(event)
-                    if (clicked) {
-                        block.#selectionFocus = clicked
-                    }
-                    block.#markEditing()
-                    block.__invokeChange()
-                }
-            }
-            const mouseup = (event: MouseEvent) => {
-                if (block.#isDraggingSelection) {
+                    block.__updateRunningEvent(
+                        DRAGGABLE_RUNNING_EVENT,
+                        false
+                    )
+                    block.#clearEditing()
+                    block.#selectionAnchor = undefined
+                    block.#selectionFocus = undefined
                     block.#isDraggingSelection = false
-                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                    block.__resetCursor('text')
-                    if (
-                        block.__isRunningEventActive(
-                            TEXT_EDITABLE_RUNNING_EVENT
-                        )
-                    ) {
-                        const clicked = block.#checkLetterInBound(event)
-                        if (clicked) block.#selectionFocus = clicked
-                        block.__invokeChange()
-                        block.#markEditing()
-                    }
-                }
-            }
-            const keydown = (event: KeyboardEvent) => {
-                if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
-                    event.preventDefault()
-                    block.#keyMappingBehaviors(event)
-                    block.onEditable()?.(block)
-                    block.#markEditing()
+                    block.__resetCursor('auto')
+                    block.__unregisterZIndex()
                     block.__invokeChange()
+                    return
+                }
+                block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                if (event.shiftKey) {
+                    if (block.#selectionAnchor === undefined) {
+                        block.#selectionAnchor = clicked
+                    }
+                    block.#selectionFocus = clicked
+                } else {
+                    block.#selectionAnchor = clicked
+                    block.#selectionFocus = clicked
+                }
+                block.#isDraggingSelection = true
+                block.__selectCursor('text')
+                block.__invokeChange()
+            }
+        }
+        const mousemove = (event: MouseEvent) => {
+            if (!block.#isEditable) return
+            if (
+                block.#isDraggingSelection &&
+                block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT) &&
+                block.isMouseEventAllowed
+            ) {
+                event.preventDefault()
+                block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                const clicked = block.#checkLetterInBound(event)
+                if (clicked) {
+                    block.#selectionFocus = clicked
+                }
+                block.#markEditing()
+                block.__invokeChange()
+            }
+        }
+        const mouseup = (event: MouseEvent) => {
+            if (!block.#isEditable) return
+            if (block.#isDraggingSelection) {
+                block.#isDraggingSelection = false
+                block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
+                block.__resetCursor('text')
+                if (
+                    block.__isRunningEventActive(
+                        TEXT_EDITABLE_RUNNING_EVENT
+                    )
+                ) {
+                    const clicked = block.#checkLetterInBound(event)
+                    if (clicked) block.#selectionFocus = clicked
+                    block.__invokeChange()
+                    block.#markEditing()
                 }
             }
-            block.__addEvent('dblclick', dbClick)
-            block.__addEvent('mousedown', mousedown)
-            block.__addEvent('mousemove', mousemove)
-            block.__addEvent('mouseup', mouseup)
-            block.__addEvent('keydown', keydown)
-            block.#dbClickEvent = dbClick as any
-            block.#mousedownEvent = mousedown as any
-            block.#mouseMoveEvent = mousemove as any
-            block.#mouseUpEvent = mouseup as any
-            block.#keydownEvent = keydown as any
         }
+        const keydown = (event: KeyboardEvent) => {
+            if (!block.#isEditable) return
+            if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
+                event.preventDefault()
+                block.#keyMappingBehaviors(event)
+                // synced before the callback reads the value
+                block.#syncTextOption()
+                block.onEditable()?.(block)
+                block.#markEditing()
+                block.__invokeChange()
+            }
+        }
+        block.__addEvent('dblclick', dbClick)
+        block.__addEvent('mousedown', mousedown)
+        block.__addEvent('mousemove', mousemove)
+        block.__addEvent('mouseup', mouseup)
+        block.__addEvent('keydown', keydown)
     }
 }
+
+export interface TextBlock extends TextBlockAccessors {}

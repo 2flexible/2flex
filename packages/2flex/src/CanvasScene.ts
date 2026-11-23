@@ -1,5 +1,6 @@
 import { BaseBlock } from './BaseBlock'
-import { IBlockOptions } from './Block'
+import { BlockOptions } from './Block'
+import { HELPER_BLOCK_NAMES, HOT_LINE_BLOCK_NAME } from './const'
 import { Node } from './Node'
 import {
     postOrderTraversal,
@@ -7,12 +8,26 @@ import {
     reversePostOrderTraversal,
 } from './Utils'
 
+export interface StackingContext {
+    owner?: BaseBlock
+    participants: BaseBlock[]
+}
+
+// a block is searched by the options it holds and by its own identity
+export type BlockQuery = Partial<BlockOptions> & { nodeId?: number }
+
 export class CanvasScene {
     head: Node
     snapshotSize: number
     #latestNodeId
     #blocks: BaseBlock[]
     #nodeIdIndex: Map<number, BaseBlock>
+    #treeOrder: Map<number, number>
+    #contextOf: Map<number, StackingContext>
+    #nestedContextOf: Map<number, StackingContext>
+    #paintContextOf: Map<number, StackingContext>
+    #paintOrder: BaseBlock[]
+    #paintIndex: Map<number, number>
 
     constructor(snapshotSize?: number) {
         this.head = new Node()
@@ -20,6 +35,12 @@ export class CanvasScene {
         this.#latestNodeId = 1
         this.#blocks = []
         this.#nodeIdIndex = new Map()
+        this.#treeOrder = new Map()
+        this.#contextOf = new Map()
+        this.#nestedContextOf = new Map()
+        this.#paintContextOf = new Map()
+        this.#paintOrder = []
+        this.#paintIndex = new Map()
     }
 
     addBlock(block: BaseBlock) {
@@ -28,7 +49,7 @@ export class CanvasScene {
     removeBlock(block: BaseBlock) {
         this.head.removeChild(block)
     }
-    find(queries: IBlockOptions): BaseBlock[] {
+    find(queries: BlockQuery): BaseBlock[] {
         const keys = Object.keys(queries)
         if (keys.length === 1 && keys[0] === 'nodeId') {
             const block = this.#nodeIdIndex.get(queries.nodeId as number)
@@ -37,20 +58,152 @@ export class CanvasScene {
         const blocks: BaseBlock[] = []
         this.preOrderTraversal((block: BaseBlock) => {
             for (const k of keys) {
-                if (block.getOptionCurrent(k) !== queries[k]) return
+                if (block.getOptionCurrent(k) !== queries[k as keyof BlockQuery])
+                    return
             }
             blocks.push(block)
         })
         return blocks
     }
     getSortedBlocksByZIndex() {
-        return this.#blocks
+        return this.#paintOrder
     }
     sortBlocksByZIndex() {
-        this.#blocks = this.#blocks.sort(
-            (a: any, b: any) =>
-                a.options.get('zIndex') - b.options.get('zIndex')
+        const rootContext: StackingContext = { participants: [] }
+        this.#contextOf.clear()
+        this.#nestedContextOf.clear()
+        this.#paintContextOf.clear()
+        this.#paintIndex.clear()
+        this.#buildContexts(undefined, rootContext)
+        this.#paintOrder = []
+        this.#paintContext(rootContext)
+    }
+    #opensContext(block: BaseBlock) {
+        return block.__opensStackingContext()
+    }
+    #orderedParticipants(context: StackingContext) {
+        const groups: Record<'negative' | 'inFlow' | 'positive', BaseBlock[]> =
+            { negative: [], inFlow: [], positive: [] }
+        const groupOf = (block: BaseBlock) => {
+            const zIndex = block.__zIndex()
+            if (zIndex === undefined) return groups.inFlow
+            if (zIndex < 0) return groups.negative
+            return groups.positive
+        }
+        for (const block of context.participants) {
+            // a helper paints above the content of its owner, so it moves
+            // with a content which has a positive z index
+            if (this.#isHelperBlock(block)) {
+                const zIndex = this.#ownerContent(block, context).__zIndex()
+                if (zIndex !== undefined && zIndex > 0)
+                    groups.positive.push(block)
+                else groups.inFlow.push(block)
+            } else groupOf(block).push(block)
+        }
+        groups.negative.sort((a, b) => this.#compareByZIndex(a, b))
+        groups.positive.sort((a, b) => this.#compareByZIndex(a, b))
+        groups.inFlow.sort((a, b) => this.#compareByTreeOrder(a, b))
+        return [...groups.negative, ...groups.inFlow, ...groups.positive]
+    }
+    // the content of the owner of a helper block, the owner itself when it
+    // has no content in the context
+    #ownerContent(helper: BaseBlock, context: StackingContext) {
+        const owner = helper.parentNode
+        if (!owner) return helper
+        const content = context.participants.find(
+            (participant) =>
+                participant !== owner &&
+                participant !== helper &&
+                this.#isDescendantOf(participant, owner)
         )
+        return content ?? owner
+    }
+    #isDescendantOf(block: BaseBlock, ancestor: BaseBlock) {
+        let parent = block.parentNode
+        while (parent) {
+            if (parent === ancestor) return true
+            parent = parent.parentNode
+        }
+        return false
+    }
+    // the blocks with the same z index keep their tree order
+    #compareByZIndex(a: BaseBlock, b: BaseBlock) {
+        // a helper has no z index, it follows the content of its owner
+        const aZIndex = a.__zIndex()
+        const bZIndex = b.__zIndex()
+        if (aZIndex === bZIndex) return this.#compareByTreeOrder(a, b)
+        if (aZIndex === undefined) return 1
+        if (bZIndex === undefined) return -1
+        return aZIndex - bZIndex
+    }
+    #compareByTreeOrder(a: BaseBlock, b: BaseBlock) {
+        if (this.#isHelperBlock(a) && this.#isHelperBlock(b)) {
+            const aRank = this.#helperRank(a)
+            const bRank = this.#helperRank(b)
+            if (aRank !== bRank) return aRank - bRank
+        }
+        return this.#treeOrder.get(a.nodeId!)! - this.#treeOrder.get(b.nodeId!)!
+    }
+   
+    #isHelperBlock(block: BaseBlock) {
+        const name = block.getOptionCurrent('name')
+        return !!name && HELPER_BLOCK_NAMES.includes(name)
+    }
+    #helperRank(block: BaseBlock) {
+        return block.getOptionCurrent('name') === HOT_LINE_BLOCK_NAME ? 1 : 0
+    }
+    #buildContexts(owner: BaseBlock | undefined, context: StackingContext) {
+        const children = owner
+            ? [...(owner.childNodes as Set<BaseBlock>)]
+            : [...(this.head.childNodes as Set<BaseBlock>)]
+        for (const child of children) {
+            context.participants.push(child)
+            this.#contextOf.set(child.nodeId!, context)
+            if (this.#opensContext(child)) {
+                const childContext: StackingContext = {
+                    owner: child,
+                    participants: [],
+                }
+                this.#nestedContextOf.set(child.nodeId!, childContext)
+                this.#buildContexts(child, childContext)
+            } else {
+                // a block without a context of its own shares the context
+                // of its parent
+                this.#buildContexts(child, context)
+            }
+        }
+    }
+    #paintContext(context: StackingContext, skipNegatives = false) {
+        const ordered = this.#orderedParticipants(context)
+        for (const block of ordered) {
+            if (skipNegatives && block.__zIndex()! < 0) continue
+            this.#paintBlock(block, context)
+        }
+    }
+    #paintBlock(block: BaseBlock, context: StackingContext) {
+        const nestedContext = this.#nestedContextOf.get(block.nodeId!)
+        if (nestedContext) {
+            // the negative children paint below the content of their parent
+            for (const child of this.#orderedParticipants(nestedContext)) {
+                if (child.__zIndex()! >= 0) continue
+                this.#paintBlock(child, context)
+            }
+            this.#pushPaint(block, context)
+            this.#paintContext(nestedContext, true)
+            return
+        }
+        this.#pushPaint(block, context)
+    }
+    #pushPaint(block: BaseBlock, context: StackingContext) {
+        this.#paintIndex.set(block.nodeId!, this.#paintOrder.length)
+        this.#paintOrder.push(block)
+        this.#paintContextOf.set(block.nodeId!, context)
+    }
+    getPaintIndex(nodeId: number) {
+        return this.#paintIndex.get(nodeId) ?? -1
+    }
+    getContextOf(nodeId: number) {
+        return this.#contextOf.get(nodeId)
     }
     getByNodeId(nodeId: number) {
         return this.#nodeIdIndex.get(nodeId)
@@ -79,9 +232,12 @@ export class CanvasScene {
     buildSceneGraph() {
         this.#blocks = []
         this.#nodeIdIndex = new Map()
+        this.#treeOrder.clear()
+        let treeOrder = 0
         this.preOrderTraversal((block: BaseBlock) => {
             this.#assignNodeId(block)
             this.#blocks.push(block)
+            this.#treeOrder.set(block.nodeId!, treeOrder++)
             if (block.nodeId !== undefined) {
                 this.#nodeIdIndex.set(block.nodeId, block)
             }

@@ -1,19 +1,30 @@
-import { IShapeOptions } from '../ShapeBlock'
-import { MediaLayoutBlock } from './MediaLayoutBlock'
+import { MediaLayoutBlock, MediaLayoutBlockOptions } from './MediaLayoutBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 type OnPlayCallback = (timestamp: number) => void
-interface VideoOptions extends IShapeOptions {
+export interface VideoBlockOptions extends MediaLayoutBlockOptions {
     autoPlay?: boolean
     onPlay?: OnPlayCallback
 }
 
-export class VideoBlock extends MediaLayoutBlock {
+interface VideoBlockAccessors extends OwnOptionAccessors<
+    VideoBlockOptions,
+    MediaLayoutBlockOptions
+> {}
+
+export class VideoBlock<
+    T extends VideoBlockOptions = VideoBlockOptions,
+> extends MediaLayoutBlock<T> {
     #events = {
         isPlaying: false,
         isPaused: false,
     }
-    constructor(options: VideoOptions) {
-        super(options)
+    constructor(options: VideoBlockOptions) {
+        super(options as T)
         this.#defineProperties()
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineProperties() {
@@ -25,7 +36,8 @@ export class VideoBlock extends MediaLayoutBlock {
         this.#buildVideo()
     }
     #buildVideo() {
-        this.mediaSource = this.source()
+        // a video block draws a video element, a url is not resolved here
+        this.mediaSource = this.source() as CanvasImageSource | undefined
         if (this.mediaSource) {
             ;(this.mediaSource as HTMLVideoElement).muted = true
             if (this.autoPlay()) this.play()
@@ -39,12 +51,12 @@ export class VideoBlock extends MediaLayoutBlock {
         }
     }
     pause() {
-        (this.mediaSource as HTMLVideoElement).pause()
+        ;(this.mediaSource as HTMLVideoElement).pause()
         this.#events.isPlaying = false
         this.#events.isPaused = true
     }
     play() {
-        (this.mediaSource as HTMLVideoElement).play()
+        ;(this.mediaSource as HTMLVideoElement).play()
         this.#events.isPlaying = true
         this.#events.isPaused = false
     }
@@ -55,3 +67,5 @@ export class VideoBlock extends MediaLayoutBlock {
         return this.#events.isPaused
     }
 }
+
+export interface VideoBlock extends VideoBlockAccessors {}

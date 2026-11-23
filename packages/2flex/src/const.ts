@@ -15,6 +15,14 @@ export const OVERFLOW_X_SCROLL_BAR_BLOCK_NAME = '__overflow_x_scroll_bar_hidden'
 
 export const OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME = '__overflow_y_scroll_bar_hidden'
 
+export const OVERFLOW_AREA_GAP = 15
+
+export const HELPER_BLOCK_NAMES = [
+    OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
+    OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
+    HOT_LINE_BLOCK_NAME,
+]
+
 export const SELECTABLE_RUNNING_EVENT = 'selecting'
 export const RESIZABLE_RUNNING_EVENT = 'resizing'
 export const DRAGGABLE_RUNNING_EVENT = 'dragging'
@@ -22,5 +30,4 @@ export const ROTATABLE_RUNNING_EVENT = 'rotating'
 export const OVERFLOW_X_SCROLL_RUNNING_EVENT = 'overflow-x-scrolling'
 export const OVERFLOW_Y_SCROLL_RUNNING_EVENT = 'overflow-y-scrolling'
 
-
-
+export const RELATIVE_VALUE_PATTERN = /^-?\d*\.?\d+(%|rem|em|vh|vw)$/

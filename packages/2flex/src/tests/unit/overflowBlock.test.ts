@@ -1,11 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { page } from 'vitest/browser'
-import { Block, Canvas } from '@2flexible/2flex'
+import { Block, Canvas, LayoutBlock, RectangleBlock } from '@2flexible/2flex'
 import {
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
     OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME,
 } from '../../const'
-import { drawFilledBlock, flush, removeCanvasElements } from './helpers'
+import {
+    allowMouse,
+    dispatchMouse,
+    drawFilledBlock,
+    flush,
+    removeCanvasElements,
+} from './helpers'
 
 let block: Block
 let childBlock: Block
@@ -42,7 +48,6 @@ describe('OverflowBlock', () => {
             const childBlock = new Block({
                 width: 300,
                 height: 300,
-                backgroundColor: 'red',
             })
             drawFilledBlock(childBlock)
             block.addChild(childBlock)
@@ -56,7 +61,6 @@ describe('OverflowBlock', () => {
             const childBlock = new Block({
                 width: 300,
                 height: 300,
-                backgroundColor: 'red',
             })
             drawFilledBlock(childBlock)
             block.addChild(childBlock)
@@ -134,6 +138,73 @@ describe('OverflowBlock', () => {
             )
             await flush()
             expect(childBlock.y()).toBe(-20)
+        })
+        it('should scroll on mouse drag when overflowX is auto', async () => {
+            const childBlock = new Block({ width: 300, height: 50 })
+            block.addChild(childBlock)
+            block.set({ overflowX: 'auto' })
+            allowMouse(canvas)
+            await flush()
+
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+
+            // horizontal scrollbar is at the bottom 15px (y: 85..100)
+            dispatchMouse(element, 'mousedown', 20, 92, 1)
+            dispatchMouse(element, 'mousemove', 50, 92, 1)
+            dispatchMouse(element, 'mouseup', 50, 92)
+            await flush()
+
+            expect(block.overflowPositionX()).toBeLessThan(0)
+            expect(childBlock.x()).toBeLessThan(0)
+        })
+        it('should scroll on mouse drag when overflowY is auto', async () => {
+            const childBlock = new Block({ width: 50, height: 300 })
+            block.addChild(childBlock)
+            block.set({ overflowY: 'auto' })
+            allowMouse(canvas)
+            await flush()
+
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+
+            // vertical scrollbar is at the right 15px (x: 85..100)
+            dispatchMouse(element, 'mousedown', 92, 20, 1)
+            dispatchMouse(element, 'mousemove', 92, 50, 1)
+            dispatchMouse(element, 'mouseup', 92, 50)
+            await flush()
+
+            expect(block.overflowPositionY()).toBeLessThan(0)
+            expect(childBlock.y()).toBeLessThan(0)
+        })
+        it('should scroll on mouse drag along both axes when overflow is auto', async () => {
+            const childBlock = new Block({ width: 300, height: 300 })
+            block.addChild(childBlock)
+            block.set({ overflow: 'auto' })
+            allowMouse(canvas)
+            await flush()
+
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+
+            dispatchMouse(element, 'mousedown', 20, 92, 1)
+            dispatchMouse(element, 'mousemove', 50, 92, 1)
+            dispatchMouse(element, 'mouseup', 50, 92)
+            await flush()
+
+            expect(block.overflowPositionX()).toBeLessThan(0)
+            expect(childBlock.x()).toBeLessThan(0)
+
+            dispatchMouse(element, 'mousedown', 92, 20, 1)
+            dispatchMouse(element, 'mousemove', 92, 50, 1)
+            dispatchMouse(element, 'mouseup', 92, 50)
+            await flush()
+
+            expect(block.overflowPositionY()).toBeLessThan(0)
+            expect(childBlock.y()).toBeLessThan(0)
         })
     })
     describe('overflow translation', () => {
@@ -280,6 +351,196 @@ describe('OverflowBlock', () => {
             await expect(page.elementLocator(canvas.canvas)).toMatchScreenshot(
                 'child-clipped-by-ancestors'
             )
+        })
+        it('should keep the scroll bars inside the child nodes of their owner', async () => {
+            const owner = new Block({
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+                overflow: 'scroll',
+            })
+            canvas.add(owner)
+            await flush()
+            // the scroll bars are children of the owner, so they share its
+            // stacking context and cannot paint above a block which is
+            // above the owner
+            expect([...owner.childNodes]).toHaveLength(2)
+            expect(
+                canvas.find({ name: OVERFLOW_X_SCROLL_BAR_BLOCK_NAME })
+            ).toHaveLength(1)
+            expect(
+                canvas.find({ name: OVERFLOW_Y_SCROLL_BAR_BLOCK_NAME })
+            ).toHaveLength(1)
+        })
+        it('should paint the scroll bars below the hot lines of their owner', async () => {
+            const owner = new RectangleBlock({
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 100,
+                backgroundColor: 'red',
+                selectable: true,
+                hotLines: true,
+                overflow: 'scroll',
+            })
+            canvas.add(owner)
+            allowMouse(canvas)
+            await flush()
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 100, 100, 1)
+            dispatchMouse(element, 'mouseup', 100, 100)
+            await flush(4)
+            // the corner square of the hot lines sits over the scroll bar,
+            // so it has to be painted above it
+            const pixel = Array.from(
+                canvas.context!.getImageData(145, 145, 1, 1).data
+            )
+            expect(pixel).toEqual([0, 0, 255, 255])
+        })
+        it('should paint the scroll bars of an owner below a block above it', async () => {
+            const owner = new RectangleBlock({
+                x: 50,
+                y: 50,
+                width: 100,
+                height: 100,
+                backgroundColor: 'red',
+                selectable: true,
+                hotLines: true,
+                overflow: 'scroll',
+            })
+            const upper = new RectangleBlock({
+                x: 50,
+                y: 50,
+                width: 120,
+                height: 120,
+                backgroundColor: 'blue',
+            })
+            canvas.add(owner, upper)
+            allowMouse(canvas)
+            await flush()
+            const element = (await page
+                .elementLocator(canvas.canvas)
+                .element()) as HTMLElement
+            dispatchMouse(element, 'mousedown', 100, 100, 1)
+            dispatchMouse(element, 'mouseup', 100, 100)
+            await flush(4)
+            // the scroll bars and the hot lines belong to the owner, so the
+            // block above the owner covers them
+            const pixel = Array.from(
+                canvas.context!.getImageData(145, 145, 1, 1).data
+            )
+            expect(pixel).toEqual([0, 0, 255, 255])
+        })
+        it('should reserve the scroll bar strip from the right axis of the layout', async () => {
+            const owner = new LayoutBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                overflow: 'scroll',
+                justifyContent: 'end',
+            })
+            const child = new RectangleBlock({
+                width: 50,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            canvas.add(owner)
+            await flush()
+            // the vertical scroll bar takes the last 15px of the right axis,
+            // so the child has to end before it
+            expect(child.x() + child.width()).toBe(285)
+        })
+        it('should reserve the scroll bar strip from the bottom axis of the layout', async () => {
+            const owner = new LayoutBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                overflow: 'scroll',
+                alignItems: 'end',
+            })
+            const child = new RectangleBlock({
+                width: 50,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            canvas.add(owner)
+            await flush()
+            expect(child.y() + child.height()).toBe(285)
+        })
+        it('should not lay a child of a scrolled block under the scroll bar', async () => {
+            const owner = new RectangleBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                backgroundColor: 'white',
+                overflow: 'scroll',
+            })
+            const child = new RectangleBlock({
+                width: 100,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            const second = new RectangleBlock({
+                width: 100,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            owner.addChild(second)
+            canvas.add(owner)
+            await flush()
+            // two children of 100px fit the 200px block, but not the 185px
+            // which are left by the vertical scroll bar, so the second one
+            // has to wrap
+            expect([child.x(), child.y()]).toStrictEqual([100, 100])
+            expect([second.x(), second.y()]).toStrictEqual([100, 150])
+        })
+        it('should not reserve a scroll bar strip when there is no scroll bar', async () => {
+            const owner = new RectangleBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                backgroundColor: 'white',
+            })
+            const child = new RectangleBlock({
+                width: 100,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            canvas.add(owner)
+            await flush()
+            expect(child.x() + child.width()).toBe(200)
+        })
+        it('should not reserve a scroll bar strip of an auto block which does not overflow', async () => {
+            const owner = new RectangleBlock({
+                x: 100,
+                y: 100,
+                width: 200,
+                height: 200,
+                backgroundColor: 'white',
+                overflow: 'auto',
+            })
+            const child = new RectangleBlock({
+                width: 100,
+                height: 50,
+                backgroundColor: 'orange',
+            })
+            owner.addChild(child)
+            canvas.add(owner)
+            await flush()
+            // the content fits, so no scroll bar is painted and no strip is
+            // reserved
+            expect(child.x() + child.width()).toBe(200)
         })
     })
 })

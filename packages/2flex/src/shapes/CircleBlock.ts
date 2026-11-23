@@ -1,5 +1,6 @@
 import { SELECTABLE_RUNNING_EVENT } from '../const'
-import { IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import type { ColorType, OwnOptionAccessors } from '../BaseBlock'
+import { ShapeBlockOptions, ShapeBlock } from '../ShapeBlock'
 import type { DrawFunc, FillStyle } from '../ShapeBlock'
 import { RelativeType } from '../types'
 
@@ -8,36 +9,53 @@ export type BorderWidth = RelativeType
 export type BorderColor = string
 export type CircleBorder = [BorderWidth, BorderStyle, BorderColor]
 
-interface ICircleOptions extends IShapeOptions {
+export interface CircleBlockOptions extends ShapeBlockOptions {
     startAngle?: RelativeType
     endAngle?: RelativeType
     innerRadius?: RelativeType
-    backgroundColor?: FillStyle
+    backgroundColor?: ColorType
     border?: CircleBorder | string
     borderStyle?: BorderStyle
     borderWidth?: BorderWidth
-    borderColor?: BorderColor
+    borderColor?: ColorType
 }
 
-export class CircleBlock extends ShapeBlock {
+interface CircleBlockAccessors extends OwnOptionAccessors<
+    CircleBlockOptions,
+    ShapeBlockOptions
+> {}
+
+const DEFAULT_END_ANGLE = Math.PI * 2
+const DEFAULT_BORDER_COLOR = 'black'
+const DEFAULT_BORDER_STYLE: BorderStyle = 'solid'
+const DEFAULT_LINE_JOIN: CanvasLineJoin = 'round'
+const DEFAULT_LINE_CAP: CanvasLineCap = 'round'
+
+export class CircleBlock<
+    T extends CircleBlockOptions = CircleBlockOptions,
+> extends ShapeBlock<T> {
     #circlePath?: Path2D
 
-    constructor(options: ICircleOptions) {
-        super(options)
-        this.lineJoin('round')
-        this.lineCap('round')
+    constructor(options: CircleBlockOptions) {
+        super(options as T)
+        this.lineJoin(DEFAULT_LINE_JOIN)
+        this.lineCap(DEFAULT_LINE_CAP)
         this.#circlePath = new Path2D()
         this.#defineProperties()
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineProperties() {
         this.addProperty('innerRadius', 0)
         this.addProperty('startAngle', 0)
-        this.addProperty('endAngle', Math.PI * 2)
+        this.addProperty('endAngle', DEFAULT_END_ANGLE)
         this.addProperty('backgroundColor', undefined)
         this.addProperty('borderWidth', 0, true)
-        this.addProperty('borderColor', 'black')
-        this.addProperty('borderStyle', 'solid')
+        this.addProperty('borderColor', DEFAULT_BORDER_COLOR)
+        this.addProperty('borderStyle', DEFAULT_BORDER_STYLE)
         this.addProperty(
             'border',
             undefined,
@@ -55,8 +73,8 @@ export class CircleBlock extends ShapeBlock {
         const startAngle = this.startAngle()
         const endAngle = this.endAngle()
         const innerR = this.innerRadius()
-        const outerRX = this.width() / 2 - this.hotLineStrokeWidth()
-        const outerRY = this.height() / 2 - this.hotLineStrokeWidth()
+        const outerRX = this.__boxWidth() / 2 - this.hotLineStrokeWidth()
+        const outerRY = this.__boxHeight() / 2 - this.hotLineStrokeWidth()
 
         const path = new Path2D()
 
@@ -114,7 +132,12 @@ export class CircleBlock extends ShapeBlock {
     #adjustBoundingBox(): void {
         const borderWidth =
             (this.getOptionCurrent('borderWidth') as number) ?? 0
-        const extra = (this.hotLineStrokeWidth() + borderWidth) / 2
+        const strokeWidth = this.hotLineStrokeWidth()
+        // a width which is not finite would spread into the whole box
+        const extra =
+            Number.isFinite(borderWidth) && Number.isFinite(strokeWidth)
+                ? (strokeWidth + borderWidth) / 2
+                : 0
 
         const { topLeft, topRight, bottomLeft, bottomRight } = this.boundingBox
 
@@ -146,7 +169,7 @@ export class CircleBlock extends ShapeBlock {
         const centerY = this.rotationCenterY()
         context.save()
         context.translate(centerX, centerY)
-        context.rotate(this.rotate())
+        context.rotate(this.__rotation())
         context.translate(-centerX, -centerY)
         context.lineWidth = this.borderWidth()
         const inStroke = context.isPointInStroke(path, x, y)
@@ -164,11 +187,13 @@ export class CircleBlock extends ShapeBlock {
         this.__clipPath?.ellipse(
             this.realCenterX,
             this.realCenterY,
-            this.width() / 2,
-            this.height() / 2,
+            this.__boxWidth() / 2,
+            this.__boxHeight() / 2,
             0,
             this.startAngle(),
             this.endAngle()
         )
     }
 }
+
+export interface CircleBlock extends CircleBlockAccessors {}

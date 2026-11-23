@@ -1,4 +1,11 @@
-import { Block, IBlockOptions } from './Block'
+import { invalidArgument, isRecord, requireCallback } from './Utils'
+import { Block, BlockOptions } from './Block'
+import type {
+    ColorType,
+    OwnOptionAccessors,
+    ResolvedAs,
+    TextType,
+} from './BaseBlock'
 import type { RelativeType, XY } from './types'
 
 export type GradientType = 'linear' | 'conic' | 'radial'
@@ -16,8 +23,6 @@ export interface Stroke {
 
 export type FillStyle = CanvasFillStrokeStyles['fillStyle']
 export type StrokeStyle = CanvasFillStrokeStyles['strokeStyle']
-
-export type Font = string
 
 export interface DrawText {
     text: string
@@ -169,12 +174,12 @@ export type DrawFunc = (context: OffscreenCanvasRenderingContext2D) => void
 
 export type DropShadow = [RelativeType, RelativeType, RelativeType, FillStyle]
 
-export interface IShapeOptions extends IBlockOptions {
+export interface ShapeBlockOptions extends BlockOptions {
     fill?: Fill
-    fillStyle?: FillStyle
+    fillStyle?: ResolvedAs<FillStyle, FillStyle | undefined>
 
     stroke?: Stroke
-    strokeStyle?: StrokeStyle
+    strokeStyle?: ResolvedAs<StrokeStyle, StrokeStyle | undefined>
 
     lineTo?: XY
     lineWidth?: RelativeType
@@ -194,6 +199,7 @@ export interface IShapeOptions extends IBlockOptions {
 
     rect?: RectOpt
     roundRect?: RoundRectOpt
+    fillRect?: RectOpt
     strokeRect?: RectOpt
 
     pointInPath?: PointInPath
@@ -216,20 +222,20 @@ export interface IShapeOptions extends IBlockOptions {
     sepia?: RelativeType | RelativeType[]
 
     shadowBlur?: RelativeType
-    shadowColor?: string
+    shadowColor?: ResolvedAs<ColorType, ColorType | undefined>
     shadowOffsetX?: RelativeType
     shadowOffsetY?: RelativeType
 
     fillText?: DrawText
     strokeText?: DrawText
-    font?: Font
+    font?: TextType
     fontStretch?: CanvasFontStretch
     fontKerning?: CanvasFontKerning
     fontVariantCaps?: CanvasFontVariantCaps
     textBaseline?: CanvasTextBaseline
     textRendering?: CanvasTextRendering
-    wordSpacing?: string
-    letterSpacing?: string
+    wordSpacing?: RelativeType
+    letterSpacing?: RelativeType
     direction?: CanvasDirection
     textAlign?: CanvasTextAlign
 
@@ -243,14 +249,17 @@ export interface IShapeOptions extends IBlockOptions {
     globalCompositeOperation?: GlobalCompositeOperation
     globalAlpha?: number
 }
-export class ShapeBlock extends Block {
+
+export class ShapeBlock<
+    T extends ShapeBlockOptions = ShapeBlockOptions,
+> extends Block<T> {
     #gradient?: CanvasGradient
     #canvasPattern?: CanvasPattern | null
     #filters: ShapeFilters = {}
     #filterStr?: string
 
-    constructor(options: IShapeOptions) {
-        super(options)
+    constructor(options: ShapeBlockOptions) {
+        super(options as T)
         this.addProperty(
             'clip',
             undefined,
@@ -446,7 +455,7 @@ export class ShapeBlock extends Block {
             'font',
             undefined,
             false,
-            (block: ShapeBlock, opt?: Font) => this.#font(block, opt)
+            (block: ShapeBlock, opt?: TextType) => this.#font(block, opt)
         )
         this.addProperty(
             'fillText',
@@ -624,10 +633,13 @@ export class ShapeBlock extends Block {
             (block: ShapeBlock, opt?: number) => this.#globalAlpha(block, opt)
         )
     }
+    set(options: T): void {
+        super.set(options)
+    }
     render(): void {
         super.render()
         const context = this.context
-        if (this.hidden() || !context) return
+        if (this.__isHidden() || !context) return
         const centerX = this.rotationCenterX()
         const centerY = this.rotationCenterY()
         const verticalFlipRotate = this.verticalFlip() ? -1 : 1
@@ -641,7 +653,7 @@ export class ShapeBlock extends Block {
         // vertical or horizantal flipping
         context.scale(horizontalFlipRotate, verticalFlipRotate)
         context.rotate(
-            this.rotate() * verticalFlipRotate * horizontalFlipRotate
+            this.__rotation() * verticalFlipRotate * horizontalFlipRotate
         )
         context.translate(-centerX, -centerY)
         this.#contextFilter()
@@ -673,8 +685,7 @@ export class ShapeBlock extends Block {
             this.radialGradient()
         if (this.getOptionCurrent('linearGradient') !== undefined)
             this.linearGradient()
-        if (this.getOptionCurrent('colorStops') !== undefined)
-            this.colorStops()
+        if (this.getOptionCurrent('colorStops') !== undefined) this.colorStops()
         if (this.getOptionCurrent('pattern') !== undefined) this.pattern()
 
         if (this.getOptionCurrent('shadowBlur') !== undefined) this.shadowBlur()
@@ -702,15 +713,20 @@ export class ShapeBlock extends Block {
             this.imageSmoothingQuality()
 
         if (this.getOptionCurrent('font') !== undefined) this.font()
-        if (this.getOptionCurrent('fontStretch') !== undefined) this.fontStretch()
-        if (this.getOptionCurrent('fontKerning') !== undefined) this.fontKerning()
+        if (this.getOptionCurrent('fontStretch') !== undefined)
+            this.fontStretch()
+        if (this.getOptionCurrent('fontKerning') !== undefined)
+            this.fontKerning()
         if (this.getOptionCurrent('fontVariantCaps') !== undefined)
             this.fontVariantCaps()
-        if (this.getOptionCurrent('wordSpacing') !== undefined) this.wordSpacing()
+        if (this.getOptionCurrent('wordSpacing') !== undefined)
+            this.wordSpacing()
         if (this.getOptionCurrent('direction') !== undefined) this.direction()
         if (this.getOptionCurrent('textAlign') !== undefined) this.textAlign()
-        if (this.getOptionCurrent('textBaseline') !== undefined) this.textBaseline()
-        if (this.getOptionCurrent('textRendering') !== undefined) this.textRendering()
+        if (this.getOptionCurrent('textBaseline') !== undefined)
+            this.textBaseline()
+        if (this.getOptionCurrent('textRendering') !== undefined)
+            this.textRendering()
         if (this.getOptionCurrent('letterSpacing') !== undefined)
             this.letterSpacing()
 
@@ -740,6 +756,12 @@ export class ShapeBlock extends Block {
     }
 
     draw(_func?: DrawFunc) {
+        if (_func !== undefined)
+            requireCallback(
+                `${this.constructor.name}.draw()`,
+                'callback',
+                _func
+            )
         const func = this.__valueHandler<DrawFunc, DrawFunc | undefined>(
             _func,
             'drawFunc',
@@ -924,6 +946,17 @@ export class ShapeBlock extends Block {
         if (block.context && opt) block.context.lineJoin = opt
     }
     pointInPath(point: PointInPath): boolean {
+        if (
+            !isRecord(point) ||
+            typeof point.x !== 'number' ||
+            typeof point.y !== 'number'
+        )
+            invalidArgument(
+                `${this.constructor.name}.pointInPath()`,
+                'point',
+                'a point with numeric x and y',
+                point
+            )
         if (point.path)
             return (
                 this.context?.isPointInPath(
@@ -943,6 +976,17 @@ export class ShapeBlock extends Block {
             )
     }
     pointInStroke(point: PointInStroke): boolean | undefined {
+        if (
+            !isRecord(point) ||
+            typeof point.x !== 'number' ||
+            typeof point.y !== 'number'
+        )
+            invalidArgument(
+                `${this.constructor.name}.pointInStroke()`,
+                'point',
+                'a point with numeric x and y',
+                point
+            )
         if (point.path)
             return (
                 this.context?.isPointInStroke(point.path, point.x, point.y) ||
@@ -951,7 +995,7 @@ export class ShapeBlock extends Block {
         else return this.context?.isPointInStroke(point.x, point.y) || false
     }
 
-    #font(block: ShapeBlock, opt?: Font) {
+    #font(block: ShapeBlock, opt?: TextType) {
         if (block.context && opt) block.context.font = opt
     }
 
@@ -1015,6 +1059,13 @@ export class ShapeBlock extends Block {
     }
 
     measureText(text: string): TextMetrics | undefined {
+        if (typeof text !== 'string')
+            invalidArgument(
+                `${this.constructor.name}.measureText()`,
+                'text',
+                'a string',
+                text
+            )
         return this.context?.measureText(text)
     }
 
@@ -1036,7 +1087,7 @@ export class ShapeBlock extends Block {
 
     #filterHandler(
         filter: keyof ShapeFilters,
-        value: string | number | number[]
+        value: string | number | number[] | DropShadow
     ) {
         switch (filter) {
             case 'blur':
@@ -1100,9 +1151,9 @@ export class ShapeBlock extends Block {
     #dropShadow(block: ShapeBlock, opt?: DropShadow | DropShadow[]) {
         if (!opt) return
         if (opt[0] instanceof Array)
-            for (const val of opt)
-                block.#filterHandler('drop-shadow', val as any)
-        else block.#filterHandler('drop-shadow', opt as any)
+            for (const val of opt as DropShadow[])
+                block.#filterHandler('drop-shadow', val)
+        else block.#filterHandler('drop-shadow', opt as DropShadow)
     }
     #grayscale(block: ShapeBlock, opt?: RelativeType | RelativeType[]) {
         if (!opt) return
@@ -1167,3 +1218,8 @@ export class ShapeBlock extends Block {
         if (block.context && opt) block.context.globalAlpha = opt
     }
 }
+
+export interface ShapeBlock extends Omit<
+    OwnOptionAccessors<ShapeBlockOptions, BlockOptions>,
+    'pointInPath' | 'pointInStroke'
+> {}

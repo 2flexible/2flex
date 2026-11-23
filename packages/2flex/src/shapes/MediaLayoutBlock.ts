@@ -1,10 +1,15 @@
-import { DrawFunc, IShapeOptions, ShapeBlock } from '../ShapeBlock'
+import { DrawFunc, ShapeBlockOptions, ShapeBlock } from '../ShapeBlock'
+import type { OwnOptionAccessors, ResolvedAs } from '../BaseBlock'
 import { RelativeType } from '../types'
 
 type ObjectFit = 'contain' | 'cover' | 'fill' | 'scale-down'
 type Repeat = number | 'fill'
 
-interface MediaLayoutOptions extends IShapeOptions {
+export interface MediaLayoutBlockOptions extends ShapeBlockOptions {
+    source: ResolvedAs<
+        string | CanvasImageSource,
+        string | CanvasImageSource | undefined
+    >
     clipX?: RelativeType
     clipY?: RelativeType
     clipWidth?: RelativeType
@@ -14,12 +19,20 @@ interface MediaLayoutOptions extends IShapeOptions {
     repeatY?: Repeat
 }
 
-export class MediaLayoutBlock extends ShapeBlock {
+const DEFAULT_OBJECT_FIT: ObjectFit = 'scale-down'
+
+export class MediaLayoutBlock<
+    T extends MediaLayoutBlockOptions = MediaLayoutBlockOptions,
+> extends ShapeBlock<T> {
     mediaSource?: CanvasImageSource
 
-    constructor(options: MediaLayoutOptions) {
-        super(options)
+    constructor(options: MediaLayoutBlockOptions) {
+        super(options as T)
         this.#defineProperties()
+    }
+
+    set(options: T): void {
+        super.set(options)
     }
 
     #defineProperties() {
@@ -30,7 +43,7 @@ export class MediaLayoutBlock extends ShapeBlock {
         this.addProperty('clipY', 0)
         this.addProperty('clipWidth', undefined)
         this.addProperty('clipHeight', undefined)
-        this.addProperty('objectFit', 'scale-down')
+        this.addProperty('objectFit', DEFAULT_OBJECT_FIT)
     }
 
     draw(_func?: DrawFunc): void {
@@ -41,6 +54,7 @@ export class MediaLayoutBlock extends ShapeBlock {
         const mediaSource = this.mediaSource
         const context = this.context
         if (!mediaSource || !context) return
+        if (!this.#isDrawable(mediaSource)) return
         const fit = this.objectFit()
         const x = this.x()
         const y = this.y()
@@ -175,6 +189,13 @@ export class MediaLayoutBlock extends ShapeBlock {
         }
     }
 
+    // a broken image makes drawImage throw on every frame, which would break the whole render loop
+    #isDrawable(source: CanvasImageSource) {
+        if (source instanceof HTMLImageElement)
+            return source.naturalWidth > 0 && source.naturalHeight > 0
+        return true
+    }
+
     #getSourceDimensions(source: CanvasImageSource): {
         width: number
         height: number
@@ -197,6 +218,17 @@ export class MediaLayoutBlock extends ShapeBlock {
             return { width, height }
         }
 
+        // only the intrinsic size describes the image itself
+        if (source instanceof HTMLImageElement) {
+            return {
+                width: source.naturalWidth || source.width,
+                height: source.naturalHeight || source.height,
+            }
+        }
+
         return { width: source.width, height: source.height }
     }
 }
+
+export interface MediaLayoutBlock
+    extends OwnOptionAccessors<MediaLayoutBlockOptions, ShapeBlockOptions> {}

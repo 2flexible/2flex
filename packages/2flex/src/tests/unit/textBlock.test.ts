@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { page } from 'vitest/browser'
-import { Block, Canvas, ShapeBlock, TextBlock } from '@2flexible/2flex'
-import type { ITextOptions } from '../../shapes/TextBlock'
+import {
+    Block,
+    Canvas,
+    LayoutBlock,
+    RectangleBlock,
+    ShapeBlock,
+    TextBlock,
+} from '@2flexible/2flex'
+import type { TextBlockOptions } from '@2flexible/2flex'
 import { SELECTABLE_RUNNING_EVENT } from '../../const'
 import { flush, removeCanvasElements, waitFor } from './helpers'
 
@@ -73,7 +80,7 @@ const keyDown = (key: string, options: KeyboardEventInit = {}) => {
     )
 }
 
-const createTextBlock = async (options: ITextOptions = {}) => {
+const createTextBlock = async (options: TextBlockOptions = {}) => {
     canvas = new Canvas('myCanvas', 400, 500)
     text = new TextBlock({
         x: 20,
@@ -203,7 +210,11 @@ describe('TextBlock', () => {
         for (const [option, value] of defaults) {
             it(`should default ${option} to ${value}`, () => {
                 const block = new TextBlock({})
-                expect(block[option]()).toStrictEqual(value)
+                expect(
+                    (block as unknown as Record<string, () => unknown>)[
+                        option
+                    ]()
+                ).toStrictEqual(value)
             })
         }
     })
@@ -523,6 +534,238 @@ describe('TextBlock', () => {
             const withLineHeight = letterCalls(fillText).at(-1)![2]
             expect(withLineHeight).toBeGreaterThan(withoutLineHeight)
         })
+        it('should draw the letters of a line on one baseline', async () => {
+            await createTextBlock({ text: 'volvo volv', fontSize: 28 })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            const baselines = new Set(calls.map((call) => call[2]))
+            expect(baselines.size).toBe(1)
+        })
+        it('should keep the distance of the lines at the line box height', async () => {
+            await createTextBlock({ text: 'aa bbbb', width: 60, wrap: 'word' })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            const starts = lineStarts(calls, text.x())
+            const first = calls[starts[0]]
+            const second = calls[starts[1]]
+            const metrics = context.measureText('Hxg')
+            const lineBox =
+                metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent
+            expect(second[2] - first[2]).toBeCloseTo(lineBox, 5)
+        })
+        it('should keep a repeated word together on a word wrap', async () => {
+            await createTextBlock({ text: 'aa aa', width: 30, wrap: 'word' })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            const starts = lineStarts(calls, text.x())
+            expect(starts).toHaveLength(2)
+            expect(calls[starts[1] - 1][0]).toBe(' ')
+            expect(calls.length - starts[1]).toBe(2)
+        })
+    })
+
+    describe('auto size', () => {
+        const lineBoxHeight = (context: OffscreenCanvasRenderingContext2D) => {
+            const metrics = context.measureText('Hxg')
+            return (
+                metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent
+            )
+        }
+
+        it('should calculate the size of the text without a drawing context', async () => {
+            await createTextBlock({
+                text: 'hello world',
+                width: undefined,
+                height: undefined,
+            })
+            // the text measures itself, so it has a size before it is drawn
+            expect(text.width()).toBeGreaterThan(0)
+            expect(text.height()).toBeGreaterThan(0)
+        })
+
+        it('should measure the text with a relative size', async () => {
+            await createTextBlock({
+                text: 'dfdsf',
+                width: '100%',
+                height: '100%',
+            })
+            // a relative size is resolved after the initialization, so the
+            // block has no size while it measures itself
+            expect(text.width()).toBe(400)
+            expect(text.height()).toBe(500)
+        })
+
+        it('should calculate the width of the text when no width is given', async () => {
+            await createTextBlock({ text: 'hello world', width: undefined })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            const last = calls[calls.length - 1]
+            expect(text.width()).toBeCloseTo(
+                last[1] + (last[3] ?? 0) - text.x(),
+                5
+            )
+        })
+        it('should calculate the height of the text when no height is given', async () => {
+            await createTextBlock({ text: 'hello', height: undefined })
+            const context = prepareDrawing(text)
+            text.draw()
+            expect(text.height()).toBeCloseTo(lineBoxHeight(context), 5)
+        })
+        it('should calculate the height of the wrapped text', async () => {
+            await createTextBlock({
+                text: 'aa bbbb',
+                width: 60,
+                wrap: 'word',
+                height: undefined,
+            })
+            const context = prepareDrawing(text)
+            text.draw()
+            expect(text.height()).toBeCloseTo(lineBoxHeight(context) * 2, 5)
+        })
+        it('should keep the size that was given', async () => {
+            await createTextBlock({ width: 120, height: 40 })
+            expect(text.width()).toBe(120)
+            expect(text.height()).toBe(40)
+        })
+        it('should adjust the width when the text is changed', async () => {
+            await createTextBlock({ text: 'hi', width: undefined })
+            const width = text.width()
+            text.text('a much longer text')
+            await flush()
+            expect(text.width()).toBeGreaterThan(width)
+        })
+        it('should adjust the width while the text is edited', async () => {
+            await createTextBlock({
+                text: 'hi',
+                width: undefined,
+                editable: true,
+            })
+            const width = text.width()
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            expect(text.width()).toBeGreaterThan(width)
+        })
+        it('should adjust the height of the wrapped text when the text is changed', async () => {
+            await createTextBlock({
+                text: 'aa',
+                width: 60,
+                wrap: 'word',
+                height: undefined,
+            })
+            const height = text.height()
+            text.text('aa bb cc')
+            await flush()
+            expect(text.height()).toBeGreaterThan(height)
+        })
+        it('should stop the automatic width when the width is set', async () => {
+            await createTextBlock({ text: 'hi', width: undefined })
+            text.width(120)
+            text.text('a much longer text')
+            await flush()
+            expect(text.width()).toBe(120)
+        })
+        it('should stop the automatic size when the block is resized', async () => {
+            await createTextBlock({ text: 'hi', width: undefined })
+            text.setOptionCurrent('width', 120)
+            canvas.demandInvoke(text)
+            text.text('a much longer text')
+            await flush()
+            expect(text.width()).toBe(120)
+        })
+
+        // a text without a size measures it for itself, the parent has to
+        // keep that size
+        const createTextInParent = async (
+            parent: Block | LayoutBlock,
+            options: TextBlockOptions = {}
+        ) => {
+            const child = new TextBlock({
+                text: 'hello',
+                color: 'white',
+                fontSize: 12,
+                height: 20,
+                ...options,
+            })
+            parent.addChild(child)
+            await flush(4)
+            return child
+        }
+
+        it('should keep the automatic width inside a block', async () => {
+            const parent = new RectangleBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent)
+            expect(child.width()).toBeGreaterThan(0)
+        })
+        it('should keep the automatic width inside a layout block', async () => {
+            const parent = new LayoutBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent)
+            expect(child.width()).toBeGreaterThan(0)
+        })
+        it('should adjust the width of a text in a block when the text is changed', async () => {
+            const parent = new RectangleBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent, { text: 'hi' })
+            const width = child.width()
+            child.text('a much longer text')
+            await flush(4)
+            expect(child.width()).toBeGreaterThan(width)
+        })
+        it('should adjust the width of a text in a layout block when the text is changed', async () => {
+            const parent = new LayoutBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent, { text: 'hi' })
+            const width = child.width()
+            child.text('a much longer text')
+            await flush(4)
+            expect(child.width()).toBeGreaterThan(width)
+        })
+        it('should keep the width of a text in a block which was given', async () => {
+            const parent = new RectangleBlock({
+                position: 'absolute',
+                top: 10,
+                left: 10,
+                width: 200,
+                height: 100,
+            })
+            canvas.add(parent)
+            const child = await createTextInParent(parent, { width: 60 })
+            expect(child.width()).toBe(60)
+        })
     })
 
     describe('bounding box', () => {
@@ -550,6 +793,36 @@ describe('TextBlock', () => {
             await createTextBlock({ text: undefined })
             expect(text.boundingBox.topLeft).toEqual({ x: 0, y: 0 })
             expect(text.boundingBox.bottomRight).toEqual({ x: 0, y: 0 })
+        })
+        it('should keep a finite box when the position is not finite', async () => {
+            await createTextBlock({ x: NaN, y: NaN })
+            expect(Number.isFinite(text.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.bottomRight.y)).toBe(true)
+        })
+        it('should keep a finite box when the rotation center is not finite', async () => {
+            await createTextBlock({
+                rotationCenterX: NaN,
+                rotationCenterY: NaN,
+            })
+            expect(Number.isFinite(text.boundingBox.topLeft.x)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.topLeft.y)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.bottomRight.x)).toBe(true)
+            expect(Number.isFinite(text.boundingBox.bottomRight.y)).toBe(true)
+        })
+        it('should end at the descent of the letters', async () => {
+            await createTextBlock({ text: 'gp' })
+            const context = prepareDrawing(text)
+            const fillText = vi.spyOn(context, 'fillText')
+            text.draw()
+            const calls = letterCalls(fillText)
+            const last = calls[calls.length - 1]
+            const descent = context.measureText('g').actualBoundingBoxDescent
+            expect(text.boundingBox.bottomLeft.y).toBeCloseTo(
+                last[2] + descent,
+                5
+            )
         })
         it('should turn the bounding box of a rotated text', async () => {
             await createTextBlock()
@@ -626,6 +899,35 @@ describe('TextBlock', () => {
             const fillText = vi.spyOn(context, 'fillText')
             text.draw()
             expect(drawnText(fillText)).toBe('hello')
+        })
+        it('adds editing events once and ignores them when editable is toggled false then true', async () => {
+            await createTextBlock({ editable: false })
+            const addEventSpy = vi.spyOn(text, '__addEvent')
+            const removeEventSpy = vi.spyOn(text, '__removeEvent')
+
+            text.editable(true)
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(5)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            text.editable(false)
+            await flush()
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            clickOnLetter(0, 'dblclick')
+            expect(
+                text.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)
+            ).toBe(false)
+
+            text.editable(true)
+            await flush()
+            expect(addEventSpy).toHaveBeenCalledTimes(5)
+            expect(removeEventSpy).not.toHaveBeenCalled()
+
+            clickOnLetter(0, 'dblclick')
+            expect(
+                text.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)
+            ).toBe(true)
         })
         it('should enter the editable mode on a double click on a letter', async () => {
             clickOnLetter(0, 'dblclick')
@@ -780,12 +1082,123 @@ describe('TextBlock', () => {
                 text.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)
             ).toBe(false)
         })
+        it('should release the z index registration on escape', async () => {
+            clickOnLetter(0, 'dblclick')
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(true)
+            keyDown('Escape')
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(false)
+        })
+        it('should release the z index registration on a click outside of the letters', async () => {
+            clickOnLetter(0, 'dblclick')
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(true)
+            canvas.canvas.dispatchEvent(mouseAt('mousedown', 5, 5))
+            expect(
+                text.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)
+            ).toBe(false)
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(false)
+        })
+        it('should release the z index registration when it is not editable anymore', async () => {
+            clickOnLetter(0, 'dblclick')
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(true)
+            text.editable(false)
+            await flush()
+            expect(canvas.whoIsTheFirst(text.nodeId!)).toBe(false)
+        })
         it('should call the onEditable callback with the block', async () => {
             const onEditable = vi.fn()
             await createTextBlock({ editable: true, onEditable })
             text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
             keyDown('x')
             expect(onEditable).toHaveBeenCalledWith(text)
+        })
+    })
+
+    describe('the text option while editing', () => {
+        beforeEach(async () => {
+            await createTextBlock({ editable: true })
+        })
+
+        it('should reflect an inserted character', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            expect(text.text()).toBe('hellox')
+        })
+        it('should reflect a deleted character', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('Backspace')
+            expect(text.text()).toBe('hell')
+        })
+        it('should reflect a replaced selection', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('a', { ctrlKey: true })
+            keyDown('x')
+            expect(text.text()).toBe('x')
+        })
+        it('should reflect an empty text after every letter was removed', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('a', { ctrlKey: true })
+            keyDown('Delete')
+            expect(text.text()).toBe('')
+        })
+        it('should be up to date inside the onEditable callback', async () => {
+            const seen: (string | undefined)[] = []
+            await createTextBlock({
+                editable: true,
+                onEditable: (block: TextBlock) => seen.push(block.text()),
+            })
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            expect(seen).toEqual(['hellox'])
+        })
+        it('should export the edited text', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            const payload = JSON.parse(canvas.export())
+            expect(payload.blocks[0].options.text).toBe('hellox')
+        })
+        it('should restore the edited text on another canvas', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+
+            const target = new Canvas('otherCanvas', 400, 500)
+            target.load(canvas.export())
+            await flush()
+
+            const loaded = target.find({ nodeId: text.nodeId })[0] as TextBlock
+            expect(loaded.text()).toBe('hellox')
+        })
+        it('should undo a single keystroke', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            canvas.undo()
+            await flush()
+            expect(text.text()).toBe('hello')
+        })
+        it('should undo every single keystroke', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            keyDown('y')
+            await flush()
+            canvas.undo()
+            await flush()
+            expect(text.text()).toBe('hellox')
+            canvas.undo()
+            await flush()
+            expect(text.text()).toBe('hello')
+        })
+        it('should redo an undone keystroke', async () => {
+            text.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
+            keyDown('x')
+            await flush()
+            canvas.undo()
+            await flush()
+            canvas.redo()
+            await flush()
+            expect(text.text()).toBe('hellox')
         })
     })
 
@@ -815,13 +1228,74 @@ describe('TextBlock', () => {
         })
     })
 
+    describe('bounding box', () => {
+        // the bounding box of a text block is derived from the positions of
+        // its letters, which are placed relative to the position of the block
+        // itself, so the box has to be up to date as soon as the block moved
+        // into place, otherwise the block is sorted into the wrong tiles of
+        // the canvas grid and it is painted clipped
+        it('should match the position of the block right after it was placed', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            const box = new RectangleBlock({
+                position: 'absolute',
+                top: 200,
+                left: 200,
+                width: 120,
+                height: 320,
+            })
+            const layout = new LayoutBlock({
+                width: '100%',
+                height: '100%',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'space-evenly',
+            })
+            const texts = ['volvo', 'geely', 'bmw', 'mercedes'].map(
+                (value) =>
+                    new TextBlock({
+                        text: value,
+                        color: 'white',
+                        fontSize: 12,
+                        height: 20,
+                    })
+            )
+            texts.forEach((item) => layout.addChild(item))
+            box.addChild(layout)
+            canvas.add(box)
+            await flush()
+            for (const item of texts) {
+                expect(item.boundingBox.topLeft.x).toBeCloseTo(item.x())
+                expect(item.boundingBox.topLeft.y).toBeCloseTo(item.y())
+            }
+        })
+
+        it('should follow the block when it was moved', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            text = new TextBlock({
+                x: 20,
+                y: 20,
+                width: 200,
+                height: 60,
+                fontSize: 20,
+                color: 'black',
+                text: 'hello',
+            })
+            canvas.add(text)
+            await flush()
+            text.set({ x: 120, y: 140 })
+            await flush()
+            expect(text.boundingBox.topLeft.x).toBeCloseTo(120)
+            expect(text.boundingBox.topLeft.y).toBeCloseTo(140)
+        })
+    })
+
     describe('visual', () => {
         beforeEach(() => {
             // a small canvas keeps the screenshots focused on the drawn text
             canvas = new Canvas('myCanvas', 200, 120)
         })
 
-        const drawText = async (options: ITextOptions) => {
+        const drawText = async (options: TextBlockOptions) => {
             text = new TextBlock({
                 x: 20,
                 y: 20,
@@ -836,7 +1310,7 @@ describe('TextBlock', () => {
         }
 
         // the drawings of a table are captured one by one
-        const capture = (drawings: [string, string, ITextOptions][]) => {
+        const capture = (drawings: [string, string, TextBlockOptions][]) => {
             for (const [label, name, options] of drawings)
                 it(`should draw ${label}`, async () => {
                     await drawText(options)

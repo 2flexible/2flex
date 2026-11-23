@@ -1,4 +1,5 @@
-import { BaseBlock, IBaseBlockOptions } from '../BaseBlock'
+import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
+import type { OwnOptionAccessors } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     initialCorners,
@@ -11,7 +12,7 @@ import {
 import { BlockConstructor, HotCornerArea, XY } from '../types'
 import { checkInBound } from '../Utils'
 
-export interface IRotatableOptions extends IBaseBlockOptions {
+export interface IRotatableOptions extends BaseBlockOptions {
     rotatable?: boolean
     rotatableTopLeft?: boolean
     rotatableTopRight?: boolean
@@ -26,14 +27,20 @@ export interface IRotatableOptions extends IBaseBlockOptions {
     hotRotatableAreaGap?: number
 }
 
+interface RotatableBlockAccessors extends OwnOptionAccessors<
+    IRotatableOptions,
+    BaseBlockOptions
+> {}
+
+const DEFAULT_HOT_ROTATABLE_AREA_SIZE = 15
+const DEFAULT_HOT_ROTATABLE_AREA_GAP = 0
+
 export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
     Base: TBase
-) =>
-    class extends Base {
+) => {
+    class RotatableBlock extends Base {
         #isRotatable: boolean
-        #mouseDownEvent?: CustomEvent<MouseEvent>
-        #mouseMoveEvent?: CustomEvent<MouseEvent>
-        #mouseUpEvent?: CustomEvent<MouseEvent>
+        #eventsAdded = false
 
         constructor(...args: any[]) {
             super(...args)
@@ -42,7 +49,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 'rotatable',
                 false,
                 false,
-                (block: any, opt?: boolean) => {
+                (block: RotatableBlock, opt?: boolean) => {
                     this.#rotatable(block, opt)
                 }
             )
@@ -54,8 +61,14 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.addProperty('hotRotatableAreaTopRight', initialCorners)
             this.addProperty('hotRotatableAreaBottomLeft', initialCorners)
             this.addProperty('hotRotatableAreaBottomRight', initialCorners)
-            this.addProperty('hotRotatableAreaSize', 15)
-            this.addProperty('hotRotatableAreaGap', 0)
+            this.addProperty(
+                'hotRotatableAreaSize',
+                DEFAULT_HOT_ROTATABLE_AREA_SIZE
+            )
+            this.addProperty(
+                'hotRotatableAreaGap',
+                DEFAULT_HOT_ROTATABLE_AREA_GAP
+            )
             this.addProperty('onRotatable', undefined)
         }
         updateCordinates(): void {
@@ -233,7 +246,8 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             }
         }
         #rotateRotatableAreaCordinates(corner: string, diffR: number) {
-            const cordsArea = this.getOptionCurrent(corner)
+            const cordsArea = this.getOptionCurrent<HotCornerArea>(corner)
+            if (!cordsArea) return
             const a = this.__rotateCordiantesByCenter(
                 cordsArea.topLeft.x,
                 cordsArea.topLeft.y,
@@ -281,7 +295,8 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
             )
         }
         #checkCornerInBound(x: number, y: number, cornerName: string) {
-            const corner = this.getOptionCurrent(cornerName)
+            const corner = this.getOptionCurrent<HotCornerArea>(cornerName)
+            if (!corner) return false
             return checkInBound(
                 x,
                 y,
@@ -319,27 +334,24 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 this.#checkCornerInBound(x, y, 'hotRotatableAreaBottomRight')
             )
         }
-        #rotatable(block: any, opt?: boolean) {
+        #rotatable(block: RotatableBlock, opt?: boolean) {
             if (opt === undefined || block.#isRotatable === opt) return
+            block.#isRotatable = opt
             if (!opt) {
-                block.__removeEvent('mousedown', block.#mouseDownEvent)
-                block.__removeEvent('mousemove', block.#mouseMoveEvent)
-                block.__removeEvent('mouseup', block.#mouseUpEvent)
                 block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
-                block.#mouseDownEvent = undefined
-                block.#mouseMoveEvent = undefined
-                block.#mouseUpEvent = undefined
                 return
             }
-            block.#isRotatable = opt
+            if (block.#eventsAdded) return
+            block.#eventsAdded = true
 
             let topMove = false
             let leftMove = false
-            let beforeValues: any = {}
+            let beforeValues: Record<string, unknown> = {}
             let inBound = false
             let beforeCursor: string | undefined
 
-            block.#mouseDownEvent = (event: MouseEvent) => {
+            const mouseDownEvent = () => {
+                if (!block.#isRotatable) return
                 if (inBound && block.isMouseEventAllowed) {
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, true)
                     beforeValues = {
@@ -350,7 +362,8 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 }
             }
 
-            block.#mouseMoveEvent = (event: MouseEvent) => {
+            const mouseMoveEvent = (event: MouseEvent) => {
+                if (!block.#isRotatable) return
                 if (
                     block.__isRunningEventActive(RESIZABLE_RUNNING_EVENT) ||
                     block.__isRunningEventActive(DRAGGABLE_RUNNING_EVENT) ||
@@ -414,7 +427,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         y - block.rotationCenterY(),
                         x - block.rotationCenterX()
                     )
-                    let currentRotate = block.getOptionCurrent('rotate')
+                    let currentRotate = block.__rotation()
                     if (topMove && leftMove) {
                         const topLeftCorner = block.cornerTopLeft()
                         const topLeft = block.__rotateCordiantesByCenter(
@@ -468,13 +481,17 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                                 bottomLeft.x - block.realCenterX
                             )
                     }
-                    block.setOptionCurrent('rotate', currentRotate)
-                    block.onRotatable()?.(block)
+                    block.setOptionCurrent(
+                        'rotate',
+                        currentRotate - block.__parentRotate
+                    )
+                    block.onRotatable()?.(event)
                     block.__invokeChange()
                 }
             }
 
-            block.#mouseUpEvent = () => {
+            const mouseUpEvent = () => {
+                if (!block.#isRotatable) return
                 if (
                     block.__isRunningEventActive(ROTATABLE_RUNNING_EVENT) &&
                     block.isMouseEventAllowed
@@ -483,12 +500,17 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__updateRunningEvent(ROTATABLE_RUNNING_EVENT, false)
                     block.__unregisterZIndex()
                     inBound = false
-                    const after: any = { rotate: block.rotate() }
+                    const after: Record<string, unknown> = {
+                        rotate: block.rotate(),
+                    }
                     block.__invokeHistory(beforeValues, after)
                 }
             }
-            block.__addEvent('mousedown', block.#mouseDownEvent)
-            block.__addEvent('mousemove', block.#mouseMoveEvent)
-            block.__addEvent('mouseup', block.#mouseUpEvent)
+            block.__addEvent('mousedown', mouseDownEvent)
+            block.__addEvent('mousemove', mouseMoveEvent)
+            block.__addEvent('mouseup', mouseUpEvent)
         }
     }
+    interface RotatableBlock extends RotatableBlockAccessors {}
+    return RotatableBlock
+}

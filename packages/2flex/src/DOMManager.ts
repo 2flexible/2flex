@@ -80,8 +80,7 @@ export class CanvasDOMManager {
     changeStyle(options: ICssProperties) {
         for (const [key, value] of Object.entries(options)) {
             if (key in this.canvas.style)
-                // @FIX: type error in canvas style for key
-                (this.canvas.style as any)[key] = value
+                Object.assign(this.canvas.style, { [key]: value })
         }
     }
 
@@ -95,7 +94,9 @@ export class CanvasDOMManager {
         if (!this.#domEvents[_type]) this.#domEvents[_type] = []
         this.#domEvents[_type].push(_func as CustomEvent<Event>)
 
-        this.canvas.addEventListener(_type, _func as any, { passive: false })
+        this.canvas.addEventListener(_type, _func as EventListener, {
+            passive: false,
+        })
     }
 
     removeEventListener<E extends Event>(_type: string, _func: CustomEvent<E>) {
@@ -103,7 +104,7 @@ export class CanvasDOMManager {
         this.#domEvents[_type] = this.#domEvents[_type].filter(
             (i) => i !== _func
         )
-        this.canvas.removeEventListener(_type, _func as any)
+        this.canvas.removeEventListener(_type, _func as EventListener)
     }
 
     getListener(event: string) {

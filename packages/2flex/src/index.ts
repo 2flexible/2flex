@@ -1,15 +1,40 @@
 import { Canvas } from './Canvas'
+import type { CanvasOptions, CanvasView } from './Canvas'
+import { BaseBlock } from './BaseBlock'
+import type { BaseBlockOptions } from './BaseBlock'
+import type {
+    BlockOptionsOf,
+    ColorType,
+    OptionAccessor,
+    OptionAccessors,
+    OptionAccessorsWith,
+    OwnOptionAccessors,
+    ResolvedAs,
+    ResolvedValue,
+    TextType,
+} from './types'
 import { Block } from './Block'
 import {
+    RectangleBlock,
     CircleBlock,
     ImageBlock,
-    RectangleBlock,
     VideoBlock,
     LineBlock,
-    TextBlock
+    TextBlock,
+} from './shapes/index'
+import type {
+    RectangleBlockOptions,
+    CircleBlockOptions,
+    ImageBlockOptions,
+    VideoBlockOptions,
+    LineBlockOptions,
+    TextBlockOptions,
 } from './shapes/index'
 import { LayoutBlock } from './LayoutBlock'
 import { ShapeBlock } from './ShapeBlock'
+import type { BlockOptions } from './Block'
+import type { LayoutBlockOptions } from './LayoutBlock'
+import type { ShapeBlockOptions } from './ShapeBlock'
 import {
     radianToDegree,
     degreeToRadian,
@@ -34,22 +59,26 @@ import {
     steps,
     lerp,
     clamp,
+    clampSize,
     hexToRgba,
     hslToRgba,
     colorToRgba,
     inRange,
+    extendBlock,
 } from './Utils'
 export {
     Canvas,
+    BaseBlock,
+    extendBlock,
     Block,
     LayoutBlock,
-    LineBlock,
-    TextBlock,
     ShapeBlock,
     RectangleBlock,
     CircleBlock,
     ImageBlock,
     VideoBlock,
+    LineBlock,
+    TextBlock,
     radianToDegree,
     degreeToRadian,
     rotateCordinatesByRadian,
@@ -73,8 +102,33 @@ export {
     steps,
     lerp,
     clamp,
+    clampSize,
     hexToRgba,
     hslToRgba,
     colorToRgba,
     inRange,
+}
+
+export type {
+    BaseBlockOptions,
+    CanvasOptions,
+    CanvasView,
+    BlockOptionsOf,
+    ColorType,
+    OptionAccessor,
+    OptionAccessors,
+    OptionAccessorsWith,
+    OwnOptionAccessors,
+    ResolvedAs,
+    ResolvedValue,
+    TextType,
+    BlockOptions,
+    LayoutBlockOptions,
+    ShapeBlockOptions,
+    RectangleBlockOptions,
+    CircleBlockOptions,
+    ImageBlockOptions,
+    VideoBlockOptions,
+    LineBlockOptions,
+    TextBlockOptions,
 }

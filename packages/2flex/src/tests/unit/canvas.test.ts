@@ -1,8 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { Block, Canvas } from '@2flexible/2flex'
+import { page } from 'vitest/browser'
+import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
 import { SELECTABLE_RUNNING_EVENT } from '../../const'
 import { defaultBlocks } from '../../defaultBlocks'
-import { flush, removeCanvasElements } from './helpers'
+import {
+    allowMouse,
+    dispatchMouse,
+    flush,
+    removeCanvasElements,
+} from './helpers'
 
 let canvas: Canvas
 let block: Block
@@ -55,9 +61,43 @@ const filledBlock = (block: Block) => {
 const pixelAt = (target: Canvas, x: number, y: number) =>
     Array.from(target.context!.getImageData(x, y, 1, 1).data)
 
+// paints a block in a color, so the stacking order can be asserted on the
+// pixels of the canvas
+const paintedBlock = (
+    block: Block,
+    color: string,
+    x: number,
+    y: number,
+    size = 100
+) => {
+    block.set({
+        x,
+        y,
+        width: size,
+        height: size,
+        onRender: () => {
+            const context = block.context
+            if (!context) return
+            context.beginPath()
+            context.fillStyle = color
+            context.fillRect(
+                block.x(),
+                block.y(),
+                block.width(),
+                block.height()
+            )
+        },
+    })
+    return block
+}
+
+const RED = [255, 0, 0, 255]
+const GREEN = [0, 255, 0, 255]
+const BLUE = [0, 0, 255, 255]
+
 describe('Canvas', () => {
     afterEach(() => {
-        canvas.isFocused = false
+        if (canvas) canvas.isFocused = false
         removeCanvasElements()
     })
 
@@ -91,6 +131,27 @@ describe('Canvas', () => {
             document.body.appendChild(existing)
             canvas = new Canvas('myCanvas', 400, 500)
             expect(canvas.canvas).toBe(existing)
+        })
+        it('validates Canvas settings before creating an element', () => {
+            expect(
+                () => new Canvas('invalid-dimensions', undefined as never, 100)
+            ).toThrow(/new Canvas\(\).*width.*undefined/)
+            expect(
+                () => new Canvas('invalid-dimensions', 100, 100, { tileSize: 0 })
+            ).toThrow(/new Canvas\(\).*positive number.*options\.tileSize/)
+            expect(document.getElementById('invalid-dimensions')).toBeNull()
+        })
+        it('identifies an element that cannot be used as a canvas', () => {
+            const element = document.createElement('div')
+            element.id = 'canvas-id-collision'
+            document.body.append(element)
+            try {
+                expect(() => new Canvas(element.id, 100, 100)).toThrow(
+                    /new Canvas\(\).*canvas-id-collision.*<div>/
+                )
+            } finally {
+                element.remove()
+            }
         })
         it('should start with an identity view', () => {
             canvas = new Canvas('myCanvas', 400, 500)
@@ -188,15 +249,20 @@ describe('Canvas', () => {
             const second = new Block({ width: 10, height: 10 })
             canvas.add(second)
             await flush()
-            expect(block.zIndex()).toBe(0)
-            // the counter of the canvas restarts on every head refresh, so a
-            // block which is added later runs into the z index of the previous
-            // one instead of being stacked on top of it
-            expect(second.zIndex()).toBe(0)
+            // a block without a z-index keeps it undefined, which is the
+            // equivalent of the css `auto` value, so it is painted in tree
+            // order inside the context of its parent
+            expect(block.zIndex()).toBeUndefined()
+            expect(second.zIndex()).toBeUndefined()
         })
-        it.todo(
-            'should stack a block which is added later above the previous one'
-        )
+        it('should stack a block which is added later above the previous one', async () => {
+            const second = new Block({ width: 10, height: 10 })
+            canvas.add(second)
+            await flush()
+            // the block which was added later comes later in the tree order,
+            // so it is painted above the one which was there before
+            expect(canvas.whoIsTheFirst(second.nodeId!)).toBe(false)
+        })
         it('should keep the given z index of a block', async () => {
             const upper = new Block({ width: 10, height: 10, zIndex: 7 })
             canvas.add(upper)
@@ -236,6 +302,18 @@ describe('Canvas', () => {
             const found = canvas.find({ nodeId: child.nodeId })
             expect(found).toHaveLength(1)
             expect(found[0]).toBe(child)
+        })
+        it('should reject an entire add or remove batch with an invalid entry', () => {
+            const target = new Block({ name: 'batch-block' })
+            expect(() => canvas.add(target, undefined as never)).toThrow(
+                /Canvas\.add\(\).*BaseBlock.*argument 2.*undefined/
+            )
+            expect(canvas.find({ name: 'batch-block' })).toEqual([])
+            canvas.add(target)
+            expect(() => canvas.remove(target, null as never)).toThrow(
+                /Canvas\.remove\(\).*argument 2.*null/
+            )
+            expect(canvas.find({ name: 'batch-block' })).toEqual([target])
         })
         it('should remove a block from the scene', async () => {
             canvas.remove(block)
@@ -311,6 +389,36 @@ describe('Canvas', () => {
             expect(loadedParent[0].x()).toBe(10)
             expect(found).toBeDefined()
         })
+        it('should reject an invalid payload before changing the canvas', () => {
+            expect(() => canvas.load('{')).toThrow(/Canvas\.load\(\).*valid JSON/)
+            const payload = (childBlock: object) =>
+                JSON.stringify({
+                    canvas: {
+                        canvasId: 'invalid-load-target',
+                        width: 200,
+                        height: 200,
+                    },
+                    blocks: [{ name: 'Block', childs: [childBlock] }],
+                })
+            expect(() => canvas.load(payload({ name: 'Block' }))).toThrow(
+                /Canvas\.load\(\).*blocks\[0\]\.childs\[0\]\.childs/
+            )
+            expect(() =>
+                canvas.load(
+                    payload({
+                        name: 'Block',
+                        options: { width: 'wide' },
+                        childs: [],
+                    })
+                )
+            ).toThrow(
+                /Canvas\.load\(\).*blocks\[0\]\.childs\[0\]\.options\.width/
+            )
+            expect(canvas.canvasId).toBe('myCanvas')
+            expect(canvas.width).toBe(400)
+            expect(canvas.find({ nodeId: parent.nodeId })).toEqual([parent])
+            expect(document.getElementById('invalid-load-target')).toBeNull()
+        })
         it('should skip blocks of an unregistered name', async () => {
             const payload = JSON.stringify({
                 canvas: { canvasId: 'myCanvas', width: 400, height: 500 },
@@ -327,6 +435,12 @@ describe('Canvas', () => {
             await flush()
 
             expect(canvas.find({ nodeId: 7 })).toHaveLength(0)
+        })
+        it('should reject a registration batch with an invalid class', () => {
+            class CustomBlock extends Block {}
+            expect(() =>
+                canvas.registerBlocks(CustomBlock, {} as never)
+            ).toThrow(/Canvas\.registerBlocks\(\).*BaseBlock class.*argument 2/)
         })
         it('should construct registered custom block classes', async () => {
             class MyBlock extends Block {
@@ -349,6 +463,37 @@ describe('Canvas', () => {
             expect(found).toHaveLength(1)
             expect(found[0]).toBeInstanceOf(MyBlock)
             expect(found[0].x()).toBe(5)
+        })
+        it('warns once per missing class and loads registered blocks', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+            try {
+                canvas.load(
+                    JSON.stringify({
+                        canvas: {
+                            canvasId: 'myCanvas',
+                            width: 400,
+                            height: 500,
+                        },
+                        blocks: [
+                            { name: 'MissingBlock', childs: [] },
+                            { name: 'MissingBlock', childs: [] },
+                            {
+                                name: 'Block',
+                                options: { name: 'loaded' },
+                                childs: [],
+                            },
+                        ],
+                    })
+                )
+                expect(warn).toHaveBeenCalledExactlyOnceWith(
+                    expect.stringMatching(
+                        /Canvas\.load\(\).*MissingBlock.*blocks\[0\].*registerBlocks/
+                    )
+                )
+                expect(canvas.find({ name: 'loaded' })).toHaveLength(1)
+            } finally {
+                warn.mockRestore()
+            }
         })
         it('should take the canvas size and options from the payload', async () => {
             const target = new Canvas('otherCanvas', 400, 500)
@@ -389,6 +534,22 @@ describe('Canvas', () => {
         it('should undo a change of a block', () => {
             canvas.undo()
             expect(block.x()).toBe(0)
+        })
+        it('should undo a change of a relative size', async () => {
+            const parent = new Block({ width: 400, height: 300 })
+            const child = new Block({ width: '50%', height: 50 })
+            parent.addChild(child)
+            canvas.add(parent)
+            await flush()
+            expect(child.width()).toBe(200)
+            child.set({ width: 100 })
+            await flush()
+            expect(child.width()).toBe(100)
+            canvas.undo()
+            await flush()
+            // the size the block was asked for is restored, so the relative
+            // one is resolved against the parent again
+            expect(child.width()).toBe(200)
         })
         it('should redo an undone change', () => {
             canvas.undo()
@@ -641,6 +802,402 @@ describe('Canvas', () => {
                 new MouseEvent('mouseup', { bubbles: true })
             )
             expect(canvas.whoIsTheFirst(block.nodeId!)).toBe(false)
+        })
+    })
+
+    describe('stacking contexts', () => {
+        beforeEach(() => {
+            canvas = new Canvas('myCanvas', 400, 500)
+        })
+
+        describe('z index auto', () => {
+            it('should keep the z index of a block without one undefined', async () => {
+                const block = new Block({ width: 10, height: 10 })
+                canvas.add(block)
+                await flush()
+                expect(block.zIndex()).toBeUndefined()
+            })
+            it('should keep an explicit z index', async () => {
+                const block = new Block({ width: 10, height: 10, zIndex: 7 })
+                canvas.add(block)
+                await flush()
+                expect(block.zIndex()).toBe(7)
+            })
+            it('should paint a block which was added later above the previous one', async () => {
+                const first = paintedBlock(new Block({}), '#ff0000', 0, 0)
+                const second = paintedBlock(new Block({}), '#00ff00', 0, 0)
+                canvas.add(first)
+                await flush()
+                canvas.add(second)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+        })
+
+        describe('tree order', () => {
+            it('should paint a later sibling above an earlier one', async () => {
+                const first = paintedBlock(new Block({}), '#ff0000', 0, 0)
+                const second = paintedBlock(new Block({}), '#00ff00', 0, 0)
+                canvas.add(first, second)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+            it('should paint a later child of a parent above an earlier one', async () => {
+                const parent = new Block({ width: 200, height: 200 })
+                // absolute children are not laid out by the flexbox of their
+                // parent, so they overlap and their order can be asserted
+                const first = paintedBlock(
+                    new Block({ position: 'absolute' }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                const second = paintedBlock(
+                    new Block({ position: 'absolute' }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                parent.addChild(first)
+                parent.addChild(second)
+                canvas.add(parent)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+        })
+
+        describe('positive z index', () => {
+            it('should paint a block with a higher z index above the other one', async () => {
+                const lower = paintedBlock(
+                    new Block({ zIndex: 1 }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                const upper = paintedBlock(
+                    new Block({ zIndex: 5 }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                canvas.add(lower, upper)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+            it('should paint a block with a lower z index below the other one', async () => {
+                const lower = paintedBlock(
+                    new Block({ zIndex: 1 }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                const upper = paintedBlock(
+                    new Block({ zIndex: 5 }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                canvas.add(upper, lower)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+            it('should paint a block with a z index above a block without one', async () => {
+                const auto = paintedBlock(new Block({}), '#ff0000', 0, 0)
+                const indexed = paintedBlock(
+                    new Block({ zIndex: 1 }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                canvas.add(auto, indexed)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+            it('should keep the tree order between blocks with the same z index', async () => {
+                const first = paintedBlock(
+                    new Block({ zIndex: 3 }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                const second = paintedBlock(
+                    new Block({ zIndex: 3 }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                canvas.add(first, second)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+        })
+
+        describe('negative z index', () => {
+            it('should paint a block with a negative z index below a block without one', async () => {
+                const negative = paintedBlock(
+                    new Block({ zIndex: -1 }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                const auto = paintedBlock(new Block({}), '#00ff00', 0, 0)
+                canvas.add(negative, auto)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+            it('should paint the lowest negative z index at the bottom', async () => {
+                const lower = paintedBlock(
+                    new Block({ zIndex: -5 }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                const upper = paintedBlock(
+                    new Block({ zIndex: -1 }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                canvas.add(upper, lower)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+            it('should paint a negative z index below the content of its parent', async () => {
+                const parent = paintedBlock(new Block({}), '#0000ff', 0, 0, 200)
+                const negative = paintedBlock(
+                    new Block({ zIndex: -1, position: 'absolute' }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                parent.addChild(negative)
+                canvas.add(parent)
+                await flush()
+                // the negative child paints below the content of its parent
+                expect(pixelAt(canvas, 50, 50)).toEqual(BLUE)
+            })
+        })
+
+        describe('contexts', () => {
+            it('should confine the z index of a child to the context of its parent', async () => {
+                // the parent opens a context, so the child with the high z
+                // index stays inside of it and cannot escape above the
+                // sibling of the parent which has a lower z index
+                const parent = new Block({ zIndex: 1, width: 200, height: 200 })
+                const child = paintedBlock(
+                    new Block({ zIndex: 999, position: 'absolute' }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                parent.addChild(child)
+                const sibling = paintedBlock(
+                    new Block({ zIndex: 2 }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                canvas.add(parent, sibling)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(RED)
+            })
+            it('should paint a child above the content of its own parent', async () => {
+                const parent = paintedBlock(
+                    new Block({ zIndex: 1 }),
+                    '#0000ff',
+                    0,
+                    0,
+                    200
+                )
+                const child = paintedBlock(
+                    new Block({ zIndex: 1, position: 'absolute' }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                parent.addChild(child)
+                canvas.add(parent)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+            it('should not let a child escape the context of its parent', async () => {
+                // the parent has no z index, so it does not open a context and
+                // the child with the high z index is free to paint above the
+                // sibling of the parent
+                const parent = new Block({ width: 200, height: 200 })
+                const child = paintedBlock(
+                    new Block({ zIndex: 999, position: 'absolute' }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                parent.addChild(child)
+                const sibling = paintedBlock(
+                    new Block({ zIndex: 2 }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                canvas.add(parent, sibling)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(GREEN)
+            })
+            it('should keep the contexts of nested parents apart', async () => {
+                const outer = new Block({ zIndex: 1, width: 300, height: 300 })
+                const inner = new Block({
+                    zIndex: 1,
+                    width: 200,
+                    height: 200,
+                    position: 'absolute',
+                })
+                const child = paintedBlock(
+                    new Block({ zIndex: 999, position: 'absolute' }),
+                    '#00ff00',
+                    0,
+                    0
+                )
+                inner.addChild(child)
+                outer.addChild(inner)
+                const sibling = paintedBlock(
+                    new Block({ zIndex: 2 }),
+                    '#ff0000',
+                    0,
+                    0
+                )
+                canvas.add(outer, sibling)
+                await flush()
+                expect(pixelAt(canvas, 50, 50)).toEqual(RED)
+            })
+        })
+
+        describe('event dispatch', () => {
+            it('should invoke the events from the topmost block down', async () => {
+                const calls: string[] = []
+                const parent = new Block({ zIndex: 1 })
+                const child = new Block({ zIndex: 999 })
+                parent.addChild(child)
+                const sibling = new Block({ zIndex: 2 })
+                canvas.add(parent, sibling)
+                await flush()
+                canvas.demandAddEvent(parent, 'click', () =>
+                    calls.push('parent')
+                )
+                canvas.demandAddEvent(child, 'click', () => calls.push('child'))
+                canvas.demandAddEvent(sibling, 'click', () =>
+                    calls.push('sibling')
+                )
+                await flush()
+                canvas.canvas.dispatchEvent(
+                    new MouseEvent('click', { bubbles: true })
+                )
+                // the child is trapped inside of the context of its parent, so
+                // the sibling of the parent is painted above both of them and
+                // receives its event first, the child is painted above its
+                // parent and receives its event before the parent
+                expect(calls).toEqual(['sibling', 'child', 'parent'])
+            })
+        })
+
+        describe('hit testing', () => {
+            it('should hand the first place to the topmost block', async () => {
+                const lower = new Block({ zIndex: 1 })
+                const upper = new Block({ zIndex: 2 })
+                canvas.add(lower, upper)
+                await flush()
+                canvas.registerZIndex(lower.nodeId!, 1)
+                canvas.registerZIndex(upper.nodeId!, 2)
+                expect(canvas.whoIsTheFirst(upper.nodeId!)).toBe(true)
+                expect(canvas.whoIsTheFirst(lower.nodeId!)).toBe(false)
+            })
+            it('should hand the first place to the later block of the same z index', async () => {
+                const first = new Block({ zIndex: 3 })
+                const second = new Block({ zIndex: 3 })
+                canvas.add(first, second)
+                await flush()
+                canvas.registerZIndex(first.nodeId!, 3)
+                canvas.registerZIndex(second.nodeId!, 3)
+                // both blocks share the z index, the one which comes later in
+                // the tree order is painted above the other one
+                expect(canvas.whoIsTheFirst(second.nodeId!)).toBe(true)
+                expect(canvas.whoIsTheFirst(first.nodeId!)).toBe(false)
+            })
+            it('should not let a child escape the context of its parent', async () => {
+                const parent = new Block({ zIndex: 1 })
+                const child = new Block({ zIndex: 999 })
+                parent.addChild(child)
+                const sibling = new Block({ zIndex: 2 })
+                canvas.add(parent, sibling)
+                await flush()
+                canvas.registerZIndex(parent.nodeId!, 1)
+                canvas.registerZIndex(child.nodeId!, 999)
+                canvas.registerZIndex(sibling.nodeId!, 2)
+                // the sibling is painted above the whole subtree of the
+                // parent, so it is the first one even though the child has
+                // the highest z index
+                expect(canvas.whoIsTheFirst(sibling.nodeId!)).toBe(true)
+                expect(canvas.whoIsTheFirst(child.nodeId!)).toBe(false)
+                expect(canvas.whoIsTheFirst(parent.nodeId!)).toBe(false)
+            })
+        })
+
+        describe('helper blocks', () => {
+            it('should keep the hot lines and scroll bars with their owner', async () => {
+                // the hot lines and the scroll bars belong to the owner, so
+                // a block which was added after the owner covers them
+                const owner = new RectangleBlock({
+                    x: 50,
+                    y: 50,
+                    width: 100,
+                    height: 100,
+                    backgroundColor: 'red',
+                    selectable: true,
+                    hotLines: true,
+                    overflow: 'scroll',
+                })
+                const upper = new RectangleBlock({
+                    x: 50,
+                    y: 50,
+                    width: 120,
+                    height: 120,
+                    backgroundColor: 'blue',
+                })
+                canvas.add(owner, upper)
+                allowMouse(canvas)
+                await flush()
+                const element = (await page
+                    .elementLocator(canvas.canvas)
+                    .element()) as HTMLElement
+                dispatchMouse(element, 'mousedown', 100, 100, 1)
+                dispatchMouse(element, 'mouseup', 100, 100)
+                await flush(4)
+                // the corner square of the hot lines is covered by the
+                // block which was added after the owner
+                expect(pixelAt(canvas, 145, 145)).toEqual(BLUE)
+            })
+            it('should paint the hot lines above the scroll bars of the owner', async () => {
+                const owner = new RectangleBlock({
+                    x: 50,
+                    y: 50,
+                    width: 100,
+                    height: 100,
+                    backgroundColor: 'red',
+                    selectable: true,
+                    hotLines: true,
+                    overflow: 'scroll',
+                })
+                canvas.add(owner)
+                allowMouse(canvas)
+                await flush()
+                const element = (await page
+                    .elementLocator(canvas.canvas)
+                    .element()) as HTMLElement
+                dispatchMouse(element, 'mousedown', 100, 100, 1)
+                dispatchMouse(element, 'mouseup', 100, 100)
+                await flush(4)
+                // the corner square of the hot lines sits over the scroll
+                // bar, so it has to be painted above it
+                expect(pixelAt(canvas, 145, 145)).toEqual([0, 0, 255, 255])
+            })
         })
     })
 
