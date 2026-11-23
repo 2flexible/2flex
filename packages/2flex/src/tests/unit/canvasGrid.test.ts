@@ -80,4 +80,89 @@ describe('CanvasGrid', () => {
 
         expect(grid.allTiles.length).toBeGreaterThan(0)
     })
+    it('should rasterize the tiles at one by default', () => {
+        const grid = new CanvasGrid(400, 400, 256)
+
+        expect(grid.allTiles.every((tile) => tile.renderScale === 1)).toBe(true)
+    })
+    it('should mark the tiles dirty when the render scale changes', () => {
+        const grid = new CanvasGrid(400, 400, 256)
+        const tile = tileAt(grid, 0, 0)!
+        tile.dirty = false
+
+        grid.setRenderScale(2)
+
+        expect(tile.renderScale).toBe(2)
+        expect(tile.dirty).toBe(true)
+    })
+    it('should keep the tiles clean when the render scale stays the same', () => {
+        const grid = new CanvasGrid(400, 400, 256)
+        const tile = tileAt(grid, 0, 0)!
+        tile.dirty = false
+
+        grid.setRenderScale(1)
+
+        expect(tile.renderScale).toBe(1)
+        expect(tile.dirty).toBe(false)
+    })
+    it('should grow the tile buffer with the render scale', () => {
+        const grid = new CanvasGrid(400, 400, 256)
+        const tile = tileAt(grid, 0, 0)!
+
+        grid.setRenderScale(2)
+        tile.paint([])
+
+        // the tile holds two pixels per world unit
+        expect(tile.dummyCanvas.width).toBe(512)
+        expect(tile.dummyCanvas.height).toBe(512)
+    })
+    it('should draw the world coordinates into the tile pixels', () => {
+        const grid = new CanvasGrid(400, 400, 256)
+        const block = makeBlock(1, 10, 20)
+        grid.addBlock(block)
+
+        const mapped: { x: number; y: number }[] = []
+        block.render = () => {
+            const context = block.context
+            if (!context) return
+            const point = new DOMPoint(10, 20).matrixTransform(
+                context.getTransform()
+            )
+            mapped.push({ x: point.x, y: point.y })
+        }
+
+        const tile = tileAt(grid, 0, 0)!
+        tile.paint([block])
+        // one world unit is one pixel
+        expect(mapped[0]).toEqual({ x: 10, y: 20 })
+
+        grid.setRenderScale(2)
+        tile.paint([block])
+        // one world unit is two pixels now
+        expect(mapped[1]).toEqual({ x: 20, y: 40 })
+    })
+    it('should draw a block relative to the origin of its tile', () => {
+        const grid = new CanvasGrid(400, 400, 256)
+        const block = makeBlock(1, 300, 300)
+        grid.addBlock(block)
+
+        const mapped: { x: number; y: number }[] = []
+        block.render = () => {
+            const context = block.context
+            if (!context) return
+            const point = new DOMPoint(300, 300).matrixTransform(
+                context.getTransform()
+            )
+            mapped.push({ x: point.x, y: point.y })
+        }
+
+        // the second tile starts at world (256, 256)
+        const tile = tileAt(grid, 1, 1)!
+        tile.paint([block])
+        expect(mapped[0]).toEqual({ x: 44, y: 44 })
+
+        grid.setRenderScale(2)
+        tile.paint([block])
+        expect(mapped[1]).toEqual({ x: 88, y: 88 })
+    })
 })

@@ -830,6 +830,7 @@ export function validateCanvasSettings(
             case 'positionZ':
             case 'fps':
             case 'tileSize':
+            case 'maxQuality':
                 if (
                     typeof value !== 'number' ||
                     !Number.isFinite(value) ||
@@ -839,6 +840,19 @@ export function validateCanvasSettings(
                         method,
                         field,
                         'a finite positive number',
+                        value
+                    )
+                break
+            case 'qualitySettleDelay':
+                if (
+                    typeof value !== 'number' ||
+                    !Number.isFinite(value) ||
+                    value < 0
+                )
+                    invalidArgument(
+                        method,
+                        field,
+                        'a finite nonnegative number',
                         value
                     )
                 break

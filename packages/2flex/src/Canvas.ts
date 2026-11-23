@@ -33,7 +33,7 @@ import {
 } from './const'
 
 // Canvas options shouldn't be style properties
-interface CanvasOptions {
+export interface CanvasOptions {
     zoomSpeed?: number
     zoomInvSpeed?: number
     moveSpeed?: number
@@ -47,6 +47,8 @@ interface CanvasOptions {
     positionZ?: number
     fps?: number
     tileSize?: number
+    qualitySettleDelay?: number
+    maxQuality?: number
 }
 
 interface DefaultCanvasOptions extends Required<{
@@ -59,7 +61,7 @@ interface CanvasCurrentPosition {
     z: number
 }
 
-interface CanvasView {
+export interface CanvasView {
     tx: number
     ty: number
     scale: number
@@ -126,6 +128,10 @@ export class Canvas {
 
     view: CanvasView
 
+    #renderScale: number
+    #targetRenderScale: number
+    #lastZoomTime: number
+
     #canvasEvents: CanvasEvents
     #canvasAnimations: { [animationId: AnimationId]: Animator }
 
@@ -168,9 +174,15 @@ export class Canvas {
             positionZ: 1,
             fps: 60,
             tileSize: 256,
+            qualitySettleDelay: 150,
+            maxQuality: 2,
         }
 
         this.view = { tx: 0, ty: 0, scale: 1 }
+
+        this.#renderScale = 1
+        this.#targetRenderScale = 1
+        this.#lastZoomTime = 0
 
         this.#canvasEvents = {}
         this.#canvasAnimations = {}
@@ -191,6 +203,9 @@ export class Canvas {
             this.height,
             this.#defaultOptions.tileSize
         )
+        this.#targetRenderScale = this.#computeRenderScale()
+        this.#renderScale = this.#targetRenderScale
+        this.#grid.setRenderScale(this.#renderScale)
         this.#queue = {}
         this.#scene = new CanvasScene()
         this.#history = new History(this.#defaultOptions.historySize)
@@ -229,6 +244,10 @@ export class Canvas {
             this.#defaultOptions.tileSize = options.tileSize
             this.#grid?.resize(this.width, this.height)
         }
+        if (options.qualitySettleDelay !== undefined)
+            this.#defaultOptions.qualitySettleDelay = options.qualitySettleDelay
+        if (options.maxQuality !== undefined)
+            this.#defaultOptions.maxQuality = options.maxQuality
 
         this.view = {
             tx: this.#defaultOptions.positionX,
@@ -377,6 +396,8 @@ export class Canvas {
                 this.view.tx = cx - (cx - this.view.tx) * k
                 this.view.ty = cy - (cy - this.view.ty) * k
                 this.view.scale *= k
+                this.#markZoomActivity()
+                this.#primeGrid()
                 this.#demandInvokeExplicitBlocks()
             },
             { passive: false }
@@ -396,6 +417,8 @@ export class Canvas {
                 this.view.tx = x - (x - this.view.tx) * k
                 this.view.ty = y - (y - this.view.ty) * k
                 this.view.scale *= k
+                this.#markZoomActivity()
+                this.#primeGrid()
                 this.#demandInvokeExplicitBlocks()
             },
             { passive: false }
@@ -435,9 +458,28 @@ export class Canvas {
         this.#invokeAnimations(timestamp)
         this.#renderCachedBlocks()
         this.#refreshHead()
+        this.#applyPendingQuality(timestamp)
         this.#drawCachedBlocks()
         this.#buildDemandedHistory()
         this.#clearQueue()
+    }
+    #computeRenderScale(): number {
+        const maxQuality = this.#defaultOptions.maxQuality
+        const target = this.view.scale * this.#domCanvas.pixelRatio
+        if (!Number.isFinite(target)) return 1
+        return Math.min(Math.max(target, 1), maxQuality)
+    }
+    #markZoomActivity() {
+        this.#lastZoomTime = performance.now()
+        this.#targetRenderScale = this.#computeRenderScale()
+    }
+    #applyPendingQuality(timestamp: Timestamp) {
+        if (this.#targetRenderScale === this.#renderScale) return
+        const settleDelay = this.#defaultOptions.qualitySettleDelay
+        if (timestamp - this.#lastZoomTime < settleDelay) return
+        this.#renderScale = this.#targetRenderScale
+        // the cached pixels belong to the previous density
+        this.#grid.setRenderScale(this.#renderScale)
     }
     #clearQueue() {
         this.#queue = {}
@@ -464,10 +506,11 @@ export class Canvas {
         const tiles = this.#grid.allTiles
         if (tiles.length === 0) return
         const v = this.view
+        const dpr = this.#domCanvas.pixelRatio
 
         context.save()
         context.setTransform(1, 0, 0, 1, 0, 0)
-        context.clearRect(0, 0, this.width, this.height)
+        context.clearRect(0, 0, this.width * dpr, this.height * dpr)
 
         const vw = this.width / v.scale
         const vh = this.height / v.scale
@@ -476,7 +519,14 @@ export class Canvas {
         const wMaxX = wMinX + vw
         const wMaxY = wMinY + vh
 
-        context.setTransform(v.scale, 0, 0, v.scale, v.tx, v.ty)
+        context.setTransform(
+            v.scale * dpr,
+            0,
+            0,
+            v.scale * dpr,
+            v.tx * dpr,
+            v.ty * dpr
+        )
         const sortedBlocks = this.#scene.getSortedBlocksByZIndex()
         const tileSize = this.#grid.tileSize
         for (const tile of tiles) {
@@ -882,6 +932,9 @@ export class Canvas {
     }
     get currentPosition(): CanvasCurrentPosition {
         return { x: this.view.tx, y: this.view.ty, z: this.view.scale }
+    }
+    get renderScale(): number {
+        return this.#renderScale
     }
     getCursorPosition(event: MouseEvent | WheelEvent) {
         if (

@@ -12,25 +12,46 @@ export class GridTile {
     context?: OffscreenCanvasRenderingContext2D | null
     bitmap?: ImageBitmap
     dirty: boolean
+    // the density the tile was rasterized at
+    renderScale: number
 
     constructor(col: number, row: number, tileSize: number) {
         this.col = col
         this.row = row
         this.tileSize = tileSize
+        this.renderScale = 1
         this.dummyCanvas = new DummyCanvas(tileSize, tileSize)
         this.blocks = new Set()
         this.dirty = true
         this.context = this.dummyCanvas.context
     }
 
+    #syncBufferSize() {
+        const size = Math.round(this.tileSize * this.renderScale)
+        this.dummyCanvas.resize(size, size)
+        this.context = this.dummyCanvas.context
+    }
+
+    setRenderScale(renderScale: number) {
+        if (this.renderScale === renderScale) return
+        this.renderScale = renderScale
+        this.#syncBufferSize()
+        this.dirty = true
+    }
+
     paint(sortedBlocks: BaseBlock[]) {
-        this.context?.clearRect(0, 0, this.tileSize, this.tileSize)
+        this.#syncBufferSize()
+        const density = this.renderScale
+        const pixelSize = this.tileSize * density
+        this.context?.clearRect(0, 0, pixelSize, pixelSize)
         const ox = this.col * this.tileSize
         const oy = this.row * this.tileSize
         for (const block of sortedBlocks) {
             if (!this.blocks.has(block) || !this.context) continue
             block.context = this.context
             this.context.save()
+            // one world unit is drawn as `density` pixels
+            this.context.setTransform(density, 0, 0, density, 0, 0)
             this.context.translate(-ox, -oy)
             block.render()
             this.context.restore()
@@ -338,6 +359,12 @@ export class CanvasGrid {
 
     markAllDirty() {
         for (const tile of this.#tiles.values()) tile.dirty = true
+    }
+
+    // changes the density of every tile
+    setRenderScale(renderScale: number) {
+        for (const tile of this.#tiles.values())
+            tile.setRenderScale(renderScale)
     }
 
     getDirtyTiles(): GridTile[] {

@@ -1,4 +1,5 @@
 import { Canvas } from './Canvas'
+import type { CanvasOptions, CanvasView } from './Canvas'
 import { BaseBlock } from './BaseBlock'
 import type { BaseBlockOptions } from './BaseBlock'
 import type {
@@ -110,6 +111,8 @@ export {
 
 export type {
     BaseBlockOptions,
+    CanvasOptions,
+    CanvasView,
     BlockOptionsOf,
     ColorType,
     OptionAccessor,

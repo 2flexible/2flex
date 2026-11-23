@@ -16,6 +16,15 @@ export class DummyCanvas {
         const rounded = Math.floor(size)
         return rounded > 0 ? rounded : 1
     }
+    resize(width: number, height: number) {
+        const nextWidth = DummyCanvas.#dimension(width)
+        const nextHeight = DummyCanvas.#dimension(height)
+        if (nextWidth === this.width && nextHeight === this.height) return
+        this.width = nextWidth
+        this.height = nextHeight
+        this.#context = null
+        this.#offscreenCanvas = new OffscreenCanvas(nextWidth, nextHeight)
+    }
     get context() {
         if (!this.#context)
             this.#context = this.#offscreenCanvas?.getContext('2d')
