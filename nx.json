@@ -44,5 +44,6 @@
             "inputs": ["default", "^production"],
             "outputs": ["{projectRoot}/tsbuild"]
         }
-    }
+    },
+    "nxCloudId": "6b07f6fc2d330f7dcef78510"
 }
