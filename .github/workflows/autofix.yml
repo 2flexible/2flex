@@ -1,0 +1,54 @@
+name: autofix.ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'v[0-9]', '*-pre', '*-maint']
+  workflow_dispatch:
+    inputs:
+      generate-docs:
+        description: 'Generate docs'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  autofix:
+    # The workflow skips a push that carries its own commit, otherwise it
+    # would run again and again. Only the subject of the commit is checked,
+    # a squash merge lists the commits of the branch in the body.
+    if: "${{ !startsWith(github.event.head_commit.message, 'ci: apply automated fixes') }}"
+    name: autofix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Setup Tools
+        uses: voidzero-dev/setup-vp@v1.22.0
+        with:
+          node-version: '24'
+          cache: true
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      # The reference is generated from the sources of the library. It is
+      # only generated on a push, a pull request would carry a diff of
+      # thousands of lines that has nothing to do with the change.
+      - name: Generate the reference
+        if: ${{ github.event_name == 'push' || github.event.inputs.generate-docs == true }}
+        run: pnpm run generate-docs
+      - name: Fix formatting
+        run: pnpm run format
+      - name: Apply fixes
+        uses: autofix-ci/action@635ffb0c9798bd160680f18fd73371e355b85f27
+        with:
+          commit-message: 'ci: apply automated fixes'
+          fail-fast: ${{ github.event_name == 'pull_request' }}

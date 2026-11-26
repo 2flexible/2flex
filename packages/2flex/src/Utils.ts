@@ -13,36 +13,96 @@ import {
 import { RelativeType } from './types'
 import { Node } from './Node'
 
+/**
+ * Converts a percentage into pixels.
+ *
+ * @param from - The percentage.
+ * @param parentSize - The size of the parent the percentage is related to.
+ */
 export function fromPercentage(from: number, parentSize: number) {
     return (from * parentSize) / 100
 }
+/**
+ * Converts a percentage of the width of the viewport into pixels.
+ *
+ * @param from - The percentage.
+ * @param parentWidth - The width of the viewport.
+ */
 export function fromVW(from: number, parentWidth: number) {
     return (from * parentWidth) / 100
 }
+/**
+ * Converts a percentage of the height of the viewport into pixels.
+ *
+ * @param from - The percentage.
+ * @param parentHeight - The height of the viewport.
+ */
 export function fromVH(from: number, parentHeight: number) {
     return (from * parentHeight) / 100
 }
+/**
+ * Converts a value of the root font size into pixels.
+ *
+ * @param from - The value.
+ * @param parentSize - The size of the root font.
+ */
 export function fromRem(from: number, parentSize: number) {
     return from * parentSize
 }
+/**
+ * Converts a value of the font size into pixels.
+ *
+ * @param from - The value.
+ * @param parentSize - The size of the font.
+ */
 export function fromEm(from: number, parentSize: number) {
     return from * parentSize
 }
+/**
+ * Converts a value of centimeters into pixels.
+ *
+ * @param from - The value in centimeters.
+ */
 export function fromCm(from: number) {
     return from * 37.8
 }
+/**
+ * Converts a value of millimeters into pixels.
+ *
+ * @param from - The value in millimeters.
+ */
 export function fromMm(from: number) {
     return (fromCm(1) / 10) * from
 }
+/**
+ * Converts a value of quarter centimeters into pixels.
+ *
+ * @param from - The value in quarter centimeters.
+ */
 export function fromQ(from: number) {
     return (fromCm(1) / 40) * from
 }
+/**
+ * Converts a value of inches into pixels.
+ *
+ * @param from - The value in inches.
+ */
 export function fromIn(from: number) {
     return fromCm(2.54) * from
 }
+/**
+ * Converts a value of picas into pixels.
+ *
+ * @param from - The value in picas.
+ */
 export function fromPc(from: number) {
     return (fromIn(1) / 6) * from
 }
+/**
+ * Converts a value of points into pixels.
+ *
+ * @param from - The value in points.
+ */
 export function fromPt(from: number) {
     return (fromIn(1) / 72) * from
 }
@@ -92,10 +152,20 @@ export function checkInBound(
     return false
 }
 
+/**
+ * Converts an angle in radians into degrees.
+ *
+ * @param radian - The angle in radians.
+ */
 export function radianToDegree(radian: number): number {
     return (radian * 180) / Math.PI
 }
 
+/**
+ * Converts an angle in degrees into radians.
+ *
+ * @param degree - The angle in degrees.
+ */
 export function degreeToRadian(degree: number): number {
     return (degree * Math.PI) / 180
 }
@@ -193,6 +263,13 @@ export function cubicBezier(
     )
 }
 
+/**
+ * Calculates the value between two numbers.
+ *
+ * @param start - The number the calculation starts at.
+ * @param end - The number the calculation ends at.
+ * @param t - The position between the two numbers, from `0` to `1`.
+ */
 export function lerp(start: number, end: number, t: number) {
     return start + (end - start) * t
 }
@@ -231,10 +308,22 @@ export function steps(step: number, position: JumpPosition): StepsEasing {
     }
 }
 
+/**
+ * Keeps a number between two limits.
+ *
+ * @param num - The number that is kept between the limits.
+ * @param min - The smallest number the result can be.
+ * @param max - The biggest number the result can be.
+ */
 export function clamp(num: number, min: number, max: number) {
     return Math.min(Math.max(num, min), max)
 }
 
+/**
+ * Keeps the size of a block at a value that can be drawn.
+ *
+ * @param value - The size that is kept.
+ */
 export function clampSize(value: number) {
     if (value > 0) return clamp(value, 1, 4096)
     if (value < 0) return clamp(value, -4096, -1)
@@ -259,6 +348,11 @@ export const namedColors: { [key: string]: string } = {
     teal: '#008080',
     aqua: '#00ffff',
 }
+/**
+ * Converts a hexadecimal color into a color with an alpha channel.
+ *
+ * @param hex - The color, for example `#ff0000`.
+ */
 export function hexToRgba(hex: string) {
     let value = hex.startsWith('#') ? hex.substring(1) : hex
     // the shorthand form repeats every digit, so `#f00` becomes `#ff0000` and
@@ -279,6 +373,11 @@ export function hexToRgba(hex: string) {
     return rgbaRepresenter([R, G, B, A])
 }
 
+/**
+ * Converts a color of the hsl space into a color with an alpha channel.
+ *
+ * @param hsl - The color, for example `hsl(0, 100%, 50%)`.
+ */
 export function hslToRgba(hsl: string): string {
     const colors = hsl.match(/-?\d+\.?\d*/g) || []
     const H = (((Number(colors[0]) || 0) % 360) + 360) % 360 // Normalize hue to 0-359
@@ -333,6 +432,13 @@ export function hslToRgba(hsl: string): string {
     return rgbaRepresenter([R, G, B, A])
 }
 
+/**
+ * Converts a color into a color with an alpha channel.
+ *
+ * The color can be written as a hexadecimal value or in the hsl space.
+ *
+ * @param color - The color that is converted.
+ */
 export function colorToRgba(color: string) {
     return hexToRgba(namedColors[color])
 }
@@ -383,6 +489,13 @@ export function getOwnPrototype(
 ): PropertyDescriptor | undefined {
     return Object.getOwnPropertyDescriptor(proto, key)
 }
+/**
+ * Tells whether a number is between two limits.
+ *
+ * @param value - The number that is checked.
+ * @param great - The smallest number the result can be.
+ * @param less - The biggest number the result can be.
+ */
 export function inRange(value: number, great: number, less: number) {
     return value >= great && value <= less
 }
@@ -517,7 +630,11 @@ export function stationaryPoints(
     })
 }
 
-// Extends a block class with typed option accessors and set() for TOptions
+/**
+ * Adds the typed option accessors and the method `set` to a block class.
+ *
+ * @returns A function that takes the class and returns it with the accessors.
+ */
 export function extendBlock<TOptions extends BaseBlockOptions>() {
     return <TBase extends abstract new (...args: never[]) => BaseBlock>(
         BaseClass: TBase

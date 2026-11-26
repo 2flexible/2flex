@@ -6,6 +6,9 @@ export interface ImageBlockOptions extends MediaLayoutBlockOptions {}
 type ImageSourceFactory = (mediaSource?: HTMLImageElement) => HTMLImageElement
 type ImageBlockSource = string | ImageSourceFactory | CanvasImageSource
 
+/**
+ * An image that is drawn onto the canvas.
+ */
 export class ImageBlock<
     T extends ImageBlockOptions = ImageBlockOptions,
 > extends MediaLayoutBlock<T> {

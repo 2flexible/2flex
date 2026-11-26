@@ -12,7 +12,7 @@
   </a>
 </p>
 <p align="center">
- <a href="https://2flexible.com/">Playground</a> | <a href="https://2flexible.com/docs/documentation/introduction">Introduction</a> | <a href="https://2flexible.com/docs/documentation/installation">Installation</a> | <a href="https://2flexible.com/docs/documentation/guide/the-block">Guide</a> | <a href="https://2flexible.com/docs/api/Canvas">API Docs</a> | <a href="https://x.com/2flexiible">𝕏</a>
+ <a href="https://2flexible.com/">Playground</a> | <a href="https://2flexible.com/docs/">Introduction</a> | <a href="https://2flexible.com/docs/install/">Installation</a> | <a href="https://2flexible.com/docs/the-block/">Guide</a> | <a href="https://2flexible.com/api/canvas/">API Docs</a> | <a href="https://x.com/2flexiible">𝕏</a>
 </p>
 
 # 2flex

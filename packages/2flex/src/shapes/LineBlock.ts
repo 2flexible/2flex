@@ -123,6 +123,9 @@ const CONTROLPOINT_PROPERTY_NAMES = [
     'stickyEnd',
 ]
 
+/**
+ * A straight or a curved line with editable control points.
+ */
 export class LineBlock<
     T extends LineBlockOptions = LineBlockOptions,
 > extends ShapeBlock<T> {

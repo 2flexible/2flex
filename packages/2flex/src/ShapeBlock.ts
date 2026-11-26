@@ -176,81 +176,262 @@ export type DrawFunc = (context: OffscreenCanvasRenderingContext2D) => void
 export type DropShadow = [RelativeType, RelativeType, RelativeType, FillStyle]
 
 export interface ShapeBlockOptions extends BlockOptions {
+    /**
+     * The style the shape is filled with.
+     */
     fill?: Fill
+    /**
+     * The way a shape is filled.
+     */
     fillStyle?: ResolvedAs<FillStyle, FillStyle | undefined>
 
+    /**
+     * The style the outline of the shape is drawn with.
+     */
     stroke?: Stroke
+    /**
+     * The way an outline is drawn.
+     */
     strokeStyle?: ResolvedAs<StrokeStyle, StrokeStyle | undefined>
 
+    /**
+     * The point a line is drawn to.
+     */
     lineTo?: XY
+    /**
+     * The width of the line.
+     */
     lineWidth?: RelativeType
+    /**
+     * The dashes the line is drawn with.
+     */
     lineDash?: LineDash
+    /**
+     * The way the ends of the line are drawn.
+     */
     lineCap?: CanvasLineCap
+    /**
+     * The distance the dashes are moved by.
+     */
     lineDashOffset?: CanvasPathDrawingStyles['lineDashOffset']
+    /**
+     * The way the corners of the line are drawn.
+     */
     lineJoin?: CanvasLineJoin
 
+    /**
+     * The limit of the length of the corners of the line.
+     */
     miterLimit?: CanvasPathDrawingStyles['miterLimit']
 
+    /**
+     * The arc or the circle that is drawn.
+     */
     arc?: Arc
+    /**
+     * The arc that is drawn to the corner between two lines.
+     */
     arcTo?: ArcTo
+    /**
+     * The ellipse that is drawn.
+     */
     ellipse?: Ellipse
 
+    /**
+     * The curve of a Bézier that is drawn.
+     */
     bezierCurveTo?: BezierCurveToOpt
+    /**
+     * The curve of a quadratic Bézier that is drawn.
+     */
     quadraticCurveTo?: QuadraticCurveToOpt
 
+    /**
+     * The rectangle that is drawn.
+     */
     rect?: RectOpt
+    /**
+     * The rectangle with rounded corners that is drawn.
+     */
     roundRect?: RoundRectOpt
+    /**
+     * The rectangle that is filled.
+     */
     fillRect?: RectOpt
+    /**
+     * The rectangle whose outline is drawn.
+     */
     strokeRect?: RectOpt
 
+    /**
+     * The point that is tested against the path of the shape.
+     */
     pointInPath?: PointInPath
+    /**
+     * The point that is tested against the outline of the shape.
+     */
     pointInStroke?: PointInStroke
 
+    /**
+     * The point the path of the shape starts at.
+     */
     moveTo?: XY
 
+    /**
+     * The radial gradient that is used to fill the shape.
+     */
     radialGradient?: RadialGradient
+    /**
+     * The linear gradient that is used to fill the shape.
+     */
     linearGradient?: LinearGradient
+    /**
+     * The conic gradient that is used to fill the shape.
+     */
     conicGradient?: ConicGradient
+    /**
+     * The stops of the gradient.
+     */
     colorStops?: GradientStops[]
 
+    /**
+     * The blur that is applied to the shape.
+     */
     blur?: RelativeType | RelativeType[]
+    /**
+     * The brightness that is applied to the shape.
+     */
     brightness?: RelativeType | RelativeType[]
+    /**
+     * The contrast that is applied to the shape.
+     */
     contrast?: RelativeType | RelativeType[]
+    /**
+     * The shadow that is dropped behind the shape.
+     */
     dropShadow?: DropShadow | DropShadow[]
+    /**
+     * The amount of gray the shape is drawn with.
+     */
     grayscale?: RelativeType | RelativeType[]
+    /**
+     * The shift of the colors of the shape.
+     */
     hueRotate?: RelativeType | RelativeType[]
+    /**
+     * The amount of color the shape is drawn with.
+     */
     saturate?: RelativeType | RelativeType[]
+    /**
+     * The amount of sepia the shape is drawn with.
+     */
     sepia?: RelativeType | RelativeType[]
 
+    /**
+     * The blur of the shadow of the shape.
+     */
     shadowBlur?: RelativeType
+    /**
+     * The color of the shadow of the shape.
+     */
     shadowColor?: ResolvedAs<ColorType, ColorType | undefined>
+    /**
+     * The horizontal offset of the shadow of the shape.
+     */
     shadowOffsetX?: RelativeType
+    /**
+     * The vertical offset of the shadow of the shape.
+     */
     shadowOffsetY?: RelativeType
 
+    /**
+     * The text that is filled into the shape.
+     */
     fillText?: DrawText
+    /**
+     * The text whose outline is drawn.
+     */
     strokeText?: DrawText
+    /**
+     * The font the text is drawn with.
+     */
     font?: TextType
+    /**
+     * The width of the font.
+     */
     fontStretch?: CanvasFontStretch
+    /**
+     * The way the letters of the font are placed.
+     */
     fontKerning?: CanvasFontKerning
+    /**
+     * The way the capitals of the font are drawn.
+     */
     fontVariantCaps?: CanvasFontVariantCaps
+    /**
+     * The line the text is placed on.
+     */
     textBaseline?: CanvasTextBaseline
+    /**
+     * The way the text is drawn.
+     */
     textRendering?: CanvasTextRendering
+    /**
+     * The space between the words of the text.
+     */
     wordSpacing?: RelativeType
+    /**
+     * The space between the letters of the text.
+     */
     letterSpacing?: RelativeType
+    /**
+     * The direction the text is written in.
+     */
     direction?: CanvasDirection
+    /**
+     * The way the text is aligned in its block.
+     */
     textAlign?: CanvasTextAlign
 
+    /**
+     * The path the children of the block are clipped with.
+     */
     clip?: Clip
 
+    /**
+     * The image that is drawn.
+     */
     drawImage?: DrawImage
+    /**
+     * The pattern the shape is filled with.
+     */
     pattern?: Pattern
+    /**
+     * Whether the image is smoothed while it is scaled.
+     */
     imageSmoothingEnabled?: boolean
+    /**
+     * The quality of the smoothing of the image.
+     */
     imageSmoothingQuality?: ImageSmoothingQuality
 
+    /**
+     * The way the shape is drawn onto the canvas.
+     */
     globalCompositeOperation?: GlobalCompositeOperation
+    /**
+     * The opacity the shape is drawn with.
+     */
     globalAlpha?: number
 }
 
+/**
+ * A block that draws onto the canvas.
+ *
+ * The class gives a block access to the rendering context of the canvas. The
+ * options of the block are the calls of the context, they are written to it
+ * before the block is drawn.
+ */
 export class ShapeBlock<
     T extends ShapeBlockOptions = ShapeBlockOptions,
 > extends Block<T> {

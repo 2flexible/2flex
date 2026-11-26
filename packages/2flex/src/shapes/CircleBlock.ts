@@ -14,13 +14,39 @@ export type BorderColor = string
 export type CircleBorder = [BorderWidth, BorderStyle, BorderColor]
 
 export interface CircleBlockOptions extends ShapeBlockOptions {
+    /**
+     * The angle the circle starts at, in radians.
+     */
     startAngle?: RelativeType
+    /**
+     * The angle the circle ends at, in radians.
+     *
+     * The value `2 * Math.PI` draws a whole circle.
+     */
     endAngle?: RelativeType
+    /**
+     * The radius of the hole of a pie slice or of a ring.
+     */
     innerRadius?: RelativeType
+    /**
+     * The color the circle is filled with.
+     */
     backgroundColor?: ColorType
+    /**
+     * The outline of the circle.
+     */
     border?: CircleBorder | string
+    /**
+     * The way the outline of the circle is drawn.
+     */
     borderStyle?: BorderStyle
+    /**
+     * The width of the outline of the circle.
+     */
     borderWidth?: BorderWidth
+    /**
+     * The color of the outline of the circle.
+     */
     borderColor?: ColorType
 }
 
@@ -35,6 +61,9 @@ const DEFAULT_BORDER_STYLE: BorderStyle = 'solid'
 const DEFAULT_LINE_JOIN: CanvasLineJoin = 'round'
 const DEFAULT_LINE_CAP: CanvasLineCap = 'round'
 
+/**
+ * A circle, an ellipse, an arc or a pie slice.
+ */
 export class CircleBlock<
     T extends CircleBlockOptions = CircleBlockOptions,
 > extends ShapeBlock<T> {

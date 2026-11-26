@@ -1,7 +1,5 @@
 import { Canvas } from './Canvas'
 import { type CanvasOptions, type CanvasView } from './Canvas'
-import { BaseBlock } from './BaseBlock'
-import { type BaseBlockOptions } from './BaseBlock'
 import {
     type BlockOptionsOf,
     type ColorType,
@@ -68,7 +66,6 @@ import {
 } from './Utils'
 export {
     Canvas,
-    BaseBlock,
     extendBlock,
     Block,
     LayoutBlock,
@@ -110,7 +107,6 @@ export {
 }
 
 export type {
-    BaseBlockOptions,
     CanvasOptions,
     CanvasView,
     BlockOptionsOf,

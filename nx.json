@@ -43,6 +43,10 @@
             "dependsOn": ["^compile"],
             "inputs": ["default", "^production"],
             "outputs": ["{projectRoot}/tsbuild"]
+        },
+        "test:docs": {
+            "cache": true,
+            "inputs": ["{workspaceRoot}/docs/**/*"]
         }
     },
     "nxCloudId": "6b07f6fc2d330f7dcef78510"

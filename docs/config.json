@@ -1,0 +1,203 @@
+{
+    "$schema": "./config.schema.json",
+    "sections": [
+        {
+            "label": "Getting Started",
+            "tab": "get-started",
+            "children": [
+                {
+                    "label": "Introduction",
+                    "to": "introduction"
+                },
+                {
+                    "label": "Installation",
+                    "to": "install"
+                },
+                {
+                    "label": "Overview",
+                    "to": "overview"
+                },
+                {
+                    "label": "Your First Scene",
+                    "to": "first-scene"
+                },
+                {
+                    "label": "The Block",
+                    "to": "the-block"
+                },
+                {
+                    "label": "Coordinates",
+                    "to": "coordinates"
+                },
+                {
+                    "label": "Units and Utilities",
+                    "to": "units-and-utilities"
+                }
+            ]
+        },
+        {
+            "label": "Guide",
+            "tab": "guides",
+            "children": [
+                {
+                    "label": "Positioning",
+                    "to": "positioning"
+                },
+                {
+                    "label": "Transformation",
+                    "to": "transform"
+                },
+                {
+                    "label": "Layout",
+                    "to": "layout"
+                },
+                {
+                    "label": "Nesting",
+                    "to": "nesting"
+                },
+                {
+                    "label": "Events",
+                    "to": "events"
+                },
+                {
+                    "label": "Animation",
+                    "to": "animation"
+                },
+                {
+                    "label": "Viewport",
+                    "to": "viewport"
+                },
+                {
+                    "label": "Chrome",
+                    "to": "chrome"
+                },
+                {
+                    "label": "Text",
+                    "to": "text"
+                },
+                {
+                    "label": "Media",
+                    "to": "media"
+                },
+                {
+                    "label": "Primitives",
+                    "to": "primitives"
+                },
+                {
+                    "label": "Custom Drawing",
+                    "to": "custom-drawing"
+                },
+                {
+                    "label": "Custom Blocks",
+                    "to": "custom-blocks"
+                }
+            ]
+        },
+        {
+            "label": "Shapes",
+            "tab": "guides",
+            "children": [
+                {
+                    "label": "Rectangle",
+                    "to": "rectangle"
+                },
+                {
+                    "label": "Circle",
+                    "to": "circle"
+                },
+                {
+                    "label": "Text",
+                    "to": "text"
+                },
+                {
+                    "label": "Line",
+                    "to": "line"
+                },
+                {
+                    "label": "Image",
+                    "to": "image"
+                },
+                {
+                    "label": "Video",
+                    "to": "video"
+                }
+            ]
+        },
+        {
+            "label": "Advanced",
+            "tab": "guides",
+            "children": [
+                {
+                    "label": "Canvas",
+                    "to": "canvas"
+                },
+                {
+                    "label": "Custom Shape",
+                    "to": "custom-shape"
+                },
+                {
+                    "label": "Custom Block",
+                    "to": "custom-block"
+                },
+                {
+                    "label": "Customization",
+                    "to": "customization"
+                }
+            ]
+        },
+        {
+            "label": "API Reference",
+            "tab": "api",
+            "children": [
+                {
+                    "label": "API Index",
+                    "to": "api-index"
+                },
+                {
+                    "label": "Canvas",
+                    "to": "api/canvas"
+                },
+                {
+                    "label": "Block",
+                    "to": "api/block"
+                },
+                {
+                    "label": "LayoutBlock",
+                    "to": "api/layout-block"
+                },
+                {
+                    "label": "ShapeBlock",
+                    "to": "api/shape-block"
+                },
+                {
+                    "label": "RectangleBlock",
+                    "to": "api/rectangle-block"
+                },
+                {
+                    "label": "CircleBlock",
+                    "to": "api/circle-block"
+                },
+                {
+                    "label": "TextBlock",
+                    "to": "api/text-block"
+                },
+                {
+                    "label": "LineBlock",
+                    "to": "api/line-block"
+                },
+                {
+                    "label": "ImageBlock",
+                    "to": "api/image-block"
+                },
+                {
+                    "label": "VideoBlock",
+                    "to": "api/video-block"
+                },
+                {
+                    "label": "Utilities",
+                    "to": "api/utils"
+                }
+            ]
+        }
+    ]
+}

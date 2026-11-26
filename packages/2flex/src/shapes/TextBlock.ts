@@ -23,19 +23,65 @@ import { clampSize, inRange, invalidArgument } from '../Utils'
 type Wrap = 'letter' | 'word' | 'nowrap'
 
 export interface TextBlockOptions extends ShapeBlockOptions {
+    /**
+     * The text of the block.
+     */
     text?: TextType
+    /**
+     * The color the text is drawn with.
+     */
     color?: ColorType
+    /**
+     * The width of the outline of the text.
+     */
     strokeWidth?: number
+    /**
+     * The color of the outline of the text.
+     */
     strokeColor?: ColorType
+    /**
+     * The family of the font the text is drawn with.
+     */
     fontFamily?: TextType
+    /**
+     * The size of the font the text is drawn with.
+     */
     fontSize?: RelativeType
+    /**
+     * The weight of the font the text is drawn with.
+     */
     fontWeight?: FontWeight
+    /**
+     * The style of the font the text is drawn with.
+     */
     fontStyle?: FontStyle
+    /**
+     * The variant of the font the text is drawn with.
+     */
     fontVariant?: FontVariant
+    /**
+     * The distance between the lines of the text.
+     */
     lineHeight?: RelativeType
+    /**
+     * Whether the text can be edited on the canvas.
+     */
     editable?: boolean
+    /**
+     * Whether the text is wrapped at the edge of the block.
+     *
+     * The value is `wrap` or `nowrap`.
+     */
     wrap?: Wrap
+    /**
+     * The function that is called when the text is edited.
+     *
+     * The function is called with the block that holds the text.
+     */
     onEditable?: (block: TextBlock) => void
+    /**
+     * Whether the caret is drawn while the text is edited.
+     */
     caret?: boolean
 }
 
@@ -89,6 +135,9 @@ class LetterNode {
     }
 }
 
+/**
+ * A text that can be edited on the canvas.
+ */
 export class TextBlock<
     T extends TextBlockOptions = TextBlockOptions,
 > extends ShapeBlock<T> {
