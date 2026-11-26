@@ -1,15 +1,15 @@
-import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
-import type {
-    AnimationId,
-    Animator,
-    BlockConstructor,
-    Composite,
-    CubicBezier,
-    Direction,
-    Easing,
-    LinearEasing,
-    RGBA,
-    StepsEasing,
+import { type BaseBlock, type BaseBlockOptions } from '../BaseBlock'
+import {
+    type AnimationId,
+    type Animator,
+    type BlockConstructor,
+    type Composite,
+    type CubicBezier,
+    type Direction,
+    type Easing,
+    type LinearEasing,
+    type RGBA,
+    type StepsEasing,
 } from '../types'
 import {
     clamp,
@@ -90,7 +90,7 @@ export interface KeyframeIterationConfig {
 
 export type CallbackAnimator = (timestamp: number, easing: number) => void
 
-export interface IAnimationBlock extends BaseBlockOptions {}
+export interface IAnimationOptions extends BaseBlockOptions {}
 
 type ValueKind =
     | 'number'
@@ -232,7 +232,7 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
             this.__removeAnimation(animationId)
         }
         #isRgbaString(value: unknown): value is string {
-            return typeof value === 'string' && /^rgba\(/.test(value.trim())
+            return typeof value === 'string' && value.trim().startsWith('rgba(')
         }
         #isPlainObject(value: unknown): value is Record<string, unknown> {
             if (typeof value !== 'object' || value === null) return false
@@ -452,9 +452,9 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 )
                     continue
                 while (breakPoint.value.length < maxLength) {
-                    breakPoint.value.push(
-                        breakPoint.value[breakPoint.value.length - 1]
-                    )
+                    const last = breakPoint.value.at(-1)
+                    if (last === undefined) break
+                    breakPoint.value.push(last)
                 }
             }
         }
@@ -664,8 +664,8 @@ export const AnimationBlock = <TBase extends BlockConstructor<BaseBlock>>(
                             ) {
                                 currentIdx = 0
                             } else if (
-                                settings.direction == 'alternate' ||
-                                settings.direction == 'alternate-reverse'
+                                settings.direction === 'alternate' ||
+                                settings.direction === 'alternate-reverse'
                             ) {
                                 valueT.iterDirection *= -1
                             }

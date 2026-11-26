@@ -9,7 +9,7 @@ const dragRectangel = new RectangleBlock({
     width: 60,
     height: 60,
     backgroundColor: 'blue',
-    onDrag: onDragCallback,
+    onRender: onDragCallback,
 })
 
 initCanvas.add(dragRectangel)

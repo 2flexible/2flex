@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { page } from 'vitest/browser'
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test'
+import { page } from 'vite-plus/test/browser'
 import { Block, Canvas, LayoutBlock, RectangleBlock } from '@2flexible/2flex'
 import {
     OVERFLOW_X_SCROLL_BAR_BLOCK_NAME,
@@ -395,9 +395,7 @@ describe('OverflowBlock', () => {
             await flush(4)
             // the corner square of the hot lines sits over the scroll bar,
             // so it has to be painted above it
-            const pixel = Array.from(
-                canvas.context!.getImageData(145, 145, 1, 1).data
-            )
+            const pixel = [...canvas.context!.getImageData(145, 145, 1, 1).data]
             expect(pixel).toEqual([0, 0, 255, 255])
         })
         it('should paint the scroll bars of an owner below a block above it', async () => {
@@ -429,9 +427,7 @@ describe('OverflowBlock', () => {
             await flush(4)
             // the scroll bars and the hot lines belong to the owner, so the
             // block above the owner covers them
-            const pixel = Array.from(
-                canvas.context!.getImageData(145, 145, 1, 1).data
-            )
+            const pixel = [...canvas.context!.getImageData(145, 145, 1, 1).data]
             expect(pixel).toEqual([0, 0, 255, 255])
         })
         it('should reserve the scroll bar strip from the right axis of the layout', async () => {

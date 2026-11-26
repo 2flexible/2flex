@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vite-plus/test'
 import { Block, ShapeBlock, VideoBlock } from '@2flexible/2flex'
 import { MediaLayoutBlock } from '../../shapes/MediaLayoutBlock'
 
@@ -65,9 +65,7 @@ describe('VideoBlock', () => {
         })
 
         it('should default onPlay to undefined', () => {
-            expect(
-                new VideoBlock({} as VideoOptions).onPlay()
-            ).toBeUndefined()
+            expect(new VideoBlock({} as VideoOptions).onPlay()).toBeUndefined()
         })
     })
 

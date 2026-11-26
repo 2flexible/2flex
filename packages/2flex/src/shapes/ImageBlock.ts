@@ -1,4 +1,5 @@
-import { MediaLayoutBlock, MediaLayoutBlockOptions } from './MediaLayoutBlock'
+import { type MediaLayoutBlockOptions } from './MediaLayoutBlock'
+import { MediaLayoutBlock } from './MediaLayoutBlock'
 
 export interface ImageBlockOptions extends MediaLayoutBlockOptions {}
 

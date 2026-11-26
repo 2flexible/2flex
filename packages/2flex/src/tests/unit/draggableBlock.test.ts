@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { page } from 'vitest/browser'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
+import { page } from 'vite-plus/test/browser'
 import { Block, Canvas } from '@2flexible/2flex'
 import {
     allowMouse,

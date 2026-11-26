@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { page } from 'vitest/browser'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
+import { page } from 'vite-plus/test/browser'
 import { Block, Canvas, CircleBlock, ShapeBlock } from '@2flexible/2flex'
 import { SELECTABLE_RUNNING_EVENT } from '../../const'
 import { flush, removeCanvasElements } from './helpers'
@@ -41,7 +41,7 @@ const pixelAt = (
     context: OffscreenCanvasRenderingContext2D,
     x: number,
     y: number
-) => Array.from(context.getImageData(x, y, 1, 1).data)
+) => [...context.getImageData(x, y, 1, 1).data]
 
 describe('CircleBlock', () => {
     afterEach(() => {

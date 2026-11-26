@@ -2,7 +2,13 @@
     "extends": "../../tsconfig.json",
     "compilerOptions": {
         "outDir": "./tsbuild",
-        "rootDir": "."
+        "rootDir": ".",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "paths": {
+            "@2flexible/2flex": ["./src/index.ts"]
+        },
+        "types": ["node"]
     },
     "include": ["src", "package.json"]
 }

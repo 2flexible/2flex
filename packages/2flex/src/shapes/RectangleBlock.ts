@@ -1,12 +1,16 @@
 import { SELECTABLE_RUNNING_EVENT } from '../const'
-import type {
-    ColorType,
-    OwnOptionAccessors,
-    ResolvedAs,
+import {
+    type ColorType,
+    type OwnOptionAccessors,
+    type ResolvedAs,
 } from '../BaseBlock'
 import { ShapeBlock } from '../ShapeBlock'
-import type { DrawFunc, FillStyle, ShapeBlockOptions } from '../ShapeBlock'
-import type { RelativeType, ShortHandRelativeType } from '../types'
+import {
+    type DrawFunc,
+    type FillStyle,
+    type ShapeBlockOptions,
+} from '../ShapeBlock'
+import { type RelativeType, type ShortHandRelativeType } from '../types'
 import { shortHandParser } from '../Utils'
 
 export type BorderStyle = 'solid' | 'dotted'
@@ -489,5 +493,7 @@ export class RectangleBlock<
     }
 }
 
-export interface RectangleBlock
-    extends OwnOptionAccessors<RectangleBlockOptions, ShapeBlockOptions> {}
+export interface RectangleBlock extends OwnOptionAccessors<
+    RectangleBlockOptions,
+    ShapeBlockOptions
+> {}

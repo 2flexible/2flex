@@ -1,24 +1,24 @@
-import type { Canvas } from './Canvas'
+import { type Canvas } from './Canvas'
 import { Node } from './Node'
 import { initialCorners, RELATIVE_VALUE_PATTERN } from './const'
 import {
-    RelativeType,
-    ShortHandRelativeType,
-    XY,
-    CustomEvent,
-    Animator,
-    HotCornerArea,
-    NodeId,
-    AnimationId,
-    ColorType,
-    TextType,
-    ResolvedAs,
-    ResolvedValue,
-    OptionAccessor,
-    OptionAccessors,
-    OwnOptionAccessors,
-    OptionAccessorsWith,
-    BlockOptionsOf,
+    type RelativeType,
+    type ShortHandRelativeType,
+    type XY,
+    type CustomEvent,
+    type Animator,
+    type HotCornerArea,
+    type NodeId,
+    type AnimationId,
+    type ColorType,
+    type TextType,
+    type ResolvedAs,
+    type ResolvedValue,
+    type OptionAccessor,
+    type OptionAccessors,
+    type OwnOptionAccessors,
+    type OptionAccessorsWith,
+    type BlockOptionsOf,
 } from './types'
 export type {
     ColorType,
@@ -331,13 +331,7 @@ export class BaseBlock<
         const ownOptions = this.options
         const initOptions = this.initOptions
         for (const [key, value] of Object.entries(options)) {
-            validateBlockOption(
-                method,
-                'options.' + key,
-                key,
-                value,
-                BaseBlock
-            )
+            validateBlockOption(method, 'options.' + key, key, value, BaseBlock)
             ownOptions.set(key, value)
             initOptions.set(key, value)
         }
@@ -833,10 +827,12 @@ export class BaseBlock<
             x: 0,
             y: 0,
         }
-        let cornerBottomLeftCurrent =
-            this.getOptionCurrent('cornerBottomLeft') ?? { x: 0, y: 0 }
-        let cornerBottomRightCurrent =
-            this.getOptionCurrent('cornerBottomRight') ?? { x: 0, y: 0 }
+        let cornerBottomLeftCurrent = this.getOptionCurrent(
+            'cornerBottomLeft'
+        ) ?? { x: 0, y: 0 }
+        let cornerBottomRightCurrent = this.getOptionCurrent(
+            'cornerBottomRight'
+        ) ?? { x: 0, y: 0 }
 
         const diffScale =
             (this.getOptionCurrent('scale') || 0) -
@@ -970,11 +966,13 @@ export class BaseBlock<
             this.rotationCenter() !== 'parent' || !this.__hasParentBlock
         if (shouldTrackOwnCenter) {
             const centerX =
-                rotationCenterX !== undefined && Number.isFinite(rotationCenterX)
+                rotationCenterX !== undefined &&
+                Number.isFinite(rotationCenterX)
                     ? rotationCenterX
                     : currentX + currentWidth / 2
             const centerY =
-                rotationCenterY !== undefined && Number.isFinite(rotationCenterY)
+                rotationCenterY !== undefined &&
+                Number.isFinite(rotationCenterY)
                     ? rotationCenterY
                     : currentY + currentHeight / 2
             this.setOptionCurrent(
@@ -1083,7 +1081,7 @@ export class BaseBlock<
             if (containerW > blocksContainerWidth)
                 blocksContainerWidth = containerW
 
-            if (currIdx == arrLen - 1) blocksContainerHeight += containerH
+            if (currIdx === arrLen - 1) blocksContainerHeight += containerH
 
             blockW = blockInitW !== undefined ? blockInitW : blockW
             blockH = blockInitH !== undefined ? blockInitH : blockH
@@ -1221,7 +1219,9 @@ export class BaseBlock<
                 method,
                 defaultValue,
                 widthRelated,
-                valueConverter as ValueConverterFunc<TVal, TResolved> | undefined
+                valueConverter as
+                    | ValueConverterFunc<TVal, TResolved>
+                    | undefined
             )
             func?.(this as TBlock, value)
             return value
@@ -1348,9 +1348,8 @@ export class BaseBlock<
         if (typeof val === 'string') {
             if (/^\d/.test(val)) {
                 return this.__unitConverter(val, widthRelated) as O
-            } else {
-                return this.__colorConverter(val) as O
             }
+            return this.__colorConverter(val) as O
         } else if (val instanceof Array) {
             const vals = []
             for (let i = 0, len = val.length; i < len; i++) {
@@ -1390,7 +1389,7 @@ export class BaseBlock<
             return fromPc(Number(value.split('pc')[0]))
         else if (value.endsWith('pt'))
             return fromPt(Number(value.split('pt')[0]))
-        else return Number(value)
+        return Number(value)
     }
     __colorConverter(value: string) {
         if (namedColors[value]) {
@@ -1475,8 +1474,7 @@ export class BaseBlock<
         this.__deriveSizeFromChilds()
         // the childs are laid out against the new size
         this.updateChildsCordinate()
-        this.__hasParentBlock &&
-            this.parentNode?.__invokeDerivedSizeChanged()
+        this.__hasParentBlock && this.parentNode?.__invokeDerivedSizeChanged()
     }
     __applyOptions() {
         this.__applyOptionsOnly = true
@@ -1620,13 +1618,7 @@ export class BaseBlock<
                 throw new TypeError(
                     `[2flex] ${method} does not recognize option "${key}".`
                 )
-            validateBlockOption(
-                method,
-                'options.' + key,
-                key,
-                value,
-                BaseBlock
-            )
+            validateBlockOption(method, 'options.' + key, key, value, BaseBlock)
         }
         const before: Record<string, unknown> = {}
         const after: Record<string, unknown> = {}
@@ -1689,7 +1681,7 @@ export class BaseBlock<
             'queries',
             queries
         )
-        let blocks: BaseBlock[] = []
+        const blocks: BaseBlock[] = []
         this.listAllChilds((block: BaseBlock) => {
             for (const [k, v] of Object.entries(queries)) {
                 if (block.getOptionCurrent(k) === v) blocks.push(block)

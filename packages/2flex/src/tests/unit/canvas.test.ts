@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { page } from 'vitest/browser'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
+import { page } from 'vite-plus/test/browser'
 import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
 import { SELECTABLE_RUNNING_EVENT } from '../../const'
 import { defaultBlocks } from '../../defaultBlocks'
@@ -58,8 +58,9 @@ const filledBlock = (block: Block) => {
     })
 }
 
-const pixelAt = (target: Canvas, x: number, y: number) =>
-    Array.from(target.context!.getImageData(x, y, 1, 1).data)
+const pixelAt = (target: Canvas, x: number, y: number) => [
+    ...target.context!.getImageData(x, y, 1, 1).data,
+]
 
 // paints a block in a color, so the stacking order can be asserted on the
 // pixels of the canvas
@@ -137,7 +138,8 @@ describe('Canvas', () => {
                 () => new Canvas('invalid-dimensions', undefined as never, 100)
             ).toThrow(/new Canvas\(\).*width.*undefined/)
             expect(
-                () => new Canvas('invalid-dimensions', 100, 100, { tileSize: 0 })
+                () =>
+                    new Canvas('invalid-dimensions', 100, 100, { tileSize: 0 })
             ).toThrow(/new Canvas\(\).*positive number.*options\.tileSize/)
             expect(document.getElementById('invalid-dimensions')).toBeNull()
         })
@@ -390,7 +392,9 @@ describe('Canvas', () => {
             expect(found).toBeDefined()
         })
         it('should reject an invalid payload before changing the canvas', () => {
-            expect(() => canvas.load('{')).toThrow(/Canvas\.load\(\).*valid JSON/)
+            expect(() => canvas.load('{')).toThrow(
+                /Canvas\.load\(\).*valid JSON/
+            )
             const payload = (childBlock: object) =>
                 JSON.stringify({
                     canvas: {
@@ -444,8 +448,8 @@ describe('Canvas', () => {
         })
         it('should construct registered custom block classes', async () => {
             class MyBlock extends Block {
-                constructor(options: any) {
-                    super(options)
+                constructor(options: unknown) {
+                    super(options as never)
                 }
             }
             canvas.registerBlocks(MyBlock)

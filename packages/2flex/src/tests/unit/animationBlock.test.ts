@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test'
 import { Block, Canvas } from '@2flexible/2flex'
 import { rgbaToArray } from '../../Utils'
 import { flush, removeCanvasElements, waitFor } from './helpers'

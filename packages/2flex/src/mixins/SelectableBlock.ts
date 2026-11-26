@@ -1,7 +1,10 @@
-import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
-import type { OwnOptionAccessors } from '../BaseBlock'
+import {
+    type BaseBlock,
+    type BaseBlockOptions,
+    type OwnOptionAccessors,
+} from '../BaseBlock'
 import { SELECTABLE_RUNNING_EVENT } from '../const'
-import { BlockConstructor } from '../types'
+import { type BlockConstructor } from '../types'
 
 export interface ISelectableOptions extends BaseBlockOptions {
     selectable?: boolean

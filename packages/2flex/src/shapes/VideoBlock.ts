@@ -1,5 +1,6 @@
-import { MediaLayoutBlock, MediaLayoutBlockOptions } from './MediaLayoutBlock'
-import type { OwnOptionAccessors } from '../BaseBlock'
+import { type MediaLayoutBlockOptions } from './MediaLayoutBlock'
+import { MediaLayoutBlock } from './MediaLayoutBlock'
+import { type OwnOptionAccessors } from '../BaseBlock'
 type OnPlayCallback = (timestamp: number) => void
 export interface VideoBlockOptions extends MediaLayoutBlockOptions {
     autoPlay?: boolean

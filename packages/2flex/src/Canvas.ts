@@ -1,19 +1,20 @@
-import { BaseBlock, BaseBlockOptions, BlockPayload } from './BaseBlock'
+import { type BaseBlockOptions, type BlockPayload } from './BaseBlock'
+import { BaseBlock } from './BaseBlock'
 import { CanvasScene } from './CanvasScene'
-import type { BlockQuery } from './CanvasScene'
+import { type BlockQuery } from './CanvasScene'
 import { defaultBlocks } from './defaultBlocks'
 import { CanvasDOMManager } from './DOMManager'
 import { CanvasGrid } from './CanvasGrid'
 import { History } from './History'
 import { RenderScheduler } from './Scheduler'
 import {
-    Animator,
-    ICssProperties,
-    Timestamp,
-    CustomEvent,
-    SnapshotData,
-    AnimationId,
-    ScrollableBlock,
+    type Animator,
+    type ICssProperties,
+    type Timestamp,
+    type CustomEvent,
+    type SnapshotData,
+    type AnimationId,
+    type ScrollableBlock,
 } from './types'
 import {
     getPrototype,
@@ -268,8 +269,8 @@ export class Canvas {
         if (this.#defaultOptions.history) this.#snapshotHandler()
         if (this.#defaultOptions.mouseMovement) this.#handMove()
         if (this.#defaultOptions.keyboardMovement) this.#keyboardMove()
-        if (this.#defaultOptions.zoomType == 'point') this.#pointZoom()
-        else if (this.#defaultOptions.zoomType == 'center') this.#centerZoom()
+        if (this.#defaultOptions.zoomType === 'point') this.#pointZoom()
+        else if (this.#defaultOptions.zoomType === 'center') this.#centerZoom()
     }
     #primeGrid() {
         const v = this.view
@@ -334,7 +335,7 @@ export class Canvas {
         let lastY = 0
         let isSpaceDown = false
         window.addEventListener('keydown', (event) => {
-            if (event.code == 'Space' && this.isFocused) {
+            if (event.code === 'Space' && this.isFocused) {
                 if (!isSpaceDown) this.changeCursor('grab')
                 isSpaceDown = true
             }
@@ -718,7 +719,7 @@ export class Canvas {
         if (demandedHistory) {
             const tailData = this.#history.tailData()
             const nextData: SnapshotData = {}
-            let initTail: SnapshotData = {}
+            const initTail: SnapshotData = {}
 
             for (const [key, { before, after }] of Object.entries(
                 demandedHistory

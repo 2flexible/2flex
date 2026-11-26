@@ -1,7 +1,7 @@
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vite-plus/test'
 import { Block, ShapeBlock } from '@2flexible/2flex'
 import { MediaLayoutBlock } from '../../shapes/MediaLayoutBlock'
-import type { MediaLayoutBlockOptions } from '../../shapes/MediaLayoutBlock'
+import { type MediaLayoutBlockOptions } from '../../shapes/MediaLayoutBlock'
 
 type MediaOptions = ConstructorParameters<typeof MediaLayoutBlock>[0]
 

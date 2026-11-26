@@ -1,23 +1,31 @@
-import { HotLineBlock, IHotLineBlockOptions } from './mixins/HotLineBlock'
-import { BaseBlock, BaseBlockOptions, onRender } from './BaseBlock'
-import { AnimationBlock, IAnimationBlock } from './mixins/AnimationBlock'
-import { DraggableBlock, IDraggableOptions } from './mixins/DraggableBlock'
-import { IOverflowOptions, OverflowBlock } from './mixins/OverflowBlock'
-import { IResizableOptions, ResizableBlock } from './mixins/ResizableBlock'
-import { IRotatableOptions, RotatableBlock } from './mixins/RotatableBlock'
-import { SelectableBlock, ISelectableOptions } from './mixins/SelectableBlock'
+import { type IHotLineOptions } from './mixins/HotLineBlock'
+import { HotLineBlock } from './mixins/HotLineBlock'
+import { type BaseBlockOptions, type onRender } from './BaseBlock'
+import { BaseBlock } from './BaseBlock'
+import { type IAnimationOptions } from './mixins/AnimationBlock'
+import { AnimationBlock } from './mixins/AnimationBlock'
+import { type IDraggableOptions } from './mixins/DraggableBlock'
+import { DraggableBlock } from './mixins/DraggableBlock'
+import { type IOverflowOptions } from './mixins/OverflowBlock'
+import { OverflowBlock } from './mixins/OverflowBlock'
+import { type IResizableOptions } from './mixins/ResizableBlock'
+import { ResizableBlock } from './mixins/ResizableBlock'
+import { type IRotatableOptions } from './mixins/RotatableBlock'
+import { RotatableBlock } from './mixins/RotatableBlock'
+import { type ISelectableOptions } from './mixins/SelectableBlock'
+import { SelectableBlock } from './mixins/SelectableBlock'
 import { clampSize } from './Utils'
 
 export interface BlockOptions
     extends
         BaseBlockOptions,
         IOverflowOptions,
-        IHotLineBlockOptions,
+        IHotLineOptions,
         ISelectableOptions,
         IResizableOptions,
         IRotatableOptions,
         IDraggableOptions,
-        IAnimationBlock {}
+        IAnimationOptions {}
 
 export class Block<T extends BlockOptions = BlockOptions> extends OverflowBlock(
     HotLineBlock(

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { page } from 'vitest/browser'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
+import { page } from 'vite-plus/test/browser'
 import {
     Block,
     Canvas,
@@ -8,7 +8,7 @@ import {
     ShapeBlock,
     TextBlock,
 } from '@2flexible/2flex'
-import type { TextBlockOptions } from '@2flexible/2flex'
+import { type TextBlockOptions } from '@2flexible/2flex'
 import { SELECTABLE_RUNNING_EVENT } from '../../const'
 import { flush, removeCanvasElements, waitFor } from './helpers'
 
@@ -424,9 +424,10 @@ describe('TextBlock', () => {
             const moveTo = vi.spyOn(context, 'moveTo')
             text.draw()
             const calls = letterCalls(fillText)
-            const last = calls[calls.length - 1]
+            const last = calls.at(-1)
+            expect(last).toBeDefined()
             expect(moveTo).toHaveBeenCalledWith(
-                last[1] + (last[3] ?? 0),
+                last![1] + (last![3] ?? 0),
                 expect.any(Number)
             )
         })
@@ -490,7 +491,9 @@ describe('TextBlock', () => {
             const calls = letterCalls(fillText)
             const starts = lineStarts(calls, text.x())
             expect(starts.length).toBeGreaterThan(1)
-            expect(calls[calls.length - 1][2]).toBeGreaterThan(calls[0][2])
+            const last = calls.at(-1)
+            expect(last).toBeDefined()
+            expect(last![2]).toBeGreaterThan(calls[0][2])
         })
         it('should break a word with a letter wrap', async () => {
             await createTextBlock({
@@ -607,9 +610,10 @@ describe('TextBlock', () => {
             const fillText = vi.spyOn(context, 'fillText')
             text.draw()
             const calls = letterCalls(fillText)
-            const last = calls[calls.length - 1]
+            const last = calls.at(-1)
+            expect(last).toBeDefined()
             expect(text.width()).toBeCloseTo(
-                last[1] + (last[3] ?? 0) - text.x(),
+                last![1] + (last![3] ?? 0) - text.x(),
                 5
             )
         })
@@ -779,9 +783,10 @@ describe('TextBlock', () => {
             const fillText = vi.spyOn(context, 'fillText')
             text.draw()
             const calls = letterCalls(fillText)
-            const last = calls[calls.length - 1]
+            const last = calls.at(-1)
+            expect(last).toBeDefined()
             expect(text.boundingBox.topRight.x).toBeCloseTo(
-                last[1] + (last[3] ?? 0),
+                last![1] + (last![3] ?? 0),
                 5
             )
         })
@@ -817,10 +822,11 @@ describe('TextBlock', () => {
             const fillText = vi.spyOn(context, 'fillText')
             text.draw()
             const calls = letterCalls(fillText)
-            const last = calls[calls.length - 1]
+            const last = calls.at(-1)
+            expect(last).toBeDefined()
             const descent = context.measureText('g').actualBoundingBoxDescent
             expect(text.boundingBox.bottomLeft.y).toBeCloseTo(
-                last[2] + descent,
+                last![2] + descent,
                 5
             )
         })
@@ -1228,7 +1234,7 @@ describe('TextBlock', () => {
         })
     })
 
-    describe('bounding box', () => {
+    describe('bounding box after the block was placed', () => {
         // the bounding box of a text block is derived from the positions of
         // its letters, which are placed relative to the position of the block
         // itself, so the box has to be up to date as soon as the block moved

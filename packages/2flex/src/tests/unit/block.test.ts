@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { page, userEvent } from 'vitest/browser'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
+import { page, userEvent } from 'vite-plus/test/browser'
 import {
     Block,
     Canvas,
@@ -159,9 +159,9 @@ describe('Block', () => {
         })
         it('should reject invalid options before applying any changes', () => {
             block.x(10)
-            expect(() => block.set({ x: 20, hidden: 'false' as never })).toThrow(
-                /Block\.set\(\).*boolean.*options\.hidden/
-            )
+            expect(() =>
+                block.set({ x: 20, hidden: 'false' as never })
+            ).toThrow(/Block\.set\(\).*boolean.*options\.hidden/)
             expect(() => block.set({ x: 20, widht: 10 } as never)).toThrow(
                 /Block\.set\(\).*widht/
             )
@@ -198,9 +198,9 @@ describe('Block', () => {
             expect(block.x()).toBe(10)
         })
         it('should reject a binding without option names', () => {
-            expect(() => block.bindTo(new Block({}), undefined as never)).toThrow(
-                /Block\.bindTo\(\).*options.*undefined/
-            )
+            expect(() =>
+                block.bindTo(new Block({}), undefined as never)
+            ).toThrow(/Block\.bindTo\(\).*options.*undefined/)
         })
         it('should bind options of block', async () => {
             block.set({ x: 100 })

@@ -1,32 +1,40 @@
 {
     "name": "root",
     "private": true,
+    "packageManager": "pnpm@11.0.0",
+    "type": "module",
     "scripts": {
-        "format": "prettier  --ignore-unknown '**/*' --write",
-        "test": "nx affected -t=test",
-        "build": "nx affected -t=build",
-        "build:all": "nx run-many -t=build",
+        "format": "vp fmt",
+        "lint": "vp lint",
+        "check": "vp check",
+        "format:all": "nx run-many --target=format --all",
+        "lint:all": "nx run-many --target=lint --all",
+        "test": "nx affected --target=test:ci",
+        "test:all": "nx run-many --target=test:ci --all",
+        "build": "nx affected --target=build",
+        "build:all": "nx run-many --target=build --all",
         "changeset": "changeset",
         "changeset:version": "changeset version",
-        "changeset:publish": "changeset publish"
+        "changeset:publish": "changeset publish",
+        "preinstall": "only-allow pnpm",
+        "test:watch": "nx run-many --target=test --all"
     },
-    "type": "module",
+    "nx": {
+        "includedScripts": []
+    },
     "devDependencies": {
         "@changesets/cli": "^2.30.0",
-        "@types/node": "^24.0.13",
-        "@vitest/browser-playwright": "^4.1.4",
-        "@vitest/coverage-v8": "^4.1.2",
+        "@types/node": "catalog:",
+        "@vitest/browser-playwright": "catalog:",
+        "@vitest/coverage-v8": "catalog:",
         "canvas": "^3.2.3",
         "jsdom": "^29.0.2",
         "nx": "22.6.3",
-        "playwright": "^1.62.1",
+        "only-allow": "^1.2.1",
+        "playwright": "catalog:",
         "premove": "^4.0.0",
-        "prettier": "3.8.1",
-        "tsup": "^8.5.1",
-        "typescript": "^5.8.3"
-    },
-    "workspaces": [
-        "packages/*"
-    ],
-    "nx": {}
+        "typescript": "catalog:",
+        "vite-plus": "catalog:",
+        "vitest": "catalog:"
+    }
 }

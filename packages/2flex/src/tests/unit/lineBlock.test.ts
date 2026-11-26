@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { page } from 'vitest/browser'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
+import { page } from 'vite-plus/test/browser'
 import {
     Block,
     Canvas,
@@ -7,7 +7,7 @@ import {
     RectangleBlock,
     ShapeBlock,
 } from '@2flexible/2flex'
-import type { LineBlockOptions as ILineOptions } from '@2flexible/2flex'
+import { type LineBlockOptions as ILineOptions } from '@2flexible/2flex'
 import {
     DRAGGABLE_RUNNING_EVENT,
     RESIZABLE_RUNNING_EVENT,
@@ -62,7 +62,7 @@ const pixelAt = (
     context: OffscreenCanvasRenderingContext2D,
     x: number,
     y: number
-) => Array.from(context.getImageData(x, y, 1, 1).data)
+) => [...context.getImageData(x, y, 1, 1).data]
 
 // the mouse events are placed on the canvas, so the position of the canvas
 // on the page has to be taken into account

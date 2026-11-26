@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { page } from 'vitest/browser'
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test'
+import { page } from 'vite-plus/test/browser'
 import { Block, Canvas, RectangleBlock } from '@2flexible/2flex'
 import { HOT_LINE_BLOCK_NAME } from '../../const'
 import {
@@ -177,9 +177,7 @@ describe('HotLineBlock', () => {
             await selectBlock()
             await flush()
             // the blue block covers the whole red one including its lines
-            const pixel = Array.from(
-                canvas.context!.getImageData(100, 100, 1, 1).data
-            )
+            const pixel = [...canvas.context!.getImageData(100, 100, 1, 1).data]
             expect(pixel).toEqual([0, 0, 255, 255])
         })
         it('should paint the hot lines above the scroll bars of the owner', async () => {
@@ -204,9 +202,7 @@ describe('HotLineBlock', () => {
             await flush(4)
             // the corner square of the hot lines sits over the scroll bar,
             // so it has to be painted above it
-            const pixel = Array.from(
-                canvas.context!.getImageData(145, 145, 1, 1).data
-            )
+            const pixel = [...canvas.context!.getImageData(145, 145, 1, 1).data]
             expect(pixel).toEqual([0, 0, 255, 255])
         })
         it('should paint the hot lines above a child which has a z index', async () => {
@@ -239,18 +235,18 @@ describe('HotLineBlock', () => {
             dispatchMouse(element, 'mouseup', 150, 150)
             await flush(6)
             // the hot lines of the owner cross the child
-            const topLine = Array.from(
-                canvas.context!.getImageData(150, 100, 1, 1).data
-            )
+            const topLine = [
+                ...canvas.context!.getImageData(150, 100, 1, 1).data,
+            ]
             expect(topLine).toEqual([0, 0, 255, 255])
-            const leftLine = Array.from(
-                canvas.context!.getImageData(100, 120, 1, 1).data
-            )
+            const leftLine = [
+                ...canvas.context!.getImageData(100, 120, 1, 1).data,
+            ]
             expect(leftLine).toEqual([0, 0, 255, 255])
             // the child reaches over the vertical scroll bar
-            const scrollBar = Array.from(
-                canvas.context!.getImageData(292, 150, 1, 1).data
-            )
+            const scrollBar = [
+                ...canvas.context!.getImageData(292, 150, 1, 1).data,
+            ]
             expect(scrollBar).not.toEqual([255, 0, 0, 255])
         })
         it('should stop drawing hot lines after hotLines is turned off', async () => {

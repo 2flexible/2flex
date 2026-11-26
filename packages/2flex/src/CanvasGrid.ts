@@ -1,6 +1,6 @@
-import { BaseBlock } from './BaseBlock'
+import { type BaseBlock } from './BaseBlock'
 import { DummyCanvas } from './DummyCanvas'
-import { HotCornerArea } from './types'
+import { type HotCornerArea } from './types'
 import { worldTileKey } from './Utils'
 
 export class GridTile {
@@ -368,11 +368,11 @@ export class CanvasGrid {
     }
 
     getDirtyTiles(): GridTile[] {
-        return Array.from(this.#tiles.values()).filter((t) => t.dirty)
+        return [...this.#tiles.values()].filter((t) => t.dirty)
     }
 
     get allTiles(): GridTile[] {
-        return Array.from(this.#tiles.values())
+        return [...this.#tiles.values()]
     }
 
     resetFromBlocks(blocks: BaseBlock[]) {

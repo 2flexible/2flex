@@ -1,6 +1,7 @@
-import { DrawFunc, ShapeBlockOptions, ShapeBlock } from '../ShapeBlock'
-import type { OwnOptionAccessors, ResolvedAs } from '../BaseBlock'
-import { RelativeType } from '../types'
+import { type DrawFunc, type ShapeBlockOptions } from '../ShapeBlock'
+import { ShapeBlock } from '../ShapeBlock'
+import { type OwnOptionAccessors, type ResolvedAs } from '../BaseBlock'
+import { type RelativeType } from '../types'
 
 type ObjectFit = 'contain' | 'cover' | 'fill' | 'scale-down'
 type Repeat = number | 'fill'
@@ -230,5 +231,7 @@ export class MediaLayoutBlock<
     }
 }
 
-export interface MediaLayoutBlock
-    extends OwnOptionAccessors<MediaLayoutBlockOptions, ShapeBlockOptions> {}
+export interface MediaLayoutBlock extends OwnOptionAccessors<
+    MediaLayoutBlockOptions,
+    ShapeBlockOptions
+> {}

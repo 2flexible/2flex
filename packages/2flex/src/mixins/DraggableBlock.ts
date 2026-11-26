@@ -1,5 +1,8 @@
-import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
-import type { OwnOptionAccessors } from '../BaseBlock'
+import {
+    type BaseBlock,
+    type BaseBlockOptions,
+    type OwnOptionAccessors,
+} from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
@@ -7,7 +10,7 @@ import {
     RESIZABLE_RUNNING_EVENT,
     ROTATABLE_RUNNING_EVENT,
 } from '../const'
-import { BlockConstructor } from '../types'
+import { type BlockConstructor } from '../types'
 
 export interface IDraggableOptions extends BaseBlockOptions {
     draggable?: boolean
@@ -95,8 +98,8 @@ export const DraggableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     block.__ImFirst()
                 ) {
                     const { x, y } = block.canvas?.getCursorPosition(event)!
-                    let diffX = x - initCords.x
-                    let diffY = y - initCords.y
+                    const diffX = x - initCords.x
+                    const diffY = y - initCords.y
                     if (diffX !== 0 && block.draggableX()) {
                         const diff = diffX - beforeCords.x
                         block.__translateX(diff)

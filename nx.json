@@ -1,4 +1,48 @@
 {
     "$schema": "./node_modules/nx/schemas/nx-schema.json",
-    "analytics": false
+    "analytics": false,
+    "defaultBase": "main",
+    "useInferencePlugins": false,
+    "parallel": 3,
+    "namedInputs": {
+        "sharedGlobals": [
+            "{workspaceRoot}/package.json",
+            "{workspaceRoot}/pnpm-workspace.yaml",
+            "{workspaceRoot}/tsconfig.json",
+            "{workspaceRoot}/vite.config.ts"
+        ],
+        "default": [
+            "sharedGlobals",
+            "{projectRoot}/**/*",
+            "!{projectRoot}/**/*.md"
+        ],
+        "production": ["default", "!{projectRoot}/src/tests/**/*"]
+    },
+    "targetDefaults": {
+        "build": {
+            "cache": true,
+            "dependsOn": ["^build"],
+            "inputs": ["production", "^production"],
+            "outputs": ["{projectRoot}/lib"]
+        },
+        "test": {
+            "cache": true,
+            "dependsOn": ["^build"],
+            "inputs": ["default", "^production"]
+        },
+        "lint": {
+            "cache": true,
+            "inputs": ["default"]
+        },
+        "format": {
+            "cache": true,
+            "inputs": ["default"]
+        },
+        "compile": {
+            "cache": true,
+            "dependsOn": ["^compile"],
+            "inputs": ["default", "^production"],
+            "outputs": ["{projectRoot}/tsbuild"]
+        }
+    }
 }

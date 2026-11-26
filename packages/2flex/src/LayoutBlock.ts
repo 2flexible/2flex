@@ -1,6 +1,7 @@
-import { BaseBlock } from './BaseBlock'
-import { Block, BlockOptions } from './Block'
-import { RelativeType } from './types'
+import { type BaseBlock } from './BaseBlock'
+import { type BlockOptions } from './Block'
+import { Block } from './Block'
+import { type RelativeType } from './types'
 import { clampSize, requireCallback } from './Utils'
 
 type JustifyContent =
@@ -358,10 +359,7 @@ export class LayoutBlock<
                         width = Math.max(availableW * overflowXSign, minWidth)
                     } else {
                         const minHeight = block.minHeight() ?? 0
-                        height = Math.max(
-                            availableH * overflowYSign,
-                            minHeight
-                        )
+                        height = Math.max(availableH * overflowYSign, minHeight)
                     }
                 }
             }
@@ -658,7 +656,7 @@ export class LayoutBlock<
         return layout
     }
     #updateLayout() {
-        if (this.layout() === 'flex' || this.layout() == 'inline-flex') {
+        if (this.layout() === 'flex' || this.layout() === 'inline-flex') {
             switch (this.flexDirection()) {
                 case 'column':
                     this.#invokerLayout = this.#flexColumn
@@ -676,7 +674,10 @@ export class LayoutBlock<
                     this.#invokerLayout = this.#flexRow
                     break
             }
-        } else if (this.layout() == 'grid' || this.layout() == 'inline-grid') {
+        } else if (
+            this.layout() === 'grid' ||
+            this.layout() === 'inline-grid'
+        ) {
             this.#invokerLayout = this.#gridLayout
         }
     }
@@ -1026,8 +1027,7 @@ export class LayoutBlock<
         if (childs.length === 0) return 0
         // a row of a grid holds the childs of its columns, so only the childs
         // of the first row decide the height of the row
-        const perTrack =
-            perRow > 0 ? perRow : Math.ceil(childCount / autoCount)
+        const perTrack = perRow > 0 ? perRow : Math.ceil(childCount / autoCount)
         let size = 0
         for (let i = 0; i < Math.min(perTrack, childs.length); i++) {
             const child = childs[i]
@@ -1054,10 +1054,9 @@ export class LayoutBlock<
             if (this.#isWrap)
                 return this.#blocksWidth.reduce((p, c) => p + c, 0)
             return Math.max(...this.#blocksWidth)
-        } else {
-            if (this.#isWrap) return Math.max(...this.#blocksWidth)
-            return this.#blocksWidth.reduce((p, c) => p + c, 0)
         }
+        if (this.#isWrap) return Math.max(...this.#blocksWidth)
+        return this.#blocksWidth.reduce((p, c) => p + c, 0)
     }
     get #containerH() {
         if (!this.#blocksHeight.length) return 0
@@ -1065,11 +1064,9 @@ export class LayoutBlock<
         if (this.#isFlexCol) {
             if (this.#isWrap) return Math.max(...this.#blocksHeight)
             return this.#blocksHeight.reduce((p, c) => p + c, 0)
-        } else {
-            if (this.#isWrap)
-                return this.#blocksHeight.reduce((p, c) => p + c, 0)
-            return Math.max(...this.#blocksHeight)
         }
+        if (this.#isWrap) return this.#blocksHeight.reduce((p, c) => p + c, 0)
+        return Math.max(...this.#blocksHeight)
     }
     #checkLayoutType(
         _type: TypeContent,
@@ -1158,7 +1155,7 @@ export class LayoutBlock<
                             i < len;
                             i++
                         ) {
-                            let startX = this.#contentW - this.#blocksWidth[i]
+                            const startX = this.#contentW - this.#blocksWidth[i]
                             this.#startXPos.push(startX > 0 ? startX : 0)
                         }
                     } else {
@@ -1260,7 +1257,7 @@ export class LayoutBlock<
     #center(_type: TypeContent) {
         const _justify_cont_func = () => {
             if (this.#isGrid) {
-                let startX = this.#contentW / 2 - this.#containerW / 2
+                const startX = this.#contentW / 2 - this.#containerW / 2
                 this.#containerX = startX > 0 ? startX : 0
             } else {
                 if (this.#isFlexCol) {
@@ -1270,7 +1267,8 @@ export class LayoutBlock<
                             i < len;
                             i++
                         ) {
-                            let startY = this.#contentH - this.#blocksHeight[i]
+                            const startY =
+                                this.#contentH - this.#blocksHeight[i]
                             this.#startYPos.push((startY > 0 ? startY : 0) / 2)
                         }
                     } else {
@@ -1284,7 +1282,7 @@ export class LayoutBlock<
                             i < len;
                             i++
                         ) {
-                            let startX = this.#contentW - this.#blocksWidth[i]
+                            const startX = this.#contentW - this.#blocksWidth[i]
                             this.#startXPos.push((startX > 0 ? startX : 0) / 2)
                         }
                     } else {
@@ -1383,7 +1381,7 @@ export class LayoutBlock<
     #spaceBetween(_type: TypeContent) {
         const _justify_cont_func = () => {
             if (this.#isGrid) {
-                let gap = this.#contentW - this.#containerW
+                const gap = this.#contentW - this.#containerW
                 const nCols =
                     this.#layoutCols[0] - 1 !== 0 ? this.#layoutCols[0] - 1 : 1
                 this.gapColumn(gap > 0 ? gap / nCols : 0)
@@ -1427,7 +1425,7 @@ export class LayoutBlock<
                             this.#columnsGap.push(gap)
                         }
                     } else {
-                        let gap = this.#contentW - this.#containerW
+                        const gap = this.#contentW - this.#containerW
                         this.gapColumn(
                             gap > 0
                                 ? gap / (this.#flowingChilds.length - 1 || 1)
@@ -1441,20 +1439,20 @@ export class LayoutBlock<
             if (this.#isGrid) {
                 // the free space goes into the gaps between the rows, there is
                 // one less of them than there are rows
-                let gap = this.#contentH - this.#containerH
+                const gap = this.#contentH - this.#containerH
                 this.gapRow(
                     gap > 0 ? gap / ((this.#layoutRows[0] || 1) - 1 || 1) : 0
                 )
             } else {
                 if (!this.#isWrap) return
                 if (this.#isFlexCol) {
-                    let gap = this.#contentW - this.#containerW
+                    const gap = this.#contentW - this.#containerW
                     this.gapColumn(
                         gap > 0 ? gap / (this.#layoutCols.length - 1 || 1) : 0
                     )
                     this.#containerX = 0
                 } else {
-                    let gap = this.#contentH - this.#containerH
+                    const gap = this.#contentH - this.#containerH
                     this.gapRow(
                         gap > 0 ? gap / (this.#layoutRows.length - 1 || 1) : 0
                     )
@@ -1640,7 +1638,7 @@ export class LayoutBlock<
             this.#columnsGap[rowIdx] !== undefined
                 ? this.#columnsGap[rowIdx]
                 : this.gapColumn()
-        let gapRow =
+        const gapRow =
             this.#rowsGap[rowIdx] !== undefined
                 ? this.#rowsGap[rowIdx]
                 : this.gapRow()
@@ -1729,7 +1727,7 @@ export class LayoutBlock<
                 ? this.#startYPos[colIdx]
                 : this.#containerY || 0
 
-        let gapCol =
+        const gapCol =
             this.#columnsGap[colIdx] !== undefined
                 ? this.#columnsGap[colIdx]
                 : this.gapColumn()
@@ -1857,7 +1855,11 @@ export class LayoutBlock<
 
         const maxColWidths: number[] = []
         const maxRowHeights: number[] = []
+        // the tracks are filled with the measured sizes, a sparse array
+        // marks the tracks that were not measured yet
+        // eslint-disable-next-line unicorn/no-new-array
         const colTrackWidths: number[] = new Array(gridCols.length)
+        // eslint-disable-next-line unicorn/no-new-array
         const rowTrackHeights: number[] = new Array(nRows)
 
         this.#layoutRows = [nRows]
@@ -1868,7 +1870,7 @@ export class LayoutBlock<
         let rowIdx = 0
         while (rowIdx < this.#layoutRows[0]) {
             let startX = this.#containerX || 0
-            if (rowIdx == 0) {
+            if (rowIdx === 0) {
                 startY = this.#containerY || 0
                 rowCount = 0
             }
@@ -1956,7 +1958,7 @@ export class LayoutBlock<
 
                 startX += colStart + this.gapColumn()
             }
-            let startYD =
+            const startYD =
                 !rows[rowCount] || rows[rowCount] === 'auto'
                     ? maxRowHeights[rowCount]
                     : rows[rowCount]

@@ -1,4 +1,4 @@
-import { SnapshotData } from './types'
+import { type SnapshotData } from './types'
 
 class Snapshot {
     prev?: Snapshot

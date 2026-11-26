@@ -1,18 +1,14 @@
-import type { ColorType, OwnOptionAccessors } from '../BaseBlock'
-import {
-    DrawFunc,
-    FillStyle,
-    ShapeBlockOptions,
-    ShapeBlock,
-} from '../ShapeBlock'
+import { type ColorType, type OwnOptionAccessors } from '../BaseBlock'
+import { type DrawFunc, type ShapeBlockOptions } from '../ShapeBlock'
+import { FillStyle, ShapeBlock } from '../ShapeBlock'
 import {
     getPrototype,
     invalidArgument,
     requireRecord,
     stationaryPoints,
 } from '../Utils'
-import type { RelativeType } from '../types'
-import type { Block } from '../Block'
+import { type RelativeType } from '../types'
+import { type Block } from '../Block'
 import {
     SELECTABLE_RUNNING_EVENT,
     DRAGGABLE_RUNNING_EVENT,
@@ -257,10 +253,16 @@ export class LineBlock<
             let endY = this.#getCurrentPoint('endY', pointId)
             let cacheEndY = this.#getCachePoint('endY', pointId) ?? 0
 
-            let startControlX = this.#getCurrentPoint('startControlX', pointId)
-            let startControlY = this.#getCurrentPoint('startControlY', pointId)
-            let endControlX = this.#getCurrentPoint('endControlX', pointId)
-            let endControlY = this.#getCurrentPoint('endControlY', pointId)
+            const startControlX = this.#getCurrentPoint(
+                'startControlX',
+                pointId
+            )
+            const startControlY = this.#getCurrentPoint(
+                'startControlY',
+                pointId
+            )
+            const endControlX = this.#getCurrentPoint('endControlX', pointId)
+            const endControlY = this.#getCurrentPoint('endControlY', pointId)
             let cacheStartControlX = this.#getCachePoint(
                 'startControlX',
                 pointId
@@ -435,7 +437,7 @@ export class LineBlock<
                 'an integer',
                 index
             )
-        let foundPoint = this.#findPointNode((p) => p.id == index)
+        let foundPoint = this.#findPointNode((p) => p.id === index)
         if (!foundPoint) foundPoint = this.#tailPointNode
         const newPoint = this.#createPointNode(this.#nextPointId(), point)
         this.#addPointAfter(newPoint, foundPoint)
@@ -448,7 +450,7 @@ export class LineBlock<
                 'an integer',
                 index
             )
-        const foundPoint = this.#findPointNode((p) => p.id == index)
+        const foundPoint = this.#findPointNode((p) => p.id === index)
         if (foundPoint) this.#removePoint(foundPoint)
     }
     addControlPointToTail(point: ControlPoint) {
@@ -772,8 +774,8 @@ export class LineBlock<
         const rot = (x: number, y: number) =>
             this.__rotateCordiantesByCenter(x, y, rotate)
 
-        let xs: number[] = []
-        let ys: number[] = []
+        const xs: number[] = []
+        const ys: number[] = []
 
         for (let i = 0; i < this.#points.x.length; i++) {
             const x = this.#points.x[i]
@@ -1113,7 +1115,7 @@ export class LineBlock<
         return path
     }
     #controllerPointsNotInBound(x: number, y: number) {
-        let inBounds: boolean[] = []
+        const inBounds: boolean[] = []
         this.#walkPointNodes((point: PointNode) => {
             const pointId = point.id!
 
@@ -1339,7 +1341,7 @@ export class LineBlock<
         const click = (event: MouseEvent) => {
             if (!block.#isEditable) return
             const { x, y } = block.canvas?.getCursorPosition(event)!
-            let editable =
+            const editable =
                 !block.#pathInBound(x, y, block.#buildPath()) &&
                 block.#controllerPointsNotInBound(x, y)
             if (editable) {
@@ -1375,7 +1377,7 @@ export class LineBlock<
 
         let initCords = { x: 0, y: 0 }
         let beforeCords = { x: 0, y: 0 }
-        let beforeValues: Record<string, unknown> = {}
+        const beforeValues: Record<string, unknown> = {}
         const mousedown = (event: MouseEvent) => {
             if (
                 !state.enabled ||
@@ -1404,8 +1406,8 @@ export class LineBlock<
             if (block.__isRunningEventActive(point)) {
                 block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                 const { x, y } = block.canvas?.getCursorPosition(event)!
-                let diffX = x - initCords.x
-                let diffY = y - initCords.y
+                const diffX = x - initCords.x
+                const diffY = y - initCords.y
                 const incX = diffX - beforeCords.x
                 const incY = diffY - beforeCords.y
                 if (incX !== 0 || incY !== 0) {
@@ -1414,18 +1416,14 @@ export class LineBlock<
                     const sin = Math.sin(angle)
                     const pointIncX = incX * cos - incY * sin
                     const pointIncY = incX * sin + incY * cos
-                    const pointXCord = this.getOptionCurrent<number>(pointX) ?? 0
-                    const pointYCord = this.getOptionCurrent<number>(pointY) ?? 0
+                    const pointXCord =
+                        this.getOptionCurrent<number>(pointX) ?? 0
+                    const pointYCord =
+                        this.getOptionCurrent<number>(pointY) ?? 0
                     if (pointIncX !== 0)
-                        block.setOptionCurrent(
-                            pointX,
-                            pointXCord + pointIncX
-                        )
+                        block.setOptionCurrent(pointX, pointXCord + pointIncX)
                     if (pointIncY !== 0)
-                        block.setOptionCurrent(
-                            pointY,
-                            pointYCord + pointIncY
-                        )
+                        block.setOptionCurrent(pointY, pointYCord + pointIncY)
                     beforeCords.x = diffX
                     beforeCords.y = diffY
                 }

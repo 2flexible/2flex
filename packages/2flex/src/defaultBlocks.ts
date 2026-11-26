@@ -1,8 +1,15 @@
-import type { BaseBlock } from './BaseBlock'
+import { type BaseBlock } from './BaseBlock'
 import { Block } from './Block'
 import { LayoutBlock } from './LayoutBlock'
 import { ShapeBlock } from './ShapeBlock'
-import { RectangleBlock, CircleBlock, TextBlock, LineBlock, ImageBlock, VideoBlock } from './shapes'
+import {
+    RectangleBlock,
+    CircleBlock,
+    TextBlock,
+    LineBlock,
+    ImageBlock,
+    VideoBlock,
+} from './shapes'
 
 export const defaultBlocks = [
     Block,
@@ -13,5 +20,5 @@ export const defaultBlocks = [
     ImageBlock,
     VideoBlock,
     TextBlock,
-    LineBlock
+    LineBlock,
 ] as unknown as (typeof BaseBlock)[]
