@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { page } from 'vitest/browser'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
+import { page } from 'vite-plus/test/browser'
 import { Block, Canvas, ShapeBlock } from '@2flexible/2flex'
-import type { ShapeBlockOptions as IShapeOptions } from '@2flexible/2flex'
+import { type ShapeBlockOptions as IShapeOptions } from '@2flexible/2flex'
 import { flush, removeCanvasElements } from './helpers'
 
 let shape: ShapeBlock
@@ -9,8 +9,9 @@ let canvas: Canvas
 
 // the tiles are drawn into the canvas element one to one, so the pixels are
 // addressed in the same coordinates as the blocks
-const pixelAt = (x: number, y: number) =>
-    Array.from(canvas.context!.getImageData(x, y, 1, 1).data)
+const pixelAt = (x: number, y: number) => [
+    ...canvas.context!.getImageData(x, y, 1, 1).data,
+]
 
 // tells if anything was painted inside the given area
 const paintedArea = (x: number, y: number, width: number, height: number) => {

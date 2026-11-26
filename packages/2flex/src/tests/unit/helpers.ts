@@ -1,4 +1,4 @@
-import type { Block, Canvas } from '@2flexible/2flex'
+import { type Block, type Canvas } from '@2flexible/2flex'
 
 // the canvas applies every queued change (block init, option recalculation,
 // dom event registration, drawing) inside its render loop which is driven by

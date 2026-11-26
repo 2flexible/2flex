@@ -1,5 +1,5 @@
-import { BaseBlock } from './BaseBlock'
-import { BlockOptions } from './Block'
+import { type BaseBlock } from './BaseBlock'
+import { type BlockOptions } from './Block'
 import { HELPER_BLOCK_NAMES, HOT_LINE_BLOCK_NAME } from './const'
 import { Node } from './Node'
 import {
@@ -58,7 +58,9 @@ export class CanvasScene {
         const blocks: BaseBlock[] = []
         this.preOrderTraversal((block: BaseBlock) => {
             for (const k of keys) {
-                if (block.getOptionCurrent(k) !== queries[k as keyof BlockQuery])
+                if (
+                    block.getOptionCurrent(k) !== queries[k as keyof BlockQuery]
+                )
                     return
             }
             blocks.push(block)
@@ -144,7 +146,7 @@ export class CanvasScene {
         }
         return this.#treeOrder.get(a.nodeId!)! - this.#treeOrder.get(b.nodeId!)!
     }
-   
+
     #isHelperBlock(block: BaseBlock) {
         const name = block.getOptionCurrent('name')
         return !!name && HELPER_BLOCK_NAMES.includes(name)

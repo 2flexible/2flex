@@ -1,16 +1,16 @@
-import type { BaseBlock, BaseBlockOptions } from './BaseBlock'
+import { type BaseBlock, type BaseBlockOptions } from './BaseBlock'
 import {
-    BlockOptionsOf,
-    CubicBezier,
-    Easing,
-    JumpPosition,
-    LinearEasing,
-    OwnOptionAccessors,
-    RelativeType,
-    RGBA,
-    ShortHandRelativeType,
-    StepsEasing,
+    type BlockOptionsOf,
+    type CubicBezier,
+    type Easing,
+    type JumpPosition,
+    type LinearEasing,
+    type OwnOptionAccessors,
+    type RGBA,
+    type ShortHandRelativeType,
+    type StepsEasing,
 } from './types'
+import { RelativeType } from './types'
 import { Node } from './Node'
 
 export function fromPercentage(from: number, parentSize: number) {
@@ -357,7 +357,7 @@ export function getPrototype(
     obj: object,
     key: string
 ): PropertyDescriptor | null | undefined {
-    let proto = Object.getPrototypeOf(obj)
+    const proto = Object.getPrototypeOf(obj)
     if (!getOwnPrototype(proto, key)) {
         return getPrototypeInChain(
             Object.getPrototypeOf(obj.constructor.prototype),
@@ -371,7 +371,7 @@ export function getPrototypeInChain(
     key: string
 ): PropertyDescriptor | null | undefined {
     if (!proto) return proto
-    let p = getOwnPrototype(proto, key)
+    const p = getOwnPrototype(proto, key)
     if (p) return p
     else if (proto !== Node) {
         return getPrototypeInChain(Object.getPrototypeOf(proto), key)
@@ -502,7 +502,7 @@ export function stationaryPoints(
 
     const points = []
     const D = Math.pow(b, 2) - 4 * a * c
-    if (D == 0) {
+    if (D === 0) {
         const t = -b / (2 * a)
         if (t >= 0 && t <= 1) points.push(t)
     } else if (D > 0) {

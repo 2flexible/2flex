@@ -1,4 +1,4 @@
-import type { BaseBlock, BaseBlockOptions } from './BaseBlock'
+import { type BaseBlock, type BaseBlockOptions } from './BaseBlock'
 
 export type RelativeType = number | string
 
@@ -21,7 +21,7 @@ export interface HotCornerArea {
 export type ICssProperties = {
     [key in keyof CSSStyleDeclaration]?: CSSStyleDeclaration[key]
 }
-export type SnapshotData = { [key: string]: Object }
+export type SnapshotData = { [key: string]: object }
 export type NodeId = number | undefined
 
 export type XY = { x: number; y: number }
@@ -71,39 +71,39 @@ type IsMarked<T> = T extends unknown
 
 type ResolvedMember<T> = T extends unknown
     ? T extends string
-      ? string extends T
-          ? IsMarked<T> extends true
-              ? T
-              : number
-          : T
-      : T extends number
-        ? number
-        : T extends [infer A, infer B, infer C, infer D]
-          ? A extends string
-              ? string extends A
-                  ? [number, number, number, number]
-                  : never
-              : never
-          : T extends [infer A, infer B, infer C]
+        ? string extends T
+            ? IsMarked<T> extends true
+                ? T
+                : number
+            : T
+        : T extends number
+          ? number
+          : T extends [infer A, infer B, infer C, infer D]
             ? A extends string
                 ? string extends A
-                    ? [number, number, number]
+                    ? [number, number, number, number]
                     : never
                 : never
-            : T extends [infer A, infer B]
+            : T extends [infer A, infer B, infer C]
               ? A extends string
                   ? string extends A
-                      ? [number, number]
+                      ? [number, number, number]
                       : never
                   : never
-              : T extends [infer A]
+              : T extends [infer A, infer B]
                 ? A extends string
                     ? string extends A
-                        ? [number]
+                        ? [number, number]
                         : never
                     : never
-                : T
-        : never
+                : T extends [infer A]
+                  ? A extends string
+                      ? string extends A
+                          ? [number]
+                          : never
+                      : never
+                  : T
+    : never
 
 type IsAny<T> = 0 extends 1 & T ? true : false
 
@@ -136,7 +136,6 @@ export type OptionAccessorsWith<O, OV> = Omit<O, keyof OV> & OV
 
 export type BlockOptionsOf<B> =
     B extends BaseBlock<infer O> ? O : BaseBlockOptions
-
 
 export interface ScrollableBlock extends BaseBlock {
     __overflowTranslateX(x: number): void

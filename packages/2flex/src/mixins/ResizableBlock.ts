@@ -1,5 +1,8 @@
-import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
-import type { OwnOptionAccessors } from '../BaseBlock'
+import {
+    type BaseBlock,
+    type BaseBlockOptions,
+    type OwnOptionAccessors,
+} from '../BaseBlock'
 import {
     initialCorners,
     OVERFLOW_X_SCROLL_RUNNING_EVENT,
@@ -7,7 +10,7 @@ import {
     RESIZABLE_RUNNING_EVENT,
     SELECTABLE_RUNNING_EVENT,
 } from '../const'
-import { BlockConstructor, HotCornerArea, XY } from '../types'
+import { type BlockConstructor, type HotCornerArea, type XY } from '../types'
 import { checkInBound } from '../Utils'
 
 export interface IResizableOptions extends BaseBlockOptions {
@@ -666,8 +669,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 ) {
                     const { x, y } = block.canvas?.getCursorPosition(event)!
 
-                    let diffX = x - initCords.x
-                    let diffY = y - initCords.y
+                    const diffX = x - initCords.x
+                    const diffY = y - initCords.y
                     if (diffX !== 0 || diffY !== 0) {
                         const cacheRotate = block.__rotationCache()
                         const diffW = diffX - beforeCords.x
@@ -712,8 +715,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                         )
 
                         if (leftResize || rightResize) {
-                            let Cos = Math.cos(angle)
-                            let Sin = Math.sin(angle)
+                            const Cos = Math.cos(angle)
+                            const Sin = Math.sin(angle)
                             const increaseX = Cos * diffW + Sin * diffH
                             const cx = increaseX * Cos
                             const cy = increaseX * Sin
@@ -744,8 +747,8 @@ export const ResizableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                             }
                         }
                         if (topResize || bottomResize) {
-                            let Cos = Math.cos(-angle)
-                            let Sin = Math.sin(-angle)
+                            const Cos = Math.cos(-angle)
+                            const Sin = Math.sin(-angle)
                             const increaseY = Sin * diffW + Cos * diffH
                             const cx = increaseY * Sin
                             const cy = increaseY * Cos

@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vite-plus/test'
 import { Block, Canvas, ImageBlock, ShapeBlock } from '@2flexible/2flex'
 import { MediaLayoutBlock } from '../../shapes/MediaLayoutBlock'
 import { flush, removeCanvasElements, waitFor } from './helpers'
@@ -20,8 +20,9 @@ const createImage = (width: number, height: number, color: string) => {
     return canvas.toDataURL()
 }
 
-const pixelAt = (target: Canvas, x: number, y: number) =>
-    Array.from(target.context!.getImageData(x, y, 1, 1).data)
+const pixelAt = (target: Canvas, x: number, y: number) => [
+    ...target.context!.getImageData(x, y, 1, 1).data,
+]
 
 describe('ImageBlock', () => {
     afterEach(() => {

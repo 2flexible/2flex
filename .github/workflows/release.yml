@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: 
+    branches:
       - main
       - 'v[0-9]'
 
@@ -20,14 +20,13 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1.22.0
         with:
-          node-version: 24
-      - name: Install dependencies
-        run: npm ci
+          node-version: '24'
+          cache: true
       - name: Build
-        run: npm run build:all
+        run: pnpm run build:all
       - name: Define Tag
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
@@ -38,9 +37,8 @@ jobs:
       - name: Publish Release
         uses: changesets/action@v1
         with:
-          version: npm run changeset:version
-          publish: npm run changeset:publish -- --tag ${{ env.TAG }}
+          version: pnpm run changeset:version
+          publish: pnpm run changeset:publish -- --tag ${{ env.TAG }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-  

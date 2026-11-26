@@ -1,5 +1,5 @@
-import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
-import type { OwnOptionAccessors } from '../BaseBlock'
+import { BaseBlock } from '../BaseBlock'
+import { type OwnOptionAccessors, type BaseBlockOptions } from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     OVERFLOW_AREA_GAP,
@@ -10,7 +10,7 @@ import {
     RESIZABLE_RUNNING_EVENT,
     ROTATABLE_RUNNING_EVENT,
 } from '../const'
-import { BlockConstructor } from '../types'
+import { type BlockConstructor } from '../types'
 import { clamp, checkInBound } from '../Utils'
 
 export type Overflow = 'visible' | 'hidden' | 'scroll' | 'auto'
@@ -124,7 +124,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             const tx = this.canvas?.view.tx ?? 0
             const ty = this.canvas?.view.ty ?? 0
             const position = this.getOptionCurrent('position')
-            let isExpilict = position === 'fixed' || position === 'sticky'
+            const isExpilict = position === 'fixed' || position === 'sticky'
             const left = !isExpilict ? minX : minX * scale + tx
             const top = !isExpilict ? coverTop : coverTop * scale + ty
             this.#overflowXscrollBarBlock.rotationCenterX(
@@ -150,7 +150,7 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             const tx = this.canvas?.view.tx ?? 0
             const ty = this.canvas?.view.ty ?? 0
             const position = this.getOptionCurrent('position')
-            let isExpilict = position === 'fixed' || position === 'sticky'
+            const isExpilict = position === 'fixed' || position === 'sticky'
             const left = !isExpilict
                 ? maxX - OVERFLOW_AREA_GAP
                 : (maxX - OVERFLOW_AREA_GAP) * scale + tx
@@ -442,8 +442,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 ) {
                     const { x, y } = scrollBar.canvas?.getCursorPosition(event)!
 
-                    let diffX = x - initCords.x
-                    let diffY = y - initCords.y
+                    const diffX = x - initCords.x
+                    const diffY = y - initCords.y
 
                     if (diffX !== 0 || diffY !== 0) {
                         const dxX = diffX - beforeCords.x
@@ -489,45 +489,42 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             scrollBar.__addEvent('mousedown', mousedown)
             scrollBar.__addEvent('mousemove', mousemove)
             scrollBar.__addEvent('mouseup', mouseup)
-            scrollBar.onRender(
-                (overflowXScrollBar: BaseBlock) => {
-                    if (!block.__isOverflowXScrollable || !overflowXScrollBar)
-                        return
+            scrollBar.onRender((overflowXScrollBar: BaseBlock) => {
+                if (!block.__isOverflowXScrollable || !overflowXScrollBar)
+                    return
 
-                    const width = Math.abs(block.__boxWidth())
-                    const areaWidth = clamp(
-                        width + block.#overflowWidth,
-                        OVERFLOW_SCROLL_BAR_MIN_SIZE,
-                        width
-                    )
-                    //  while inner scroll bar in minimum width need to calculate correct cordiantes
-                    const xPer = block.#overflowXScrollPer
-                    const horizontalFlipped = block.horizontalFlip()
-                    const innerCordX = horizontalFlipped
-                        ? overflowXScrollBar.x() +
-                          overflowXScrollBar.width() -
-                          areaWidth +
-                          block.overflowPositionX() / xPer
-                        : overflowXScrollBar.x() -
-                          block.overflowPositionX() / xPer
-                    const innerCordY =
-                        overflowXScrollBar.y() + OVERFLOW_INNER_AREA_GAP
+                const width = Math.abs(block.__boxWidth())
+                const areaWidth = clamp(
+                    width + block.#overflowWidth,
+                    OVERFLOW_SCROLL_BAR_MIN_SIZE,
+                    width
+                )
+                //  while inner scroll bar in minimum width need to calculate correct cordiantes
+                const xPer = block.#overflowXScrollPer
+                const horizontalFlipped = block.horizontalFlip()
+                const innerCordX = horizontalFlipped
+                    ? overflowXScrollBar.x() +
+                      overflowXScrollBar.width() -
+                      areaWidth +
+                      block.overflowPositionX() / xPer
+                    : overflowXScrollBar.x() - block.overflowPositionX() / xPer
+                const innerCordY =
+                    overflowXScrollBar.y() + OVERFLOW_INNER_AREA_GAP
 
-                    block.#buildOverflowScrollAreaBar(
-                        block,
-                        overflowXScrollBar,
-                        overflowXScrollBar.x(),
-                        overflowXScrollBar.y(),
-                        overflowXScrollBar.width(),
-                        overflowXScrollBar.height(),
-                        innerCordX,
-                        innerCordY,
-                        areaWidth,
-                        OVERFLOW_INNER_AREA_SIZE,
-                        OVERFLOW_INNER_AREA_RADIUS
-                    )
-                }
-            )
+                block.#buildOverflowScrollAreaBar(
+                    block,
+                    overflowXScrollBar,
+                    overflowXScrollBar.x(),
+                    overflowXScrollBar.y(),
+                    overflowXScrollBar.width(),
+                    overflowXScrollBar.height(),
+                    innerCordX,
+                    innerCordY,
+                    areaWidth,
+                    OVERFLOW_INNER_AREA_SIZE,
+                    OVERFLOW_INNER_AREA_RADIUS
+                )
+            })
             return block.#overflowXscrollBarBlock
         }
         #overflowYScrollBar(block: OverflowBlock) {
@@ -596,8 +593,8 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
                     scrollBar.__ImFirst()
                 ) {
                     const { x, y } = scrollBar.canvas?.getCursorPosition(event)!
-                    let diffX = x - initCords.x
-                    let diffY = y - initCords.y
+                    const diffX = x - initCords.x
+                    const diffY = y - initCords.y
 
                     if (diffY !== 0 || diffX !== 0) {
                         const dxX = diffX - beforeCords.x
@@ -642,46 +639,44 @@ export const OverflowBlock = <TBase extends BlockConstructor<BaseBlock>>(
             scrollBar.__addEvent('mousedown', mousedown)
             scrollBar.__addEvent('mousemove', mousemove)
             scrollBar.__addEvent('mouseup', mouseup)
-            scrollBar.onRender(
-                (overflowYScrollBar: BaseBlock) => {
-                    if (!block.__isOverflowYScrollable || !overflowYScrollBar)
-                        return
+            scrollBar.onRender((overflowYScrollBar: BaseBlock) => {
+                if (!block.__isOverflowYScrollable || !overflowYScrollBar)
+                    return
 
-                    const height = Math.abs(block.__boxHeight())
-                    const areaHeight = clamp(
-                        height +
-                            (block.#overflowHeight -
-                                block.#overflowScrollYHeightCut),
-                        OVERFLOW_SCROLL_BAR_MIN_SIZE,
-                        height - block.#overflowScrollYHeightCut
-                    )
-                    //  while inner scroll bar in minimum width need to calculate correct cordiantes
-                    const verticalFlipped = block.verticalFlip()
-                    const innerCordX =
-                        overflowYScrollBar.x() + OVERFLOW_INNER_AREA_GAP
-                    const innerCordY = verticalFlipped
-                        ? overflowYScrollBar.y() +
-                          overflowYScrollBar.height() -
-                          areaHeight +
-                          block.overflowPositionY() / block.#overflowYScrollPer
-                        : overflowYScrollBar.y() -
-                          block.overflowPositionY() / block.#overflowYScrollPer
+                const height = Math.abs(block.__boxHeight())
+                const areaHeight = clamp(
+                    height +
+                        (block.#overflowHeight -
+                            block.#overflowScrollYHeightCut),
+                    OVERFLOW_SCROLL_BAR_MIN_SIZE,
+                    height - block.#overflowScrollYHeightCut
+                )
+                //  while inner scroll bar in minimum width need to calculate correct cordiantes
+                const verticalFlipped = block.verticalFlip()
+                const innerCordX =
+                    overflowYScrollBar.x() + OVERFLOW_INNER_AREA_GAP
+                const innerCordY = verticalFlipped
+                    ? overflowYScrollBar.y() +
+                      overflowYScrollBar.height() -
+                      areaHeight +
+                      block.overflowPositionY() / block.#overflowYScrollPer
+                    : overflowYScrollBar.y() -
+                      block.overflowPositionY() / block.#overflowYScrollPer
 
-                    block.#buildOverflowScrollAreaBar(
-                        block,
-                        overflowYScrollBar,
-                        overflowYScrollBar.x(),
-                        overflowYScrollBar.y(),
-                        overflowYScrollBar.width(),
-                        overflowYScrollBar.height(),
-                        innerCordX,
-                        innerCordY,
-                        OVERFLOW_INNER_AREA_SIZE,
-                        areaHeight,
-                        OVERFLOW_INNER_AREA_RADIUS
-                    )
-                }
-            )
+                block.#buildOverflowScrollAreaBar(
+                    block,
+                    overflowYScrollBar,
+                    overflowYScrollBar.x(),
+                    overflowYScrollBar.y(),
+                    overflowYScrollBar.width(),
+                    overflowYScrollBar.height(),
+                    innerCordX,
+                    innerCordY,
+                    OVERFLOW_INNER_AREA_SIZE,
+                    areaHeight,
+                    OVERFLOW_INNER_AREA_RADIUS
+                )
+            })
             return block.#overflowYscrollBarBlock
         }
     }

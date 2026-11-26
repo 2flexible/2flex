@@ -1,4 +1,8 @@
-import type { ColorType, OwnOptionAccessors, TextType } from '../BaseBlock'
+import {
+    type ColorType,
+    type OwnOptionAccessors,
+    type TextType,
+} from '../BaseBlock'
 import {
     initialCorners,
     SELECTABLE_RUNNING_EVENT,
@@ -6,14 +10,14 @@ import {
 } from '../const'
 import { DummyCanvas } from '../DummyCanvas'
 import { ShapeBlock } from '../ShapeBlock'
-import type {
-    DrawFunc,
-    FontStyle,
-    FontVariant,
-    FontWeight,
-    ShapeBlockOptions,
+import {
+    type DrawFunc,
+    type FontStyle,
+    type FontVariant,
+    type FontWeight,
+    type ShapeBlockOptions,
 } from '../ShapeBlock'
-import type { HotCornerArea, RelativeType } from '../types'
+import { type HotCornerArea, type RelativeType } from '../types'
 import { clampSize, inRange, invalidArgument } from '../Utils'
 
 type Wrap = 'letter' | 'word' | 'nowrap'
@@ -957,14 +961,13 @@ export class TextBlock<
         navigator.clipboard?.writeText(text)
         this.#deleteRange()
     }
-    #pasteFromClipboard() {
-        navigator.clipboard?.readText().then((text) => {
-            this.#insertText(text)
-            // the text is pasted asynchronously, so it is synced here
-            this.#syncTextOption()
-            this.onEditable()?.(this)
-            this.__invokeChange()
-        })
+    async #pasteFromClipboard() {
+        const text = await navigator.clipboard?.readText()
+        this.#insertText(text)
+        // the text is pasted asynchronously, so it is synced here
+        this.#syncTextOption()
+        this.onEditable()?.(this)
+        this.__invokeChange()
     }
     #keyMappingBehaviors(event: KeyboardEvent) {
         const key = event.key
@@ -1057,10 +1060,7 @@ export class TextBlock<
             if (block.__ImFirst()) {
                 block.#isDraggingSelection = false
                 block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
-                block.__updateRunningEvent(
-                    TEXT_EDITABLE_RUNNING_EVENT,
-                    true
-                )
+                block.__updateRunningEvent(TEXT_EDITABLE_RUNNING_EVENT, true)
                 block.#selectionAnchor = block.#headLetterNode
                 block.#selectionFocus = block.#tailLetterNode
                 block.__invokeChange()
@@ -1078,10 +1078,7 @@ export class TextBlock<
                         TEXT_EDITABLE_RUNNING_EVENT,
                         false
                     )
-                    block.__updateRunningEvent(
-                        DRAGGABLE_RUNNING_EVENT,
-                        false
-                    )
+                    block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                     block.#clearEditing()
                     block.#selectionAnchor = undefined
                     block.#selectionFocus = undefined
@@ -1129,11 +1126,7 @@ export class TextBlock<
                 block.#isDraggingSelection = false
                 block.__updateRunningEvent(DRAGGABLE_RUNNING_EVENT, false)
                 block.__resetCursor('text')
-                if (
-                    block.__isRunningEventActive(
-                        TEXT_EDITABLE_RUNNING_EVENT
-                    )
-                ) {
+                if (block.__isRunningEventActive(TEXT_EDITABLE_RUNNING_EVENT)) {
                     const clicked = block.#checkLetterInBound(event)
                     if (clicked) block.#selectionFocus = clicked
                     block.__invokeChange()

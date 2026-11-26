@@ -1,13 +1,17 @@
-import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
-import type { ColorType, OwnOptionAccessors } from '../BaseBlock'
+import { BaseBlock } from '../BaseBlock'
+import {
+    type ColorType,
+    type OwnOptionAccessors,
+    type BaseBlockOptions,
+} from '../BaseBlock'
 import {
     HOT_LINE_BLOCK_NAME,
     initialCorners,
     SELECTABLE_RUNNING_EVENT,
 } from '../const'
-import { BlockConstructor, HotCornerArea } from '../types'
+import { type BlockConstructor, type HotCornerArea } from '../types'
 
-export interface IHotLineBlockOptions extends BaseBlockOptions {
+export interface IHotLineOptions extends BaseBlockOptions {
     hotCornerSize?: number
     hotCornerRadius?: number
     hotCornerStrokeWidth?: number
@@ -19,7 +23,7 @@ export interface IHotLineBlockOptions extends BaseBlockOptions {
 }
 
 interface HotLineBlockAccessors extends OwnOptionAccessors<
-    IHotLineBlockOptions,
+    IHotLineOptions,
     BaseBlockOptions
 > {}
 

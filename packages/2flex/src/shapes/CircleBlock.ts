@@ -1,8 +1,12 @@
 import { SELECTABLE_RUNNING_EVENT } from '../const'
-import type { ColorType, OwnOptionAccessors } from '../BaseBlock'
-import { ShapeBlockOptions, ShapeBlock } from '../ShapeBlock'
-import type { DrawFunc, FillStyle } from '../ShapeBlock'
-import { RelativeType } from '../types'
+import { type ColorType, type OwnOptionAccessors } from '../BaseBlock'
+import { ShapeBlock } from '../ShapeBlock'
+import {
+    type DrawFunc,
+    type FillStyle,
+    type ShapeBlockOptions,
+} from '../ShapeBlock'
+import { type RelativeType } from '../types'
 
 export type BorderStyle = 'solid' | 'dotted'
 export type BorderWidth = RelativeType
@@ -181,7 +185,8 @@ export class CircleBlock<
         if (!this.__isRunningEventActive(SELECTABLE_RUNNING_EVENT)) {
             const { x, y } = this.canvas?.getCursorPosition(event)!
             return this.#pathInBound(x, y)
-        } else return super.checkInBound(event)
+        }
+        return super.checkInBound(event)
     }
     __clipShape() {
         this.__clipPath?.ellipse(

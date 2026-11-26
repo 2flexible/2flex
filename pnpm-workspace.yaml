@@ -1,0 +1,24 @@
+packages:
+    - packages/*
+allowBuilds:
+    canvas: true
+    esbuild: true
+    nx: true
+catalog:
+    vite: npm:@voidzero-dev/vite-plus-core@8.3.8000
+    vitest: 5.1.0
+    vite-plus: 1.7.0
+    typescript: 5.8.3
+    '@types/node': 24.0.13
+    '@vitest/browser': 5.1.0
+    '@vitest/browser-playwright': 5.1.0
+    '@vitest/coverage-v8': 5.1.0
+    playwright: 1.62.1
+overrides:
+    vite@*: npm:@voidzero-dev/vite-plus-core@8.3.8000
+    vitest@*: 5.1.0
+peerDependencyRules:
+    allowAny:
+        - vitest
+    allowedVersions:
+        vitest: '*'

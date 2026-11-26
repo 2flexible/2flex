@@ -1,4 +1,4 @@
-import { NodeId } from './types'
+import { type NodeId } from './types'
 
 export class Node {
     childNodes: Set<Node>

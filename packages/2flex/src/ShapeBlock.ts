@@ -1,12 +1,13 @@
 import { invalidArgument, isRecord, requireCallback } from './Utils'
-import { Block, BlockOptions } from './Block'
-import type {
-    ColorType,
-    OwnOptionAccessors,
-    ResolvedAs,
-    TextType,
+import { type BlockOptions } from './Block'
+import { Block } from './Block'
+import {
+    type ColorType,
+    type OwnOptionAccessors,
+    type ResolvedAs,
+    type TextType,
 } from './BaseBlock'
-import type { RelativeType, XY } from './types'
+import { type RelativeType, type XY } from './types'
 
 export type GradientType = 'linear' | 'conic' | 'radial'
 export type LineDash = number[]
@@ -826,7 +827,7 @@ export class ShapeBlock<
     }
     #colorStops(block: ShapeBlock, opt?: GradientStops[]) {
         if (!opt) return
-        for (let stop of opt) {
+        for (const stop of opt) {
             block.#gradient?.addColorStop(stop.stop, stop.color)
             stop.gradient?.addColorStop(stop.stop, stop.color)
         }
@@ -966,14 +967,13 @@ export class ShapeBlock<
                     point.fillRule || 'nonzero'
                 ) || false
             )
-        else
-            return (
-                this.context?.isPointInPath(
-                    point.x,
-                    point.y,
-                    point.fillRule || 'nonzero'
-                ) || false
-            )
+        return (
+            this.context?.isPointInPath(
+                point.x,
+                point.y,
+                point.fillRule || 'nonzero'
+            ) || false
+        )
     }
     pointInStroke(point: PointInStroke): boolean | undefined {
         if (
@@ -992,7 +992,7 @@ export class ShapeBlock<
                 this.context?.isPointInStroke(point.path, point.x, point.y) ||
                 false
             )
-        else return this.context?.isPointInStroke(point.x, point.y) || false
+        return this.context?.isPointInStroke(point.x, point.y) || false
     }
 
     #font(block: ShapeBlock, opt?: TextType) {
@@ -1102,7 +1102,7 @@ export class ShapeBlock<
             case 'drop-shadow':
                 let _s = ''
                 ;(value as number[]).forEach((i, idx, arr) => {
-                    if (typeof i == 'string') _s += i
+                    if (typeof i === 'string') _s += i
                     else {
                         _s += `${i}px`
                     }

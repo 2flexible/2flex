@@ -1,4 +1,4 @@
-import type { ICssProperties, CustomEvent } from './types'
+import { type ICssProperties, type CustomEvent } from './types'
 
 interface ContextParamas {
     alpha?: boolean

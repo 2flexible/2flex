@@ -1,5 +1,8 @@
-import { BaseBlock, BaseBlockOptions } from '../BaseBlock'
-import type { OwnOptionAccessors } from '../BaseBlock'
+import {
+    type BaseBlock,
+    type BaseBlockOptions,
+    type OwnOptionAccessors,
+} from '../BaseBlock'
 import {
     DRAGGABLE_RUNNING_EVENT,
     initialCorners,
@@ -9,7 +12,7 @@ import {
     ROTATABLE_RUNNING_EVENT,
     SELECTABLE_RUNNING_EVENT,
 } from '../const'
-import { BlockConstructor, HotCornerArea, XY } from '../types'
+import { type BlockConstructor, type HotCornerArea, type XY } from '../types'
 import { checkInBound } from '../Utils'
 
 export interface IRotatableOptions extends BaseBlockOptions {
@@ -423,7 +426,7 @@ export const RotatableBlock = <TBase extends BlockConstructor<BaseBlock>>(
                 ) {
                     const { x, y } = block.canvas?.getCursorPosition(event)!
 
-                    let radian = Math.atan2(
+                    const radian = Math.atan2(
                         y - block.rotationCenterY(),
                         x - block.rotationCenterX()
                     )

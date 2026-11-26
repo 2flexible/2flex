@@ -1,17 +1,17 @@
 import { Canvas } from './Canvas'
-import type { CanvasOptions, CanvasView } from './Canvas'
+import { type CanvasOptions, type CanvasView } from './Canvas'
 import { BaseBlock } from './BaseBlock'
-import type { BaseBlockOptions } from './BaseBlock'
-import type {
-    BlockOptionsOf,
-    ColorType,
-    OptionAccessor,
-    OptionAccessors,
-    OptionAccessorsWith,
-    OwnOptionAccessors,
-    ResolvedAs,
-    ResolvedValue,
-    TextType,
+import { type BaseBlockOptions } from './BaseBlock'
+import {
+    type BlockOptionsOf,
+    type ColorType,
+    type OptionAccessor,
+    type OptionAccessors,
+    type OptionAccessorsWith,
+    type OwnOptionAccessors,
+    type ResolvedAs,
+    type ResolvedValue,
+    type TextType,
 } from './types'
 import { Block } from './Block'
 import {
@@ -22,19 +22,19 @@ import {
     LineBlock,
     TextBlock,
 } from './shapes/index'
-import type {
-    RectangleBlockOptions,
-    CircleBlockOptions,
-    ImageBlockOptions,
-    VideoBlockOptions,
-    LineBlockOptions,
-    TextBlockOptions,
+import {
+    type RectangleBlockOptions,
+    type CircleBlockOptions,
+    type ImageBlockOptions,
+    type VideoBlockOptions,
+    type LineBlockOptions,
+    type TextBlockOptions,
 } from './shapes/index'
 import { LayoutBlock } from './LayoutBlock'
 import { ShapeBlock } from './ShapeBlock'
-import type { BlockOptions } from './Block'
-import type { LayoutBlockOptions } from './LayoutBlock'
-import type { ShapeBlockOptions } from './ShapeBlock'
+import { type BlockOptions } from './Block'
+import { type LayoutBlockOptions } from './LayoutBlock'
+import { type ShapeBlockOptions } from './ShapeBlock'
 import {
     radianToDegree,
     degreeToRadian,
