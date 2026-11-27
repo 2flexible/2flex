@@ -92,7 +92,423 @@ importers:
         version: 1.7.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0(vitest@5.1.0))(jsdom@29.0.2(canvas@3.2.3))(playwright@1.62.1)(typescript@5.8.3)(yaml@2.9.1)
       vitest:
         specifier: 'catalog:'
-        version: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
+        version: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1))(vitest@5.1.0))(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
+
+  examples/2flex/01-getting-started/canvas-options:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/01-getting-started/first-scene:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/01-getting-started/units-and-utilities:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/02-blocks/block-basics:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/02-blocks/box-model:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/02-blocks/custom-block:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/02-blocks/custom-drawing:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/02-blocks/nesting:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/02-blocks/positioning:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/02-blocks/sizing:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/02-blocks/transform:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/02-blocks/visibility:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/03-layout/flex-layout:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/03-layout/grid-layout:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/04-shapes/circle:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/04-shapes/image:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/04-shapes/line:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/04-shapes/rectangle:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/04-shapes/text:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/04-shapes/video:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/05-interaction/draggable:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/05-interaction/events:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/05-interaction/hot-lines:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/05-interaction/overflow:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/05-interaction/resizable:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/05-interaction/rotatable:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/05-interaction/selectable:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/06-animation/keyframes:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/06-animation/playback-control:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/07-canvas/history:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/07-canvas/scene-query:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
+
+  examples/2flex/07-canvas/viewport:
+    dependencies:
+      '@2flexible/2flex':
+        specifier: file:../../../../packages/2flex
+        version: link:../../../../packages/2flex
+    devDependencies:
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8000
+        version: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
 
   packages/2flex:
     devDependencies:
@@ -3105,7 +3521,7 @@ snapshots:
       '@vitest/mocker': 5.1.0(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
       playwright: 1.62.1
       tinyrainbow: 3.2.0
-      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
+      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1))(vitest@5.1.0))(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
     transitivePeerDependencies:
       - bufferutil
       - msw
@@ -3117,7 +3533,7 @@ snapshots:
       '@testing-library/dom': 10.4.2
       '@testing-library/user-event': 14.6.13(@testing-library/dom@10.4.2)
       '@vitest/browser': 5.1.0(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))(vitest@5.1.0)
-      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
+      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1))(vitest@5.1.0))(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
     transitivePeerDependencies:
       - bufferutil
       - msw
@@ -3152,7 +3568,7 @@ snapshots:
       pngjs: 7.0.0
       sirv: 3.0.2
       tinyrainbow: 3.2.0
-      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
+      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1))(vitest@5.1.0))(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
       ws: 8.23.0
     transitivePeerDependencies:
       - bufferutil
@@ -3170,7 +3586,7 @@ snapshots:
       obug: 3.0.0
       std-env: 4.3.0
       tinyrainbow: 3.2.0
-      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
+      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1))(vitest@5.1.0))(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
     optionalDependencies:
       '@vitest/browser': 5.1.0(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))(vitest@5.1.0)
 
@@ -3219,7 +3635,7 @@ snapshots:
       pathe: 2.0.3
       sirv: 3.0.2
       tinyrainbow: 3.2.0
-      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
+      vitest: 5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1))(vitest@5.1.0))(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
 
   '@vitest/utils@5.1.0':
     dependencies:
@@ -4658,6 +5074,32 @@ snapshots:
     transitivePeerDependencies:
       - msw
 
+  vitest@5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1))(vitest@5.1.0))(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1)):
+    dependencies:
+      '@types/chai': 5.2.3
+      '@vitest/mocker': 5.1.0(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
+      chai: 6.3.0
+      es-module-lexer: 2.3.2
+      expect-type: 1.4.0
+      magic-string: 1.4.5
+      obug: 3.0.0
+      picomatch: 4.0.7
+      std-env: 4.3.0
+      tinybench: 6.2.4
+      tinyexec: 1.3.1
+      tinyglobby: 0.2.17
+      vite: 8.0.8(@types/node@24.0.13)(yaml@2.9.1)
+      why-is-node-running: 3.2.1
+    optionalDependencies:
+      '@types/node': 24.0.13
+      '@vitest/browser-playwright': 5.1.0(playwright@1.62.1)(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))(vitest@5.1.0)
+      '@vitest/browser-preview': 5.1.0(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))(vitest@5.1.0)
+      '@vitest/coverage-v8': 5.1.0(@vitest/browser@5.1.0)(vitest@5.1.0)
+      '@vitest/ui': 5.1.0(vitest@5.1.0)
+      jsdom: 29.0.2(canvas@3.2.3)
+    transitivePeerDependencies:
+      - msw
+
   vitest@5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0(vitest@5.1.0))(@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1))(jsdom@29.0.2(canvas@3.2.3)):
     dependencies:
       '@types/chai': 5.2.3
@@ -4673,32 +5115,6 @@ snapshots:
       tinyexec: 1.3.1
       tinyglobby: 0.2.17
       vite: '@voidzero-dev/vite-plus-core@8.3.8000(@types/node@24.0.13)(typescript@5.8.3)(yaml@2.9.1)'
-      why-is-node-running: 3.2.1
-    optionalDependencies:
-      '@types/node': 24.0.13
-      '@vitest/browser-playwright': 5.1.0(playwright@1.62.1)(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))(vitest@5.1.0)
-      '@vitest/browser-preview': 5.1.0(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))(vitest@5.1.0)
-      '@vitest/coverage-v8': 5.1.0(@vitest/browser@5.1.0)(vitest@5.1.0)
-      '@vitest/ui': 5.1.0(vitest@5.1.0)
-      jsdom: 29.0.2(canvas@3.2.3)
-    transitivePeerDependencies:
-      - msw
-
-  vitest@5.1.0(@types/node@24.0.13)(@vitest/browser-playwright@5.1.0)(@vitest/browser-preview@5.1.0)(@vitest/coverage-v8@5.1.0)(@vitest/ui@5.1.0)(jsdom@29.0.2(canvas@3.2.3))(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1)):
-    dependencies:
-      '@types/chai': 5.2.3
-      '@vitest/mocker': 5.1.0(vite@8.0.8(@types/node@24.0.13)(yaml@2.9.1))
-      chai: 6.3.0
-      es-module-lexer: 2.3.2
-      expect-type: 1.4.0
-      magic-string: 1.4.5
-      obug: 3.0.0
-      picomatch: 4.0.7
-      std-env: 4.3.0
-      tinybench: 6.2.4
-      tinyexec: 1.3.1
-      tinyglobby: 0.2.17
-      vite: 8.0.8(@types/node@24.0.13)(yaml@2.9.1)
       why-is-node-running: 3.2.1
     optionalDependencies:
       '@types/node': 24.0.13

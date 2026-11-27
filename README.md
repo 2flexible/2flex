@@ -47,6 +47,18 @@ const block = new RectangleBlock({
 initCanvas.add(block);
 ```
 
+## Examples
+
+Every use case of the library has an example of its own. They live in the
+[examples](./examples/2flex/README.md) folder, and each one is a project
+that is started on its own.
+
+```bash
+cd examples/2flex/01-getting-started/first-scene
+pnpm install
+pnpm dev
+```
+
 ## Contribute
 
 See [contributing guide](https://github.com/2flexible/2flex/blob/main/CONTRIBUTING.md) to learn about contributing to 2flex.

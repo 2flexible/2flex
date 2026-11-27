@@ -110,6 +110,69 @@ pnpm run test:docs
 
 The check runs in the `ci` workflow as well.
 
+## The examples
+
+The examples live in the `examples/2flex` folder. Every use case of the
+library has an example of its own, and every example is a project that is
+started on its own, so it is written the way a consumer of the package
+writes the code.
+
+| Folder                       | What it holds                   |
+| ---------------------------- | ------------------------------- |
+| `examples/2flex/<group>`     | A group of examples             |
+| `examples/2flex/<group>/<e>` | The project of a single example |
+
+The files of an example:
+
+| File          | What it holds                                |
+| ------------- | -------------------------------------------- |
+| `index.html`  | The page, it holds the `canvas` element      |
+| `src/main.ts` | The code of the example                      |
+| `meta.json`   | The title and the description of the example |
+
+An example is started from its own folder:
+
+```bash
+cd examples/2flex/01-getting-started/first-scene
+pnpm install
+pnpm dev
+```
+
+The scripts of every example are the same:
+
+| Script           | Action                                   |
+| ---------------- | ---------------------------------------- |
+| `pnpm dev`       | Starts the dev server of the example     |
+| `pnpm build`     | Type-checks the code and builds it       |
+| `pnpm preview`   | Serves the built example                 |
+| `pnpm typecheck` | Type-checks the code without building it |
+
+### Adding an example
+
+The files that are the same for every example are written by a script, so
+they are not copied by hand. The folder of the example and its `meta.json`
+are written first, then the script fills the rest:
+
+```bash
+pnpm run scaffold-examples
+```
+
+The index of the examples is written from the `meta.json` of the examples,
+so it stays in sync with them:
+
+```bash
+pnpm run write-examples-index
+```
+
+### Checking the examples
+
+Every example is built, served and opened in a browser, the script checks that
+it is drawn on its canvas and that it holds no error:
+
+```bash
+pnpm run verify:examples
+```
+
 ## Writing the code
 
 The code is formatted and linted by [Vite+](https://viteplus.dev). Run the
