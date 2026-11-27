@@ -1468,7 +1468,7 @@ export class BaseBlock<
     get __hasParentBlock() {
         if (
             this.parentNode &&
-            Object.getPrototypeOf(this.parentNode).constructor.name !== 'Node'
+            Object.getPrototypeOf(this.parentNode).constructor !== Node
         )
             return true
         return false
