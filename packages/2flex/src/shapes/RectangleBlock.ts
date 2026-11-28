@@ -24,16 +24,50 @@ export type BorderRadius = ShortHandRelativeType
 export type ResolvedBorder = [number, BorderStyle, BorderColor]
 
 export interface RectangleBlockOptions extends ShapeBlockOptions {
+    /**
+     * The color the rectangle is filled with.
+     */
     backgroundColor?: ColorType
     // border-radius: [top-left, top-right, bottom-right, bottom-left]
+    /**
+     * The radius of the corners of the rectangle.
+     *
+     * The value is the radius of the top left, top right, bottom right and bottom left corner.
+     */
     borderRadius?: ResolvedAs<BorderRadius, number[]>
+    /**
+     * The way the outline of the rectangle is drawn.
+     */
     borderStyle?: BorderStyle
+    /**
+     * The width of the outline of the rectangle.
+     */
     borderWidth?: BorderWidth
+    /**
+     * The color of the outline of the rectangle.
+     */
     borderColor?: ColorType
+    /**
+     * The outline of the rectangle.
+     *
+     * The value holds the width, the style and the color of the outline.
+     */
     border?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    /**
+     * The outline of the top edge of the rectangle.
+     */
     borderTop?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    /**
+     * The outline of the bottom edge of the rectangle.
+     */
     borderBottom?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    /**
+     * The outline of the left edge of the rectangle.
+     */
     borderLeft?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
+    /**
+     * The outline of the right edge of the rectangle.
+     */
     borderRight?: ResolvedAs<RectangleBorder, ResolvedBorder | undefined>
 }
 
@@ -45,6 +79,9 @@ const DEFAULT_BORDER_COLOR = 'white'
 const DEFAULT_BORDER_STYLE: BorderStyle = 'solid'
 const DOTTED_BORDER_DASH = [4, 4]
 
+/**
+ * A rectangle with a fill, an outline and rounded corners.
+ */
 export class RectangleBlock<
     T extends RectangleBlockOptions = RectangleBlockOptions,
 > extends ShapeBlock<T> {

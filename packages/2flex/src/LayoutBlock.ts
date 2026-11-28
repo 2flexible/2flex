@@ -114,14 +114,43 @@ interface ChildData {
 
 export interface LayoutBlockOptions
     extends BlockOptions, GridLayout, FlexLayout {
+    /**
+     * The way the children of the block are placed.
+     *
+     * The value is `flex` or `grid`.
+     */
     layout?: ILayout
+    /**
+     * The way the children are placed along the main axis.
+     */
     justifyContent?: JustifyContent
+    /**
+     * The way the rows of the children are placed along the cross axis.
+     */
     alignContent?: AlignContent
+    /**
+     * The way the children are placed along the cross axis.
+     */
     alignItems?: AlignItems
+    /**
+     * The way the children are placed along both axes.
+     */
     placeContent?: PlaceContent
+    /**
+     * The way every child is placed along both axes.
+     */
     placeItems?: PlaceItems
+    /**
+     * The space between the children.
+     */
     gap?: Gap
+    /**
+     * The space between the columns of the children.
+     */
     gapColumn?: RelativeType
+    /**
+     * The space between the rows of the children.
+     */
     gapRow?: RelativeType
 }
 
@@ -147,6 +176,11 @@ const layoutAccessors = new Set([
     'alignItems',
 ])
 
+/**
+ * A block that places its children with a layout.
+ *
+ * The block lays its children out with flexbox or with a grid.
+ */
 export class LayoutBlock<
     T extends LayoutBlockOptions = LayoutBlockOptions,
 > extends Block<T> {

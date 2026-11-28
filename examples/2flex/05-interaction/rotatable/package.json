@@ -1,0 +1,20 @@
+{
+    "name": "2flex-example-rotatable",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "description": "Rotating a block with its corners.",
+    "scripts": {
+        "dev": "vite",
+        "build": "tsc --noEmit && vite build",
+        "preview": "vite preview",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@2flexible/2flex": "file:../../../../packages/2flex"
+    },
+    "devDependencies": {
+        "typescript": "~5.8.3",
+        "vite": "^6.0.0"
+    }
+}

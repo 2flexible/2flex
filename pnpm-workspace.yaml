@@ -1,5 +1,8 @@
 packages:
     - packages/*
+    # every example is a project of its own
+    - examples/2flex/*/*
+    - examples/2flex-react/*
 allowBuilds:
     canvas: true
     esbuild: true

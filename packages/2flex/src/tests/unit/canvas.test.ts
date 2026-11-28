@@ -92,6 +92,15 @@ const paintedBlock = (
     return block
 }
 
+// a canvas element that is bound to a canvas of the library, it is owned by
+// whoever made it
+const boundElement = (id: string) => {
+    const element = document.createElement('canvas')
+    element.id = id
+    document.body.appendChild(element)
+    return element
+}
+
 const RED = [255, 0, 0, 255]
 const GREEN = [0, 255, 0, 255]
 const BLUE = [0, 0, 255, 255]
@@ -1491,6 +1500,127 @@ describe('Canvas', () => {
             await flush(3)
             expect(onRender.mock.calls.length).toBe(callsAfterRemove)
             expect(pixelAt(canvas, 20, 20)).toEqual([0, 0, 0, 0])
+        })
+    })
+
+    describe('fromElement', () => {
+        it('should bind the given element', () => {
+            const element = boundElement('boundCanvas')
+            canvas = Canvas.fromElement(element, 300, 200)
+            expect(canvas.canvas).toBe(element)
+            expect(canvas.canvasId).toBe('boundCanvas')
+        })
+        it('should keep the size of the canvas', () => {
+            canvas = Canvas.fromElement(boundElement('boundCanvas'), 300, 200)
+            expect(canvas.width).toBe(300)
+            expect(canvas.height).toBe(200)
+        })
+        it('should reject an element that is not a canvas', () => {
+            const element = document.createElement('div')
+            document.body.appendChild(element)
+            expect(() =>
+                Canvas.fromElement(
+                    element as unknown as HTMLCanvasElement,
+                    10,
+                    10
+                )
+            ).toThrow(/canvas element/)
+            element.remove()
+        })
+        it('should not move the element into the document', () => {
+            const element = boundElement('boundCanvas')
+            canvas = Canvas.fromElement(element, 300, 200)
+            expect(element.parentElement).toBe(document.body)
+        })
+        it('should draw the blocks that are added to it', async () => {
+            canvas = Canvas.fromElement(boundElement('boundCanvas'), 300, 200)
+            canvas.add(
+                new RectangleBlock({ x: 0, y: 0, width: 40, height: 40 })
+            )
+            await flush()
+            expect(canvas.find({})).toHaveLength(1)
+        })
+    })
+
+    describe('flush', () => {
+        it('should apply the queued changes right away', () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            block = new RectangleBlock({ x: 0, y: 0, width: 40, height: 40 })
+            canvas.add(block)
+            canvas.flush()
+            expect(block.width()).toBe(40)
+        })
+        it('should be callable without any change', () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            expect(() => canvas.flush()).not.toThrow()
+        })
+    })
+
+    describe('resize', () => {
+        it('should change the size of the canvas', () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            canvas.resize(500, 400)
+            expect(canvas.width).toBe(500)
+            expect(canvas.height).toBe(400)
+        })
+        it('should resize the element of the canvas', () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            canvas.resize(500, 400)
+            expect(canvas.canvas.width).toBe(500 * window.devicePixelRatio)
+            expect(canvas.canvas.height).toBe(400 * window.devicePixelRatio)
+        })
+        it('should reject a size that is not finite', () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            expect(() => canvas.resize(Number.NaN, 400)).toThrow(/finite/)
+        })
+        it('should not change the layout of an element that was given', () => {
+            const element = boundElement('boundCanvas')
+            canvas = Canvas.fromElement(element, 300, 200)
+            canvas.resize(500, 400)
+            expect(element.style.width).toBe('')
+        })
+    })
+
+    describe('destroy', () => {
+        it('should stop the render loop', async () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            canvas.add(
+                new RectangleBlock({ x: 0, y: 0, width: 40, height: 40 })
+            )
+            await flush()
+            canvas.destroy()
+            // the loop is stopped, so the block is not drawn anymore
+            const painted = canvas.canvas.toDataURL()
+            await flush(4)
+            expect(canvas.canvas.toDataURL()).toBe(painted)
+        })
+        it('should remove the listeners of the window', () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            const removeSpy = vi.spyOn(window, 'removeEventListener')
+            canvas.destroy()
+            const removed = removeSpy.mock.calls.map((call) => call[0])
+            expect(removed).toContain('keydown')
+            removeSpy.mockRestore()
+        })
+        it('should drop the blocks of the scene', () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            canvas.add(
+                new RectangleBlock({ x: 0, y: 0, width: 10, height: 10 })
+            )
+            expect(canvas.find({})).toHaveLength(1)
+            canvas.destroy()
+            expect(canvas.find({})).toHaveLength(0)
+        })
+        it('should keep an element that was given to it', () => {
+            const element = boundElement('boundCanvas')
+            canvas = Canvas.fromElement(element, 300, 200)
+            canvas.destroy()
+            expect(element.parentElement).toBe(document.body)
+        })
+        it('should do nothing when it is called twice', () => {
+            canvas = new Canvas('myCanvas', 400, 500)
+            canvas.destroy()
+            expect(() => canvas.destroy()).not.toThrow()
         })
     })
 })

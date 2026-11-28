@@ -17,7 +17,9 @@ export class CanvasDOMManager {
     width: number
     height: number
     #domCanvas?: HTMLCanvasElement
+    #givenCanvas?: HTMLCanvasElement
     #domEvents: DomEvent = {}
+    #ownedCanvas = false
     contextParams: ContextParamas = {
         alpha: true,
         colorSpace: 'srgb',
@@ -26,10 +28,20 @@ export class CanvasDOMManager {
         willReadFrequently: false,
     }
 
-    constructor(canvasId: string, width: number, height: number) {
+    constructor(
+        canvasId: string,
+        width: number,
+        height: number,
+        element?: HTMLCanvasElement
+    ) {
         this.canvasId = canvasId
         this.width = width
         this.height = height
+        this.#givenCanvas = element
+        if (element) {
+            this.#domCanvas = element
+            this.#applySize(element)
+        }
     }
 
     get canvas(): HTMLCanvasElement {
@@ -42,18 +54,37 @@ export class CanvasDOMManager {
                 canvas = this.createCanvas()
             } else {
                 canvas.tabIndex = 0
-                canvas.width = this.width * this.pixelRatio
-                canvas.height = this.height * this.pixelRatio
-                canvas.style.width = this.width + 'px'
-                canvas.style.height = this.height + 'px'
+                this.#applySize(canvas)
             }
             this.#domCanvas = canvas
         }
         return this.#domCanvas as HTMLCanvasElement
     }
 
+    #applySize(canvas: HTMLCanvasElement) {
+        canvas.width = this.width * this.pixelRatio
+        canvas.height = this.height * this.pixelRatio
+        // the size of the element is only set when the manager owns it, an
+        // element that was given to it is laid out by its owner
+        if (!this.#givenCanvas) {
+            canvas.style.width = this.width + 'px'
+            canvas.style.height = this.height + 'px'
+        }
+    }
+
+    /**
+     * Resizes the canvas element to the size of the manager.
+     */
+    resize(width: number, height: number) {
+        this.width = width
+        this.height = height
+        this.#applySize(this.canvas)
+    }
+
     resetCanvas() {
-        this.#domCanvas = undefined
+        // an element that was given to the manager is kept, it is not looked
+        // up in the document again
+        this.#domCanvas = this.#givenCanvas
     }
 
     get context(): CanvasRenderingContext2D | null {
@@ -69,11 +100,10 @@ export class CanvasDOMManager {
         canvas.id = this.canvasId
         // need to test this
         canvas.tabIndex = 0
-        canvas.width = this.width * this.pixelRatio
-        canvas.height = this.height * this.pixelRatio
-        canvas.style.width = this.width + 'px'
-        canvas.style.height = this.height + 'px'
+        this.#applySize(canvas)
         document.querySelector('body')?.appendChild(canvas)
+        // the canvas was made by the manager, so the manager drops it too
+        this.#ownedCanvas = true
         return canvas
     }
 
@@ -113,6 +143,19 @@ export class CanvasDOMManager {
     clearAllEvents() {
         for (const [event, eventFuncs] of Object.entries(this.#domEvents)) {
             for (const func of eventFuncs) this.removeEventListener(event, func)
+        }
+    }
+
+    /**
+     * Releases the listeners of the canvas and drops the canvas element when
+     * the manager created it.
+     */
+    destroy() {
+        this.clearAllEvents()
+        if (this.#ownedCanvas) {
+            this.#domCanvas?.remove()
+            this.#domCanvas = undefined
+            this.#ownedCanvas = false
         }
     }
 }

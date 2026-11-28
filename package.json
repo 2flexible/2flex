@@ -12,9 +12,14 @@
         "test": "nx affected --target=test:ci",
         "test:all": "nx run-many --target=test:ci --all",
         "test:ci": "nx affected --target=test:ci --base=${NX_BASE:-main}",
+        "test:docs": "node scripts/verify-links.ts",
         "build": "nx affected --target=build",
         "build:all": "nx run-many --target=build --all",
         "build:ci": "nx affected --target=build --base=${NX_BASE:-main}",
+        "generate-docs": "tsc -b packages/2flex/tsconfig.json && node scripts/generate-docs.ts",
+        "scaffold-examples": "node scripts/scaffold-examples.ts",
+        "write-examples-index": "node scripts/write-examples-index.ts",
+        "verify:examples": "node scripts/verify-examples.ts",
         "changeset": "changeset",
         "changeset:version": "changeset version",
         "changeset:publish": "changeset publish",
@@ -22,19 +27,25 @@
         "test:watch": "nx run-many --target=test --all"
     },
     "nx": {
-        "includedScripts": []
+        "includedScripts": [
+            "test:docs"
+        ]
     },
     "devDependencies": {
         "@changesets/cli": "^2.30.0",
         "@types/node": "catalog:",
         "@vitest/browser-playwright": "catalog:",
         "@vitest/coverage-v8": "catalog:",
+        "ajv": "^8.20.0",
+        "ajv-formats": "^3.0.1",
         "canvas": "^3.2.3",
         "jsdom": "^29.0.2",
         "nx": "22.6.3",
         "only-allow": "^1.2.1",
         "playwright": "catalog:",
         "premove": "^4.0.0",
+        "typedoc": "^0.28.20",
+        "typedoc-plugin-markdown": "^4.14.1",
         "typescript": "catalog:",
         "vite-plus": "catalog:",
         "vitest": "catalog:"

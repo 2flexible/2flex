@@ -1,0 +1,93 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://2flexible.com/docs/config.schema.json",
+    "title": "The manifest of the documentation",
+    "description": "The manifest holds the sections of the sidebar, the path of every page and the order they are shown in. It lives next to the pages it points to, in the docs folder of the library.",
+    "type": "object",
+    "required": ["sections"],
+    "additionalProperties": false,
+    "properties": {
+        "$schema": {
+            "description": "The schema of this file.",
+            "type": "string"
+        },
+        "sections": {
+            "description": "The sections of the sidebar, in the order they are shown in.",
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/section" }
+        }
+    },
+    "$defs": {
+        "section": {
+            "description": "A group of pages of the sidebar.",
+            "type": "object",
+            "required": ["label", "children"],
+            "additionalProperties": false,
+            "properties": {
+                "label": {
+                    "description": "The name of the section.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "tab": {
+                    "description": "The group of the navigation the section belongs to.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "collapsible": {
+                    "description": "Whether the section can be folded away.",
+                    "type": "boolean"
+                },
+                "defaultCollapsed": {
+                    "description": "Whether the section starts folded away.",
+                    "type": "boolean"
+                },
+                "children": {
+                    "description": "The pages of the section, in the order they are shown in.",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": { "$ref": "#/$defs/entry" }
+                }
+            }
+        },
+        "entry": {
+            "description": "A page of the sidebar.",
+            "type": "object",
+            "required": ["label", "to"],
+            "additionalProperties": false,
+            "properties": {
+                "label": {
+                    "description": "The name of the page.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "to": {
+                    "description": "The path of the page, relative to the docs folder and without the extension. A page of the reference is written as api/<slug>.",
+                    "type": "string",
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$"
+                },
+                "badge": {
+                    "description": "A tag that is shown next to the page.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "addedAt": {
+                    "description": "The day the page was added, the page is marked as new for a week.",
+                    "type": "string",
+                    "format": "date"
+                },
+                "updatedAt": {
+                    "description": "The day the page was changed the last time, the page is marked as updated for a week.",
+                    "type": "string",
+                    "format": "date"
+                },
+                "tab": {
+                    "description": "The group of the navigation the page belongs to. The page belongs to the tab of its section when it does not name one.",
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        }
+    }
+}

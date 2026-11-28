@@ -12,6 +12,9 @@ interface VideoBlockAccessors extends OwnOptionAccessors<
     MediaLayoutBlockOptions
 > {}
 
+/**
+ * A video that is played onto the canvas.
+ */
 export class VideoBlock<
     T extends VideoBlockOptions = VideoBlockOptions,
 > extends MediaLayoutBlock<T> {

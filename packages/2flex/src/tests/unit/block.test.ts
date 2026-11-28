@@ -19,6 +19,25 @@ import {
 let block: Block
 let canvas: Canvas
 
+// a block with an option that is written as a method of its own, the option
+// is not registered with `addProperty`
+class CustomBlock extends Block {
+    myOption(value?: string) {
+        return super.__valueHandler(value, 'myOption', 'default')
+    }
+    myNumber(value?: number) {
+        return super.__valueHandler(value, 'myNumber', 0)
+    }
+}
+
+// a block with an option that is registered with `addProperty`
+class RegisteredBlock extends Block {
+    constructor(options: Record<string, unknown>) {
+        super(options as never)
+        this.addProperty('registered', 'default')
+    }
+}
+
 describe('Block', () => {
     afterEach(() => {
         removeCanvasElements()
@@ -2876,6 +2895,55 @@ describe('Block', () => {
 
             expect([inner.width(), inner.height()]).toStrictEqual([150, 50])
             expect([outer.width(), outer.height()]).toStrictEqual([150, 50])
+        })
+    })
+
+    describe('custom options', () => {
+        it('should be recognized as an option of the block', () => {
+            const custom = new CustomBlock({} as never)
+            expect(custom.__isOption('myOption')).toBe(true)
+            expect(custom.__isOption('myNumber')).toBe(true)
+        })
+        it('should be written with the set method', () => {
+            const custom = new CustomBlock({} as never)
+            expect(() =>
+                custom.set({ myOption: 'value' } as never)
+            ).not.toThrow()
+            expect(custom.myOption()).toBe('value')
+        })
+        it('should be reset by the set method', () => {
+            const custom = new CustomBlock({} as never)
+            custom.set({ myOption: 'value' } as never)
+            custom.set({ myOption: undefined } as never)
+            expect(custom.myOption()).toBe('default')
+        })
+        it('should be recognized when it is registered', () => {
+            const registered = new RegisteredBlock({})
+            expect(registered.__isOption('registered')).toBe(true)
+            expect(() =>
+                registered.set({ registered: 'value' } as never)
+            ).not.toThrow()
+        })
+        it('should not be recognized when the block does not have it', () => {
+            const custom = new CustomBlock({} as never)
+            expect(custom.__isOption('notAnOption')).toBe(false)
+            expect(() => custom.set({ notAnOption: 'value' } as never)).toThrow(
+                /does not recognize option/
+            )
+        })
+        it('should not be recognized when it is a method of the base class', () => {
+            const custom = new CustomBlock({} as never)
+            expect(custom.__isOption('render')).toBe(false)
+            expect(custom.__isOption('set')).toBe(false)
+            expect(custom.__isOption('addChild')).toBe(false)
+            expect(custom.__isOption('checkInBound')).toBe(false)
+            expect(custom.__isOption('__valueHandler')).toBe(false)
+        })
+        it('should not be recognized when it is a method of a built in block', () => {
+            const rectangle = new RectangleBlock({} as never)
+            expect(rectangle.__isOption('backgroundColor')).toBe(true)
+            expect(rectangle.__isOption('draw')).toBe(false)
+            expect(rectangle.__isOption('measureText')).toBe(false)
         })
     })
 })

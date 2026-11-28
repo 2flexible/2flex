@@ -27,6 +27,13 @@ export interface BlockOptions
         IDraggableOptions,
         IAnimationOptions {}
 
+/**
+ * A block that has no visuals of its own.
+ *
+ * The class is the base of every block that draws something. It brings the
+ * options of the mixins together, so a block can be moved, resized, rotated,
+ * selected and animated.
+ */
 export class Block<T extends BlockOptions = BlockOptions> extends OverflowBlock(
     HotLineBlock(
         SelectableBlock(

@@ -88,45 +88,186 @@ export type SelfType = 'self' | 'parent'
 export type onRender = (block: BaseBlock) => void
 export type Dependencies = BaseBlock[]
 
+/**
+ * The options every block understands.
+ *
+ * The options of the blocks are read through accessors. Calling an option
+ * without a value returns the current one, calling it with a value writes the
+ * new one.
+ */
 export interface BaseBlockOptions {
+    /**
+     * The name of the block.
+     *
+     * The name is used to find a block with {@link Canvas.find}.
+     */
     name?: ResolvedAs<string, string | undefined>
+    /**
+     * The horizontal position of the block.
+     *
+     * The value is a number of pixels or a relative value, for example `50%`
+     * or `2rem`.
+     */
     x?: RelativeType
+    /**
+     * The vertical position of the block.
+     */
     y?: RelativeType
+    /**
+     * The position of the top left corner of the block.
+     *
+     * The corners are set by the layout of the parent, setting them by hand
+     * takes the block out of the layout.
+     */
     cornerTopLeft?: XY
+    /**
+     * The position of the top right corner of the block.
+     */
     cornerTopRight?: XY
+    /**
+     * The position of the bottom left corner of the block.
+     */
     cornerBottomLeft?: XY
+    /**
+     * The position of the bottom right corner of the block.
+     */
     cornerBottomRight?: XY
+    /**
+     * The width of the block.
+     */
     width?: RelativeType
+    /**
+     * The height of the block.
+     */
     height?: RelativeType
+    /**
+     * The smallest width the block can have.
+     */
     minWidth?: RelativeType
+    /**
+     * The smallest height the block can have.
+     */
     minHeight?: RelativeType
+    /**
+     * The biggest width the block can have.
+     */
     maxWidth?: RelativeType
+    /**
+     * The biggest height the block can have.
+     */
     maxHeight?: RelativeType
+    /**
+     * The scale of the block.
+     */
     scale?: RelativeType
+    /**
+     * The way the block is placed in its parent.
+     *
+     * The value is `relative`, `absolute`, `fixed` or `sticky`.
+     */
     position?: Position
+    /**
+     * The distance to the top edge of the parent.
+     */
     top?: RelativeType
+    /**
+     * The distance to the bottom edge of the parent.
+     */
     bottom?: RelativeType
+    /**
+     * The distance to the left edge of the parent.
+     */
     left?: RelativeType
+    /**
+     * The distance to the right edge of the parent.
+     */
     right?: RelativeType
+    /**
+     * The space between the border of the block and its children.
+     */
     padding?: ResolvedAs<PaddingType, PaddingType | undefined>
+    /**
+     * The space between the top border of the block and its children.
+     */
     paddingTop?: RelativeType
+    /**
+     * The space between the right border of the block and its children.
+     */
     paddingRight?: RelativeType
+    /**
+     * The space between the bottom border of the block and its children.
+     */
     paddingBottom?: RelativeType
+    /**
+     * The space between the left border of the block and its children.
+     */
     paddingLeft?: RelativeType
+    /**
+     * The space around the block.
+     */
     margin?: ResolvedAs<MarginType, MarginType | undefined>
+    /**
+     * The space above the block.
+     */
     marginTop?: RelativeType
+    /**
+     * The space to the right of the block.
+     */
     marginRight?: RelativeType
+    /**
+     * The space below the block.
+     */
     marginBottom?: RelativeType
+    /**
+     * The space to the left of the block.
+     */
     marginLeft?: RelativeType
+    /**
+     * The rotation of the block in radians.
+     */
     rotate?: RelativeType
+    /**
+     * The horizontal coordinate of the centre of the rotation.
+     */
     rotationCenterX?: RelativeType
+    /**
+     * The vertical coordinate of the centre of the rotation.
+     */
     rotationCenterY?: RelativeType
+    /**
+     * The point of the block the rotation turns around.
+     *
+     * The value is `self`, `parent` or `custom`.
+     */
     rotationCenter?: SelfType
+    /**
+     * Whether the block is mirrored on its vertical axis.
+     */
     horizontalFlip?: boolean
+    /**
+     * Whether the block is mirrored on its horizontal axis.
+     */
     verticalFlip?: boolean
+    /**
+     * The z index of the block.
+     *
+     * The block takes part in the stacking order of the scene when the value
+     * is set.
+     */
     zIndex?: number
+    /**
+     * The order of the block in its parent.
+     */
     order?: number
+    /**
+     * Whether the block is drawn.
+     *
+     * A hidden block is not drawn and its children are not drawn either.
+     */
     hidden?: boolean
+    /**
+     * The options that are set on the block itself and not on its parent.
+     */
     important?: BaseBlockOptions
     // flex: Flex
     // alignSelf?: AlignSelf
@@ -199,22 +340,74 @@ const DEFAULT_FLEX_SHRINK = 1
 const DEFAULT_FLEX_BASIS: FlexBasis = 'auto'
 const DEFAULT_FLEX_GROW = 0
 
+/**
+ * The base of every block.
+ *
+ * A block is a piece of content on a canvas. It has a size, a position, a set
+ * of options and, optionally, children. The class holds the state of the
+ * options, the tree of the children and the handling of the events.
+ *
+ * The options of a block are read and written through accessors. Calling an
+ * option without a value returns the current one, calling it with a value
+ * writes the new one.
+ *
+ * ```ts
+ * const block = new RectangleBlock({ width: 100, height: 50 })
+ * block.width(200)
+ * ```
+ */
 export class BaseBlock<
     T extends BaseBlockOptions = BaseBlockOptions,
 > extends Node {
+    /**
+     * The block this block is a child of.
+     */
     declare parentNode?: BaseBlock
+    /**
+     * The children of the block.
+     */
     declare childNodes: Set<BaseBlock>
 
+    /**
+     * The canvas the block is drawn on.
+     */
     canvas?: Canvas
+    /**
+     * The rendering context of the canvas.
+     */
     context?: OffscreenCanvasRenderingContext2D | null
+    /**
+     * The options of the block.
+     */
     options: OptionsMap
+    /**
+     * The options of the block that were measured and cached.
+     */
     cacheOptions: OptionsMap
+    /**
+     * The options the block was created with.
+     */
     initOptions: OptionsMap
 
+    /**
+     * The width of the block in pixels.
+     */
     realWidth: number
+    /**
+     * The height of the block in pixels.
+     */
     realHeight: number
+    /**
+     * The horizontal centre of the block in pixels.
+     */
     realCenterX: number
+    /**
+     * The vertical centre of the block in pixels.
+     */
     realCenterY: number
+    /**
+     * The area of the block that holds the handles of the transformation.
+     */
     boundingBox: HotCornerArea
     #higestChildOrder?: number
 
@@ -270,6 +463,12 @@ export class BaseBlock<
             removedChilds: [],
         }
     }
+    /**
+     * Draws the block on the canvas.
+     *
+     * The method is called by the canvas. A block that draws something of its
+     * own overrides it.
+     */
     render() {
         if (this.__isHidden()) return
         this.onRender()?.(this)
@@ -1269,7 +1468,7 @@ export class BaseBlock<
     get __hasParentBlock() {
         if (
             this.parentNode &&
-            Object.getPrototypeOf(this.parentNode).constructor.name !== 'Node'
+            Object.getPrototypeOf(this.parentNode).constructor !== Node
         )
             return true
         return false
@@ -1539,6 +1738,11 @@ export class BaseBlock<
     __resetParentRotation() {
         this.__parentRotate = 0
     }
+    /**
+     * Tells whether a point of the canvas is inside of the block.
+     *
+     * @param event - The event the position is read from.
+     */
     checkInBound(event: MouseEvent): boolean {
         const { x, y } = this.canvas?.getCursorPosition(event)!
         let topLeft = this.cornerTopLeft()
@@ -1594,6 +1798,12 @@ export class BaseBlock<
             _func(childNodes[i] as T, i, len)
         }
     }
+    /**
+     * Calls a function for every child of the block and for every child of
+     * its children.
+     *
+     * @param _func - The function that is called for every block.
+     */
     listAllChilds(_func: (block: BaseBlock) => void): void {
         requireCallback(
             `${this.constructor.name}.listAllChilds()`,
@@ -1604,11 +1814,20 @@ export class BaseBlock<
     }
     __isOption(key: string): boolean {
         const property = getPrototype(this, key)?.value
+        if (typeof property !== 'function') return false
         return (
-            typeof property === 'function' &&
-            Object.hasOwn(property, 'valueConverter')
+            Object.hasOwn(property, 'valueConverter') ||
+            /\.__valueHandler\(/.test(property.toString())
         )
     }
+    /**
+     * Writes a set of options at once.
+     *
+     * The change is scheduled for the next frame, the block is not drawn
+     * again right away.
+     *
+     * @param options - The options to write.
+     */
     set(options: T): void {
         const method = `${this.constructor.name}.set()`
         requireRecord(method, 'options', options)
@@ -1689,6 +1908,13 @@ export class BaseBlock<
         })
         return blocks
     }
+    /**
+     * Adds a child to the block.
+     *
+     * The child is added to the scene on the next frame.
+     *
+     * @param block - The block to add.
+     */
     addChild(block: BaseBlock): void {
         const method = `${this.constructor.name}.addChild()`
         if (!(block instanceof BaseBlock))
@@ -1710,6 +1936,13 @@ export class BaseBlock<
         this.__invokeHistory({ removeChild: block }, { addChild: block })
         this.canvas?.demandInvoke(this)
     }
+    /**
+     * Removes a child from the block.
+     *
+     * The child is removed from the scene on the next frame.
+     *
+     * @param block - The block to remove.
+     */
     removeChild(block: BaseBlock): void {
         const method = `${this.constructor.name}.removeChild()`
         if (!(block instanceof BaseBlock))
@@ -1723,6 +1956,11 @@ export class BaseBlock<
         this.__invokeHistory({ addChild: block }, { removeChild: block })
         this.canvas?.demandInvoke(this)
     }
+    /**
+     * Registers a handler for the event `contextmenu`.
+     *
+     * @param _func - The handler of the event.
+     */
     contextMenu(_func: (event: MouseEvent) => void) {
         requireCallback(
             `${this.constructor.name}.contextMenu()`,
@@ -1740,6 +1978,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('contextmenu', out)
     }
+    /**
+     * Registers a handler for the event `click`.
+     *
+     * @param _func - The handler of the event.
+     */
     click(_func: (event: MouseEvent) => void) {
         requireCallback(`${this.constructor.name}.click()`, 'callback', _func)
         const out = (event: MouseEvent) => {
@@ -1753,6 +1996,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('click', out)
     }
+    /**
+     * Registers a handler for the event `dblclick`.
+     *
+     * @param _func - The handler of the event.
+     */
     dblclick(_func: (event: MouseEvent) => void) {
         requireCallback(
             `${this.constructor.name}.dblclick()`,
@@ -1770,6 +2018,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('dblclick', out)
     }
+    /**
+     * Registers a handler for the event `mousedown`.
+     *
+     * @param _func - The handler of the event.
+     */
     mousedown(_func: (event: MouseEvent) => void) {
         requireCallback(
             `${this.constructor.name}.mousedown()`,
@@ -1787,6 +2040,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('mousedown', out)
     }
+    /**
+     * Registers a handler for the event `mouseup`.
+     *
+     * @param _func - The handler of the event.
+     */
     mouseup(_func: (event: MouseEvent) => void) {
         requireCallback(`${this.constructor.name}.mouseup()`, 'callback', _func)
         const out = (event: MouseEvent) => {
@@ -1800,6 +2058,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('mouseup', out)
     }
+    /**
+     * Registers a handler for the event `mousemove`.
+     *
+     * @param _func - The handler of the event.
+     */
     mousemove(_func: (event: MouseEvent) => void) {
         requireCallback(
             `${this.constructor.name}.mousemove()`,
@@ -1817,6 +2080,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('mousemove', out)
     }
+    /**
+     * Registers a handler for the event `mouseenter`.
+     *
+     * @param _func - The handler of the event.
+     */
     mouseenter(_func: (event: MouseEvent) => void) {
         requireCallback(
             `${this.constructor.name}.mouseenter()`,
@@ -1843,6 +2111,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('mousemove', enter)
     }
+    /**
+     * Registers a handler for the event `mouseleave`.
+     *
+     * @param _func - The handler of the event.
+     */
     mouseleave(_func: (event: MouseEvent) => void) {
         requireCallback(
             `${this.constructor.name}.mouseleave()`,
@@ -1864,6 +2137,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('mousemove', leave)
     }
+    /**
+     * Registers a handler for the event `mouseover`.
+     *
+     * @param _func - The handler of the event.
+     */
     mouseover(_func: (event: MouseEvent) => void) {
         requireCallback(
             `${this.constructor.name}.mouseover()`,
@@ -1892,6 +2170,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('mousemove', over)
     }
+    /**
+     * Registers a handler for the event `mouseout`.
+     *
+     * @param _func - The handler of the event.
+     */
     mouseout(_func: (event: MouseEvent) => void) {
         requireCallback(
             `${this.constructor.name}.mouseout()`,
@@ -1934,6 +2217,11 @@ export class BaseBlock<
         }
         this.__addEvent<MouseEvent>('mousemove', out)
     }
+    /**
+     * Registers a handler for the event `keydown`.
+     *
+     * @param _func - The handler of the event.
+     */
     keydown(_func: (event: KeyboardEvent) => void) {
         requireCallback(`${this.constructor.name}.keydown()`, 'callback', _func)
         const down = (event: KeyboardEvent) => {
@@ -1945,6 +2233,11 @@ export class BaseBlock<
         }
         this.__addEvent<KeyboardEvent>('keydown', down)
     }
+    /**
+     * Registers a handler for the event `keyup`.
+     *
+     * @param _func - The handler of the event.
+     */
     keyup(_func: (event: KeyboardEvent) => void) {
         requireCallback(`${this.constructor.name}.keyup()`, 'callback', _func)
         const up = (event: KeyboardEvent) => {
@@ -1956,6 +2249,11 @@ export class BaseBlock<
         }
         this.__addEvent<KeyboardEvent>('keyup', up)
     }
+    /**
+     * Registers a handler for the event `wheel`.
+     *
+     * @param _func - The handler of the event.
+     */
     wheel(_func: (event: WheelEvent) => void) {
         requireCallback(`${this.constructor.name}.wheel()`, 'callback', _func)
         const wheel = (event: WheelEvent) => {

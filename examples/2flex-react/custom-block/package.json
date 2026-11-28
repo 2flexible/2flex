@@ -1,0 +1,25 @@
+{
+    "name": "2flex-react-example-custom-block",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "description": "A block of your own, used as a component.",
+    "scripts": {
+        "dev": "vite",
+        "build": "tsc --noEmit && vite build",
+        "preview": "vite preview",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@2flexible/2flex": "file:../../../packages/2flex",
+        "@2flexible/2flex-react": "workspace:*",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1"
+    },
+    "devDependencies": {
+        "typescript": "~5.8.3",
+        "vite": "^6.0.0",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0"
+    }
+}

@@ -25,6 +25,7 @@ import {
     validateBlockConstructors,
     validateBlockOption,
     validateCanvasSettings,
+    validateCanvasSize,
     validateLoadBlocks,
 } from './Utils'
 import {
@@ -35,20 +36,107 @@ import {
 
 // Canvas options shouldn't be style properties
 export interface CanvasOptions {
+    /**
+     * The multiplier that is applied to the zoom on every step of the wheel.
+     *
+     * @defaultValue 1.2
+     */
     zoomSpeed?: number
+    /**
+     * The multiplier that is applied to the zoom on every step of the wheel
+     * while zooming out.
+     *
+     * @defaultValue 0.8
+     */
     zoomInvSpeed?: number
+    /**
+     * The number of pixels the viewport moves on every step of a key.
+     *
+     * @defaultValue 100
+     */
     moveSpeed?: number
+    /**
+     * Whether the zoom is centred on the canvas or on the pointer.
+     *
+     * With `center` the canvas only zooms to the centre of the canvas. With
+     * `point` the canvas zooms to the place the mouse points at.
+     *
+     * @defaultValue 'center'
+     */
     zoomType?: 'center' | 'point'
+    /**
+     * Whether the canvas can be moved with the arrow keys.
+     *
+     * @defaultValue true
+     */
     keyboardMovement?: boolean
+    /**
+     * Whether the canvas can be moved by dragging its background.
+     *
+     * The movement starts when the space key is pressed.
+     *
+     * @defaultValue true
+     */
     mouseMovement?: boolean
+    /**
+     * Whether the actions of the canvas are stored in its history.
+     *
+     * @defaultValue true
+     */
     history?: boolean
+    /**
+     * The number of actions the history of the canvas keeps.
+     *
+     * When the history is full the oldest action is dropped to make room for
+     * the new one.
+     *
+     * @defaultValue 100
+     */
     historySize?: number
+    /**
+     * The horizontal offset of the viewport at the start.
+     *
+     * @defaultValue 0
+     */
     positionX?: number
+    /**
+     * The vertical offset of the viewport at the start.
+     *
+     * @defaultValue 0
+     */
     positionY?: number
+    /**
+     * The zoom level of the viewport at the start.
+     *
+     * @defaultValue 1
+     */
     positionZ?: number
+    /**
+     * The number of frames the canvas draws in a second.
+     *
+     * @defaultValue 60
+     */
     fps?: number
+    /**
+     * The size of the tiles the canvas is divided into, in pixels.
+     *
+     * A smaller tile uses less memory, a bigger tile renders faster.
+     *
+     * @defaultValue 256
+     */
     tileSize?: number
+    /**
+     * The number of milliseconds the canvas waits before it draws a frame in
+     * a higher quality after the zoom came to a stop.
+     *
+     * @defaultValue 150
+     */
     qualitySettleDelay?: number
+    /**
+     * The highest quality the canvas draws in.
+     *
+     * @defaultValue 2
+     */
     maxQuality?: number
 }
 
@@ -109,10 +197,32 @@ export type QueuePayloadMap = {
     'domEvent:remove': { [event: string]: CustomEvent<Event>[] }
 }
 
+/**
+ * The surface the blocks are drawn on.
+ *
+ * The canvas owns the viewport, the scene, the render loop, the history and
+ * the handling of the input. One canvas is bound to one `canvas` element.
+ *
+ * ```ts
+ * const canvas = new Canvas('scene', 800, 600)
+ * ```
+ */
 export class Canvas {
+    /**
+     * The id of the canvas element the instance is bound to.
+     */
     canvasId: string
+    /**
+     * The width of the canvas in pixels.
+     */
     width: number
+    /**
+     * The height of the canvas in pixels.
+     */
     height: number
+    /**
+     * The options of the canvas, including the style properties.
+     */
     options?: CanvasOptions & ICssProperties
     #defaultOptions: DefaultCanvasOptions
 
@@ -127,6 +237,9 @@ export class Canvas {
     #context?: CanvasRenderingContext2D | null
     #boundingClient?: DOMRect
 
+    /**
+     * The transform of the viewport.
+     */
     view: CanvasView
 
     #renderScale: number
@@ -136,26 +249,47 @@ export class Canvas {
     #canvasEvents: CanvasEvents
     #canvasAnimations: { [animationId: AnimationId]: Animator }
 
+    /**
+     * Whether the canvas has the focus.
+     */
     isFocused: boolean
+    /**
+     * Whether the mouse events are delivered to the canvas.
+     */
     isMouseEventAllowed: boolean
     #registeredZIndexes: Map<number, number | undefined>
     #registeredCursors: Map<number, string[]>
     #registeredBlocks: (typeof BaseBlock)[]
+    #windowListeners: { type: string; func: EventListener }[] = []
+    #destroyed = false
 
+    /**
+     * Creates a canvas and binds it to an element of the page.
+     *
+     * @param canvasId - The id of the `canvas` element to draw on.
+     * @param width - The width of the canvas in pixels.
+     * @param height - The height of the canvas in pixels.
+     * @param options - The options of the canvas and the style properties
+     * that are applied to the element.
+     */
     constructor(
         canvasId: string,
         width: number,
         height: number,
-        options?: CanvasOptions & ICssProperties
+        options?: CanvasOptions & ICssProperties,
+        element?: HTMLCanvasElement
     ) {
-        validateCanvasSettings(
-            'new Canvas()',
-            '',
-            canvasId,
-            width,
-            height,
-            options
-        )
+        // an element that was given to the canvas is used as it is
+        if (!element)
+            validateCanvasSettings(
+                'new Canvas()',
+                '',
+                canvasId,
+                width,
+                height,
+                options
+            )
+        else validateCanvasSize('new Canvas()', width, height)
         this.canvasId = canvasId
         this.options = options
         this.width = width
@@ -197,7 +331,8 @@ export class Canvas {
         this.#domCanvas = new CanvasDOMManager(
             this.canvasId,
             this.width,
-            this.height
+            this.height,
+            element
         )
         this.#grid = new CanvasGrid(
             this.width,
@@ -215,6 +350,31 @@ export class Canvas {
         )
         this.#init()
         this.#scheduler.start()
+    }
+
+    /**
+     * Creates a canvas and binds it to a `canvas` element of the page.
+     *
+     * The element is used as it is, it is not moved into the document and it
+     * is not dropped when the canvas is destroyed.
+     *
+     * @param element - The `canvas` element to draw on.
+     * @param width - The width of the canvas in pixels.
+     * @param height - The height of the canvas in pixels.
+     * @param options - The options of the canvas and the style properties
+     * that are applied to the element.
+     */
+    static fromElement(
+        element: HTMLCanvasElement,
+        width: number,
+        height: number,
+        options?: CanvasOptions & ICssProperties
+    ): Canvas {
+        const method = 'Canvas.fromElement()'
+        if (!(element instanceof HTMLCanvasElement))
+            invalidArgument(method, 'element', 'a canvas element', element)
+        validateCanvasSize(method, width, height)
+        return new Canvas(element.id, width, height, options, element)
     }
 
     #setOptions(options: CanvasOptions) {
@@ -334,13 +494,13 @@ export class Canvas {
         let lastX = 0
         let lastY = 0
         let isSpaceDown = false
-        window.addEventListener('keydown', (event) => {
+        this.#addWindowListener('keydown', (event: KeyboardEvent) => {
             if (event.code === 'Space' && this.isFocused) {
                 if (!isSpaceDown) this.changeCursor('grab')
                 isSpaceDown = true
             }
         })
-        window.addEventListener('keyup', () => {
+        this.#addWindowListener('keyup', () => {
             if (isSpaceDown && this.isFocused) {
                 isSpaceDown = false
                 isDragging = false
@@ -434,11 +594,19 @@ export class Canvas {
         })
     }
     #snapshotHandler() {
-        window.addEventListener('keydown', (e: KeyboardEvent) => {
+        this.#addWindowListener('keydown', (e: KeyboardEvent) => {
             if (!this.#defaultOptions.history || !this.isFocused) return
             if (e.key === 'Z' && e.ctrlKey) this.redo()
             else if (e.key === 'z' && e.ctrlKey) this.undo()
         })
+    }
+    #addWindowListener<E extends Event>(
+        type: string,
+        func: (event: E) => void
+    ) {
+        const listener = func as EventListener
+        window.addEventListener(type, listener)
+        this.#windowListeners.push({ type, func: listener })
     }
     #checkMousePositionInCanvas() {
         this.canvas.addEventListener('mouseenter', () => {
@@ -737,6 +905,11 @@ export class Canvas {
             this.#history.add(nextData)
         }
     }
+    /**
+     * Adds one or more blocks to the scene.
+     *
+     * The blocks are added to the scene on the next frame.
+     */
     add(...blocks: BaseBlock[]) {
         validateBlockArguments('Canvas.add()', blocks, BaseBlock)
         for (let i = 0, len = blocks.length; i < len; i++) {
@@ -745,6 +918,11 @@ export class Canvas {
             this.demandAddBlock(block)
         }
     }
+    /**
+     * Removes one or more blocks from the scene.
+     *
+     * The blocks are removed from the scene on the next frame.
+     */
     remove(...blocks: BaseBlock[]) {
         validateBlockArguments('Canvas.remove()', blocks, BaseBlock)
         for (let i = 0, len = blocks.length; i < len; i++) {
@@ -753,6 +931,13 @@ export class Canvas {
             this.demandRemoveBlock(block)
         }
     }
+    /**
+     * Serializes the scene into a JSON string.
+     *
+     * The payload holds the blocks of the scene and their options. A block
+     * that was written by a custom class can only be restored when the class
+     * is registered with {@link Canvas.registerBlocks}.
+     */
     export(): string {
         const payload: Payload = {
             canvas: {
@@ -768,6 +953,14 @@ export class Canvas {
         }
         return JSON.stringify(payload)
     }
+    /**
+     * Restores a scene from a payload that was made by
+     * {@link Canvas.export}.
+     *
+     * The payload replaces the current scene. Register the custom block
+     * classes with {@link Canvas.registerBlocks} before the payload is
+     * loaded, so the blocks can be restored.
+     */
     load(payload: string) {
         const method = 'Canvas.load()'
         if (typeof payload !== 'string')
@@ -897,46 +1090,141 @@ export class Canvas {
             )
         }
     }
+    /**
+     * Registers the custom block classes of the scene.
+     *
+     * The classes are needed to restore a scene that was serialized while it
+     * held blocks of a custom class.
+     */
     registerBlocks(...blocks: (typeof BaseBlock)[]) {
         validateBlockConstructors(blocks, BaseBlock)
         this.#registeredBlocks.push(...blocks)
     }
+    /**
+     * Searches the scene and returns every block that matches the query.
+     *
+     * @param queries - The options the blocks are matched against.
+     */
     find(queries: BlockQuery): BaseBlock[] {
         requireRecord('Canvas.find()', 'queries', queries)
         return this.#scene.find(queries)
     }
+    /**
+     * Applies the changes that are waiting in the queue of the canvas.
+     *
+     * The canvas applies the queued changes inside of its render loop, this
+     * method runs the same work right away.
+     */
+    flush() {
+        if (this.#destroyed) return
+        this.#render(performance.now())
+    }
+    /**
+     * Changes the size of the canvas.
+     *
+     * The element of the canvas is resized too and the scene is laid out
+     * again.
+     *
+     * @param width - The width of the canvas in pixels.
+     * @param height - The height of the canvas in pixels.
+     */
+    resize(width: number, height: number) {
+        const method = 'Canvas.resize()'
+        validateCanvasSize(method, width, height)
+        if (this.#destroyed) return
+        this.width = width
+        this.height = height
+        this.#domCanvas.resize(width, height)
+        this.#grid?.resize(width, height)
+        this.#targetRenderScale = this.#computeRenderScale()
+        this.#renderScale = this.#targetRenderScale
+        this.#grid?.setRenderScale(this.#renderScale)
+        this.#primeGrid()
+        this.#demandInvokeExplicitBlocks()
+    }
+    /**
+     * Releases the canvas.
+     *
+     * The render loop is stopped, the listeners are removed and the scene is
+     * dropped. The element of the canvas is kept when it was given to the
+     * canvas, it belongs to whoever owns it.
+     */
+    destroy() {
+        if (this.#destroyed) return
+        this.#destroyed = true
+        this.#scheduler.stop()
+        for (const { type, func } of this.#windowListeners)
+            window.removeEventListener(type, func)
+        this.#windowListeners = []
+        this.#domCanvas.destroy()
+        this.#scene.head.childNodes.clear()
+    }
+    /**
+     * Reverts the last action of the history.
+     */
     undo() {
         if (!this.#defaultOptions.history) return
         this.#history.toBack()
         this.#invokeHistory()
     }
+    /**
+     * Applies the last action that was reverted.
+     */
     redo() {
         if (!this.#defaultOptions.history) return
         this.#history.toFuture()
         this.#invokeHistory()
     }
+    /**
+     * The rendering context of the canvas element.
+     */
     get context(): CanvasRenderingContext2D | null {
         if (!this.#context) this.#context = this.#domCanvas.context
         return this.#context
     }
+    /**
+     * The canvas element the instance is bound to.
+     */
     get canvas(): HTMLCanvasElement {
         if (!this.#htmlCanvas) this.#htmlCanvas = this.#domCanvas.canvas
         return this.#htmlCanvas
     }
+    /**
+     * The rectangle of the canvas element in the coordinates of the page.
+     */
     get boundingClientRect() {
         if (!this.#boundingClient)
             this.#boundingClient = this.canvas.getBoundingClientRect()
         return this.#boundingClient
     }
+    /**
+     * The cursor that is applied to the canvas element.
+     *
+     * The value is `auto` when no cursor is applied.
+     */
     get currentCursor(): string {
         return (this.canvas.style.cursor as string) || 'auto'
     }
+    /**
+     * The position of the viewport in the coordinates of the canvas.
+     */
     get currentPosition(): CanvasCurrentPosition {
         return { x: this.view.tx, y: this.view.ty, z: this.view.scale }
     }
+    /**
+     * The scale the canvas draws in.
+     *
+     * The scale is raised while the canvas is zoomed to keep the details
+     * sharp. It falls back to `1` when the canvas came to a rest.
+     */
     get renderScale(): number {
         return this.#renderScale
     }
+    /**
+     * Converts the position of an event into the coordinates of the canvas.
+     *
+     * @param event - The event the position is read from.
+     */
     getCursorPosition(event: MouseEvent | WheelEvent) {
         if (
             !event ||
@@ -957,10 +1245,18 @@ export class Canvas {
             y: (py - this.view.ty) / this.view.scale,
         }
     }
+    /**
+     * Removes every block from the scene.
+     */
     clearRect() {
         const clientRect = this.boundingClientRect
         this.context?.clearRect(0, 0, clientRect.width, clientRect.height)
     }
+    /**
+     * Sets the cursor of the canvas element.
+     *
+     * @param cur - The value of the CSS property `cursor`.
+     */
     changeCursor(cur?: string) {
         if (cur !== undefined && typeof cur !== 'string')
             invalidArgument('Canvas.changeCursor()', 'cursor', 'a string', cur)
@@ -968,9 +1264,20 @@ export class Canvas {
             cursor: cur,
         })
     }
+    /**
+     * Restores the default cursor of the canvas element.
+     */
     resetCursor() {
         this.changeCursor('auto')
     }
+    /**
+     * Registers a cursor for a block.
+     *
+     * The cursor is applied when the pointer is over the block.
+     *
+     * @param nodeId - The id of the block.
+     * @param cursor - The value of the CSS property `cursor`.
+     */
     registerCursor(nodeId: number, cursor: string) {
         let currentCursor = this.#registeredCursors.get(nodeId)
         currentCursor ??= []
@@ -979,6 +1286,12 @@ export class Canvas {
         this.#registeredCursors.set(nodeId, currentCursor)
         this.#resolveCursor()
     }
+    /**
+     * Removes a cursor that was registered for a block.
+     *
+     * @param nodeId - The id of the block.
+     * @param cursor - The value of the CSS property `cursor`.
+     */
     unregisterCursor(nodeId: number, cursor: string) {
         let currentCursor = this.#registeredCursors.get(nodeId)
         if (currentCursor) {
@@ -1021,6 +1334,11 @@ export class Canvas {
         }
         this.#domCanvas.changeStyle({ cursor: cursor })
     }
+    /**
+     * Tells whether a block is the topmost one of the stacking order.
+     *
+     * @param nodeId - The id of the block.
+     */
     whoIsTheFirst(nodeId: number) {
         if (!this.#registeredZIndexes.has(nodeId)) return false
         let highPaintIndex = -1
@@ -1042,9 +1360,22 @@ export class Canvas {
         if (zIndex === undefined || highZIndex === undefined) return false
         return zIndex === highZIndex
     }
+    /**
+     * Registers the z index of a block.
+     *
+     * The block takes part in the stacking order of the scene.
+     *
+     * @param nodeId - The id of the block.
+     * @param zIndex - The z index of the block.
+     */
     registerZIndex(nodeId: number, zIndex?: number) {
         this.#registeredZIndexes.set(nodeId, zIndex)
     }
+    /**
+     * Removes the z index that was registered for a block.
+     *
+     * @param nodeId - The id of the block.
+     */
     unregisterZIndex(nodeId: number) {
         this.#registeredZIndexes.delete(nodeId)
     }
@@ -1079,14 +1410,28 @@ export class Canvas {
         const events = (this.#queue['domEvent:remove'] ??= {})
         ;(events[event] ??= []).push(func)
     }
+    /**
+     * Schedules an animation to be registered.
+     *
+     * @param animationId - The id of the animation.
+     * @param animation - The function that draws a frame of the animation.
+     */
     demandAddAnimation(animationId: AnimationId, animation: Animator) {
         const animations = (this.#queue['animation:add'] ??= {})
         animations[animationId] = animation
     }
+    /**
+     * Schedules an animation to be removed.
+     *
+     * @param animationId - The id of the animation.
+     */
     demandRemoveAnimation(animationId: AnimationId) {
         const animations = (this.#queue['animation:remove'] ??= [])
         animations.push(animationId)
     }
+    /**
+     * Schedules the topmost block of the stacking order to be drawn again.
+     */
     demandRefreshHead() {
         this.#queue['canvas:refresh:head'] = true
     }

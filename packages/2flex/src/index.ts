@@ -1,7 +1,5 @@
 import { Canvas } from './Canvas'
 import { type CanvasOptions, type CanvasView } from './Canvas'
-import { BaseBlock } from './BaseBlock'
-import { type BaseBlockOptions } from './BaseBlock'
 import {
     type BlockOptionsOf,
     type ColorType,
@@ -14,6 +12,8 @@ import {
     type TextType,
 } from './types'
 import { Block } from './Block'
+import { BaseBlock } from './BaseBlock'
+import { type BaseBlockOptions } from './BaseBlock'
 import {
     RectangleBlock,
     CircleBlock,
@@ -68,9 +68,9 @@ import {
 } from './Utils'
 export {
     Canvas,
-    BaseBlock,
     extendBlock,
     Block,
+    BaseBlock,
     LayoutBlock,
     ShapeBlock,
     RectangleBlock,
@@ -110,9 +110,9 @@ export {
 }
 
 export type {
-    BaseBlockOptions,
     CanvasOptions,
     CanvasView,
+    BaseBlockOptions,
     BlockOptionsOf,
     ColorType,
     OptionAccessor,

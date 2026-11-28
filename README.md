@@ -12,7 +12,7 @@
   </a>
 </p>
 <p align="center">
- <a href="https://2flexible.com/">Playground</a> | <a href="https://2flexible.com/docs/documentation/introduction">Introduction</a> | <a href="https://2flexible.com/docs/documentation/installation">Installation</a> | <a href="https://2flexible.com/docs/documentation/guide/the-block">Guide</a> | <a href="https://2flexible.com/docs/api/Canvas">API Docs</a> | <a href="https://x.com/2flexiible">𝕏</a>
+ <a href="https://2flexible.com/">Playground</a> | <a href="https://2flexible.com/docs/">Introduction</a> | <a href="https://2flexible.com/docs/install/">Installation</a> | <a href="https://2flexible.com/docs/the-block/">Guide</a> | <a href="https://2flexible.com/api/canvas/">API Docs</a> | <a href="https://x.com/2flexiible">𝕏</a>
 </p>
 
 # 2flex
@@ -45,6 +45,19 @@ const block = new RectangleBlock({
 });
 
 initCanvas.add(block);
+```
+
+## Examples
+
+Every use case of the library has an example of its own. They live in the
+[examples](./examples/2flex/README.md) folder, and each one is a project
+that is started on its own. The examples of the react bindings live in the
+[examples of the react package](./examples/2flex-react/README.md) folder.
+
+```bash
+cd examples/2flex/01-getting-started/first-scene
+pnpm install
+pnpm dev
 ```
 
 ## Contribute
