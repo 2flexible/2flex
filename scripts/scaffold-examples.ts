@@ -78,9 +78,9 @@ async function scaffold(
                 type: 'module',
                 description,
                 scripts: {
-                    dev: 'vite',
-                    build: 'tsc --noEmit && vite build',
-                    preview: 'vite preview',
+                    dev: 'vp dev',
+                    build: 'tsc --noEmit && vp build',
+                    preview: 'vp preview',
                     typecheck: 'tsc --noEmit',
                 },
                 dependencies: {

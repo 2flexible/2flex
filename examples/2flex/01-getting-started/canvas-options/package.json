@@ -5,9 +5,9 @@
     "type": "module",
     "description": "The options of the canvas and the style of the element.",
     "scripts": {
-        "dev": "vite",
-        "build": "tsc --noEmit && vite build",
-        "preview": "vite preview",
+        "dev": "vp dev",
+        "build": "tsc --noEmit && vp build",
+        "preview": "vp preview",
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
