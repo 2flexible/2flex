@@ -51,7 +51,8 @@ initCanvas.add(block);
 
 Every use case of the library has an example of its own. They live in the
 [examples](./examples/2flex/README.md) folder, and each one is a project
-that is started on its own.
+that is started on its own. The examples of the react bindings live in the
+[examples of the react package](./examples/2flex-react/README.md) folder.
 
 ```bash
 cd examples/2flex/01-getting-started/first-scene

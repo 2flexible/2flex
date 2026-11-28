@@ -903,6 +903,24 @@ export function validateBlockOption(
     }
 }
 
+/**
+ * Checks the size of a canvas.
+ *
+ * @param method - The name of the method that is called.
+ * @param width - The width of the canvas.
+ * @param height - The height of the canvas.
+ */
+export function validateCanvasSize(
+    method: string,
+    width: unknown,
+    height: unknown
+) {
+    for (const [field, value] of Object.entries({ width, height })) {
+        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
+            invalidArgument(method, field, 'a finite nonnegative number', value)
+    }
+}
+
 export function validateCanvasSettings(
     method: string,
     path: string,
@@ -918,15 +936,7 @@ export function validateCanvasSettings(
             'a nonempty string',
             canvasId
         )
-    for (const [field, value] of Object.entries({ width, height })) {
-        if (typeof value !== 'number' || !Number.isFinite(value) || value < 0)
-            invalidArgument(
-                method,
-                path + field,
-                'a finite nonnegative number',
-                value
-            )
-    }
+    validateCanvasSize(method, width, height)
     if (typeof document === 'undefined')
         throw new Error(`[2flex] ${method} requires a browser document.`)
     const element = document.getElementById(canvasId)

@@ -25,6 +25,7 @@ import {
     validateBlockConstructors,
     validateBlockOption,
     validateCanvasSettings,
+    validateCanvasSize,
     validateLoadBlocks,
 } from './Utils'
 import {
@@ -259,6 +260,8 @@ export class Canvas {
     #registeredZIndexes: Map<number, number | undefined>
     #registeredCursors: Map<number, string[]>
     #registeredBlocks: (typeof BaseBlock)[]
+    #windowListeners: { type: string; func: EventListener }[] = []
+    #destroyed = false
 
     /**
      * Creates a canvas and binds it to an element of the page.
@@ -273,16 +276,20 @@ export class Canvas {
         canvasId: string,
         width: number,
         height: number,
-        options?: CanvasOptions & ICssProperties
+        options?: CanvasOptions & ICssProperties,
+        element?: HTMLCanvasElement
     ) {
-        validateCanvasSettings(
-            'new Canvas()',
-            '',
-            canvasId,
-            width,
-            height,
-            options
-        )
+        // an element that was given to the canvas is used as it is
+        if (!element)
+            validateCanvasSettings(
+                'new Canvas()',
+                '',
+                canvasId,
+                width,
+                height,
+                options
+            )
+        else validateCanvasSize('new Canvas()', width, height)
         this.canvasId = canvasId
         this.options = options
         this.width = width
@@ -324,7 +331,8 @@ export class Canvas {
         this.#domCanvas = new CanvasDOMManager(
             this.canvasId,
             this.width,
-            this.height
+            this.height,
+            element
         )
         this.#grid = new CanvasGrid(
             this.width,
@@ -342,6 +350,31 @@ export class Canvas {
         )
         this.#init()
         this.#scheduler.start()
+    }
+
+    /**
+     * Creates a canvas and binds it to a `canvas` element of the page.
+     *
+     * The element is used as it is, it is not moved into the document and it
+     * is not dropped when the canvas is destroyed.
+     *
+     * @param element - The `canvas` element to draw on.
+     * @param width - The width of the canvas in pixels.
+     * @param height - The height of the canvas in pixels.
+     * @param options - The options of the canvas and the style properties
+     * that are applied to the element.
+     */
+    static fromElement(
+        element: HTMLCanvasElement,
+        width: number,
+        height: number,
+        options?: CanvasOptions & ICssProperties
+    ): Canvas {
+        const method = 'Canvas.fromElement()'
+        if (!(element instanceof HTMLCanvasElement))
+            invalidArgument(method, 'element', 'a canvas element', element)
+        validateCanvasSize(method, width, height)
+        return new Canvas(element.id, width, height, options, element)
     }
 
     #setOptions(options: CanvasOptions) {
@@ -461,13 +494,13 @@ export class Canvas {
         let lastX = 0
         let lastY = 0
         let isSpaceDown = false
-        window.addEventListener('keydown', (event) => {
+        this.#addWindowListener('keydown', (event: KeyboardEvent) => {
             if (event.code === 'Space' && this.isFocused) {
                 if (!isSpaceDown) this.changeCursor('grab')
                 isSpaceDown = true
             }
         })
-        window.addEventListener('keyup', () => {
+        this.#addWindowListener('keyup', () => {
             if (isSpaceDown && this.isFocused) {
                 isSpaceDown = false
                 isDragging = false
@@ -561,11 +594,19 @@ export class Canvas {
         })
     }
     #snapshotHandler() {
-        window.addEventListener('keydown', (e: KeyboardEvent) => {
+        this.#addWindowListener('keydown', (e: KeyboardEvent) => {
             if (!this.#defaultOptions.history || !this.isFocused) return
             if (e.key === 'Z' && e.ctrlKey) this.redo()
             else if (e.key === 'z' && e.ctrlKey) this.undo()
         })
+    }
+    #addWindowListener<E extends Event>(
+        type: string,
+        func: (event: E) => void
+    ) {
+        const listener = func as EventListener
+        window.addEventListener(type, listener)
+        this.#windowListeners.push({ type, func: listener })
     }
     #checkMousePositionInCanvas() {
         this.canvas.addEventListener('mouseenter', () => {
@@ -1067,6 +1108,56 @@ export class Canvas {
     find(queries: BlockQuery): BaseBlock[] {
         requireRecord('Canvas.find()', 'queries', queries)
         return this.#scene.find(queries)
+    }
+    /**
+     * Applies the changes that are waiting in the queue of the canvas.
+     *
+     * The canvas applies the queued changes inside of its render loop, this
+     * method runs the same work right away.
+     */
+    flush() {
+        if (this.#destroyed) return
+        this.#render(performance.now())
+    }
+    /**
+     * Changes the size of the canvas.
+     *
+     * The element of the canvas is resized too and the scene is laid out
+     * again.
+     *
+     * @param width - The width of the canvas in pixels.
+     * @param height - The height of the canvas in pixels.
+     */
+    resize(width: number, height: number) {
+        const method = 'Canvas.resize()'
+        validateCanvasSize(method, width, height)
+        if (this.#destroyed) return
+        this.width = width
+        this.height = height
+        this.#domCanvas.resize(width, height)
+        this.#grid?.resize(width, height)
+        this.#targetRenderScale = this.#computeRenderScale()
+        this.#renderScale = this.#targetRenderScale
+        this.#grid?.setRenderScale(this.#renderScale)
+        this.#primeGrid()
+        this.#demandInvokeExplicitBlocks()
+    }
+    /**
+     * Releases the canvas.
+     *
+     * The render loop is stopped, the listeners are removed and the scene is
+     * dropped. The element of the canvas is kept when it was given to the
+     * canvas, it belongs to whoever owns it.
+     */
+    destroy() {
+        if (this.#destroyed) return
+        this.#destroyed = true
+        this.#scheduler.stop()
+        for (const { type, func } of this.#windowListeners)
+            window.removeEventListener(type, func)
+        this.#windowListeners = []
+        this.#domCanvas.destroy()
+        this.#scene.head.childNodes.clear()
     }
     /**
      * Reverts the last action of the history.

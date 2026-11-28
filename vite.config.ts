@@ -95,7 +95,7 @@ export default defineConfig({
             {
                 // the examples are meant to be read by a consumer of the
                 // package, they import it by its name
-                files: ['examples/**/*.ts'],
+                files: ['examples/**/*.ts', 'examples/**/*.tsx'],
                 rules: { '2flex/no-internal-import': 'off' },
             },
             {
@@ -108,6 +108,18 @@ export default defineConfig({
                 // `BlockConstructor` describes a constructor signature and
                 // cannot be expressed without `any`
                 files: ['packages/2flex/src/types.ts'],
+                rules: { 'typescript/no-explicit-any': 'off' },
+            },
+            {
+                // the react package is a separate package, it imports the
+                // library by its name
+                files: ['packages/2flex-react/src/**'],
+                rules: { '2flex/no-internal-import': 'off' },
+            },
+            {
+                // `BlockConstructor` describes a constructor signature and
+                // cannot be expressed without `any`
+                files: ['packages/2flex-react/src/types.ts'],
                 rules: { 'typescript/no-explicit-any': 'off' },
             },
         ],

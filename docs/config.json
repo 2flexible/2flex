@@ -124,6 +124,16 @@
             ]
         },
         {
+            "label": "React",
+            "tab": "guides",
+            "children": [
+                {
+                    "label": "React",
+                    "to": "react"
+                }
+            ]
+        },
+        {
             "label": "Advanced",
             "tab": "guides",
             "children": [

@@ -1814,9 +1814,10 @@ export class BaseBlock<
     }
     __isOption(key: string): boolean {
         const property = getPrototype(this, key)?.value
+        if (typeof property !== 'function') return false
         return (
-            typeof property === 'function' &&
-            Object.hasOwn(property, 'valueConverter')
+            Object.hasOwn(property, 'valueConverter') ||
+            /\.__valueHandler\(/.test(property.toString())
         )
     }
     /**

@@ -1,0 +1,71 @@
+{
+    "name": "@2flexible/2flex-react",
+    "version": "0.1.0",
+    "description": "React bindings for the 2flex canvas library.",
+    "author": "nazarovabuzar",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/2flexible/2flex.git",
+        "directory": "packages/2flex-react"
+    },
+    "homepage": "https://2flexible/2flex",
+    "type": "module",
+    "types": "lib/index.d.ts",
+    "main": "lib/index.cjs",
+    "module": "lib/index.js",
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./lib/index.d.ts",
+                "default": "./lib/index.js"
+            },
+            "require": {
+                "types": "./lib/index.d.cts",
+                "default": "./lib/index.cjs"
+            }
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "lib",
+        "src",
+        "!src/tests"
+    ],
+    "keywords": [
+        "2flexible",
+        "2flex",
+        "react",
+        "canvas",
+        "infinite canvas",
+        "components"
+    ],
+    "scripts": {
+        "clean": "premove ./lib ./tsbuild ./coverage",
+        "lint": "vp lint",
+        "format": "vp fmt",
+        "build": "vp pack --tsconfig tsconfig.json",
+        "watch": "vp pack --tsconfig tsconfig.json --watch",
+        "compile": "tsc --build",
+        "test": "vp test",
+        "test:ci": "vp test --run"
+    },
+    "dependencies": {
+        "@2flexible/2flex": "workspace:*"
+    },
+    "peerDependencies": {
+        "react": ">=18"
+    },
+    "devDependencies": {
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@vitest/browser": "catalog:",
+        "@vitest/browser-playwright": "catalog:",
+        "playwright": "*",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1",
+        "vite": "catalog:",
+        "vite-plus": "catalog:",
+        "vitest": "catalog:"
+    }
+}

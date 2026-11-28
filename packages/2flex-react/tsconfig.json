@@ -1,0 +1,18 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "outDir": "./tsbuild",
+        // the sources of the library are pulled in by the path mapping, so
+        // the root is the folder of the packages
+        "rootDir": "..",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "jsx": "react-jsx",
+        "paths": {
+            "@2flexible/2flex": ["../2flex/src/index.ts"],
+            "@2flexible/2flex-react": ["./src/index.ts"]
+        },
+        "types": ["node"]
+    },
+    "include": ["src", "package.json"]
+}

@@ -1,0 +1,5 @@
+{
+    "title": "Custom block",
+    "description": "A block of your own, used as a component.",
+    "kind": "react"
+}

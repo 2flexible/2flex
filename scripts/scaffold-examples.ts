@@ -2,24 +2,16 @@
  * Scaffolds the standalone project of every example.
  *
  * The script writes the `package.json`, the `tsconfig.json` and the
- * `index.html` of an example, and it leaves the `src/main.ts` alone, so the
- * code of an example is never overwritten.
+ * `index.html` of an example, and it leaves the code of it alone, so the code
+ * of an example is never overwritten.
  */
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readExamples, type ExampleMeta } from './examples.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const examplesRoot = join(root, 'examples', '2flex')
 const packageRoot = join(root, 'packages', '2flex')
-
-/**
- * The description of an example, it is held in its `meta.json`.
- */
-interface ExampleMeta {
-    title: string
-    description: string
-}
 
 const TSCONFIG = {
     compilerOptions: {
@@ -41,6 +33,22 @@ const TSCONFIG = {
 }
 
 /**
+ * The compiler options of a react example.
+ *
+ * A react example holds the jsx of the components, so the compiler needs to
+ * know how the jsx is transformed.
+ */
+const REACT_COMPILER_OPTIONS = {
+    ...TSCONFIG.compilerOptions,
+    jsx: 'react-jsx',
+}
+
+const REACT_TSCONFIG = {
+    compilerOptions: REACT_COMPILER_OPTIONS,
+    include: ['src'],
+}
+
+/**
  * Writes the files of the project of an example.
  *
  * @param dir - The folder of the example.
@@ -50,10 +58,13 @@ const TSCONFIG = {
 async function scaffold(
     dir: string,
     title: string,
-    description: string
+    description: string,
+    kind?: ExampleMeta['kind'],
+    prefix = '2flex'
 ): Promise<void> {
     const relativePackage = relative(dir, packageRoot).replaceAll('\\', '/')
     const name = dir.split('/').pop() ?? dir
+    const isReact = kind === 'react'
 
     await mkdir(join(dir, 'src'), { recursive: true })
 
@@ -61,7 +72,7 @@ async function scaffold(
         join(dir, 'package.json'),
         JSON.stringify(
             {
-                name: `2flex-example-${name}`,
+                name: `${prefix}-example-${name}`,
                 private: true,
                 version: '0.0.0',
                 type: 'module',
@@ -74,10 +85,26 @@ async function scaffold(
                 },
                 dependencies: {
                     '@2flexible/2flex': `file:${relativePackage}`,
+                    ...(isReact
+                        ? {
+                              // the react package is a workspace project, a
+                              // link to it always holds the build that is
+                              // the newest one
+                              '@2flexible/2flex-react': 'workspace:*',
+                              react: '^19.3.1',
+                              'react-dom': '^19.3.1',
+                          }
+                        : {}),
                 },
                 devDependencies: {
                     typescript: '~5.8.3',
                     vite: '^6.0.0',
+                    ...(isReact
+                        ? {
+                              '@types/react': '^19.3.0',
+                              '@types/react-dom': '^19.3.0',
+                          }
+                        : {}),
                 },
             },
             null,
@@ -87,7 +114,7 @@ async function scaffold(
 
     await writeFile(
         join(dir, 'tsconfig.json'),
-        JSON.stringify(TSCONFIG, null, 4) + '\n'
+        JSON.stringify(isReact ? REACT_TSCONFIG : TSCONFIG, null, 4) + '\n'
     )
 
     await writeFile(
@@ -124,27 +151,27 @@ async function scaffold(
         </style>
     </head>
     <body>
-        <canvas id="canvas" width="600" height="400"></canvas>
+        ${
+            isReact
+                ? '<div id="root"></div>'
+                : '<canvas id="canvas" width="600" height="400"></canvas>'
+        }
         <p>${description}</p>
-        <script type="module" src="/src/main.ts"></script>
+        <script type="module" src="/src/main.${isReact ? 'tsx' : 'ts'}"></script>
     </body>
 </html>
 `
     )
 }
 
-const sections = await readdir(examplesRoot, { withFileTypes: true })
-for (const section of sections) {
-    if (!section.isDirectory()) continue
-    const sectionDir = join(examplesRoot, section.name)
-    const examples = await readdir(sectionDir, { withFileTypes: true })
-    for (const example of examples) {
-        if (!example.isDirectory()) continue
-        const dir = join(sectionDir, example.name)
-        const meta = JSON.parse(
-            await readFile(join(dir, 'meta.json'), 'utf8')
-        ) as ExampleMeta
-        await scaffold(dir, meta.title, meta.description)
-        console.log('scaffolded', relative(root, dir))
-    }
+const examples = await readExamples()
+for (const example of examples) {
+    await scaffold(
+        example.dir,
+        example.title,
+        example.description,
+        example.kind,
+        example.package
+    )
+    console.log('scaffolded', relative(root, example.dir))
 }
