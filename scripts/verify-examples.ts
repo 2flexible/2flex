@@ -49,8 +49,8 @@ for (const example of examples) {
             : `${example.package}/${example.section}/${example.name}`
 
     const server = spawn(
-        'npx',
-        ['vite', 'preview', '--port', String(portCursor), '--strictPort'],
+        'vp',
+        ['preview', '--port', String(portCursor), '--strictPort'],
         { cwd: dir, stdio: 'ignore', detached: true }
     )
     const thisPort = portCursor++
